@@ -51,6 +51,32 @@ brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || w
 profile=$(powerprofilesctl get 2>/dev/null)
 [[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
 
+if [[ -r /sys/power/mem_sleep ]] && rg -q '\[deep\]' /sys/power/mem_sleep; then
+  ok 'Suspend policy is currently using ACPI S3 deep sleep'
+else
+  bad 'ACPI S3 deep sleep is not selected'
+fi
+
+if [[ -r /proc/driver/nvidia/params ]] && rg -q '^PreserveVideoMemoryAllocations: 1' /proc/driver/nvidia/params; then
+  nvidia_sleep_units=(
+    nvidia-suspend.service
+    nvidia-resume.service
+    nvidia-hibernate.service
+    nvidia-suspend-then-hibernate.service
+  )
+  nvidia_hooks_ready=true
+  for unit in "${nvidia_sleep_units[@]}"; do
+    systemctl is-enabled --quiet "$unit" 2>/dev/null || nvidia_hooks_ready=false
+  done
+  $nvidia_hooks_ready && ok 'NVIDIA video-memory sleep hooks are enabled' || bad 'NVIDIA sleep hooks are incomplete'
+fi
+
+if pgrep -x easyeffects >/dev/null 2>&1 && pactl list short sinks 2>/dev/null | rg -q 'easyeffects_sink'; then
+  ok 'EasyEffects service and PipeWire sink are active'
+else
+  warning 'EasyEffects processing is not active'
+fi
+
 kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect service responds' || warning 'KDE Connect service is not responding'
 fc-match 'Inter' | rg -qi 'Inter' && ok 'Inter UI font is installed' || warning 'Inter font fallback is in use'
 fc-match 'MesloLGS Nerd Font Mono' | rg -qi 'Meslo' && ok 'Nerd Font icons are installed' || bad 'Meslo Nerd Font is missing'

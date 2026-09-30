@@ -101,6 +101,9 @@ control center, and middle opens the key guide. The full guide is in
   API responses.
 - Oh My Zsh + Powerlevel10k, Kitty, tmux, btop, Fastfetch, Cava, and the
   Nocturne dashboard from the earlier terminal setup.
+- Explicit ACPI S3 (`deep`) suspend through systemd, including the NVIDIA
+  video-memory suspend/resume hooks required by the proprietary driver. Lid
+  close suspends on battery and AC power; docked lid close remains ignored.
 
 ## Reapply or edit
 
@@ -114,6 +117,18 @@ The source configuration is under `config/hypr`, `config/waybar`,
 The script checks for required programs, snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from
 leaking into GNOME. Hyprland's parser currently reports `config ok`.
+
+Deep sleep is a one-time system-level setup because its policy lives under
+`/etc`. Apply it through the graphical administrator prompt with:
+
+```bash
+pkexec ./configure-deep-sleep.sh
+```
+
+The installer refuses to force S3 on hardware that does not expose `deep`,
+enables the NVIDIA suspend/resume integration when required, and does not
+automatically suspend the live session. Save open work, then test from the
+Nocturne power card or by closing the lid.
 
 ## GitHub sync
 

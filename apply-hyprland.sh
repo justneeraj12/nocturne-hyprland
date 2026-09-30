@@ -122,6 +122,29 @@ if [[ ! -e "$CONFIG_HOME/hypr/nocturne-wallpaper.conf" ]]; then
 fi
 chmod +x "$CONFIG_HOME"/hypr/scripts/*
 
+# Use exactly one EasyEffects backend. The Flatpak copy created an autostart
+# entry that currently crashes during login; the distro build provides the
+# same PipeWire processing as a quiet service and follows the session theme in
+# either desktop.
+if command -v easyeffects >/dev/null 2>&1; then
+  install -m 0644 \
+    "$ROOT_DIR/assets/nocturne-easyeffects-autostart.desktop" \
+    "$CONFIG_HOME/autostart/nocturne-easyeffects.desktop"
+  if [[ -e "$CONFIG_HOME/autostart/com.github.wwmm.easyeffects.desktop" ]]; then
+    mkdir -p "$STATE_HOME/nocturne/retired-autostarts"
+    mv -- "$CONFIG_HOME/autostart/com.github.wwmm.easyeffects.desktop" \
+      "$STATE_HOME/nocturne/retired-autostarts/com.github.wwmm.easyeffects.desktop"
+  fi
+fi
+
+# This historical GNOME workaround merely killed gsd-power and fails under
+# Hyprland. Deep sleep and lid handling now live in explicit systemd config.
+if [[ -e "$CONFIG_HOME/autostart/unblock-lid.desktop" ]]; then
+  mkdir -p "$STATE_HOME/nocturne/retired-autostarts"
+  mv -- "$CONFIG_HOME/autostart/unblock-lid.desktop" \
+    "$STATE_HOME/nocturne/retired-autostarts/unblock-lid.desktop"
+fi
+
 # Hyprland gets its own small dconf database so GTK/icon/window-control choices
 # never overwrite the restored MacTahoe settings used by GNOME.
 HYPR_DCONF_PROFILE="$CONFIG_HOME/dconf/hyprland-profile"
