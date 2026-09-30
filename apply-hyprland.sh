@@ -62,6 +62,7 @@ install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/col
 install -m 0755 "$ROOT_DIR/bin/nocturne-session-theme" "$BIN_HOME/nocturne-session-theme"
 install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard"
 install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualizer"
+install -m 0755 "$ROOT_DIR/bin/nocturne-cyberdisc" "$BIN_HOME/nocturne-cyberdisc"
 # Retire the earlier multi-window EQ experiment; Nocturne now exposes one
 # focused visualizer launcher and leaves DSP tools out of the shell UI.
 rm -f -- "$BIN_HOME/nocturne-eq" "$BIN_HOME/nocturne-eq-controls" \

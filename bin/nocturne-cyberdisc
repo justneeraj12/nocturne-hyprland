@@ -1,0 +1,339 @@
+#!/usr/bin/env python3
+"""Nocturne Cyberdisc — a native GTK4/Cairo PipeWire visualizer."""
+
+from __future__ import annotations
+
+import math
+import os
+import signal
+import subprocess
+import threading
+import time
+from collections import deque
+from pathlib import Path
+
+import cairo
+import gi
+
+gi.require_version("Gtk", "4.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+
+TAU = math.tau
+
+
+def rgb(hex_color: str, alpha: float = 1.0) -> tuple[float, float, float, float]:
+    value = hex_color.lstrip("#")
+    return (
+        int(value[0:2], 16) / 255,
+        int(value[2:4], 16) / 255,
+        int(value[4:6], 16) / 255,
+        alpha,
+    )
+
+
+class Cyberdisc(Gtk.Application):
+    def __init__(self) -> None:
+        super().__init__(application_id="com.nocturne.Visualizer")
+        self.window: Gtk.ApplicationWindow | None = None
+        self.area: Gtk.DrawingArea | None = None
+        self.process: subprocess.Popen[str] | None = None
+        self.lock = threading.Lock()
+        self.target = [0.0] * 96
+        self.spectrum = [0.0] * 96
+        self.trace: deque[float] = deque([0.0] * 420, maxlen=420)
+        self.angle = 0.0
+        self.phase = 0.0
+        self.last_frame = time.monotonic()
+        self.paused = False
+
+    def do_activate(self) -> None:
+        if self.window:
+            self.window.present()
+            return
+
+        self.window = Gtk.ApplicationWindow(application=self)
+        self.window.set_title("Nocturne // Cyberdisc")
+        self.window.set_default_size(1280, 720)
+        self.window.set_decorated(False)
+        self.window.connect("close-request", self.on_close)
+
+        self.area = Gtk.DrawingArea()
+        self.area.set_draw_func(self.draw)
+        self.area.set_focusable(True)
+        self.window.set_child(self.area)
+
+        keyboard = Gtk.EventControllerKey()
+        keyboard.connect("key-pressed", self.on_key)
+        self.window.add_controller(keyboard)
+
+        self.window.present()
+        self.area.grab_focus()
+        self.start_audio()
+        GLib.timeout_add(16, self.animate)
+
+    def start_audio(self) -> None:
+        config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+        config = config_home / "cava" / "cyberdisc.conf"
+        try:
+            self.process = subprocess.Popen(
+                ["cava", "-p", str(config)],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                bufsize=1,
+            )
+        except OSError:
+            return
+        threading.Thread(target=self.read_audio, daemon=True).start()
+
+    def read_audio(self) -> None:
+        if not self.process or not self.process.stdout:
+            return
+        for line in self.process.stdout:
+            try:
+                values = [
+                    min(1.0, max(0.0, int(item) / 1000)) ** 0.62
+                    for item in line.strip().split(";")
+                    if item.strip()
+                ]
+            except ValueError:
+                continue
+            if values:
+                with self.lock:
+                    self.target = values[:96]
+
+    def animate(self) -> bool:
+        now = time.monotonic()
+        dt = min(0.05, now - self.last_frame)
+        self.last_frame = now
+        with self.lock:
+            target = self.target[:]
+        if len(target) < len(self.spectrum):
+            target.extend([0.0] * (len(self.spectrum) - len(target)))
+        if not self.paused:
+            for index, value in enumerate(target[: len(self.spectrum)]):
+                attack = 0.42 if value > self.spectrum[index] else 0.12
+                self.spectrum[index] += (value - self.spectrum[index]) * attack
+            energy = sum(self.spectrum) / len(self.spectrum)
+            bass = sum(self.spectrum[:16]) / 16
+            self.angle = (self.angle + dt * (0.55 + bass * 2.8)) % TAU
+            self.phase = (self.phase + dt * (7.0 + energy * 14.0)) % TAU
+            mid = sum(self.spectrum[16:58]) / 42
+            treble = sum(self.spectrum[58:]) / 38
+            wave = (
+                bass * 2.10 * math.sin(self.phase)
+                + mid * 1.55 * math.sin(self.phase * 2.37 + 0.8)
+                + treble * 1.15 * math.sin(self.phase * 4.91 + 1.6)
+            )
+            # Soft saturation keeps loud tracks vivid without flat-topped
+            # clipping in the waveform chassis.
+            self.trace.appendleft(math.tanh(wave * 0.52))
+        if self.area:
+            self.area.queue_draw()
+        return GLib.SOURCE_CONTINUE
+
+    def on_key(self, _controller, keyval, _keycode, _state) -> bool:
+        if keyval in (Gdk.KEY_q, Gdk.KEY_Q, Gdk.KEY_Escape):
+            if self.window:
+                self.window.close()
+            return True
+        if keyval == Gdk.KEY_space:
+            self.paused = not self.paused
+            return True
+        return False
+
+    def on_close(self, _window) -> bool:
+        self.stop_audio()
+        return False
+
+    def stop_audio(self) -> None:
+        if self.process and self.process.poll() is None:
+            self.process.send_signal(signal.SIGTERM)
+        self.process = None
+
+    @staticmethod
+    def line(ctx: cairo.Context, points: list[tuple[float, float]], color: str, width: float, alpha: float = 1.0) -> None:
+        if not points:
+            return
+        ctx.new_path()
+        ctx.move_to(*points[0])
+        for point in points[1:]:
+            ctx.line_to(*point)
+        ctx.set_source_rgba(*rgb(color, alpha))
+        ctx.set_line_width(width)
+        ctx.set_line_join(cairo.LINE_JOIN_MITER)
+        ctx.set_line_cap(cairo.LINE_CAP_BUTT)
+        ctx.stroke()
+
+    def draw(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+        # Flat Nocturne canvas: deliberately 2D, square, and terminal-like.
+        ctx.set_source_rgba(*rgb("#07090a"))
+        ctx.paint()
+
+        compact = width < height * 1.18
+        pad = max(22.0, min(width, height) * 0.045)
+        header = max(42.0, height * 0.075)
+        if compact:
+            radius = min(width * 0.31, height * 0.245)
+            disc_x, disc_y = width * 0.5, header + radius + pad * 0.35
+            panel_x, panel_y = pad, disc_y + radius + pad * 0.7
+            panel_w, panel_h = width - pad * 2, max(90.0, height - panel_y - pad)
+        else:
+            radius = min(height * 0.34, width * 0.245)
+            disc_x, disc_y = max(pad + radius, width * 0.29), height * 0.53
+            panel_x = max(disc_x + radius * 1.34, width * 0.545)
+            panel_y = header + pad * 0.7
+            panel_w, panel_h = width - panel_x - pad, height - panel_y - pad
+
+        sage, cyan, amber, rose = "#6d9578", "#5fc3bc", "#c49a57", "#b86886"
+
+        # Static instrument grid; no glossy perspective or bloom.
+        ctx.set_line_width(1)
+        for x in range(0, width + 1, 42):
+            ctx.set_source_rgba(*rgb(sage, 0.055 if x % 84 else 0.09))
+            ctx.move_to(x, header)
+            ctx.line_to(x, height)
+            ctx.stroke()
+        for y in range(int(header), height + 1, 36):
+            ctx.set_source_rgba(*rgb(sage, 0.055))
+            ctx.move_to(0, y)
+            ctx.line_to(width, y)
+            ctx.stroke()
+
+        # Header rail.
+        ctx.set_source_rgba(*rgb("#0b0f10"))
+        ctx.rectangle(0, 0, width, header)
+        ctx.fill()
+        ctx.set_source_rgba(*rgb(sage))
+        ctx.rectangle(0, header - 2, width, 2)
+        ctx.fill()
+        ctx.select_font_face("JetBrainsMono Nerd Font", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        ctx.set_font_size(max(12, min(18, height * 0.026)))
+        ctx.set_source_rgba(*rgb("#d5dfdb"))
+        ctx.move_to(pad, header * 0.62)
+        ctx.show_text("NOCTURNE::CYBERDISC")
+        ctx.set_font_size(max(8, min(11, height * 0.017)))
+        status = "[ TRACE HOLD ]" if self.paused else "[ LIVE / PIPEWIRE ]"
+        extent = ctx.text_extents(status)
+        ctx.set_source_rgba(*rgb(amber if self.paused else cyan))
+        ctx.move_to(width - pad - extent.width, header * 0.60)
+        ctx.show_text(status)
+
+        # Flat record chassis, rotating grooves, and live spectral teeth.
+        ctx.set_source_rgba(*rgb("#090d0e"))
+        ctx.arc(disc_x, disc_y, radius, 0, TAU)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(sage))
+        ctx.set_line_width(2)
+        ctx.stroke()
+
+        for ring in range(11, 0, -1):
+            ring_radius = radius * (0.30 + ring * 0.052)
+            color = sage if ring % 3 else cyan
+            ctx.set_source_rgba(*rgb(color, 0.14 if ring % 3 else 0.24))
+            ctx.set_line_width(1)
+            ctx.arc(disc_x, disc_y, ring_radius, self.angle * (0.2 + ring / 30), self.angle * (0.2 + ring / 30) + math.pi * 1.72)
+            ctx.stroke()
+
+        bar_count = 72
+        for index in range(bar_count):
+            value = self.spectrum[int(index / bar_count * len(self.spectrum))]
+            theta = index / bar_count * TAU - math.pi / 2
+            inner = radius * 0.91
+            outer = radius * (1.01 + value * 0.42)
+            x1, y1 = disc_x + math.cos(theta) * inner, disc_y + math.sin(theta) * inner
+            x2, y2 = disc_x + math.cos(theta) * outer, disc_y + math.sin(theta) * outer
+            color = rose if index % 12 == 0 else (amber if index % 12 == 6 else cyan)
+            ctx.set_source_rgba(*rgb(color, 0.72 + value * 0.28))
+            ctx.set_line_width(max(1.5, radius / 110))
+            ctx.move_to(x1, y1)
+            ctx.line_to(x2, y2)
+            ctx.stroke()
+
+        # Rotating label, spindle and locator marks.
+        ctx.save()
+        ctx.translate(disc_x, disc_y)
+        ctx.rotate(self.angle)
+        ctx.set_source_rgba(*rgb("#111719"))
+        ctx.arc(0, 0, radius * 0.29, 0, TAU)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(amber))
+        ctx.set_line_width(2)
+        ctx.stroke()
+        for marker in range(4):
+            theta = marker * math.pi / 2
+            ctx.set_source_rgba(*rgb(rose if marker % 2 else cyan))
+            ctx.rectangle(math.cos(theta) * radius * 0.21 - 2, math.sin(theta) * radius * 0.21 - 2, 4, 4)
+            ctx.fill()
+        ctx.restore()
+        ctx.set_source_rgba(*rgb("#d5dfdb"))
+        ctx.arc(disc_x, disc_y, max(5, radius * 0.032), 0, TAU)
+        ctx.fill()
+
+        # Square, flat graph chassis.
+        ctx.rectangle(panel_x, panel_y, panel_w, panel_h)
+        ctx.set_source_rgba(*rgb("#0b0f10"))
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(sage))
+        ctx.set_line_width(2)
+        ctx.stroke()
+        for division in range(1, 8):
+            gx = panel_x + panel_w * division / 8
+            ctx.set_source_rgba(*rgb(sage, 0.12))
+            ctx.move_to(gx, panel_y)
+            ctx.line_to(gx, panel_y + panel_h)
+            ctx.stroke()
+        for division in range(1, 6):
+            gy = panel_y + panel_h * division / 6
+            ctx.set_source_rgba(*rgb(sage, 0.12))
+            ctx.move_to(panel_x, gy)
+            ctx.line_to(panel_x + panel_w, gy)
+            ctx.stroke()
+
+        # Pickup arm visually carries the signal off the disc and into the trace.
+        pickup_theta = -0.34 + math.sin(self.angle * 0.7) * 0.035
+        pickup = (disc_x + math.cos(pickup_theta) * radius * 0.72, disc_y + math.sin(pickup_theta) * radius * 0.72)
+        elbow = (disc_x + radius * 1.18, disc_y - radius * 0.65)
+        entry = (panel_x, panel_y + panel_h * 0.50)
+        self.line(ctx, [pickup, elbow, (entry[0] - 14, entry[1]), entry], sage, 4)
+        self.line(ctx, [pickup, elbow, (entry[0] - 14, entry[1]), entry], "#d5dfdb", 1)
+        ctx.set_source_rgba(*rgb(rose))
+        ctx.arc(*pickup, max(3, radius * 0.018), 0, TAU)
+        ctx.fill()
+
+        # Continuous oscilloscope memory: newest sample touches the pickup entry.
+        trace_values = list(self.trace)
+        points: list[tuple[float, float]] = []
+        center_y = panel_y + panel_h * 0.50
+        usable_h = panel_h * 0.33
+        for index, value in enumerate(trace_values):
+            x = panel_x + index / max(1, len(trace_values) - 1) * panel_w
+            points.append((x, center_y - value * usable_h))
+        self.line(ctx, points, rose, 2)
+
+        # Small live spectrum trace along the lower edge adds readable frequency detail.
+        spectrum_points = []
+        lower_base = panel_y + panel_h * 0.88
+        for index, value in enumerate(self.spectrum):
+            x = panel_x + index / max(1, len(self.spectrum) - 1) * panel_w
+            spectrum_points.append((x, lower_base - value * panel_h * 0.16))
+        self.line(ctx, spectrum_points, amber, 1)
+
+        ctx.select_font_face("JetBrainsMono Nerd Font", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+        ctx.set_font_size(max(8, min(11, height * 0.016)))
+        ctx.set_source_rgba(*rgb(cyan))
+        ctx.move_to(panel_x + 12, panel_y + 20)
+        ctx.show_text("WAVEFORM MEMORY // FREQUENCY TRACE")
+        footer = "Q / ESC  CLOSE     SPACE  HOLD TRACE"
+        ctx.set_source_rgba(*rgb("#7f978d"))
+        ctx.move_to(panel_x + 12, panel_y + panel_h - 12)
+        ctx.show_text(footer)
+
+    def do_shutdown(self) -> None:
+        self.stop_audio()
+        super().do_shutdown()
+
+
+if __name__ == "__main__":
+    raise SystemExit(Cyberdisc().run())

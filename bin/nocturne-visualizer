@@ -8,6 +8,7 @@ mkdir -p "$state_home"
 
 if [[ ${1:-} == choose ]]; then
   choice=$(printf '%s\n' \
+    '󰐾  Cyberdisc · flat terminal frequency deck' \
     '󰎈  Obsidian · muted green spectrum' \
     '󰘨  Matrix · terminal green signal' \
     '󰈸  Amber · warm retro analyzer' \
@@ -15,6 +16,7 @@ if [[ ${1:-} == choose ]]; then
     '󰜎  Wave · purple flowing signal' | \
     "$HOME/.config/hypr/scripts/quick-menu" VISUALIZER auto 390 220) || exit 0
   case "$choice" in
+    *Cyberdisc*) theme=cyberdisc ;;
     *Obsidian*) theme=obsidian ;;
     *Matrix*) theme=matrix ;;
     *Amber*) theme=amber ;;
@@ -24,18 +26,18 @@ if [[ ${1:-} == choose ]]; then
   esac
 else
   theme=${1:-}
-  [[ -n $theme ]] || theme=$(cat "$state_file" 2>/dev/null || printf 'obsidian')
+  [[ -n $theme ]] || theme=$(cat "$state_file" 2>/dev/null || printf 'cyberdisc')
 fi
 
 case "$theme" in
-  obsidian|matrix|amber|ice|wave) ;;
-  *) theme=obsidian ;;
+  cyberdisc|obsidian|matrix|amber|ice|wave) ;;
+  *) theme=cyberdisc ;;
 esac
 printf '%s\n' "$theme" > "$state_file"
 visualizer_config="$config_home/cava/themes/$theme.conf"
 
 if command -v hyprctl >/dev/null; then
-  address=$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class == "NocturneVisualizer") | .address' | head -n 1)
+  address=$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class == "NocturneVisualizer" or .class == "com.nocturne.Visualizer") | .address' | head -n 1)
   if [[ -n $address ]]; then
     if [[ ${1:-} == choose || -n ${1:-} ]]; then
       hyprctl dispatch closewindow "address:$address" >/dev/null
@@ -45,6 +47,10 @@ if command -v hyprctl >/dev/null; then
       exit 0
     fi
   fi
+fi
+
+if [[ $theme == cyberdisc ]]; then
+  exec "$HOME/.local/bin/nocturne-cyberdisc"
 fi
 
 if [[ "${TERM:-}" == xterm-kitty ]]; then

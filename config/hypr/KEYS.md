@@ -90,13 +90,15 @@ PERSONALIZE + SOUND
   Super + R → Accent      Change GTK, bar and active-border accent together
   Super + R → Appearance  GTK theme, icons and cursor
   Super + R → Visualizer  Open the tiled live audio spectrum
-  Super + R → Viz theme   Obsidian, Matrix, Amber, Ice, or Wave
+  Super + R → Viz theme   Cyberdisc, Obsidian, Matrix, Amber, Ice, or Wave
   Super + R → Routing     Visual PipeWire device routing
   Super + R → Brightness  Matching laptop backlight presets
 
 VISUALIZER THEMES
   Open Settings with Super + R and choose Visualizer theme. The selected style
-  is remembered next time. Press Q inside the visualizer to close it.
+  is remembered next time. Cyberdisc wraps live frequencies around a rotating
+  2D terminal record and feeds a continuous waveform trace. Press Space to hold the
+  trace or Q to close it.
 
 FALLBACK
   Log out with Super + P and choose Ubuntu from the login-screen gear to return
