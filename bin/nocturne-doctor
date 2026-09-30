@@ -32,6 +32,12 @@ else
   bad 'Wallpaper engine is not active on detected displays'
 fi
 if jq -e '.count > 0' >/dev/null 2>&1 <<<"$wallpaper"; then ok 'Wallpaper collection contains readable images'; else bad 'Wallpaper collection has no readable images'; fi
+if jq -e '.enabled == true and .mode == "day-cycle" and (.next_change_at | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
+  next_phase=$(jq -r '.next_change_at' <<<"$wallpaper")
+  ok "Authored wallpaper day cycle is active; next phase $next_phase"
+else
+  warning 'Wallpaper day cycle is paused or has no authored schedule'
+fi
 
 monitor_count=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
 ((monitor_count > 0)) && ok "Hyprland detects $monitor_count display(s)" || bad 'No active Hyprland display detected'

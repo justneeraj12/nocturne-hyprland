@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hyprland-native static and rotating wallpaper controller for Nocturne."""
+"""Hyprland-native static and authored day-cycle wallpaper controller."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import sys
 import time
 import urllib.parse
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
 from pathlib import Path
 
 CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
@@ -26,7 +27,7 @@ DEFAULT_IMAGE = Path.home() / ".local/share/backgrounds/nocturne-grid.png"
 
 def defaults() -> dict:
     source = DEFAULT_SOURCE if Path(DEFAULT_SOURCE).exists() else str(DEFAULT_IMAGE.parent)
-    return {"enabled": False, "source": source, "interval": 900, "shuffle": False}
+    return {"enabled": False, "source": source, "mode": "day-cycle"}
 
 
 def read_json(path: Path, fallback: dict) -> dict:
@@ -76,6 +77,107 @@ def images_from(source: str) -> list[Path]:
             seen.add(key)
             unique.append(image)
     return unique
+
+
+def _resolved_image(text: str | None, xml_path: Path) -> Path | None:
+    if not text:
+        return None
+    image = Path(text.strip()).expanduser()
+    if not image.is_absolute():
+        image = xml_path.parent / image
+    return image.resolve() if image.is_file() else None
+
+
+def schedule_from(source: str) -> tuple[datetime, list[dict], float]:
+    path = Path(source).expanduser()
+    if path.suffix.lower() != ".xml" or not path.is_file():
+        images = images_from(source)
+        if not images:
+            raise SystemExit("The selected wallpaper source has no readable images")
+        now = datetime.now().astimezone()
+        anchor = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return anchor, [{"image": images[0], "duration": 86400.0, "kind": "static"}], 86400.0
+
+    try:
+        root = ET.parse(path).getroot()
+    except (ET.ParseError, OSError) as error:
+        raise SystemExit(f"Could not read dynamic wallpaper XML: {error}") from error
+
+    now = datetime.now().astimezone()
+    start = root.find("starttime")
+    values = {name: int(start.findtext(name, default)) if start is not None else default for name, default in (
+        ("hour", 0), ("minute", 0), ("second", 0)
+    )}
+    anchor = now.replace(hour=values["hour"], minute=values["minute"], second=values["second"], microsecond=0)
+    phases: list[dict] = []
+    for node in root:
+        tag = node.tag.rsplit("}", 1)[-1]
+        if tag not in {"static", "transition"}:
+            continue
+        try:
+            duration = max(1.0, float(node.findtext("duration", "0")))
+        except ValueError:
+            continue
+        if tag == "static":
+            image = _resolved_image(node.findtext("file"), path)
+            if image:
+                phases.append({"image": image, "duration": duration, "kind": "static"})
+        else:
+            before = _resolved_image(node.findtext("from"), path)
+            after = _resolved_image(node.findtext("to"), path)
+            if before and after and before != after:
+                # Hyprpaper cannot interpolate pixels like GNOME. Switching at
+                # the transition midpoint most closely follows the authored
+                # day/night phase without inventing a separate cadence.
+                half = duration / 2.0
+                phases.append({"image": before, "duration": half, "kind": "transition-from"})
+                phases.append({"image": after, "duration": duration - half, "kind": "transition-to"})
+            elif after or before:
+                phases.append({"image": after or before, "duration": duration, "kind": "transition"})
+    if not phases:
+        raise SystemExit("The selected dynamic wallpaper contains no usable phases")
+
+    merged: list[dict] = []
+    for phase in phases:
+        if merged and merged[-1]["image"] == phase["image"]:
+            merged[-1]["duration"] += phase["duration"]
+            merged[-1]["kind"] = f'{merged[-1]["kind"]}+{phase["kind"]}'
+        else:
+            merged.append(phase.copy())
+    return anchor, merged, sum(float(item["duration"]) for item in merged)
+
+
+def scheduled_phase(source: str, now: datetime | None = None) -> dict:
+    anchor, phases, total = schedule_from(source)
+    current_time = now.astimezone() if now is not None else datetime.now().astimezone()
+    # Dynamic wallpaper packs are authored as repeating local-day cycles. Use
+    # today's encoded start clock so daylight-saving changes cannot drift them.
+    anchor = current_time.replace(hour=anchor.hour, minute=anchor.minute, second=anchor.second, microsecond=0)
+    position = (current_time - anchor).total_seconds() % total
+    cursor = 0.0
+    for index, phase in enumerate(phases):
+        end = cursor + float(phase["duration"])
+        if position < end:
+            seconds_until = max(1, int(end - position + 0.999))
+            next_index = (index + 1) % len(phases)
+            visited = 0
+            while visited < len(phases) - 1 and phases[next_index]["image"] == phase["image"]:
+                seconds_until += int(float(phases[next_index]["duration"]))
+                next_index = (next_index + 1) % len(phases)
+                visited += 1
+            next_change = current_time + timedelta(seconds=seconds_until)
+            return {
+                "image": phase["image"],
+                "kind": phase["kind"],
+                "index": index,
+                "phases": len(phases),
+                "total": int(total),
+                "seconds_until_change": seconds_until,
+                "next_change_at": next_change.isoformat(timespec="seconds"),
+                "anchor": anchor.isoformat(timespec="seconds"),
+            }
+        cursor = end
+    raise SystemExit("Could not resolve the current wallpaper phase")
 
 
 def monitor_names() -> list[str]:
@@ -155,46 +257,39 @@ def apply_image(image: Path, announce: bool = True) -> None:
         quietly(["notify-send", "-a", "Nocturne", "Wallpaper updated", image.stem])
 
 
-def next_image(announce: bool = True) -> None:
-    config = read_json(CONFIG, defaults())
-    images = images_from(str(config.get("source", "")))
-    if not images:
-        raise SystemExit("No usable images found in the selected wallpaper source")
-    state = read_json(STATE, {})
-    current = state.get("current", "")
-    try:
-        index = (images.index(Path(current)) + 1) % len(images)
-    except ValueError:
-        index = 0
-    apply_image(images[index], announce)
+def apply_scheduled(source: str, announce: bool = True) -> dict:
+    phase = scheduled_phase(source)
+    apply_image(Path(phase["image"]), announce)
+    return phase
 
 
-def set_enabled(enabled: bool, source: str | None = None, interval: str | None = None) -> None:
+def set_enabled(enabled: bool, source: str | None = None) -> None:
     config = read_json(CONFIG, defaults())
     if source:
         config["source"] = str(Path(source).expanduser())
-    if interval:
-        config["interval"] = max(60, int(interval))
     config["enabled"] = enabled
+    config["mode"] = "day-cycle"
+    config.pop("interval", None)
+    config.pop("shuffle", None)
     write_json(CONFIG, config)
     if enabled:
-        next_image()
+        apply_scheduled(str(config["source"]))
     quietly(["systemctl", "--user", "restart", SERVICE])
 
 
 def apply_source(source: str) -> None:
-    images = images_from(source)
-    if not images:
-        raise SystemExit("No usable images found in the selected wallpaper source")
     config = read_json(CONFIG, defaults())
     config["source"] = str(Path(source).expanduser())
     config["enabled"] = False
+    config["mode"] = "day-cycle"
+    config.pop("interval", None)
+    config.pop("shuffle", None)
     write_json(CONFIG, config)
-    apply_image(images[0])
+    apply_scheduled(source)
     quietly(["systemctl", "--user", "restart", SERVICE])
 
 
-def use_gnome(interval: str | None = None) -> None:
+def use_gnome() -> None:
     result = subprocess.run(
         ["gsettings", "get", "org.gnome.desktop.background", "picture-uri-dark"],
         capture_output=True,
@@ -205,14 +300,25 @@ def use_gnome(interval: str | None = None) -> None:
     if not uri.startswith("file://"):
         raise SystemExit("GNOME's current wallpaper is not a local file")
     source = urllib.parse.unquote(urllib.parse.urlparse(uri).path)
-    set_enabled(True, source, interval)
+    set_enabled(True, source)
 
 
 def status() -> None:
     config = read_json(CONFIG, defaults())
     state = read_json(STATE, {})
     images = images_from(str(config.get("source", "")))
-    output = config | {
+    try:
+        phase = scheduled_phase(str(config.get("source", "")))
+        schedule = {
+            "scheduled_image": str(phase["image"]),
+            "phase_kind": phase["kind"],
+            "next_change_at": phase["next_change_at"],
+            "seconds_until_change": phase["seconds_until_change"],
+            "cycle_seconds": phase["total"],
+        }
+    except SystemExit:
+        schedule = {}
+    output = config | schedule | {
         "count": len(images),
         "current": state.get("current", ""),
         "service_active": quietly(["systemctl", "--user", "is-active", "--quiet", SERVICE]).returncode == 0,
@@ -231,48 +337,47 @@ def daemon() -> None:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
-    elapsed = 0
     while not stopped:
         config = read_json(CONFIG, defaults())
-        interval = max(60, int(config.get("interval", 900)))
         state = read_json(STATE, {})
         current = Path(state.get("current", "")).expanduser()
-        if not process_running() and current.is_file():
+        scheduled: Path | None = None
+        if config.get("enabled"):
             try:
-                apply_image(current, False)
+                scheduled = Path(scheduled_phase(str(config.get("source", "")))["image"])
             except SystemExit:
-                pass
-        if config.get("enabled") and elapsed >= interval:
+                scheduled = None
+        desired = scheduled or (current if current.is_file() else None)
+        if desired and (not process_running() or current != desired):
             try:
-                next_image(False)
-                elapsed = 0
+                apply_image(desired, False)
             except SystemExit:
                 pass
         for _ in range(5):
             if stopped:
                 return
             time.sleep(1)
-        elapsed += 5
 
 
 def usage() -> None:
-    print("Usage: nocturne-wallpaper-cycle enable [SOURCE] [SECONDS] | disable | next | apply-source SOURCE | apply-file FILE | use-gnome [SECONDS] | status | daemon", file=sys.stderr)
+    print("Usage: nocturne-wallpaper-cycle enable [SOURCE] | disable | apply-source SOURCE | apply-file FILE | use-gnome | phase SOURCE | status | daemon", file=sys.stderr)
 
 
 def main() -> None:
     command = sys.argv[1] if len(sys.argv) > 1 else "status"
     if command == "enable":
-        set_enabled(True, sys.argv[2] if len(sys.argv) > 2 else None, sys.argv[3] if len(sys.argv) > 3 else None)
+        set_enabled(True, sys.argv[2] if len(sys.argv) > 2 else None)
     elif command == "disable":
         set_enabled(False)
-    elif command == "next":
-        next_image()
     elif command == "apply-source" and len(sys.argv) > 2:
         apply_source(sys.argv[2])
     elif command == "apply-file" and len(sys.argv) > 2:
         apply_image(Path(sys.argv[2]).expanduser())
     elif command == "use-gnome":
-        use_gnome(sys.argv[2] if len(sys.argv) > 2 else None)
+        use_gnome()
+    elif command == "phase" and len(sys.argv) > 2:
+        phase = scheduled_phase(sys.argv[2])
+        print(json.dumps({key: str(value) if isinstance(value, Path) else value for key, value in phase.items()}))
     elif command == "status":
         status()
     elif command == "daemon":

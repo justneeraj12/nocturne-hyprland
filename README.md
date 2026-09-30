@@ -5,7 +5,7 @@ This machine now has two independent desktop sessions:
 - **Hyprland (uwsm-managed):** keyboard-first Tokyo Night tiling, compact
   Waybar, no compositor title bars, notification history, clipboard history,
   Caffeine, Pomodoro, media controls, audio/network/Bluetooth controls,
-  resource tools, a native settings app, rotating wallpapers, a session-local
+  resource tools, a native settings app, scheduled wallpapers, a session-local
   sharp dark app/file-manager theme, and a matching terminal setup.
 - **Ubuntu / GNOME:** restored to the original MacTahoeCompact-Dark setup,
   including its MacTahoe icons, left-side window controls, extensions, and
@@ -64,11 +64,13 @@ control center, and middle opens the key guide. The full guide is in
   data lives in the resource dashboard.
 - Hyprlock uses a sharp terminal-authentication card with the Nocturne palette,
   12-hour `+`/`−` time marker, session identity, and themed auth feedback.
-- Hyprland can rotate any installed GNOME dynamic-wallpaper XML pack or any
-  image folder. The previous SolidForest GNOME pack is available directly;
-  a large preview and clear Apply/Rotate/Next/Stop controls live under
-  **Settings → Appearance**. Choosing a static image with `Super+W` pauses the
-  rotation, so the two modes never conflict.
+- Hyprland follows the start time, static durations, transitions, and full
+  local-day sequence authored inside any installed GNOME dynamic-wallpaper XML
+  pack. The previous SolidForest pack is available directly; its day image is
+  used from morning through afternoon and its night image after the encoded
+  evening transition. A large current-phase preview and clear Apply/Follow/Stop
+  controls live under **Settings → Appearance**. Choosing a static image with
+  `Super+W` pauses the day cycle, so the two modes never conflict.
 - Five coordinated surface designs—Obsidian Grid, Carbon Compact, Midnight
   Circuit, Phosphor Terminal, and Crimson Relay—change shell/app surfaces and
   layout density without changing workflow or shortcuts. Sixteen independent

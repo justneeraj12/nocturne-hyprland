@@ -1,6 +1,5 @@
 {
   "enabled": false,
   "source": "/usr/share/backgrounds/Dynamic_Wallpapers/SolidForest.xml",
-  "interval": 900,
-  "shuffle": false
+  "mode": "day-cycle"
 }

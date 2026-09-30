@@ -90,9 +90,9 @@ PERSONALIZE + SOUND
   Desktop design          Obsidian, Carbon, Midnight, Phosphor or Crimson
   Accent palette          Sixteen coordinated colors; shortcuts stay identical
   Wallpaper preview       Selecting a collection immediately shows an image
-  Dynamic wallpaper       Choose a GNOME XML pack, interval, enable or stop
-  Use GNOME current       Reuses your previous GNOME wallpaper collection
-  Super + W               Choose one image; rotation pauses automatically
+  Dynamic wallpaper       Follows each GNOME XML pack's authored day schedule
+  Current phase           Preview/apply the right morning/day/evening/night image
+  Super + W               Choose one image; the day cycle pauses automatically
   Super + R → Accent      Change GTK, bar and active-border accent together
   Super + R → Appearance  GTK theme, icons and cursor
   Super + R → Visualizer  Open the tiled live audio spectrum

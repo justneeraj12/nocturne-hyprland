@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from datetime import datetime
 from pathlib import Path
 
 import gi
@@ -351,10 +352,10 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.section(box, "Wallpaper")
         wallpaper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=9)
         wallpaper.add_css_class("card")
-        heading = Gtk.Label(label="Preview and rotation", xalign=0)
+        heading = Gtk.Label(label="Preview and day cycle", xalign=0)
         heading.add_css_class("row-title")
         wallpaper.append(heading)
-        copy = Gtk.Label(label="Select a collection to preview it. Apply once or rotate it across both displays.", xalign=0, wrap=True)
+        copy = Gtk.Label(label="Each XML follows its authored morning, afternoon, evening and night schedule.", xalign=0, wrap=True)
         copy.add_css_class("row-copy")
         wallpaper.append(copy)
 
@@ -377,22 +378,11 @@ class SettingsWindow(Gtk.ApplicationWindow):
         source_line.append(self.wallpaper_source)
         wallpaper.append(source_line)
 
-        interval_line = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        interval_label = Gtk.Label(label="INTERVAL", xalign=0, width_chars=11)
-        interval_label.add_css_class("dim")
-        interval_line.append(interval_label)
-        self.intervals = [("5 minutes", 300), ("15 minutes", 900), ("30 minutes", 1800), ("1 hour", 3600), ("3 hours", 10800), ("At login / 12h", 43200)]
-        self.wallpaper_interval = Gtk.DropDown(model=Gtk.StringList.new([name for name, _seconds in self.intervals]), hexpand=True)
-        self.wallpaper_interval.set_selected(1)
-        interval_line.append(self.wallpaper_interval)
-        wallpaper.append(interval_line)
-
         controls = Gtk.FlowBox(column_spacing=8, row_spacing=8, selection_mode=Gtk.SelectionMode.NONE, max_children_per_line=2)
         for label, callback, style in [
-            ("APPLY NOW", self.apply_selected_wallpaper, "primary"),
-            ("ENABLE ROTATION", self.enable_wallpapers, ""),
-            ("NEXT", self.next_wallpaper, ""),
-            ("STOP", self.stop_wallpapers, "danger"),
+            ("APPLY CURRENT PHASE", self.apply_selected_wallpaper, "primary"),
+            ("FOLLOW DAY CYCLE", self.enable_wallpapers, ""),
+            ("STOP FOLLOWING", self.stop_wallpapers, "danger"),
         ]:
             button = Gtk.Button(label=label)
             button.add_css_class("action")
@@ -407,7 +397,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         box.append(wallpaper)
 
         self.section(box, "Static wallpaper + application style")
-        self.action_row(box, "Choose one wallpaper", "Picking a static image automatically pauses rotation.", [("CHOOSE IMAGE", [str(SCRIPT_HOME / "wallpaper")], "")])
+        self.action_row(box, "Choose one wallpaper", "Picking a static image automatically pauses the day cycle.", [("CHOOSE IMAGE", [str(SCRIPT_HOME / "wallpaper")], "")])
         self.action_row(box, "GTK appearance", "Fine-tune GTK theme, icons, cursor and fonts.", [("OPEN NWG LOOK", ["nwg-look"], "")])
         self.action_row(box, "Nocturne Files", "Sharp header, compact list view, dark sidebar and matching selection accent.", [("OPEN FILES", ["nautilus", "--new-window"], "primary")])
         GLib.idle_add(self.refresh_wallpaper_status)
@@ -546,12 +536,22 @@ class SettingsWindow(Gtk.ApplicationWindow):
             self.wallpaper_preview.set_paintable(None)
             self.wallpaper_preview_caption.set_text(f"{name} · no readable images")
             return False
-        current = Path(getattr(self, "wallpaper_current", ""))
-        image = current if current in images else images[0]
+        image = images[0]
+        schedule_copy = ""
+        try:
+            result = subprocess.run([str(WALLPAPER_TOOL), "phase", source], capture_output=True, text=True, timeout=2, check=False)
+            phase = json.loads(result.stdout)
+            scheduled = Path(phase.get("image", ""))
+            if scheduled.is_file():
+                image = scheduled
+            next_change = datetime.fromisoformat(phase["next_change_at"]).strftime("%-I:%M %p")
+            schedule_copy = f" · next phase {next_change}"
+        except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
+            pass
         try:
             self.wallpaper_texture = Gdk.Texture.new_from_filename(str(image))
             self.wallpaper_preview.set_paintable(self.wallpaper_texture)
-            self.wallpaper_preview_caption.set_text(f"{name} · {len(images)} images · previewing {image.name}")
+            self.wallpaper_preview_caption.set_text(f"{name} · now {image.name}{schedule_copy}")
         except GLib.Error:
             self.wallpaper_preview.set_paintable(None)
             self.wallpaper_preview_caption.set_text(f"{name} · preview unavailable")
@@ -563,7 +563,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         index = min(self.wallpaper_source.get_selected(), len(self.wallpaper_sources) - 1)
         source = self.wallpaper_sources[index][1]
         self.run([str(WALLPAPER_TOOL), "apply-source", source])
-        self.wallpaper_status.set_text("APPLYING · updating both displays…")
+        self.wallpaper_status.set_text("SYNCING · applying the current day-cycle phase…")
         GLib.timeout_add(1600, self.refresh_wallpaper_status)
 
     def enable_wallpapers(self, _button: Gtk.Button) -> None:
@@ -571,22 +571,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
             self.toast("No dynamic wallpaper packs were found")
             return
         source_index = min(self.wallpaper_source.get_selected(), len(self.wallpaper_sources) - 1)
-        interval_index = min(self.wallpaper_interval.get_selected(), len(self.intervals) - 1)
         source = self.wallpaper_sources[source_index][1]
-        seconds = str(self.intervals[interval_index][1])
-        self.run([str(WALLPAPER_TOOL), "enable", source, seconds])
-        self.wallpaper_status.set_text("ENABLING · applying the first image…")
-        GLib.timeout_add(1500, self.refresh_wallpaper_status)
-
-    def next_wallpaper(self, _button: Gtk.Button) -> None:
-        self.run([str(WALLPAPER_TOOL), "next"])
-        self.wallpaper_status.set_text("ADVANCING · applying the next image…")
-        GLib.timeout_add(1100, self.refresh_wallpaper_status)
-
-    def use_gnome_wallpaper(self, _button: Gtk.Button) -> None:
-        interval_index = min(self.wallpaper_interval.get_selected(), len(self.intervals) - 1)
-        self.run([str(WALLPAPER_TOOL), "use-gnome", str(self.intervals[interval_index][1])])
-        self.wallpaper_status.set_text("IMPORTING · using GNOME's current wallpaper source…")
+        self.run([str(WALLPAPER_TOOL), "enable", source])
+        self.wallpaper_status.set_text("FOLLOWING · syncing to the collection's current phase…")
         GLib.timeout_add(1500, self.refresh_wallpaper_status)
 
     def stop_wallpapers(self, _button: Gtk.Button) -> None:
@@ -604,26 +591,28 @@ class SettingsWindow(Gtk.ApplicationWindow):
             if not display:
                 state = "DISPLAY OFFLINE"
             elif enabled and service:
-                state = "ROTATING"
+                state = "FOLLOWING DAY CYCLE"
             elif enabled:
-                state = "ROTATION PAUSED"
+                state = "DAY CYCLE PAUSED"
             else:
                 state = "STATIC"
             count = status.get("count", 0)
             current = Path(status.get("current", "")).name or "not applied yet"
             monitors = status.get("monitors", [])
             target = f"{len(monitors)} displays" if monitors else "display auto-detect"
-            self.wallpaper_status.set_text(f"{state} · {target} · {count} images · {current}")
+            next_copy = ""
+            if status.get("next_change_at"):
+                try:
+                    next_time = datetime.fromisoformat(status["next_change_at"]).strftime("%-I:%M %p")
+                    next_copy = f" · next {next_time}"
+                except ValueError:
+                    pass
+            self.wallpaper_status.set_text(f"{state} · {target} · {current}{next_copy}")
             self.wallpaper_current = status.get("current", "")
             source = status.get("source", "")
             for index, (_name, path) in enumerate(self.wallpaper_sources):
                 if path == source:
                     self.wallpaper_source.set_selected(index)
-                    break
-            interval = int(status.get("interval", 900))
-            for index, (_name, seconds) in enumerate(self.intervals):
-                if seconds == interval:
-                    self.wallpaper_interval.set_selected(index)
                     break
             self.update_wallpaper_preview()
         except (OSError, ValueError, subprocess.TimeoutExpired, AttributeError):
