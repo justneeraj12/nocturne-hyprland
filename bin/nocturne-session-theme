@@ -11,6 +11,7 @@ config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
 gtk_dir=$config_home/gtk-4.0
 stash_dir=$state_home/nocturne/gtk4-macos-links
+nocturne_css=$config_home/nocturne/gtk-4.0.css
 layout_key=/org/gnome/desktop/wm/preferences/button-layout
 layout_state=$stash_dir/gnome-button-layout
 mkdir -p "$gtk_dir" "$stash_dir"
@@ -24,11 +25,22 @@ stash_link() {
   active=$gtk_dir/$name
   saved=$stash_dir/$name
   exists "$active" || return 0
+  if [[ -L $active && $(readlink -f -- "$active") == $(readlink -f -- "$nocturne_css") ]]; then
+    return 0
+  fi
   if exists "$saved"; then
     conflict=$stash_dir/${name}.extra.$(date +%Y%m%d-%H%M%S)
     mv -- "$active" "$conflict"
   else
     mv -- "$active" "$saved"
+  fi
+}
+
+remove_nocturne_link() {
+  local active
+  active=$gtk_dir/$1
+  if [[ -L $active && $(readlink -f -- "$active") == $(readlink -f -- "$nocturne_css") ]]; then
+    rm -f -- "$active"
   fi
 }
 
@@ -68,9 +80,13 @@ case $mode in
     # Stash only the active links; the actual macOS CSS/assets stay untouched.
     stash_link gtk.css
     stash_link gtk-dark.css
+    ln -sfn -- "$nocturne_css" "$gtk_dir/gtk.css"
+    ln -sfn -- "$nocturne_css" "$gtk_dir/gtk-dark.css"
     stash_button_layout
     ;;
   gnome)
+    remove_nocturne_link gtk.css
+    remove_nocturne_link gtk-dark.css
     restore_link gtk.css
     restore_link gtk-dark.css
     restore_button_layout

@@ -5,8 +5,8 @@ This machine now has two independent desktop sessions:
 - **Hyprland (uwsm-managed):** keyboard-first Tokyo Night tiling, compact
   Waybar, no compositor title bars, notification history, clipboard history,
   Caffeine, Pomodoro, media controls, audio/network/Bluetooth controls,
-  resource tools, a session-local neutral dark app theme, and a matching
-  terminal setup.
+  resource tools, a native settings app, rotating wallpapers, a session-local
+  sharp dark app/file-manager theme, and a matching terminal setup.
 - **Ubuntu / GNOME:** restored to the original MacTahoeCompact-Dark setup,
   including its MacTahoe icons, left-side window controls, extensions, and
   SolidForest wallpaper.
@@ -55,13 +55,23 @@ control center, and middle opens the key guide. The full guide is in
   apps. Audio, Wi-Fi, Bluetooth, media, KDE Connect, and power open compact
   click-to-toggle cards directly beneath their buttons. A themed clock card
   combines every saved world time, live weather, Pomodoro, and caffeine. The
-  Hyprland-native Nocturne Settings card replaces GNOME Settings, which cannot
-  run outside GNOME. The standard Settings launcher routes intelligently to
-  Nocturne under Hyprland and Ubuntu Settings under GNOME. Audio includes
+  native Nocturne Settings app replaces GNOME Settings, which cannot run
+  outside GNOME. It provides a sidebar for appearance, wallpapers,
+  connectivity, sound, desktop, hardware, power and shortcut help. The
+  standard Settings launcher routes intelligently to Nocturne under Hyprland
+  and Ubuntu Settings under GNOME. Audio includes
   per-app volume; KDE Connect uses a matching dark Qt6 theme. Detailed process
   data lives in the resource dashboard.
 - Hyprlock uses a sharp terminal-authentication card with the Nocturne palette,
   12-hour `+`/`−` time marker, session identity, and themed auth feedback.
+- Hyprland can rotate any installed GNOME dynamic-wallpaper XML pack or any
+  image folder. The previous SolidForest GNOME pack is available directly;
+  controls for collection, interval, next image and stop live under
+  **Settings → Appearance**. Choosing a static image with `Super+W` pauses the
+  rotation, so the two modes never conflict.
+- Nautilus uses a session-only Nocturne GTK layer: compact sharp controls,
+  list view, dark sidebar/content and a matching selection accent. Entering
+  GNOME removes that layer and restores the saved MacTahoe stylesheet.
 - The tiled Nocturne visualizer includes Cyberdisc: a flat terminal frequency
   ring around a rotating record with a pickup-fed waveform trace. Four additional
   native instruments—Black ICE, Datafall, Ghostscope, and Netrunner—provide

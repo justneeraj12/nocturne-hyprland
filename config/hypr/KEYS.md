@@ -3,7 +3,7 @@ NOCTURNE / HYPRLAND — QUICK GUIDE
 
 REMEMBER ONLY THESE THREE
   Super + Space           Find and launch any app
-  Super + R               Open/toggle Nocturne Settings
+  Super + R               Open the full Nocturne Settings app
   Super + Shift + R       Open the graphical resource monitor
   Super + /               Reopen this guide at any time
 
@@ -62,7 +62,7 @@ THE TOP BAR
   The full controls live only on the external display; the laptop bar stays
   intentionally minimal so Wi-Fi and Bluetooth are not duplicated.
 
-  Ubuntu logo             Left apps · right controls · middle guide
+  Ubuntu logo             Left apps · right quick controls · middle guide
   City/time/weather       Rotates every 10 seconds; click the world clock card
   Local clock             + means AM · − means PM · click for clock card
   Pomodoro                Left start/pause · middle skip · right reset
@@ -86,7 +86,10 @@ MEDIA
   Media card              Previous/play/next, player volume, visualizer, routing
 
 PERSONALIZE + SOUND
-  Super + R → Wallpaper   Choose any image or restore the default
+  Super + R → Appearance  Dynamic wallpapers, static images and accents
+  Dynamic wallpaper       Choose a GNOME XML pack, interval, enable or stop
+  Use GNOME current       Reuses your previous GNOME wallpaper collection
+  Super + W               Choose one image; rotation pauses automatically
   Super + R → Accent      Change GTK, bar and active-border accent together
   Super + R → Appearance  GTK theme, icons and cursor
   Super + R → Visualizer  Open the tiled live audio spectrum
@@ -117,3 +120,14 @@ VISUALIZER THEMES
 FALLBACK
   Log out with Super + P and choose Ubuntu from the login-screen gear to return
   to the untouched GNOME macOS setup.
+
+DAILY HABITS — THE SETUP GETS FAST WHEN THESE BECOME AUTOMATIC
+  1. Give workspaces fixed jobs: 1 browser/chat, 2 code, 3 media, 4 games.
+  2. Send windows with Super+Shift+1…9 instead of dragging them around.
+  3. Put temporary tools on the scratchpad; Super+S summons them anywhere.
+  4. Use Super+H/J/K/L for focus and add Shift when you want to move a tile.
+  5. Keep regular apps tiled. Fullscreen is best for games, video and reading.
+  6. Right-click or scroll bar items: that is where their second action lives.
+  7. Use caffeine only for presentations, downloads or intentional long video.
+  8. If a strange app floats, Super+A snaps it back into the tiling layout.
+  9. Super+R is the safe home for configuration; Super+/ is the memory aid.

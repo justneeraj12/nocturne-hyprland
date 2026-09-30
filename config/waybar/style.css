@@ -151,8 +151,8 @@ window#waybar {
 #custom-notification { color: @text; }
 #custom-local-clock { color: #e6eeeb; font-weight: 800; padding-left: 8px; padding-right: 8px; }
 #custom-power { color: @red; padding-right: 4px; }
-#custom-power-battery { color: @green; padding: 0 5px 0 8px; }
-#custom-power-battery.warning { color: @yellow; }
+#custom-power-battery { color: @red; padding: 0 5px 0 8px; font-weight: 800; }
+#custom-power-battery.warning { color: @red; }
 #custom-power-battery.critical { color: @red; }
 
 #custom-logo:hover,

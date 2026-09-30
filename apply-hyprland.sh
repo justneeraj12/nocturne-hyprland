@@ -36,7 +36,7 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$CONFIG_HOME/swaync" "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
-  "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
+  "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
   "$STATE_HOME/nocturne" "$BIN_HOME"
 cp -a -- "$ROOT_DIR/config/hypr/." "$CONFIG_HOME/hypr/"
 cp -a -- "$ROOT_DIR/config/waybar/." "$CONFIG_HOME/waybar/"
@@ -53,9 +53,13 @@ cp -a -- "$ROOT_DIR/config/cava/." "$CONFIG_HOME/cava/"
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/swaync.service.d/only-hyprland.conf" \
   "$CONFIG_HOME/systemd/user/swaync.service.d/only-hyprland.conf"
+install -m 0644 \
+  "$ROOT_DIR/config/systemd/user/nocturne-wallpaper-cycle.service" \
+  "$CONFIG_HOME/systemd/user/nocturne-wallpaper-cycle.service"
 install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
+install -m 0644 "$ROOT_DIR/config/nocturne/gtk-4.0.css" "$CONFIG_HOME/nocturne/gtk-4.0.css"
 install -m 0644 "$ROOT_DIR/config/dconf/hyprland-profile" "$CONFIG_HOME/dconf/hyprland-profile"
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
 install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/color-schemes/Nocturne.colors"
@@ -64,6 +68,11 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard
 install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualizer"
 install -m 0755 "$ROOT_DIR/bin/nocturne-cyberdisc" "$BIN_HOME/nocturne-cyberdisc"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
+install -m 0755 "$ROOT_DIR/bin/nocturne-settings-app" "$BIN_HOME/nocturne-settings-app"
+install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
+if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
+  install -m 0644 "$ROOT_DIR/config/nocturne/wallpaper.json" "$CONFIG_HOME/nocturne/wallpaper.json"
+fi
 # Retire the earlier multi-window EQ experiment; Nocturne now exposes one
 # focused visualizer launcher and leaves DSP tools out of the shell UI.
 rm -f -- "$BIN_HOME/nocturne-eq" "$BIN_HOME/nocturne-eq-controls" \
@@ -95,6 +104,11 @@ install -m 0644 "$ROOT_DIR/assets/nocturne-grid.png" "$DATA_HOME/backgrounds/noc
 if [[ ! -e "$DATA_HOME/backgrounds/nocturne-grid.png" ]]; then
   install -m 0644 "$ROOT_DIR/assets/nocturne-grid.png" "$DATA_HOME/backgrounds/nocturne-grid.png"
 fi
+if [[ ! -e "$CONFIG_HOME/hypr/nocturne-wallpaper.conf" ]]; then
+  sed "s|@WALLPAPER@|$DATA_HOME/backgrounds/nocturne-grid.png|g" \
+    "$ROOT_DIR/assets/nocturne-wallpaper.conf.in" \
+    > "$CONFIG_HOME/hypr/nocturne-wallpaper.conf"
+fi
 chmod +x "$CONFIG_HOME"/hypr/scripts/*
 
 # Hyprland gets its own small dconf database so GTK/icon/window-control choices
@@ -112,6 +126,14 @@ DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.desktop.interface fo
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.desktop.interface document-font-name 'Inter 10'
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.desktop.interface monospace-font-name 'MesloLGS Nerd Font Mono 10'
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.desktop.wm.preferences button-layout ''
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences default-folder-viewer 'list-view'
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences default-sort-order 'name'
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences default-sort-in-reverse-order false
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences show-image-thumbnails 'always'
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences show-create-link true
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences show-delete-permanently true
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.list-view default-zoom-level 'small'
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.icon-view default-zoom-level 'small'
 
 # Keep PDF handling familiar even when a browser or another desktop has
 # previously claimed the MIME association.
@@ -126,6 +148,7 @@ fi
 # them out of the restored GNOME session and avoid duplicate processes.
 systemctl --user unmask swaync.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
+systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
   waybar.service \
   hypridle.service \

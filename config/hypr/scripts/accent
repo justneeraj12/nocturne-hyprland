@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-choice=$(printf '%s\n' Green Teal Slate Blue Purple Red Orange Yellow | \
-  wofi --dmenu --prompt 'Accent color' --insensitive) || exit 0
+if [[ -n ${1:-} ]]; then
+  choice=$1
+else
+  choice=$(printf '%s\n' Green Teal Slate Blue Purple Red Orange Yellow | \
+    wofi --dmenu --prompt 'Accent color' --insensitive) || exit 0
+fi
 
 case "${choice,,}" in
   green)  gtk=green;  accent=5f8f76; accent2=477463; border=365c4c ;;

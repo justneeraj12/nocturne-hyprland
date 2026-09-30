@@ -1,0 +1,151 @@
+@import url("accent.css");
+
+/* Nocturne's GTK layer is linked only while Hyprland is active. GNOME keeps
+ * its separate MacTahoe user stylesheet and button layout. */
+@define-color window_bg_color #090d0f;
+@define-color window_fg_color #d4ddd8;
+@define-color view_bg_color #0b1114;
+@define-color view_fg_color #cdd7d2;
+@define-color headerbar_bg_color #0c1215;
+@define-color headerbar_fg_color #dce5e0;
+@define-color sidebar_bg_color #0a1012;
+@define-color sidebar_fg_color #aab7b2;
+@define-color card_bg_color #0e1518;
+@define-color card_fg_color #d4ddd8;
+@define-color popover_bg_color #10171a;
+@define-color popover_fg_color #d4ddd8;
+@define-color accent_bg_color @accent;
+@define-color accent_fg_color #07100c;
+@define-color destructive_bg_color #9b5b5b;
+
+window,
+.background {
+  background-color: @window_bg_color;
+  color: @window_fg_color;
+}
+
+headerbar,
+.titlebar {
+  min-height: 40px;
+  padding: 0 7px;
+  background: @headerbar_bg_color;
+  color: @headerbar_fg_color;
+  border: 0;
+  border-bottom: 1px solid #273239;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+headerbar button,
+.titlebar button,
+button {
+  border-radius: 0;
+}
+
+headerbar windowcontrols button {
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+  margin: 0 2px;
+  background: transparent;
+  border: 1px solid transparent;
+}
+
+headerbar windowcontrols button:hover {
+  background: #151f23;
+  border-color: #36464d;
+}
+
+placessidebar,
+.navigation-sidebar,
+.sidebar-pane,
+.sidebar {
+  background: @sidebar_bg_color;
+  color: @sidebar_fg_color;
+  border-right: 1px solid #202b30;
+}
+
+placessidebar row,
+.navigation-sidebar row {
+  min-height: 31px;
+  margin: 1px 4px;
+  padding: 2px 7px;
+  border-radius: 0;
+}
+
+placessidebar row:selected,
+.navigation-sidebar row:selected {
+  background: #15221e;
+  color: @accent;
+  border-left: 2px solid @accent;
+}
+
+.nautilus-window gridview,
+.nautilus-window listview,
+.nautilus-window columnview,
+.nautilus-window .view {
+  background: @view_bg_color;
+  color: @view_fg_color;
+}
+
+.nautilus-window gridview child,
+.nautilus-window listview row {
+  border-radius: 0;
+}
+
+.nautilus-window gridview child:selected,
+.nautilus-window listview row:selected,
+.nautilus-window columnview row:selected {
+  background: #172720;
+  color: #eef4f1;
+  outline: 1px solid @accent;
+}
+
+.nautilus-window .path-bar button,
+.nautilus-window .linked button {
+  min-height: 28px;
+  background: #11191d;
+  border-color: #2b393f;
+  border-radius: 0;
+}
+
+popover > contents,
+menu,
+dialog,
+messagedialog {
+  background: @popover_bg_color;
+  color: @popover_fg_color;
+  border: 1px solid #344248;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+entry,
+searchentry,
+dropdown,
+spinbutton {
+  min-height: 32px;
+  border-radius: 0;
+  background: #0d1417;
+  border: 1px solid #334148;
+}
+
+entry:focus,
+searchentry:focus {
+  border-color: @accent;
+  outline: none;
+}
+
+scrollbar slider {
+  min-width: 5px;
+  min-height: 30px;
+  border-radius: 0;
+  background: #3b4c51;
+}
+
+tooltip {
+  background: #080c0e;
+  color: #dce5e0;
+  border: 1px solid #365247;
+  border-radius: 0;
+}

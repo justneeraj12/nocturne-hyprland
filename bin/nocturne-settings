@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The local org.gnome.Settings override must remain useful in both sessions:
-# route Hyprland to its native control card and GNOME to Ubuntu Settings.
+# The local org.gnome.Settings override remains useful in both sessions:
+# route Hyprland to Nocturne's native app and GNOME to Ubuntu Settings.
 if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} || ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
-  exec "$HOME/.config/hypr/scripts/control-center"
+  exec "$HOME/.local/bin/nocturne-settings-app" "$@"
 fi
 
 exec gnome-control-center "$@"

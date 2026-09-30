@@ -9,3 +9,4 @@ Terminal=false
 Categories=Settings;
 Keywords=Preferences;Settings;Nocturne;Hyprland;
 StartupNotify=false
+StartupWMClass=com.nocturne.Settings

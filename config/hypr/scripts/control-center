@@ -4,6 +4,7 @@ set -euo pipefail
 if "$HOME/.config/hypr/scripts/quick-menu" --toggle SETTINGS; then exit 0; fi
 
 choice=$(printf '%s\n' \
+  '󰒓  Open full Nocturne Settings' \
   '󰏘  Accent color' \
   '󰸉  Wallpaper' \
   '󰏘  GTK application style' \
@@ -31,6 +32,7 @@ choice=$(printf '%s\n' \
 
 case "$choice" in
   '────────'*) exit 0 ;;
+  *'full Nocturne'*) exec nocturne-settings ;;
   *Accent*) exec "$HOME/.config/hypr/scripts/accent" ;;
   *Wallpaper) exec "$HOME/.config/hypr/scripts/wallpaper" ;;
   *'GTK application'*) exec nwg-look ;;
