@@ -398,7 +398,12 @@ class SettingsWindow(Gtk.ApplicationWindow):
         box.append(wallpaper)
 
         self.section(box, "Static wallpaper + application style")
-        self.action_row(box, "Choose one wallpaper", "Picking a static image automatically pauses the day cycle.", [("CHOOSE IMAGE", [str(SCRIPT_HOME / "wallpaper")], "")])
+        static_row = self.action_row(box, "Choose one wallpaper", "Picking a static image automatically pauses the day cycle.", [])
+        choose = Gtk.Button(label="CHOOSE IMAGE", valign=Gtk.Align.CENTER)
+        choose.add_css_class("action")
+        choose.add_css_class("primary")
+        choose.connect("clicked", self.choose_static_wallpaper)
+        static_row.append(choose)
         self.action_row(box, "GTK appearance", "Fine-tune GTK theme, icons, cursor and fonts.", [("OPEN NWG LOOK", ["nwg-look"], "")])
         self.action_row(box, "Nocturne Files", "Sharp header, compact list view, dark sidebar and matching selection accent.", [("OPEN FILES", ["nautilus", "--new-window"], "primary")])
         GLib.idle_add(self.refresh_wallpaper_status)
@@ -581,6 +586,35 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.run([str(WALLPAPER_TOOL), "disable"])
         self.wallpaper_status.set_text("STOPPED · the current image stays in place")
         GLib.timeout_add(900, self.refresh_wallpaper_status)
+
+    def choose_static_wallpaper(self, _button: Gtk.Button) -> None:
+        dialog = Gtk.FileDialog(title="Choose a static wallpaper", modal=True)
+        images = Gtk.FileFilter(name="Wallpaper images")
+        for mime_type in ("image/png", "image/jpeg", "image/webp"):
+            images.add_mime_type(mime_type)
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        filters.append(images)
+        dialog.set_filters(filters)
+        dialog.set_default_filter(images)
+        library = HOME / ".local/share/backgrounds/Nocturne_Abstract"
+        if not library.is_dir():
+            library = HOME / ".local/share/backgrounds"
+        dialog.set_initial_folder(Gio.File.new_for_path(str(library)))
+        self.wallpaper_file_dialog = dialog
+        dialog.open(self, None, self.static_wallpaper_selected)
+
+    def static_wallpaper_selected(self, dialog: Gtk.FileDialog, result: Gio.AsyncResult) -> None:
+        try:
+            selected = dialog.open_finish(result)
+        except GLib.Error:
+            return
+        path = selected.get_path()
+        if not path:
+            self.toast("That wallpaper is not a local file")
+            return
+        self.run([str(WALLPAPER_TOOL), "apply-source", path])
+        self.wallpaper_status.set_text(f"APPLYING STATIC · {Path(path).name}")
+        GLib.timeout_add(1400, self.refresh_wallpaper_status)
 
     def refresh_wallpaper_status(self) -> bool:
         try:

@@ -13,8 +13,7 @@ case "$choice" in
     image=$(zenity --file-selection --title='Choose wallpaper' \
       --filename="$backgrounds/" \
       --file-filter='Images | *.png *.jpg *.jpeg *.webp') || exit 0
-    nocturne-wallpaper-cycle disable
-    exec nocturne-wallpaper-cycle apply-file "$image"
+    exec nocturne-wallpaper-cycle apply-source "$image"
     ;;
   'Restore Obsidian wallpaper')
     nocturne-wallpaper-cycle disable
