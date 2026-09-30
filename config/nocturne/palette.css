@@ -9,3 +9,14 @@
 @define-color header #0c1215;
 @define-color card #0e1518;
 @define-color selection #15221e;
+@define-color nocturne_base #07090a;
+@define-color nocturne_surface #0b0f10;
+@define-color nocturne_overlay #111719;
+@define-color nocturne_line #1b2925;
+@define-color nocturne_text #a7b8b1;
+@define-color nocturne_muted #4d5d58;
+@define-color nocturne_view #0b1114;
+@define-color nocturne_sidebar #0a1012;
+@define-color nocturne_header #0c1215;
+@define-color nocturne_card #0e1518;
+@define-color nocturne_selection #15221e;

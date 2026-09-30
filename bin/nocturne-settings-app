@@ -64,7 +64,7 @@ def css() -> str:
     colors = palette_colors()
     return f"""
     * {{ font-family: Inter, sans-serif; font-size: 10px; }}
-    window {{ background: {colors['base']}; color: {colors['text']}; }}
+    window, .app-root {{ background: {colors['base']}; color: {colors['text']}; }}
     .topbar {{ background: {colors['header']}; border-bottom: 1px solid {colors['line']}; min-height: 44px; }}
     .brand {{ font-family: 'MesloLGS Nerd Font Mono', monospace; font-weight: 700; font-size: 12px; color: {accent}; letter-spacing: 0.7px; }}
     .dim {{ color: {colors['muted']}; font-size: 9px; }}
@@ -125,6 +125,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         Gtk.StyleContext.add_provider_for_display(self.get_display(), self.provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        root.add_css_class("app-root")
         root.append(self.make_header())
         body = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, hexpand=True, vexpand=True)
         body.append(self.make_sidebar())

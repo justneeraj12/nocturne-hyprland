@@ -1,0 +1,82 @@
+@import url("accent.css");
+@import url("palette.css");
+
+/* Nocturne GTK 3 layer for classic system tools. Session switching stashes
+ * this link, so the GNOME/macOS desktop keeps its independent appearance. */
+@define-color theme_bg_color @nocturne_base;
+@define-color theme_fg_color @nocturne_text;
+@define-color theme_base_color @nocturne_view;
+@define-color theme_text_color @nocturne_text;
+@define-color theme_selected_bg_color @nocturne_accent;
+@define-color theme_selected_fg_color #07100c;
+@define-color borders @nocturne_line;
+
+window,
+.background,
+dialog {
+  background-color: @nocturne_base;
+  color: @nocturne_text;
+}
+
+headerbar,
+.titlebar {
+  min-height: 36px;
+  padding: 0 6px;
+  background: @nocturne_header;
+  color: @nocturne_text;
+  border: 0;
+  border-bottom: 1px solid @nocturne_line;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+button,
+entry,
+combobox button,
+spinbutton {
+  min-height: 28px;
+  border-radius: 0;
+  background: @nocturne_overlay;
+  color: @nocturne_text;
+  border: 1px solid @nocturne_line;
+  box-shadow: none;
+}
+
+button:hover {
+  background: @nocturne_selection;
+  border-color: @nocturne_accent;
+}
+
+treeview,
+treeview.view,
+textview,
+textview text,
+iconview,
+list,
+.view {
+  background: @nocturne_view;
+  color: @nocturne_text;
+}
+
+treeview:selected,
+row:selected,
+.view:selected {
+  background: @nocturne_selection;
+  color: @nocturne_text;
+}
+
+popover,
+popover.background,
+menu {
+  background: @nocturne_surface;
+  color: @nocturne_text;
+  border: 1px solid @nocturne_line;
+  border-radius: 0;
+}
+
+scrollbar slider {
+  min-width: 5px;
+  min-height: 30px;
+  border-radius: 0;
+  background: @nocturne_muted;
+}

@@ -3,34 +3,50 @@
 
 /* Nocturne's GTK layer is linked only while Hyprland is active. GNOME keeps
  * its separate MacTahoe user stylesheet and button layout. */
-@define-color window_bg_color @base;
+@define-color window_bg_color @nocturne_base;
 @define-color window_fg_color #d4ddd8;
-@define-color view_bg_color @view;
+@define-color view_bg_color @nocturne_view;
 @define-color view_fg_color #cdd7d2;
-@define-color headerbar_bg_color @header;
+@define-color headerbar_bg_color @nocturne_header;
 @define-color headerbar_fg_color #dce5e0;
-@define-color sidebar_bg_color @sidebar;
+@define-color sidebar_bg_color @nocturne_sidebar;
 @define-color sidebar_fg_color #aab7b2;
-@define-color card_bg_color @card;
+@define-color card_bg_color @nocturne_card;
 @define-color card_fg_color #d4ddd8;
 @define-color popover_bg_color #10171a;
 @define-color popover_fg_color #d4ddd8;
-@define-color accent_bg_color @accent;
+@define-color accent_bg_color @nocturne_accent;
 @define-color accent_fg_color #07100c;
 @define-color destructive_bg_color #9b5b5b;
+@define-color dialog_bg_color @nocturne_base;
+@define-color secondary_sidebar_bg_color @nocturne_sidebar;
+@define-color thumbnail_bg_color @nocturne_view;
+@define-color card_shade_color @nocturne_line;
+@define-color headerbar_shade_color @nocturne_line;
+@define-color shade_color rgba(0, 0, 0, 0.34);
+@define-color scrollbar_outline_color rgba(0, 0, 0, 0.45);
+@define-color borders @nocturne_line;
+@define-color accent_color @nocturne_accent;
+@define-color success_color #6d9578;
+@define-color warning_color #b89355;
+@define-color error_color #a96666;
 
 window,
-.background {
-  background-color: @window_bg_color;
-  color: @window_fg_color;
+.background,
+window.background,
+window > box,
+toolbarview,
+toolbarview > box {
+  background-color: @nocturne_base;
+  color: @nocturne_text;
 }
 
 headerbar,
 .titlebar {
   min-height: 40px;
   padding: 0 7px;
-  background: @headerbar_bg_color;
-  color: @headerbar_fg_color;
+  background: @nocturne_header;
+  color: @nocturne_text;
   border: 0;
   border-bottom: 1px solid #273239;
   border-radius: 0;
@@ -41,6 +57,44 @@ headerbar button,
 .titlebar button,
 button {
   border-radius: 0;
+}
+
+button:not(.flat),
+menubutton > button,
+splitbutton > button {
+  background-color: @nocturne_overlay;
+  color: @nocturne_text;
+  border: 1px solid @nocturne_line;
+  box-shadow: none;
+}
+
+button:not(.flat):hover,
+menubutton > button:hover,
+splitbutton > button:hover {
+  background-color: @nocturne_selection;
+  border-color: @nocturne_accent;
+}
+
+button.suggested-action {
+  background: @nocturne_accent;
+  color: #07100c;
+  border-color: @nocturne_accent;
+}
+
+view,
+.view,
+viewport,
+list,
+columnview,
+gridview {
+  background-color: @nocturne_view;
+  color: @nocturne_text;
+}
+
+row:selected,
+item:selected {
+  background: @nocturne_selection;
+  color: #eef4f1;
 }
 
 headerbar windowcontrols button {
@@ -61,8 +115,8 @@ placessidebar,
 .navigation-sidebar,
 .sidebar-pane,
 .sidebar {
-  background: @sidebar_bg_color;
-  color: @sidebar_fg_color;
+  background: @nocturne_sidebar;
+  color: @nocturne_text;
   border-right: 1px solid #202b30;
 }
 
@@ -76,17 +130,17 @@ placessidebar row,
 
 placessidebar row:selected,
 .navigation-sidebar row:selected {
-  background: @selection;
-  color: @accent;
-  border-left: 2px solid @accent;
+  background: @nocturne_selection;
+  color: @nocturne_accent;
+  border-left: 2px solid @nocturne_accent;
 }
 
 .nautilus-window gridview,
 .nautilus-window listview,
 .nautilus-window columnview,
 .nautilus-window .view {
-  background: @view_bg_color;
-  color: @view_fg_color;
+  background: @nocturne_view;
+  color: @nocturne_text;
 }
 
 .nautilus-window gridview child,
@@ -99,7 +153,7 @@ placessidebar row:selected,
 .nautilus-window columnview row:selected {
   background: #172720;
   color: #eef4f1;
-  outline: 1px solid @accent;
+  outline: 1px solid @nocturne_accent;
 }
 
 .nautilus-window .path-bar button,
@@ -114,8 +168,8 @@ popover > contents,
 menu,
 dialog,
 messagedialog {
-  background: @popover_bg_color;
-  color: @popover_fg_color;
+  background: @nocturne_surface;
+  color: @nocturne_text;
   border: 1px solid #344248;
   border-radius: 0;
   box-shadow: none;
@@ -131,9 +185,48 @@ spinbutton {
   border: 1px solid #334148;
 }
 
+/* GNOME Calculator and other libadwaita utility surfaces. */
+.display-container,
+.history-view,
+mathdisplay,
+mathconverter,
+.math-buttons,
+.math-buttons grid {
+  background-color: @nocturne_card;
+  color: @nocturne_text;
+  border-radius: 0;
+}
+
+.math-buttons grid > button,
+.math-buttons grid > menubutton > button,
+.math-buttons grid > stack > button {
+  background: @nocturne_overlay;
+  color: @nocturne_text;
+  border: 1px solid @nocturne_line;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.math-buttons .number-button {
+  background: @nocturne_selection;
+}
+
+.math-buttons .suggested-action,
+.math-buttons .operator-button:checked {
+  background: @nocturne_accent;
+  color: #07100c;
+}
+
+calendar,
+.calendar-view {
+  background: @nocturne_view;
+  color: @nocturne_text;
+  border-radius: 0;
+}
+
 entry:focus,
 searchentry:focus {
-  border-color: @accent;
+  border-color: @nocturne_accent;
   outline: none;
 }
 

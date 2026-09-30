@@ -11,10 +11,16 @@ config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
 gtk_dir=$config_home/gtk-4.0
 stash_dir=$state_home/nocturne/gtk4-macos-links
-nocturne_css=$config_home/nocturne/gtk-4.0.css
+nocturne_css_4=$config_home/nocturne/gtk-4.0.css
+nocturne_css=$nocturne_css_4
+gtk3_dir=$config_home/gtk-3.0
+gtk3_stash_dir=$state_home/nocturne/gtk3-macos-links
+nocturne_css_3=$config_home/nocturne/gtk-3.0.css
+accent_css=$config_home/nocturne/accent.css
+palette_css=$config_home/nocturne/palette.css
 layout_key=/org/gnome/desktop/wm/preferences/button-layout
 layout_state=$stash_dir/gnome-button-layout
-mkdir -p "$gtk_dir" "$stash_dir"
+mkdir -p "$gtk_dir" "$stash_dir" "$gtk3_dir" "$gtk3_stash_dir"
 
 exists() {
   [[ -e $1 || -L $1 ]]
@@ -82,13 +88,52 @@ case $mode in
     stash_link gtk-dark.css
     ln -sfn -- "$nocturne_css" "$gtk_dir/gtk.css"
     ln -sfn -- "$nocturne_css" "$gtk_dir/gtk-dark.css"
+    nocturne_css=$accent_css
+    stash_link accent.css
+    ln -sfn -- "$nocturne_css" "$gtk_dir/accent.css"
+    nocturne_css=$palette_css
+    stash_link palette.css
+    ln -sfn -- "$nocturne_css" "$gtk_dir/palette.css"
     stash_button_layout
+    gtk_dir=$gtk3_dir
+    stash_dir=$gtk3_stash_dir
+    nocturne_css=$nocturne_css_3
+    stash_link gtk.css
+    stash_link gtk-dark.css
+    ln -sfn -- "$nocturne_css" "$gtk_dir/gtk.css"
+    ln -sfn -- "$nocturne_css" "$gtk_dir/gtk-dark.css"
+    nocturne_css=$accent_css
+    stash_link accent.css
+    ln -sfn -- "$nocturne_css" "$gtk_dir/accent.css"
+    nocturne_css=$palette_css
+    stash_link palette.css
+    ln -sfn -- "$nocturne_css" "$gtk_dir/palette.css"
     ;;
   gnome)
+    nocturne_css=$nocturne_css_4
     remove_nocturne_link gtk.css
     remove_nocturne_link gtk-dark.css
     restore_link gtk.css
     restore_link gtk-dark.css
+    nocturne_css=$accent_css
+    remove_nocturne_link accent.css
+    restore_link accent.css
+    nocturne_css=$palette_css
+    remove_nocturne_link palette.css
+    restore_link palette.css
     restore_button_layout
+    gtk_dir=$gtk3_dir
+    stash_dir=$gtk3_stash_dir
+    nocturne_css=$nocturne_css_3
+    remove_nocturne_link gtk.css
+    remove_nocturne_link gtk-dark.css
+    restore_link gtk.css
+    restore_link gtk-dark.css
+    nocturne_css=$accent_css
+    remove_nocturne_link accent.css
+    restore_link accent.css
+    nocturne_css=$palette_css
+    remove_nocturne_link palette.css
+    restore_link palette.css
     ;;
 esac

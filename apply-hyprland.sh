@@ -60,6 +60,7 @@ install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locatio
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
 install -m 0644 "$ROOT_DIR/config/nocturne/gtk-4.0.css" "$CONFIG_HOME/nocturne/gtk-4.0.css"
+install -m 0644 "$ROOT_DIR/config/nocturne/gtk-3.0.css" "$CONFIG_HOME/nocturne/gtk-3.0.css"
 if [[ ! -e "$CONFIG_HOME/nocturne/palette.css" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/palette.css" "$CONFIG_HOME/nocturne/palette.css"
 fi

@@ -12,23 +12,23 @@ case "${choice,,}" in
   obsidian|'obsidian grid')
     name='Obsidian Grid'; base=07090a; surface=0b0f10; overlay=111719; line=1b2925
     text=a7b8b1; muted=4d5d58; view=0b1114; sidebar=0a1012; header=0c1215; card=0e1518; selection=15221e
-    gaps_in=4; gaps_out=6; active=0.97; inactive=0.93 ;;
+    gaps_in=4; gaps_out=6; active=1.0; inactive=1.0 ;;
   carbon|'carbon compact')
     name='Carbon Compact'; base=070808; surface=0c0d0e; overlay=151718; line=292d2f
     text=c1c7c4; muted=626b68; view=090a0b; sidebar=08090a; header=0b0c0d; card=101213; selection=202524
-    gaps_in=2; gaps_out=4; active=0.99; inactive=0.96 ;;
+    gaps_in=2; gaps_out=4; active=1.0; inactive=1.0 ;;
   midnight|'midnight circuit')
     name='Midnight Circuit'; base=070a12; surface=0b101a; overlay=101827; line=233049
     text=b5c3d6; muted=526077; view=080d16; sidebar=070b12; header=0a0f19; card=0d1420; selection=14243a
-    gaps_in=5; gaps_out=8; active=0.98; inactive=0.94 ;;
+    gaps_in=5; gaps_out=8; active=1.0; inactive=1.0 ;;
   phosphor|'phosphor terminal')
     name='Phosphor Terminal'; base=050907; surface=08100b; overlay=0d1911; line=1b3324
     text=a9c7b1; muted=486653; view=060d09; sidebar=050b07; header=07100a; card=0a140d; selection=102619
-    gaps_in=3; gaps_out=5; active=0.98; inactive=0.94 ;;
+    gaps_in=3; gaps_out=5; active=1.0; inactive=1.0 ;;
   crimson|'crimson relay')
     name='Crimson Relay'; base=0b0708; surface=120c0e; overlay=1d1215; line=3b252b
     text=cbb7bb; muted=70565c; view=0e090b; sidebar=0b0708; header=100a0c; card=160e11; selection=2d171d
-    gaps_in=4; gaps_out=7; active=0.98; inactive=0.94 ;;
+    gaps_in=4; gaps_out=7; active=1.0; inactive=1.0 ;;
   *) exit 2 ;;
 esac
 
@@ -46,6 +46,18 @@ printf '%s\n' \
   "@define-color header #$header;" \
   "@define-color card #$card;" \
   "@define-color selection #$selection;" > "$config/palette.css.tmp"
+printf '%s\n' \
+  "@define-color nocturne_base #$base;" \
+  "@define-color nocturne_surface #$surface;" \
+  "@define-color nocturne_overlay #$overlay;" \
+  "@define-color nocturne_line #$line;" \
+  "@define-color nocturne_text #$text;" \
+  "@define-color nocturne_muted #$muted;" \
+  "@define-color nocturne_view #$view;" \
+  "@define-color nocturne_sidebar #$sidebar;" \
+  "@define-color nocturne_header #$header;" \
+  "@define-color nocturne_card #$card;" \
+  "@define-color nocturne_selection #$selection;" >> "$config/palette.css.tmp"
 printf '%s\n' \
   "\$nocturne_gaps_in = $gaps_in" \
   "\$nocturne_gaps_out = $gaps_out" \
