@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+menu() {
+  "$HOME/.config/hypr/scripts/quick-menu" 'BLUETOOTH' -270 360 220
+}
+
+power_state() {
+  bluetoothctl show 2>/dev/null | awk '/Powered:/ {print $2; exit}'
+}
+
+toggle_power() {
+  if [[ $(power_state) == yes ]]; then
+    bluetoothctl power off >/dev/null
+  else
+    rfkill unblock bluetooth 2>/dev/null || true
+    bluetoothctl power on >/dev/null
+  fi
+}
+
+if [[ ${1:-} == toggle ]]; then
+  toggle_power
+  exit 0
+fi
+
+if "$HOME/.config/hypr/scripts/quick-menu" --toggle BLUETOOTH; then exit 0; fi
+
+while true; do
+  state=$(power_state)
+  if [[ $state == yes ]]; then
+    toggle='󰂲  Turn Bluetooth off'
+    header='󰂯  Bluetooth on'
+  else
+    toggle='󰂯  Turn Bluetooth on'
+    header='󰂲  Bluetooth off'
+  fi
+
+  entries=("$header" "$toggle")
+  declare -A device_address=() device_connected=()
+  if [[ $state == yes ]]; then
+    entries+=('󰑐  Scan for devices' '──────── DEVICES ────────')
+    while read -r _ address name; do
+      [[ -n ${address:-} ]] || continue
+      info=$(bluetoothctl info "$address" 2>/dev/null || true)
+      connected=$(awk '/Connected:/ {print $2}' <<<"$info")
+      paired=$(awk '/Paired:/ {print $2}' <<<"$info")
+      marker='○'
+      [[ $connected == yes ]] && marker='●'
+      suffix='known'
+      [[ $paired == yes ]] && suffix='paired'
+      [[ $connected == yes ]] && suffix='connected'
+      label="$marker  ${name:-$address} · $suffix"
+      entries+=("$label")
+      device_address["$label"]=$address
+      device_connected["$label"]=$connected
+    done < <(bluetoothctl devices)
+  fi
+  entries+=('󰒓  Advanced Bluetooth settings')
+
+  choice=$(printf '%s\n' "${entries[@]}" | menu) || exit 0
+  [[ -n $choice ]] || exit 0
+  case "$choice" in
+    *'Turn Bluetooth'*) toggle_power; sleep 1 ;;
+    *'Scan for devices'*) bluetoothctl --timeout 8 scan on >/dev/null 2>&1 || true ;;
+    *'Advanced Bluetooth'*) exec blueman-manager ;;
+    '────────'*|"󰂯"*|"󰂲  Bluetooth off") continue ;;
+    *)
+      address=${device_address["$choice"]:-}
+      [[ -n $address ]] || continue
+      if [[ ${device_connected["$choice"]:-no} == yes ]]; then
+        bluetoothctl disconnect "$address" >/dev/null
+        notify-send -a Nocturne 'Bluetooth disconnected' "${choice#*  }"
+      elif bluetoothctl connect "$address" >/dev/null; then
+        notify-send -a Nocturne 'Bluetooth connected' "${choice#*  }"
+      else
+        notify-send -u critical -a Nocturne 'Bluetooth connection failed' 'Use Advanced settings to pair a new device.'
+      fi
+      exit 0
+      ;;
+  esac
+done

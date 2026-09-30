@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Nocturne Visualizer
+Comment=Open the live PipeWire audio visualizer
+Exec=@LAUNCHER@
+Icon=multimedia-volume-control
+Terminal=false
+Categories=AudioVideo;Audio;
+StartupNotify=true
+

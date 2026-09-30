@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Nocturne Dashboard
+Comment=Open an Omarchy-inspired tiled terminal dashboard
+Exec=@LAUNCHER@
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Monitor;
+StartupNotify=true
+

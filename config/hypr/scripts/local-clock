@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+clock=$(date '+%I:%M')
+clock=${clock#0}
+if [[ $(date '+%p') == AM ]]; then marker='+'; else marker='−'; fi
+tooltip=$(date '+%A, %d %B %Y')
+jq -cn --arg text "${clock}${marker}" --arg tooltip "$tooltip\n+ AM  ·  − PM" \
+  '{text:$text,tooltip:$tooltip,class:"local-clock"}'

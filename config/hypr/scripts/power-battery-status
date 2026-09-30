@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+battery=$(find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' -print -quit)
+if [[ -z $battery ]]; then
+  jq -cn '{text:"󰐥",class:"ac",tooltip:"Power menu"}'
+  exit 0
+fi
+
+capacity=$(cat "$battery/capacity")
+status=$(cat "$battery/status")
+if [[ $status == Charging ]]; then
+  icon='󰂄'
+  class=charging
+elif [[ $status == Full || $status == 'Not charging' ]]; then
+  icon='󰂅'
+  class=full
+else
+  icons=('󰁺' '󰁻' '󰁼' '󰁽' '󰁾' '󰁿' '󰂀' '󰂁' '󰂂' '󰁹')
+  index=$((capacity / 10))
+  ((index > 9)) && index=9
+  icon=${icons[$index]}
+  class=normal
+  ((capacity <= 25)) && class=warning
+  ((capacity <= 12)) && class=critical
+fi
+
+jq -cn --arg text "$icon ${capacity}%  󰐥" --arg class "$class" \
+  --arg tooltip "Battery ${capacity}% · $status\nClick for lock, suspend, logout, restart and shutdown" \
+  '{text:$text,class:$class,tooltip:$tooltip}'

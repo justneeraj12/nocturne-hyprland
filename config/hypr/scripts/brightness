@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+read_percent() {
+  brightnessctl -m | awk -F, 'NR == 1 {gsub(/%/, "", $4); print $4}'
+}
+
+set_percent() {
+  local percent=$1 device maximum raw
+  ((percent < 5)) && percent=5
+  ((percent > 100)) && percent=100
+  device=$(brightnessctl -m | awk -F, 'NR == 1 {print $1}')
+  maximum=$(brightnessctl max)
+  raw=$((maximum * percent / 100))
+  busctl call org.freedesktop.login1 \
+    /org/freedesktop/login1/session/auto \
+    org.freedesktop.login1.Session SetBrightness \
+    ssu backlight "$device" "$raw" >/dev/null
+}
+
+status() {
+  local percent icon
+  percent=$(read_percent)
+  if ((percent < 25)); then icon='󰃞';
+  elif ((percent < 50)); then icon='󰃟';
+  elif ((percent < 75)); then icon='󰃝';
+  else icon='󰃠'; fi
+  jq -cn --arg text "$icon ${percent}%" \
+    --arg tooltip "Laptop brightness ${percent}%\nScroll to adjust · click for slider" \
+    '{text:$text,tooltip:$tooltip,class:"brightness"}'
+}
+
+adjust() {
+  local current
+  current=$(read_percent)
+  case $1 in
+    up) set_percent "$((current + 5))" ;;
+    down) set_percent "$((current - 5))" ;;
+  esac
+}
+
+pick() {
+  local current value
+  current=$(read_percent)
+  value=$(zenity --scale --title='Display Brightness' \
+    --text='Laptop display' --min-value=5 --max-value=100 \
+    --step=1 --value="$current" --value-pos=bottom) || exit 0
+  set_percent "$value"
+  notify-send 'Display brightness' "Set to ${value}%"
+}
+
+case ${1:-status} in
+  status) status ;;
+  up|down) adjust "$1" ;;
+  pick) pick ;;
+  *) printf 'Usage: %s status|up|down|pick\n' "$0" >&2; exit 2 ;;
+esac

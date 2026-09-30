@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SESSION_NAME=${NOCTURNE_SESSION_NAME:-nocturne-monitor}
+
+create_session() {
+  tmux -f "${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf" \
+    new-session -d -s "$SESSION_NAME" -n dashboard
+
+  tmux send-keys -t "$SESSION_NAME:dashboard.0" \
+    "btop" Enter
+
+  tmux split-window -h -p 42 -t "$SESSION_NAME:dashboard.0"
+  tmux send-keys -t "$SESSION_NAME:dashboard.1" \
+    "nvtop" Enter
+
+  tmux split-window -v -p 38 -t "$SESSION_NAME:dashboard.1"
+  tmux send-keys -t "$SESSION_NAME:dashboard.2" \
+    "clear; fastfetch --logo none; printf '\\n  Super+Shift+R: graphical monitor\\n  CPU/RAM right-click: reopen this dashboard\\n\\n'; exec \"${SHELL:-/bin/bash}\" -l" Enter
+  tmux select-pane -t "$SESSION_NAME:dashboard.0"
+}
+
+tmux has-session -t "$SESSION_NAME" 2>/dev/null || create_session
+
+if [[ -n "${TMUX:-}" ]]; then
+  exec tmux switch-client -t "$SESSION_NAME"
+else
+  exec kitty --class NocturneDashboard --title 'Nocturne Dashboard' \
+    --override initial_window_width=190c \
+    --override initial_window_height=50c \
+    tmux attach-session -t "$SESSION_NAME"
+fi

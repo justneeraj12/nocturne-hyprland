@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+id=${1:-$(kdeconnect-cli --list-available --id-only 2>/dev/null | head -n 1 || true)}
+args=(--replace)
+[[ -n $id ]] && args+=(--device "$id")
+
+exec env QT_QPA_PLATFORM=wayland QT_QPA_PLATFORMTHEME=qt6ct \
+  QT_STYLE_OVERRIDE=Fusion QT_QUICK_CONTROLS_STYLE=org.kde.desktop \
+  kdeconnect-app "${args[@]}"

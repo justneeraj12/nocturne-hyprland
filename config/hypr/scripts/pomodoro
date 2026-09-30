@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/nocturne-pomodoro-$UID
+state_file=$runtime_dir/state
+mkdir -p "$runtime_dir"
+
+work_seconds=1500
+break_seconds=300
+
+reset_values() {
+  mode=work
+  running=0
+  remaining=$work_seconds
+  end=0
+}
+
+load_state() {
+  reset_values
+  [[ -s "$state_file" ]] && source "$state_file"
+}
+
+save_state() {
+  printf 'mode=%q\nrunning=%q\nremaining=%q\nend=%q\n' \
+    "$mode" "$running" "$remaining" "$end" > "$state_file"
+}
+
+transition() {
+  if [[ "$mode" == work ]]; then
+    mode=break
+    remaining=$break_seconds
+    notify-send 'Focus complete' 'Take a five-minute break.'
+  else
+    mode=work
+    remaining=$work_seconds
+    notify-send 'Break complete' 'Ready for another focus block.'
+  fi
+  running=0
+  end=0
+  save_state
+}
+
+status() {
+  load_state
+  now=$(date +%s)
+  if ((running)); then
+    remaining=$((end - now))
+    if ((remaining <= 0)); then
+      transition
+    fi
+  fi
+
+  minutes=$((remaining / 60))
+  seconds=$((remaining % 60))
+  timer=$(printf '%02d:%02d' "$minutes" "$seconds")
+
+  if [[ "$mode" == break ]]; then
+    icon='󰅶'
+    label='Break'
+    class='break'
+  elif ((running)); then
+    icon='󱎫'
+    label='Focus'
+    class='running'
+  else
+    icon='󱫞'
+    label='Focus paused'
+    class='paused'
+  fi
+
+  jq -cn --arg text "$icon $timer" --arg tooltip "$label · left click start/pause · middle skip · right reset" --arg class "$class" \
+    '{text:$text,tooltip:$tooltip,class:$class}'
+}
+
+case "${1:-status}" in
+  status) status ;;
+  toggle)
+    load_state
+    now=$(date +%s)
+    if ((running)); then
+      remaining=$((end - now))
+      ((remaining < 1)) && remaining=1
+      running=0
+      end=0
+    else
+      running=1
+      end=$((now + remaining))
+    fi
+    save_state
+    ;;
+  reset)
+    reset_values
+    save_state
+    notify-send 'Pomodoro reset' 'Focus timer reset to 25 minutes.'
+    ;;
+  skip)
+    load_state
+    transition
+    ;;
+  *) exit 2 ;;
+esac

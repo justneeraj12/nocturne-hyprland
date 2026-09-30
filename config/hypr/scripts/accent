@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice=$(printf '%s\n' Green Teal Slate Blue Purple Red Orange Yellow | \
+  wofi --dmenu --prompt 'Accent color' --insensitive) || exit 0
+
+case "${choice,,}" in
+  green)  gtk=green;  accent=5f8f76; accent2=477463; border=365c4c ;;
+  teal)   gtk=teal;   accent=4f9b95; accent2=35736f; border=2f6561 ;;
+  slate)  gtk=slate;  accent=82919c; accent2=5f707c; border=4d5d68 ;;
+  blue)   gtk=blue;   accent=638fb8; accent2=456f98; border=365d80 ;;
+  purple) gtk=purple; accent=9476ad; accent2=705589; border=5e466f ;;
+  red)    gtk=red;    accent=a96666; accent2=844b4b; border=703d3d ;;
+  orange) gtk=orange; accent=b17a51; accent2=8c5b38; border=754a2e ;;
+  yellow) gtk=yellow; accent=a9965c; accent2=82713e; border=6e5f33 ;;
+  *) exit 0 ;;
+esac
+
+config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne
+mkdir -p "$config"
+printf '@define-color accent #%s;\n@define-color accent2 #%s;\n' "$accent" "$accent2" > "$config/accent.css.tmp"
+printf '$active_border = rgba(%sff)\n' "$border" > "$config/accent.conf.tmp"
+mv "$config/accent.css.tmp" "$config/accent.css"
+mv "$config/accent.conf.tmp" "$config/accent.conf"
+DCONF_PROFILE="$HOME/.config/dconf/hyprland-profile" gsettings set org.gnome.desktop.interface accent-color "$gtk"
+hyprctl reload >/dev/null
+pkill -SIGUSR2 waybar 2>/dev/null || true
+notify-send 'Accent changed' "$choice"

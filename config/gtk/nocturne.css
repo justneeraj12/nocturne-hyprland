@@ -1,0 +1,28 @@
+/* Compact, restrained window chrome for GTK 3/4 and libadwaita apps. */
+headerbar,
+.titlebar {
+  min-height: 34px;
+  padding: 0 6px;
+}
+
+headerbar windowcontrols button,
+headerbar button.titlebutton,
+.titlebar button.titlebutton {
+  min-width: 18px;
+  min-height: 18px;
+  padding: 1px;
+  margin: 0 2px;
+  border-radius: 999px;
+}
+
+headerbar windowcontrols button image,
+headerbar button.titlebutton image,
+.titlebar button.titlebutton image {
+  -gtk-icon-size: 12px;
+}
+
+window.csd,
+window.background.csd {
+  border-radius: 8px;
+}
+

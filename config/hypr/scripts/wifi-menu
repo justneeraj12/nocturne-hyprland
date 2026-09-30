@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+menu() {
+  "$HOME/.config/hypr/scripts/quick-menu" 'WI-FI' -235 370 240
+}
+
+wifi_device=$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" {print $1; exit}')
+if [[ -z $wifi_device ]]; then
+  notify-send -a Nocturne 'Wi-Fi' 'No Wi-Fi adapter was found.'
+  exit 1
+fi
+
+if [[ ${1:-} == toggle ]]; then
+  [[ $(nmcli radio wifi) == enabled ]] && nmcli radio wifi off || nmcli radio wifi on
+  exit 0
+fi
+
+if "$HOME/.config/hypr/scripts/quick-menu" --toggle WI-FI; then exit 0; fi
+
+while true; do
+  radio=$(nmcli radio wifi)
+  active=$(nmcli -g GENERAL.CONNECTION device show "$wifi_device" 2>/dev/null || true)
+  [[ $active == -- ]] && active='Disconnected'
+
+  if [[ $radio == enabled ]]; then
+    toggle='󰖪  Turn Wi-Fi off'
+  else
+    toggle='󰖩  Turn Wi-Fi on'
+  fi
+
+  entries=("󰤨  $active" "$toggle" '󰑐  Rescan networks' '──────── NETWORKS ────────')
+  declare -A network_ssid=() network_security=() seen=()
+
+  if [[ $radio == enabled ]]; then
+    while IFS=$'\t' read -r in_use ssid signal security; do
+      [[ -n $ssid && $ssid != -- && -z ${seen["$ssid"]:-} ]] || continue
+      seen["$ssid"]=1
+      marker='○'
+      [[ $in_use == '*' ]] && marker='●'
+      lock='󰌾'
+      [[ -z $security || $security == -- ]] && lock='󰿆'
+      label="$marker  $ssid · ${signal}%  $lock"
+      entries+=("$label")
+      network_ssid["$label"]=$ssid
+      network_security["$label"]=$security
+    done < <(nmcli -m multiline -f IN-USE,SSID,SIGNAL,SECURITY device wifi list --rescan no ifname "$wifi_device" | awk '
+      /^IN-USE:/ {v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); use=v}
+      /^SSID:/ {v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); ssid=v}
+      /^SIGNAL:/ {v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); signal=v}
+      /^SECURITY:/ {v=$0; sub(/^[^:]*:[[:space:]]*/, "", v); if (use == "") use = "-"; printf "%s\t%s\t%s\t%s\n", use, ssid, signal, v}
+    ')
+  fi
+  entries+=('󰒓  Advanced network settings')
+
+  choice=$(printf '%s\n' "${entries[@]}" | menu) || exit 0
+  [[ -n $choice ]] || exit 0
+  case "$choice" in
+    *'Turn Wi-Fi off'*) nmcli radio wifi off; exit 0 ;;
+    *'Turn Wi-Fi on'*) nmcli radio wifi on; sleep 2 ;;
+    *'Rescan networks'*) nmcli device wifi rescan ifname "$wifi_device" || true; sleep 2 ;;
+    *'Advanced network'*) exec nm-connection-editor ;;
+    '────────'*|"󰤨"*) continue ;;
+    *)
+      ssid=${network_ssid["$choice"]:-}
+      [[ -n $ssid ]] || continue
+      if [[ $ssid == "$active" ]]; then
+        nmcli device disconnect "$wifi_device"
+        notify-send -a Nocturne 'Wi-Fi disconnected' "$ssid"
+        exit 0
+      fi
+
+      if nmcli --wait 15 connection up id "$ssid" ifname "$wifi_device" >/dev/null 2>&1; then
+        notify-send -a Nocturne 'Wi-Fi connected' "$ssid"
+        exit 0
+      fi
+
+      security=${network_security["$choice"]:-}
+      if [[ -n $security && $security != -- ]]; then
+        password=$(printf '' | "$HOME/.config/hypr/scripts/quick-menu" "PASSWORD · $ssid" -235 370 170 --password) || exit 0
+        if nmcli --wait 20 device wifi connect "$ssid" password "$password" ifname "$wifi_device"; then
+          notify-send -a Nocturne 'Wi-Fi connected' "$ssid"
+          exit 0
+        fi
+      elif nmcli --wait 20 device wifi connect "$ssid" ifname "$wifi_device"; then
+        notify-send -a Nocturne 'Wi-Fi connected' "$ssid"
+        exit 0
+      fi
+      notify-send -u critical -a Nocturne 'Wi-Fi connection failed' "$ssid"
+      ;;
+  esac
+done

@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir=${XDG_RUNTIME_DIR:-/tmp}/nocturne-minimized-${UID}
+state=$state_dir/windows.tsv
+mkdir -p "$state_dir"
+touch "$state"
+
+hide_window() {
+  local window address workspace title clean
+  window=$(hyprctl activewindow -j)
+  address=$(jq -r '.address // empty' <<<"$window")
+  workspace=$(jq -r '.workspace.name // empty' <<<"$window")
+  title=$(jq -r '.title // .class // "Window"' <<<"$window")
+  [[ -n "$address" && "$address" != 0x0 ]] || exit 0
+  clean=${title//$'\t'/ }
+  clean=${clean//$'\n'/ }
+  awk -F '\t' -v wanted="$address" '$1 != wanted' "$state" > "$state.tmp"
+  printf '%s\t%s\t%s\n' "$address" "$workspace" "$clean" >> "$state.tmp"
+  mv "$state.tmp" "$state"
+  hyprctl dispatch movetoworkspacesilent "special:minimized,address:${address}" >/dev/null
+}
+
+show_window() {
+  local clients menu choice address workspace
+  clients=$(hyprctl clients -j)
+  jq -r '.[] | select(.workspace.name == "special:minimized") | .address' <<<"$clients" > "$state_dir/live"
+  awk -F '\t' 'NR==FNR {live[$1]=1; next} live[$1]' "$state_dir/live" "$state" > "$state.tmp"
+  mv "$state.tmp" "$state"
+  [[ -s "$state" ]] || { notify-send 'Minimized windows' 'Nothing is hidden.'; exit 0; }
+  menu=$(awk -F '\t' '{printf "%s  ·  workspace %s  [%s]\n", $3, $2, $1}' "$state")
+  choice=$(printf '%s' "$menu" | wofi --dmenu --prompt 'Restore window' --insensitive) || exit 0
+  address=$(sed -n 's/.*\[\(0x[0-9a-fA-F]*\)\]$/\1/p' <<<"$choice")
+  workspace=$(awk -F '\t' -v wanted="$address" '$1 == wanted {print $2; exit}' "$state")
+  [[ -n "$workspace" ]] || exit 0
+  hyprctl dispatch movetoworkspace "${workspace},address:${address}" >/dev/null
+  hyprctl dispatch workspace "$workspace" >/dev/null
+  hyprctl dispatch focuswindow "address:${address}" >/dev/null
+  awk -F '\t' -v wanted="$address" '$1 != wanted' "$state" > "$state.tmp"
+  mv "$state.tmp" "$state"
+}
+
+case "${1:-}" in
+  hide) hide_window ;;
+  show) show_window ;;
+  *) printf 'Usage: %s hide|show\n' "$0" >&2; exit 2 ;;
+esac

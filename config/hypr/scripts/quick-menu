@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+state_file="$runtime_dir/nocturne-quick-menu.state"
+
+if [[ ${1:-} == --toggle ]]; then
+  prompt=${2:-CONTROL}
+  now=$(date +%s)
+  if [[ -r $state_file ]]; then
+    IFS=$'\t' read -r old_prompt old_pid opened_at < "$state_file" || true
+    active=false
+    if [[ ${old_pid:-} =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
+      active=true
+    fi
+    if [[ ${old_prompt:-} == "$prompt" ]] && { $active || ((now - ${opened_at:-0} <= 2)); }; then
+      $active && kill "$old_pid" 2>/dev/null || true
+      exit 0
+    fi
+    $active && kill "$old_pid" 2>/dev/null || true
+  fi
+  exit 1
+fi
+
+prompt=${1:-CONTROL}
+xoffset=${2:-0}
+width=${3:-380}
+height=${4:-280}
+shift $(( $# < 4 ? $# : 4 ))
+
+if [[ -r $state_file ]]; then
+  IFS=$'\t' read -r old_prompt old_pid _ < "$state_file" || true
+  if [[ ${old_pid:-} =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
+    kill "$old_pid" 2>/dev/null || true
+    for _ in {1..20}; do
+      kill -0 "$old_pid" 2>/dev/null || break
+      sleep 0.02
+    done
+    [[ ${old_prompt:-} == "$prompt" ]] && exit 1
+  fi
+fi
+
+exec 3<&0
+wofi --dmenu --conf "$HOME/.config/wofi/quick-menu" \
+  --style "$HOME/.config/wofi/quick-style.css" \
+  --prompt "$prompt" --no-custom-entry --cache-file /dev/null \
+  --location top_right --xoffset "$xoffset" --yoffset 0 \
+  --width "$width" --height "$height" "$@" <&3 &
+menu_pid=$!
+exec 3<&-
+printf '%s\t%s\t%s\n' "$prompt" "$menu_pid" "$(date +%s)" > "$state_file"
+
+wait "$menu_pid"

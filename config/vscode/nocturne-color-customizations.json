@@ -1,0 +1,22 @@
+{
+  "workbench.colorTheme": "Tokyo Night Storm",
+  "window.titleBarStyle": "custom",
+  "window.commandCenter": true,
+  "window.menuBarVisibility": "toggle",
+  "workbench.iconTheme": "material-icon-theme",
+  "workbench.colorCustomizations": {
+    "titleBar.activeBackground": "#0f111a",
+    "titleBar.activeForeground": "#c0caf5",
+    "titleBar.inactiveBackground": "#0f111a",
+    "titleBar.inactiveForeground": "#565f89",
+    "activityBar.background": "#0f111a",
+    "sideBar.background": "#15161e",
+    "editorGroupHeader.tabsBackground": "#0f111a",
+    "tab.activeBorderTop": "#7aa2f7",
+    "statusBar.background": "#15161e",
+    "statusBar.foreground": "#a9b1d6",
+    "window.activeBorder": "#283457",
+    "window.inactiveBorder": "#15161e"
+  }
+}
+

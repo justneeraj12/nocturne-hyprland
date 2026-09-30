@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Protocol links and game shortcuts still need to be forwarded to Steam. The
+# client is single-instance, so this hands the URL to the running process or
+# starts it with the same clean GPU environment when it is not running.
+if (($#)); then
+  exec env -u DRI_PRIME \
+    SDL_VIDEODRIVER=wayland,x11 \
+    __NV_PRIME_RENDER_OFFLOAD=1 \
+    __GLX_VENDOR_LIBRARY_NAME=nvidia \
+    __VK_LAYER_NV_optimus=NVIDIA_only \
+    /usr/games/steam "$@"
+fi
+
+# Repeated shortcuts focus Steam instead of asking its slow launcher to start
+# again. focuswindow follows it to whichever workspace currently owns it.
+main_address=$(hyprctl clients -j | jq -r '
+  [.[] | select((.class | ascii_downcase) == "steam" and .title == "Steam")]
+  | first.address // empty
+')
+
+if [[ -n "$main_address" ]]; then
+  hyprctl dispatch focuswindow "address:$main_address" >/dev/null
+  exit 0
+fi
+
+# This laptop has Intel + NVIDIA graphics. DRI_PRIME=1 sends Steam's Chromium
+# shell through Mesa/Zink and has produced GPU-process resets here. NVIDIA's
+# native PRIME variables keep both the client and games on the RTX path.
+exec env -u DRI_PRIME \
+  SDL_VIDEODRIVER=wayland,x11 \
+  __NV_PRIME_RENDER_OFFLOAD=1 \
+  __GLX_VENDOR_LIBRARY_NAME=nvidia \
+  __VK_LAYER_NV_optimus=NVIDIA_only \
+  /usr/games/steam "$@"

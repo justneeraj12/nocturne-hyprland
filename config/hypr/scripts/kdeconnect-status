@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+id=$(kdeconnect-cli --list-available --id-only 2>/dev/null | head -n 1 || true)
+if [[ -n $id ]]; then
+  name=$(kdeconnect-cli --list-available --name-only 2>/dev/null | head -n 1)
+  jq -cn --arg text '󰄜' --arg tooltip "KDE Connect · ${name:-Phone}\nConnected and reachable\nLeft: phone controls · Right: send clipboard" \
+    '{text:$text,class:"connected",tooltip:$tooltip}'
+else
+  jq -cn --arg text '󰄙' --arg tooltip 'KDE Connect\nNo reachable phone\nClick to refresh and manage devices' \
+    '{text:$text,class:"disconnected",tooltip:$tooltip}'
+fi

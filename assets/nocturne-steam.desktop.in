@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Steam
+Comment=Launch or focus Steam with the correct hybrid-GPU path
+Exec=@SCRIPT@ %U
+Icon=steam
+Terminal=false
+Type=Application
+Categories=Network;FileTransfer;Game;
+MimeType=x-scheme-handler/steam;x-scheme-handler/steamlink;
+Keywords=games;gaming;store;launcher;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

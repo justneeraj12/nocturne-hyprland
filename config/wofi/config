@@ -1,0 +1,15 @@
+show=drun
+width=620
+height=430
+location=center
+allow_images=true
+insensitive=true
+matching=fuzzy
+sort_order=default
+term=kitty
+prompt=Run
+normal_window=true
+layer=overlay
+gtk_dark=true
+image_size=28
+key_expand=Tab

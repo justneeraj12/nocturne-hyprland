@@ -1,0 +1,19 @@
+# Machine-local recovery snapshots can contain private desktop state.
+backups/
+
+# Local/editor/runtime noise.
+*.bak
+*.log
+*~
+.DS_Store
+__pycache__/
+.cache/
+.local-state/
+
+# Temporary package and screenshot artifacts.
+*.deb
+*.tmp
+nocturne-*.png
+
+# Keep the generated wallpaper out of Git; the SVG source is tracked.
+assets/nocturne-grid.png

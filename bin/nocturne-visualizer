@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${TERM:-}" == xterm-kitty ]]; then
+  exec cava
+fi
+
+exec kitty --class NocturneVisualizer --title 'Nocturne Visualizer' \
+  --override initial_window_width=92c \
+  --override initial_window_height=24c \
+  cava
+

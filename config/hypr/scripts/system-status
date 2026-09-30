@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+read_cpu() {
+  read -r _ user nice system idle iowait irq softirq steal _ < /proc/stat
+  idle_all=$((idle + iowait))
+  total=$((user + nice + system + idle + iowait + irq + softirq + steal))
+  printf '%s %s\n' "$idle_all" "$total"
+}
+
+read -r idle1 total1 < <(read_cpu)
+sleep 0.12
+read -r idle2 total2 < <(read_cpu)
+delta_total=$((total2 - total1))
+delta_idle=$((idle2 - idle1))
+cpu=0
+((delta_total > 0)) && cpu=$((100 * (delta_total - delta_idle) / delta_total))
+
+read -r mem_total mem_used < <(free -m | awk '/^Mem:/ {print $2, $3}')
+ram=$((100 * mem_used / mem_total))
+gpu=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -n 1 | tr -d ' ' || printf '0')
+gpu=${gpu:-0}
+gpu_temp=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n 1 | tr -d ' ' || printf '?')
+read -r disk_used disk_total disk_free disk_percent < <(df -hP / | awk 'NR==2 {print $3, $2, $4, $5}')
+disk=${disk_percent%%%}
+
+class=normal
+((cpu >= 90 || ram >= 90 || gpu >= 95 || disk >= 90)) && class=critical
+if [[ $class == normal ]] && ((cpu >= 75 || ram >= 80 || gpu >= 80 || disk >= 80)); then class=warning; fi
+
+jq -cn \
+  --arg text "󰍛 $cpu  󰘚 $ram  󰢮 $gpu  󰋊 $disk" \
+  --arg class "$class" \
+  --arg tooltip "SYSTEM\nCPU ${cpu}% · RAM ${ram}%\nGPU ${gpu}% · ${gpu_temp}°C\nDisk ${disk}% · ${disk_free} free\nLeft: Resources · Right: hacker dashboard" \
+  '{text:$text,class:$class,tooltip:$tooltip}'

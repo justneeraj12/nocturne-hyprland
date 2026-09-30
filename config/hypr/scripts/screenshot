@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+screenshots=${XDG_PICTURES_DIR:-"$HOME/Pictures"}/Screenshots
+mkdir -p "$screenshots"
+file="$screenshots/$(date +'%Y-%m-%d_%H-%M-%S').png"
+
+case "${1:-area}" in
+  full) grim "$file" ;;
+  area)
+    region=$(slurp)
+    [[ -n "$region" ]] || exit 0
+    grim -g "$region" "$file"
+    ;;
+  *) exit 2 ;;
+esac
+
+wl-copy < "$file"
+notify-send 'Screenshot saved' "$file"

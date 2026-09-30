@@ -1,0 +1,43 @@
+* {
+  font-family: "Inter", "MesloLGS Nerd Font Mono";
+  font-size: 13px;
+}
+
+window {
+  margin: 0;
+  border: 1px solid #365c4c;
+  border-radius: 0;
+  background-color: rgba(7, 9, 10, 0.99);
+  color: #a7b8b1;
+}
+
+#outer-box { padding: 8px; }
+
+#input {
+  margin: 2px 2px 8px;
+  padding: 11px 13px;
+  border: 1px solid #1b2925;
+  border-radius: 0;
+  color: #a7b8b1;
+  background-color: #0b0f10;
+  box-shadow: none;
+}
+
+#input:focus { border-color: #477463; }
+#scroll { margin: 0; }
+#inner-box { padding: 0; }
+
+#entry {
+  padding: 9px 11px;
+  margin: 1px 0;
+  border-radius: 0;
+  color: #879a92;
+}
+
+#entry:selected {
+  background-color: #15211d;
+  color: #b7c8c1;
+}
+
+#text:selected { color: #b7c8c1; }
+#img { margin-right: 10px; }

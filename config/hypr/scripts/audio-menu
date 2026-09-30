@@ -1,0 +1,129 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if "$HOME/.config/hypr/scripts/quick-menu" --toggle AUDIO; then exit 0; fi
+
+menu() {
+  local prompt=${1:-AUDIO}
+  "$HOME/.config/hypr/scripts/quick-menu" "$prompt" -200 380 260
+}
+
+sink_ids() {
+  local in_sinks=false line
+  while IFS= read -r line; do
+    if [[ $line == *'Sinks:'* ]]; then
+      in_sinks=true
+      continue
+    fi
+    if [[ $line == *'Sources:'* ]]; then
+      break
+    fi
+    if $in_sinks && [[ $line =~ ([0-9]+)\. ]]; then
+      printf '%s\n' "${BASH_REMATCH[1]}"
+    fi
+  done < <(wpctl status -n)
+}
+
+node_value() {
+  wpctl inspect "$1" | sed -n "s/.*$2 = \"\(.*\)\"/\1/p" | head -n 1
+}
+
+while true; do
+  default_id=$(wpctl status -n | sed -n '/Sinks:/,/Sources:/s/.*\* *\([0-9][0-9]*\)\..*/\1/p' | head -n 1)
+  default_volume=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
+  volume=$(awk '{printf "%d", $2 * 100}' <<<"$default_volume")
+  muted=''
+  grep -q MUTED <<<"$default_volume" && muted=' · MUTED'
+  default_name=$(node_value @DEFAULT_AUDIO_SINK@ node.nick)
+  [[ -n $default_name ]] || default_name='Default output'
+
+  declare -A output_id=() app_id=() app_name=()
+  entries=(
+    "󰕾  $default_name · ${volume}%${muted}"
+    '󰝝  Volume +5%'
+    '󰝞  Volume −5%'
+    '󰝟  Toggle output mute'
+    '──────── OUTPUTS ────────'
+  )
+
+  while IFS= read -r id; do
+    [[ -n $id ]] || continue
+    name=$(node_value "$id" node.nick)
+    [[ -n $name ]] || name=$(node_value "$id" node.description)
+    [[ -n $name ]] || name="Output $id"
+    state=$(wpctl get-volume "$id" 2>/dev/null || printf 'Volume: 0')
+    level=$(awk '{printf "%d", $2 * 100}' <<<"$state")
+    suffix=''
+    grep -q MUTED <<<"$state" && suffix=' · muted'
+    marker='○'
+    [[ $id == "$default_id" ]] && marker='●'
+    label="$marker  $name · ${level}%${suffix}"
+    entries+=("$label")
+    output_id["$label"]=$id
+  done < <(sink_ids)
+
+  entries+=('──────── APP VOLUMES ────────')
+  while IFS=$'\t' read -r id name media; do
+    [[ -n $id ]] || continue
+    state=$(wpctl get-volume "$id" 2>/dev/null || printf 'Volume: 0')
+    level=$(awk '{printf "%d", $2 * 100}' <<<"$state")
+    suffix=''
+    grep -q MUTED <<<"$state" && suffix=' · muted'
+    label="󰎆  ${name:-$media} · ${level}%${suffix}"
+    [[ -n ${app_id["$label"]:-} ]] && label="󰎆  ${name:-$media} ($id) · ${level}%${suffix}"
+    entries+=("$label")
+    app_id["$label"]=$id
+    app_name["$label"]=${name:-$media}
+  done < <(pw-dump 2>/dev/null | jq -r '
+    .[] | select(.type == "PipeWire:Interface:Node")
+    | select(.info.props["media.class"] == "Stream/Output/Audio" and .info.state == "running")
+    | [.id, (.info.props["application.name"] // "App"), (.info.props["media.name"] // "Playback")] | @tsv
+  ')
+
+  entries+=(
+    '──────── TOOLS ──────────'
+    '󰓃  Equalizer & effects'
+    '󱡬  Audio routing graph'
+  )
+
+  choice=$(printf '%s\n' "${entries[@]}" | menu AUDIO) || exit 0
+  [[ -n $choice ]] || exit 0
+  case "$choice" in
+    *'Volume +5%'*) wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+ ;;
+    *'Volume −5%'*) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
+    *'Toggle output mute'*) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+    *'Equalizer'*) exec easyeffects ;;
+    *'routing graph'*) exec qpwgraph ;;
+    '────────'*|"󰕾"*) continue ;;
+    *)
+      id=${output_id["$choice"]:-}
+      if [[ -n $id ]]; then
+        wpctl set-default "$id"
+        name=$(node_value "$id" node.nick)
+        sink_name=$(node_value "$id" node.name)
+        if command -v pactl >/dev/null && [[ -n $sink_name ]]; then
+          pactl set-default-sink "$sink_name" || true
+          while read -r stream _; do
+            [[ $stream =~ ^[0-9]+$ ]] && pactl move-sink-input "$stream" "$sink_name" || true
+          done < <(pactl list short sink-inputs)
+        fi
+        notify-send -a Nocturne 'Audio output changed' "${name:-Output $id}"
+        exit 0
+      fi
+
+      id=${app_id["$choice"]:-}
+      [[ -n $id ]] || continue
+      name=${app_name["$choice"]:-App}
+      action=$(printf '%s\n' \
+        '󰝝  App volume +5%' \
+        '󰝞  App volume −5%' \
+        '󰝟  Toggle app mute' \
+        '󰁍  Back' | menu "$name") || continue
+      case "$action" in
+        *'+5%'*) wpctl set-volume -l 1.5 "$id" 5%+ ;;
+        *'−5%'*) wpctl set-volume "$id" 5%- ;;
+        *'mute'*) wpctl set-mute "$id" toggle ;;
+      esac
+      ;;
+  esac
+done

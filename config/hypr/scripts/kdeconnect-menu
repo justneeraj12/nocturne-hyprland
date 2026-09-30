@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+menu() {
+  "$HOME/.config/hypr/scripts/quick-menu" 'PHONE' -300 365 240
+}
+
+if [[ ${1:-} == clipboard ]]; then
+  id=$(kdeconnect-cli --list-available --id-only 2>/dev/null | head -n 1 || true)
+  if [[ -n $id ]]; then
+    kdeconnect-cli -d "$id" --send-clipboard
+    notify-send -a Nocturne 'KDE Connect' 'Clipboard sent to phone.'
+  else
+    notify-send -u critical -a Nocturne 'KDE Connect' 'No reachable phone.'
+  fi
+  exit 0
+fi
+
+if "$HOME/.config/hypr/scripts/quick-menu" --toggle PHONE; then exit 0; fi
+
+while true; do
+  id=$(kdeconnect-cli --list-available --id-only 2>/dev/null | head -n 1 || true)
+  name=$(kdeconnect-cli --list-available --name-only 2>/dev/null | head -n 1 || true)
+  if [[ -n $id ]]; then
+    entries=(
+      "󰄜  ${name:-Phone} · connected"
+      '󰓾  Ring phone'
+      '󰑐  Ping phone'
+      '󰅌  Send clipboard'
+      '󰈔  Send a file'
+      '󰋊  Browse phone files'
+      '󰒓  Device settings'
+      '󰑓  Refresh connection'
+    )
+  else
+    entries=(
+      '󰄙  No reachable phone'
+      '󰑓  Refresh connection'
+      '󰒓  KDE Connect settings'
+    )
+  fi
+
+  choice=$(printf '%s\n' "${entries[@]}" | menu) || exit 0
+  [[ -n $choice ]] || exit 0
+  case "$choice" in
+    *'Ring phone'*) kdeconnect-cli -d "$id" --ring; exit 0 ;;
+    *'Ping phone'*) kdeconnect-cli -d "$id" --ping; exit 0 ;;
+    *'Send clipboard'*) kdeconnect-cli -d "$id" --send-clipboard; notify-send -a Nocturne 'KDE Connect' 'Clipboard sent.'; exit 0 ;;
+    *'Send a file'*)
+      command -v zenity >/dev/null || { notify-send -u critical -a Nocturne 'KDE Connect' 'Zenity file picker is unavailable.'; exit 1; }
+      file=$(GTK_THEME=Adwaita-dark zenity --file-selection --title='Send to phone') || exit 0
+      kdeconnect-cli -d "$id" --share "$file"
+      notify-send -a Nocturne 'KDE Connect' "Sent $(basename "$file")"
+      exit 0
+      ;;
+    *'Browse phone files'*)
+      kdeconnect-cli -d "$id" --mount >/dev/null
+      sleep 1
+      point=$(kdeconnect-cli -d "$id" --get-mount-point 2>/dev/null | tail -n 1)
+      [[ -n $point ]] && exec nautilus "$point"
+      ;;
+    *'Device settings'*|*'KDE Connect settings'*) exec "$HOME/.config/hypr/scripts/kdeconnect-settings" "$id" ;;
+    *'Refresh connection'*) kdeconnect-cli --refresh >/dev/null; sleep 2 ;;
+    *) continue ;;
+  esac
+done

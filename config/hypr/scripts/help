@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec kitty --class NocturneHelp --title 'Nocturne Key Guide' \
+  sh -lc 'less -R "$HOME/.config/hypr/KEYS.md"'

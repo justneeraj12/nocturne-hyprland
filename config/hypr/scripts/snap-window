@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+active=$(hyprctl activewindow -j)
+address=$(jq -r '.address // empty' <<<"$active")
+
+if [[ -z "$address" ]]; then
+  notify-send -a Nocturne 'Snap window' 'Focus a window first.'
+  exit 0
+fi
+
+if [[ $(jq -r '.floating' <<<"$active") == true ]]; then
+  hyprctl dispatch togglefloating >/dev/null
+  notify-send -a Nocturne 'Window snapped' 'It is now part of the tiling layout.'
+else
+  notify-send -a Nocturne 'Already snapped' 'Super + V makes it floating; Super + drag moves it.'
+fi

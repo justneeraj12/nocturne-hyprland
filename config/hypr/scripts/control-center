@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+choice=$(printf '%s\n' \
+  '󰆍  Terminal' \
+  '󰉋  Files' \
+  '  Browser' \
+  '󰭹  ChatGPT' \
+  '󰨞  VS Code' \
+  '  Steam' \
+  '󰝍  Snap focused window' \
+  '󰠮  Notes' \
+  '󰒓  System settings' \
+  '󰏘  Appearance' \
+  '󰸉  Wallpaper' \
+  '󰏘  Accent color' \
+  '󰍛  System resources' \
+  '󰫮  Hacker dashboard' \
+  '󰃠  Display brightness' \
+  '󰕾  Nocturne audio' \
+  '󰓃  Equalizer and effects' \
+  '󰽰  Audio routing graph' \
+  '󰤨  Network' \
+  '󰂯  Bluetooth' \
+  '󰄜  Phone / KDE Connect' \
+  '󰅶  Toggle caffeine' \
+  '󱎫  Pomodoro toggle' \
+  '󱅫  Notifications' \
+  '󰌾  Lock' \
+  '󰐥  Power menu' | wofi --dmenu --prompt 'Control Center' --insensitive)
+
+case "$choice" in
+  *Terminal) exec kitty ;;
+  *Files) exec nautilus --new-window ;;
+  *Browser) exec xdg-open https://www.google.com ;;
+  *ChatGPT) exec chatgpt ;;
+  *Code) exec code ;;
+  *Steam) exec "$HOME/.config/hypr/scripts/steam-launch" ;;
+  *Snap*) exec "$HOME/.config/hypr/scripts/snap-window" ;;
+  *Notes) exec iotas ;;
+  *settings) exec gnome-control-center ;;
+  *Appearance) if command -v nwg-look >/dev/null; then exec nwg-look; else exec gnome-control-center appearance; fi ;;
+  *Wallpaper) exec "$HOME/.config/hypr/scripts/wallpaper" ;;
+  *Accent*) exec "$HOME/.config/hypr/scripts/accent" ;;
+  *resources) exec resources ;;
+  *Hacker*) exec nocturne-dashboard ;;
+  *brightness) exec "$HOME/.config/hypr/scripts/brightness" pick ;;
+  *audio) exec "$HOME/.config/hypr/scripts/audio-menu" ;;
+  *Equalizer*) exec easyeffects ;;
+  *routing*) exec qpwgraph ;;
+  *Network) exec "$HOME/.config/hypr/scripts/wifi-menu" ;;
+  *Bluetooth) exec "$HOME/.config/hypr/scripts/bluetooth-menu" ;;
+  *KDE*) exec "$HOME/.config/hypr/scripts/kdeconnect-menu" ;;
+  *caffeine) exec "$HOME/.config/hypr/scripts/caffeine" toggle ;;
+  *Pomodoro) exec "$HOME/.config/hypr/scripts/pomodoro" toggle ;;
+  *Notifications) exec swaync-client -t -sw ;;
+  *Lock) exec hyprlock ;;
+  *Power) exec "$HOME/.config/hypr/scripts/power-menu" ;;
+esac

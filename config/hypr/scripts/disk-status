@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+read -r _ total used available percent _ < <(df -hP / | tail -n 1)
+number=${percent%%%}
+class=normal
+((number >= 90)) && class=critical
+((number >= 80 && number < 90)) && class=warning
+
+jq -cn --arg text "󰋊 $percent" --arg class "$class" \
+  --arg tooltip "System disk\nUsed $used / $total · $available free\nLeft: Files · Right: Resources" \
+  '{text:$text,class:$class,tooltip:$tooltip}'

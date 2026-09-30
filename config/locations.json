@@ -1,0 +1,77 @@
+{
+  "clock_groups": [
+    {
+      "label": "India",
+      "timezone": "Asia/Kolkata",
+      "locations": ["Bengaluru", "Hoodi Circle", "NRI Layout", "Visakhapatnam"]
+    },
+    {
+      "label": "New York",
+      "timezone": "America/New_York",
+      "locations": ["New York City", "Potsdam, NY"]
+    },
+    {
+      "label": "Milan",
+      "timezone": "Europe/Rome",
+      "locations": ["Milan"]
+    }
+  ],
+  "weather_locations": [
+    {
+      "label": "BLR",
+      "name": "Bengaluru",
+      "country": "India",
+      "latitude": 12.97679,
+      "longitude": 77.59008,
+      "timezone": "Asia/Kolkata"
+    },
+    {
+      "label": "Hoodi Circle",
+      "name": "Hoodi Circle, Bengaluru",
+      "country": "India",
+      "latitude": 12.99223,
+      "longitude": 77.71642,
+      "timezone": "Asia/Kolkata"
+    },
+    {
+      "label": "NRI Layout",
+      "name": "NRI Layout, Bengaluru",
+      "country": "India",
+      "latitude": 13.0316,
+      "longitude": 77.6801,
+      "timezone": "Asia/Kolkata"
+    },
+    {
+      "label": "Vizag",
+      "name": "Visakhapatnam",
+      "country": "India",
+      "latitude": 17.6868,
+      "longitude": 83.2185,
+      "timezone": "Asia/Kolkata"
+    },
+    {
+      "label": "NYC",
+      "name": "New York City",
+      "country": "United States",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "timezone": "America/New_York"
+    },
+    {
+      "label": "Potsdam, NY",
+      "name": "Potsdam",
+      "country": "United States",
+      "latitude": 44.66996,
+      "longitude": -74.98294,
+      "timezone": "America/New_York"
+    },
+    {
+      "label": "Milan",
+      "name": "Milan",
+      "country": "Italy",
+      "latitude": 45.4642,
+      "longitude": 9.19,
+      "timezone": "Europe/Rome"
+    }
+  ]
+}

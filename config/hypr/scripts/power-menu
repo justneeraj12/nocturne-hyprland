@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if "$HOME/.config/hypr/scripts/quick-menu" --toggle POWER; then exit 0; fi
+
+battery=$(find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' -print -quit)
+if [[ -n $battery ]]; then
+  capacity=$(cat "$battery/capacity")
+  status=$(cat "$battery/status")
+  header="󰁹  Battery ${capacity}% · $status"
+else
+  header='󰚥  AC power'
+fi
+
+choice=$(printf '%s\n' \
+  "$header" \
+  '──────── SESSION ────────' \
+  '󰌾  Lock screen' \
+  '󰤄  Suspend' \
+  '󰍃  Log out' \
+  '󰜉  Restart' \
+  '󰐥  Shut down' | \
+  "$HOME/.config/hypr/scripts/quick-menu" POWER 0 310 200)
+[[ -n $choice ]] || exit 0
+
+case "$choice" in
+  '󰁹'*|'󰚥'*|'────────'*) exit 0 ;;
+  *Lock*) exec hyprlock ;;
+  *Suspend) exec systemctl suspend ;;
+  *out) exec uwsm stop ;;
+  *Restart) exec systemctl reboot ;;
+  *down) exec systemctl poweroff ;;
+esac

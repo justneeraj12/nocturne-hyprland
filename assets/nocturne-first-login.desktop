@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Finish Nocturne Setup
+Comment=Enable newly installed GNOME Shell extensions after the first fresh login
+Exec=@LAUNCHER@
+OnlyShowIn=GNOME;
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

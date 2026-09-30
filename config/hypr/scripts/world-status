@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/locations.json
+cache_dir=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne
+cache=$cache_dir/weather.tsv
+mkdir -p "$cache_dir"
+
+refresh_weather() {
+  local temp_dir index
+  temp_dir=$(mktemp -d /tmp/nocturne-weather.XXXXXX)
+  index=0
+  while IFS=$'\t' read -r label latitude longitude; do
+    (
+      payload=$(curl --fail --silent --show-error --max-time 8 \
+        "https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto" 2>/dev/null) || exit 0
+      temperature=$(jq -r '.current.temperature_2m // empty' <<<"$payload")
+      code=$(jq -r '.current.weather_code // empty' <<<"$payload")
+      [[ -n "$temperature" ]] && printf '%s\t%s\t%s\n' "$label" "$temperature" "$code"
+    ) > "$temp_dir/$(printf '%02d' "$index")" &
+    index=$((index + 1))
+  done < <(jq -r '.weather_locations[] | [.label, .latitude, .longitude] | @tsv' "$config")
+  wait || true
+
+  if find "$temp_dir" -type f -size +0c -print -quit | grep -q .; then
+    {
+      [[ -s "$cache" ]] && cat "$cache"
+      cat "$temp_dir"/*
+    } | awk -F '\t' 'NF >= 3 { rows[$1] = $0 } END { for (label in rows) print rows[label] }' > "$cache.new"
+    mv "$cache.new" "$cache"
+  fi
+  rm -rf -- "$temp_dir"
+}
+
+now=$(date +%s)
+modified=0
+expected=$(jq '.weather_locations | length' "$config")
+actual=0
+[[ -f "$cache" ]] && modified=$(stat -c %Y "$cache")
+[[ -s "$cache" ]] && actual=$(wc -l < "$cache")
+if ((now - modified > 900 || actual < expected)); then
+  refresh_weather
+fi
+
+weather_icon() {
+  case "${1:-}" in
+    0) printf '󰖙' ;;
+    1|2|3) printf '󰖕' ;;
+    45|48) printf '󰖑' ;;
+    51|53|55|56|57|61|63|65|66|67|80|81|82) printf '󰖗' ;;
+    71|73|75|77|85|86) printf '󰖘' ;;
+    95|96|99) printf '󰖓' ;;
+    *) printf '󰖐' ;;
+  esac
+}
+
+clock_for() {
+  local timezone=$1 clock suffix
+  clock=$(TZ="$timezone" date '+%I:%M')
+  clock=${clock#0}
+  if [[ $(TZ="$timezone" date '+%p') == AM ]]; then suffix='+'; else suffix='−'; fi
+  printf '%s%s' "$clock" "$suffix"
+}
+
+mapfile -t locations < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
+state=${XDG_RUNTIME_DIR:-/tmp}/nocturne-world-${UID}.index
+index=0
+[[ -r "$state" ]] && read -r index < "$state"
+[[ "$index" =~ ^[0-9]+$ ]] || index=0
+(( ${#locations[@]} > 0 )) || exit 0
+index=$((index % ${#locations[@]}))
+IFS=$'\t' read -r current_label current_timezone <<< "${locations[$index]}"
+printf '%s\n' "$(((index + 1) % ${#locations[@]}))" > "$state"
+
+current_temp='--'
+current_code=''
+if [[ -s "$cache" ]]; then
+  current_temp=$(awk -F '\t' -v wanted="$current_label" '$1 == wanted {print $2; exit}' "$cache")
+  current_code=$(awk -F '\t' -v wanted="$current_label" '$1 == wanted {print $3; exit}' "$cache")
+  [[ -n "$current_temp" ]] || current_temp='--'
+fi
+
+text="${current_label} $(clock_for "$current_timezone")  ·  $(weather_icon "$current_code") ${current_temp}°"
+tooltip='WEATHER + LOCAL TIME'
+while IFS=$'\t' read -r label timezone; do
+  local_time="$(TZ="$timezone" date '+%a') $(clock_for "$timezone")"
+  temperature='--'
+  code=''
+  if [[ -s "$cache" ]]; then
+    temperature=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $2; exit}' "$cache")
+    code=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $3; exit}' "$cache")
+    [[ -n "$temperature" ]] || temperature='--'
+  fi
+  tooltip+=$(printf '\n%-15s %s  %s %s°' "$label" "$local_time" "$(weather_icon "$code")" "$temperature")
+done < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
+tooltip+=$'\n\nLeft click: Clocks · Right click: Weather'
+
+jq -cn --arg text "$text" --arg tooltip "$tooltip" '{text:$text,tooltip:$tooltip,class:"world"}'

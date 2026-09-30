@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+backgrounds=${XDG_DATA_HOME:-"$HOME/.local/share"}/backgrounds
+target=$backgrounds/nocturne-grid.png
+default=$backgrounds/nocturne-default.png
+mkdir -p "$backgrounds"
+
+choice=$(printf '%s\n' 'Choose an image' 'Restore Obsidian wallpaper' 'Open wallpaper folder' | \
+  wofi --dmenu --prompt 'Wallpaper') || exit 0
+
+case "$choice" in
+  'Choose an image')
+    image=$(zenity --file-selection --title='Choose wallpaper' \
+      --file-filter='Images | *.png *.jpg *.jpeg *.webp') || exit 0
+    convert "$image" -resize '2560x1440^' -gravity center -extent 2560x1440 "$target.tmp.png"
+    mv "$target.tmp.png" "$target"
+    ;;
+  'Restore Obsidian wallpaper') cp -- "$default" "$target" ;;
+  'Open wallpaper folder') exec nautilus "$backgrounds" ;;
+  *) exit 0 ;;
+esac
+
+pkill -x hyprpaper 2>/dev/null || true
+hyprctl dispatch exec hyprpaper >/dev/null
+notify-send 'Wallpaper updated' 'Applied to both screens.'

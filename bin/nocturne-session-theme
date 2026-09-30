@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if (($# != 1)) || [[ $1 != hypr && $1 != gnome ]]; then
+  printf 'Usage: %s hypr|gnome\n' "$0" >&2
+  exit 2
+fi
+
+mode=$1
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+gtk_dir=$config_home/gtk-4.0
+stash_dir=$state_home/nocturne/gtk4-macos-links
+layout_key=/org/gnome/desktop/wm/preferences/button-layout
+layout_state=$stash_dir/gnome-button-layout
+mkdir -p "$gtk_dir" "$stash_dir"
+
+exists() {
+  [[ -e $1 || -L $1 ]]
+}
+
+stash_link() {
+  local name=$1 active saved conflict
+  active=$gtk_dir/$name
+  saved=$stash_dir/$name
+  exists "$active" || return 0
+  if exists "$saved"; then
+    conflict=$stash_dir/${name}.extra.$(date +%Y%m%d-%H%M%S)
+    mv -- "$active" "$conflict"
+  else
+    mv -- "$active" "$saved"
+  fi
+}
+
+restore_link() {
+  local name=$1 active saved replaced
+  active=$gtk_dir/$name
+  saved=$stash_dir/$name
+  exists "$saved" || return 0
+  if exists "$active"; then
+    replaced=$stash_dir/${name}.replaced.$(date +%Y%m%d-%H%M%S)
+    mv -- "$active" "$replaced"
+  fi
+  mv -- "$saved" "$active"
+}
+
+stash_button_layout() {
+  local current
+  if [[ ! -s $layout_state ]]; then
+    current=$(env -u DCONF_PROFILE dconf read "$layout_key")
+    printf '%s\n' "${current:-'close,minimize,maximize:'}" > "$layout_state"
+  fi
+  env -u DCONF_PROFILE dconf write "$layout_key" "''"
+}
+
+restore_button_layout() {
+  local saved archived
+  [[ -s $layout_state ]] || return 0
+  read -r saved < "$layout_state"
+  env -u DCONF_PROFILE dconf write "$layout_key" "$saved"
+  archived=$stash_dir/gnome-button-layout.restored.$(date +%Y%m%d-%H%M%S)
+  mv -- "$layout_state" "$archived"
+}
+
+case $mode in
+  hypr)
+    # GTK 4 always loads these per-user stylesheets after the selected theme.
+    # Stash only the active links; the actual macOS CSS/assets stay untouched.
+    stash_link gtk.css
+    stash_link gtk-dark.css
+    stash_button_layout
+    ;;
+  gnome)
+    restore_link gtk.css
+    restore_link gtk-dark.css
+    restore_button_layout
+    ;;
+esac

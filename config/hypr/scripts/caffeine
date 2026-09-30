@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+status() {
+  if pgrep -x hypridle >/dev/null; then
+    jq -cn '{text:"󰒲",tooltip:"Idle lock is active · click for caffeine",class:"off"}'
+  else
+    jq -cn '{text:"󰅶",tooltip:"Caffeine on · automatic lock and display sleep paused",class:"on"}'
+  fi
+}
+
+case "${1:-status}" in
+  status) status ;;
+  toggle)
+    if pgrep -x hypridle >/dev/null; then
+      pkill -x hypridle
+      notify-send 'Caffeine on' 'Automatic lock and display sleep are paused.'
+    else
+      setsid -f hypridle >/dev/null 2>&1
+      notify-send 'Caffeine off' 'Normal idle locking is active.'
+    fi
+    ;;
+  *) exit 2 ;;
+esac

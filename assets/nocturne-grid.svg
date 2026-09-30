@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2560" height="1440" viewBox="0 0 2560 1440">
+  <defs>
+    <pattern id="micro-grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#263c34" stroke-opacity=".16" stroke-width="1"/>
+    </pattern>
+    <pattern id="scan" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M0 7.5H2560" stroke="#000" stroke-opacity=".18" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="edge" x1="0" x2="1">
+      <stop stop-color="#365c4c" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#365c4c" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#365c4c" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="2560" height="1440" fill="#050708"/>
+  <rect width="2560" height="1440" fill="url(#micro-grid)"/>
+  <rect width="2560" height="1440" fill="url(#scan)"/>
+
+  <g fill="none" stroke="#29473b" stroke-width="1">
+    <path d="M0 192H2560M0 1248H2560" opacity=".48"/>
+    <path d="M256 0V1440M2304 0V1440" opacity=".32"/>
+    <path d="M0 720H860L920 660H1640L1700 720H2560" opacity=".7"/>
+  </g>
+
+  <path d="M0 1260H730L900 1090H1660L1830 1260H2560V1440H0Z" fill="#0a100e"/>
+  <path d="M0 1260H730L900 1090H1660L1830 1260H2560" fill="none" stroke="#365c4c" stroke-opacity=".72" stroke-width="2"/>
+  <rect x="640" y="1259" width="1280" height="1" fill="url(#edge)"/>
+
+  <g transform="translate(1280 720)" fill="none" stroke="#365c4c">
+    <rect x="-88" y="-88" width="176" height="176" opacity=".24"/>
+    <rect x="-58" y="-58" width="116" height="116" opacity=".34"/>
+    <path d="M-118 0H-38M38 0H118M0-118V-38M0 38V118" opacity=".55"/>
+    <path d="M-14 0H14M0-14V14" stroke="#6d9578" opacity=".72"/>
+  </g>
+
+  <g font-family="monospace" fill="#4d6d60">
+    <text x="276" y="170" font-size="15" letter-spacing="3">NOCTURNE // SESSION ACTIVE</text>
+    <text x="2070" y="1290" font-size="13" letter-spacing="2">GRID 48 // LINK OK</text>
+  </g>
+</svg>

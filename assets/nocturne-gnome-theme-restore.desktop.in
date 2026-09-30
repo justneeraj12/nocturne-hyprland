@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Restore GNOME macOS GTK Theme
+Comment=Restore the saved GTK 4 stylesheet links when GNOME starts
+Exec=@SCRIPT@ gnome
+OnlyShowIn=GNOME;Unity;
+NoDisplay=true
+Hidden=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=Initialization

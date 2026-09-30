@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=KDE Connect · Nocturne
+Comment=Connect and control your phone
+Exec=@SCRIPT@
+Icon=kdeconnect
+Terminal=false
+Type=Application
+Categories=Qt;KDE;Network;
+StartupNotify=true
