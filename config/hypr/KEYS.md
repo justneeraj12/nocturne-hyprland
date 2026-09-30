@@ -111,7 +111,7 @@ VISUALIZER THEMES
   Zero Day                Red exploit trace with severity blocks
   Deep Trace              Passive sonar contacts and echo memory
   Synth City              Flat night-drive skyline and signal sun
-  Kernel Panic            Five stacked CPU fault traces
+  Kernel Panic            Large waveform, spectrum rack, and radial core
   Void Scanner            Sparse rotating contact array
 
 FALLBACK
