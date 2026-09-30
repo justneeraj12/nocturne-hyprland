@@ -61,9 +61,12 @@ control center, and middle opens the key guide. The full guide is in
 - The tiled Nocturne visualizer includes Cyberdisc: a flat terminal frequency
   ring around a rotating record with a pickup-fed waveform trace. Four additional
   native instruments—Black ICE, Datafall, Ghostscope, and Netrunner—provide
-  distinct neo-hacker layouts. Five lighter Cava designs—Obsidian, Matrix, Amber,
-  Ice, and Wave—remain available. The Nocturne dashboard combines btop, nvtop,
-  and a live audio spectrum in one sharp grid.
+  distinct neo-hacker layouts. Ten more native decks—Razorwire, Mainframe,
+  Pulsegrid, Signal Tower, Gridlock, Zero Day, Deep Trace, Synth City, Kernel
+  Panic, and Void Scanner—cover mirrored traces, rack consoles, cell matrices,
+  sonar, skyline, and sparse scanner layouts. Five lighter Cava designs remain
+  available in a separate classics menu. The Nocturne dashboard combines btop,
+  nvtop, and a live audio spectrum in one sharp grid.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
 - Steam opens tiled, its utility dialogs float centered, and its launcher

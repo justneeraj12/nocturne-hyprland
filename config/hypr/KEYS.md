@@ -90,7 +90,7 @@ PERSONALIZE + SOUND
   Super + R → Accent      Change GTK, bar and active-border accent together
   Super + R → Appearance  GTK theme, icons and cursor
   Super + R → Visualizer  Open the tiled live audio spectrum
-  Super + R → Viz theme   Five native cyberpunk instruments + five Cava styles
+  Super + R → Viz theme   Fifteen native cyber decks + five Cava classics
   Super + R → Routing     Visual PipeWire device routing
   Super + R → Brightness  Matching laptop backlight presets
 
@@ -103,6 +103,16 @@ VISUALIZER THEMES
   Datafall                Scrolling four-second spectral memory waterfall
   Ghostscope              Audio-driven phase-intercept vector scope
   Netrunner               Packet-grid waveform, band telemetry, and spectrum
+  Razorwire               Mirrored dual-edge trace and frequency needles
+  Mainframe               Four-rack spectrum, waveform, cache, and node console
+  Pulsegrid               Quantized biosignal monitor with beat rings
+  Signal Tower            Vertical spectrum skyline and scan rail
+  Gridlock                Blocky frequency-versus-memory cell matrix
+  Zero Day                Red exploit trace with severity blocks
+  Deep Trace              Passive sonar contacts and echo memory
+  Synth City              Flat night-drive skyline and signal sun
+  Kernel Panic            Five stacked CPU fault traces
+  Void Scanner            Sparse rotating contact array
 
 FALLBACK
   Log out with Super + P and choose Ubuntu from the login-screen gear to return
