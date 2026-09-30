@@ -2,10 +2,10 @@
 Type=Application
 Name=Nocturne Settings
 GenericName=System Settings
-Comment=Configure the Nocturne Hyprland desktop
-Exec=@SCRIPT@
+Comment=Configure the current desktop session
+Exec=@LAUNCHER@
 Icon=preferences-system
 Terminal=false
-Categories=Settings;System;
-OnlyShowIn=Hyprland;
+Categories=Settings;
+Keywords=Preferences;Settings;Nocturne;Hyprland;
 StartupNotify=false

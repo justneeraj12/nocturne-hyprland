@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+clock=$(date '+%I:%M')
+clock=${clock#0}
+if [[ $(date '+%p') == AM ]]; then
+  marker=+
+else
+  marker=−
+fi
+printf '%s%s\n' "$clock" "$marker"

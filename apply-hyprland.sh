@@ -63,6 +63,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-session-theme" "$BIN_HOME/nocturne-sessi
 install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard"
 install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualizer"
 install -m 0755 "$ROOT_DIR/bin/nocturne-cyberdisc" "$BIN_HOME/nocturne-cyberdisc"
+install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
 # Retire the earlier multi-window EQ experiment; Nocturne now exposes one
 # focused visualizer launcher and leaves DSP tools out of the shell UI.
 rm -f -- "$BIN_HOME/nocturne-eq" "$BIN_HOME/nocturne-eq-controls" \
@@ -75,10 +76,11 @@ sed "s|@SCRIPT@|$CONFIG_HOME/hypr/scripts/kdeconnect-settings|g" \
   "$ROOT_DIR/assets/nocturne-kdeconnect.desktop.in" \
   > "$DATA_HOME/applications/org.kde.kdeconnect.app.desktop"
 chmod 0644 "$DATA_HOME/applications/org.kde.kdeconnect.app.desktop"
-sed "s|@SCRIPT@|$CONFIG_HOME/hypr/scripts/control-center|g" \
+sed "s|@LAUNCHER@|$BIN_HOME/nocturne-settings|g" \
   "$ROOT_DIR/assets/nocturne-settings.desktop.in" \
-  > "$DATA_HOME/applications/nocturne-settings.desktop"
-chmod 0644 "$DATA_HOME/applications/nocturne-settings.desktop"
+  > "$DATA_HOME/applications/org.gnome.Settings.desktop"
+chmod 0644 "$DATA_HOME/applications/org.gnome.Settings.desktop"
+rm -f -- "$DATA_HOME/applications/nocturne-settings.desktop"
 sed "s|@LAUNCHER@|$BIN_HOME/nocturne-visualizer|g" \
   "$ROOT_DIR/assets/nocturne-visualizer.desktop.in" \
   > "$DATA_HOME/applications/nocturne-visualizer.desktop"
@@ -87,6 +89,8 @@ sed "s|@SCRIPT@|$BIN_HOME/nocturne-session-theme|g" \
   "$ROOT_DIR/assets/nocturne-gnome-theme-restore.desktop.in" \
   > "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
 chmod 0644 "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
+command -v update-desktop-database >/dev/null 2>&1 && \
+  update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true
 install -m 0644 "$ROOT_DIR/assets/nocturne-grid.png" "$DATA_HOME/backgrounds/nocturne-default.png"
 if [[ ! -e "$DATA_HOME/backgrounds/nocturne-grid.png" ]]; then
   install -m 0644 "$ROOT_DIR/assets/nocturne-grid.png" "$DATA_HOME/backgrounds/nocturne-grid.png"

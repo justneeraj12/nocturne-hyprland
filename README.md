@@ -56,8 +56,12 @@ control center, and middle opens the key guide. The full guide is in
   click-to-toggle cards directly beneath their buttons. A themed clock card
   combines every saved world time, live weather, Pomodoro, and caffeine. The
   Hyprland-native Nocturne Settings card replaces GNOME Settings, which cannot
-  run outside GNOME. Audio includes per-app volume; KDE Connect uses a matching
-  dark Qt6 theme. Detailed process data lives in the resource dashboard.
+  run outside GNOME. The standard Settings launcher routes intelligently to
+  Nocturne under Hyprland and Ubuntu Settings under GNOME. Audio includes
+  per-app volume; KDE Connect uses a matching dark Qt6 theme. Detailed process
+  data lives in the resource dashboard.
+- Hyprlock uses a sharp terminal-authentication card with the Nocturne palette,
+  12-hour `+`/`−` time marker, session identity, and themed auth feedback.
 - The tiled Nocturne visualizer includes Cyberdisc: a flat terminal frequency
   ring around a rotating record with a pickup-fed waveform trace. Four additional
   native instruments—Black ICE, Datafall, Ghostscope, and Netrunner—provide

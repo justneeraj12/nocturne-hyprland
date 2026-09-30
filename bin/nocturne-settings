@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# The local org.gnome.Settings override must remain useful in both sessions:
+# route Hyprland to its native control card and GNOME to Ubuntu Settings.
+if [[ -n ${HYPRLAND_INSTANCE_SIGNATURE:-} || ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
+  exec "$HOME/.config/hypr/scripts/control-center"
+fi
+
+exec gnome-control-center "$@"

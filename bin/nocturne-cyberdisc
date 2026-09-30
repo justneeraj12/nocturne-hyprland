@@ -146,8 +146,10 @@ class Cyberdisc(Gtk.Application):
                 self.spectrum[index] += (value - self.spectrum[index]) * attack
             energy = sum(self.spectrum) / len(self.spectrum)
             bass = sum(self.spectrum[:16]) / 16
-            self.angle = (self.angle + dt * (0.55 + bass * 2.8)) % TAU
-            self.phase = (self.phase + dt * (7.0 + energy * 14.0)) % TAU
+            # Keep both phases continuous. Wrapping before applying fractional
+            # multipliers made the Cyberdisc pickup arm jump once per cycle.
+            self.angle += dt * (0.55 + bass * 2.8)
+            self.phase += dt * (7.0 + energy * 14.0)
             mid = sum(self.spectrum[16:58]) / 42
             treble = sum(self.spectrum[58:]) / 38
             wave = (
