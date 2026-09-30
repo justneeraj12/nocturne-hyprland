@@ -7,6 +7,7 @@ import math
 import os
 import signal
 import subprocess
+import sys
 import threading
 import time
 from collections import deque
@@ -33,8 +34,11 @@ def rgb(hex_color: str, alpha: float = 1.0) -> tuple[float, float, float, float]
 
 
 class Cyberdisc(Gtk.Application):
-    def __init__(self) -> None:
+    STYLES = {"cyberdisc", "blackice", "datafall", "ghostscope", "netrunner"}
+
+    def __init__(self, style: str = "cyberdisc") -> None:
         super().__init__(application_id="com.nocturne.Visualizer")
+        self.style = style if style in self.STYLES else "cyberdisc"
         self.window: Gtk.ApplicationWindow | None = None
         self.area: Gtk.DrawingArea | None = None
         self.process: subprocess.Popen[str] | None = None
@@ -42,8 +46,12 @@ class Cyberdisc(Gtk.Application):
         self.target = [0.0] * 96
         self.spectrum = [0.0] * 96
         self.trace: deque[float] = deque([0.0] * 420, maxlen=420)
+        self.spectral_history: deque[list[float]] = deque(
+            ([0.0] * 96 for _ in range(84)), maxlen=84
+        )
         self.angle = 0.0
         self.phase = 0.0
+        self.frame = 0
         self.last_frame = time.monotonic()
         self.paused = False
 
@@ -53,7 +61,14 @@ class Cyberdisc(Gtk.Application):
             return
 
         self.window = Gtk.ApplicationWindow(application=self)
-        self.window.set_title("Nocturne // Cyberdisc")
+        titles = {
+            "cyberdisc": "Nocturne // Cyberdisc",
+            "blackice": "Nocturne // Black ICE",
+            "datafall": "Nocturne // Datafall",
+            "ghostscope": "Nocturne // Ghostscope",
+            "netrunner": "Nocturne // Netrunner",
+        }
+        self.window.set_title(titles[self.style])
         self.window.set_default_size(1280, 720)
         self.window.set_decorated(False)
         self.window.connect("close-request", self.on_close)
@@ -129,6 +144,9 @@ class Cyberdisc(Gtk.Application):
             # Soft saturation keeps loud tracks vivid without flat-topped
             # clipping in the waveform chassis.
             self.trace.appendleft(math.tanh(wave * 0.52))
+            self.frame += 1
+            if self.frame % 3 == 0:
+                self.spectral_history.appendleft(self.spectrum[:])
         if self.area:
             self.area.queue_draw()
         return GLib.SOURCE_CONTINUE
@@ -166,7 +184,72 @@ class Cyberdisc(Gtk.Application):
         ctx.set_line_cap(cairo.LINE_CAP_BUTT)
         ctx.stroke()
 
-    def draw(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+    @staticmethod
+    def flat_grid(
+        ctx: cairo.Context,
+        width: int,
+        height: int,
+        background: str,
+        grid: str,
+        top: float = 0,
+        step: int = 40,
+    ) -> None:
+        ctx.set_source_rgba(*rgb(background))
+        ctx.paint()
+        ctx.set_source_rgba(*rgb(grid, 0.12))
+        ctx.set_line_width(1)
+        for x in range(0, width + step, step):
+            ctx.move_to(x, top)
+            ctx.line_to(x, height)
+            ctx.stroke()
+        for y in range(int(top), height + step, step):
+            ctx.move_to(0, y)
+            ctx.line_to(width, y)
+            ctx.stroke()
+
+    @staticmethod
+    def mono(
+        ctx: cairo.Context,
+        size: float,
+        color: str,
+        bold: bool = False,
+        alpha: float = 1.0,
+    ) -> None:
+        ctx.select_font_face(
+            "JetBrainsMono Nerd Font",
+            cairo.FONT_SLANT_NORMAL,
+            cairo.FONT_WEIGHT_BOLD if bold else cairo.FONT_WEIGHT_NORMAL,
+        )
+        ctx.set_font_size(size)
+        ctx.set_source_rgba(*rgb(color, alpha))
+
+    @staticmethod
+    def polygon_points(
+        center_x: float,
+        center_y: float,
+        radius: float,
+        sides: int,
+        rotation: float = 0,
+    ) -> list[tuple[float, float]]:
+        return [
+            (
+                center_x + math.cos(rotation + index * TAU / sides) * radius,
+                center_y + math.sin(rotation + index * TAU / sides) * radius,
+            )
+            for index in range(sides)
+        ]
+
+    def draw(self, area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+        renderer = {
+            "cyberdisc": self.draw_cyberdisc,
+            "blackice": self.draw_blackice,
+            "datafall": self.draw_datafall,
+            "ghostscope": self.draw_ghostscope,
+            "netrunner": self.draw_netrunner,
+        }[self.style]
+        renderer(area, ctx, width, height)
+
+    def draw_cyberdisc(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
         # Flat Nocturne canvas: deliberately 2D, square, and terminal-like.
         ctx.set_source_rgba(*rgb("#07090a"))
         ctx.paint()
@@ -330,10 +413,360 @@ class Cyberdisc(Gtk.Application):
         ctx.move_to(panel_x + 12, panel_y + panel_h - 12)
         ctx.show_text(footer)
 
+    def draw_blackice(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+        red, ice, white, dim = "#d85062", "#65d4d0", "#d8e4e1", "#496966"
+        header = max(42.0, height * 0.075)
+        pad = max(20.0, min(width, height) * 0.04)
+        self.flat_grid(ctx, width, height, "#060809", "#26413f", header, 38)
+
+        ctx.set_source_rgba(*rgb("#0d1112"))
+        ctx.rectangle(0, 0, width, header)
+        ctx.fill()
+        ctx.set_source_rgba(*rgb(red))
+        ctx.rectangle(0, header - 2, width, 2)
+        ctx.fill()
+        self.mono(ctx, max(12, height * 0.023), white, True)
+        ctx.move_to(pad, header * 0.62)
+        ctx.show_text("BLACK_ICE // COUNTER-INTRUSION AUDIO CORE")
+        self.mono(ctx, max(8, height * 0.015), red, True)
+        status = "[ TRACE_LOCKED ]" if self.paused else "[ ICE_ACTIVE ]"
+        extent = ctx.text_extents(status)
+        ctx.move_to(width - pad - extent.width, header * 0.60)
+        ctx.show_text(status)
+
+        compact = width < height * 1.12
+        if compact:
+            radius = min(width * 0.31, height * 0.22)
+            core_x, core_y = width * 0.5, header + radius + pad * 0.6
+            panel_x, panel_y = pad, core_y + radius + pad
+            panel_w, panel_h = width - pad * 2, height - panel_y - pad
+        else:
+            radius = min(height * 0.32, width * 0.25)
+            core_x, core_y = width * 0.33, height * 0.53
+            panel_x, panel_y = width * 0.61, header + pad
+            panel_w, panel_h = width - panel_x - pad, height - panel_y - pad
+
+        # Rotating hexagonal defense layers.
+        for layer in range(6, 0, -1):
+            layer_radius = radius * (0.25 + layer * 0.12)
+            rotation = -math.pi / 2 + self.angle * (0.20 if layer % 2 else -0.12)
+            points = self.polygon_points(core_x, core_y, layer_radius, 6, rotation)
+            self.line(ctx, points + [points[0]], red if layer in (2, 5) else dim, 2 if layer in (2, 5) else 1, 0.84)
+
+        # Audio spikes radiate from the protected core.
+        for index in range(60):
+            value = self.spectrum[int(index / 60 * len(self.spectrum))]
+            theta = index / 60 * TAU - math.pi / 2
+            inner = radius * 0.86
+            outer = radius * (0.91 + value * 0.38)
+            color = red if index % 10 in (0, 1) else ice
+            self.line(
+                ctx,
+                [
+                    (core_x + math.cos(theta) * inner, core_y + math.sin(theta) * inner),
+                    (core_x + math.cos(theta) * outer, core_y + math.sin(theta) * outer),
+                ],
+                color,
+                2,
+                0.95,
+            )
+
+        inner_hex = self.polygon_points(core_x, core_y, radius * 0.22, 6, -math.pi / 2 - self.angle)
+        ctx.set_source_rgba(*rgb("#101719"))
+        ctx.move_to(*inner_hex[0])
+        for point in inner_hex[1:]:
+            ctx.line_to(*point)
+        ctx.close_path()
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(ice))
+        ctx.set_line_width(2)
+        ctx.stroke()
+        self.mono(ctx, max(8, radius * 0.07), white, True)
+        label = "ICE"
+        extent = ctx.text_extents(label)
+        ctx.move_to(core_x - extent.width / 2, core_y + extent.height / 2)
+        ctx.show_text(label)
+
+        # Intercept trace and band threat meters.
+        ctx.set_source_rgba(*rgb("#0a0f10"))
+        ctx.rectangle(panel_x, panel_y, panel_w, panel_h)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(red))
+        ctx.set_line_width(2)
+        ctx.stroke()
+        center_y = panel_y + panel_h * 0.45
+        points = [
+            (
+                panel_x + index / (len(self.trace) - 1) * panel_w,
+                center_y - value * panel_h * 0.27,
+            )
+            for index, value in enumerate(self.trace)
+        ]
+        self.line(ctx, points, ice, 2)
+        self.mono(ctx, max(8, height * 0.014), red, True)
+        ctx.move_to(panel_x + 10, panel_y + 18)
+        ctx.show_text("INTERCEPT::WAVE_MEMORY")
+        bands = (("LOW", self.spectrum[:20]), ("MID", self.spectrum[20:64]), ("HIGH", self.spectrum[64:]))
+        meter_y = panel_y + panel_h * 0.79
+        for index, (name, values) in enumerate(bands):
+            level = sum(values) / len(values)
+            x = panel_x + 10 + index * (panel_w - 20) / 3
+            meter_w = (panel_w - 42) / 3
+            self.mono(ctx, max(7, height * 0.012), white)
+            ctx.move_to(x, meter_y - 7)
+            ctx.show_text(name)
+            ctx.set_source_rgba(*rgb(dim, 0.45))
+            ctx.rectangle(x, meter_y, meter_w, 7)
+            ctx.fill()
+            ctx.set_source_rgba(*rgb(red if level > 0.48 else ice))
+            ctx.rectangle(x, meter_y, meter_w * min(1.0, level * 1.55), 7)
+            ctx.fill()
+        self.mono(ctx, max(7, height * 0.012), dim)
+        ctx.move_to(panel_x + 10, panel_y + panel_h - 11)
+        ctx.show_text("Q:TERMINATE  SPACE:LOCK_TRACE")
+
+    def draw_datafall(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+        green, bright, amber, dark = "#3f7c61", "#85d39d", "#c9a45f", "#183226"
+        header = max(42.0, height * 0.075)
+        pad = max(18.0, min(width, height) * 0.035)
+        self.flat_grid(ctx, width, height, "#050907", "#1c392b", header, 32)
+        ctx.set_source_rgba(*rgb("#09110d"))
+        ctx.rectangle(0, 0, width, header)
+        ctx.fill()
+        ctx.set_source_rgba(*rgb(bright))
+        ctx.rectangle(0, header - 2, width, 2)
+        ctx.fill()
+        self.mono(ctx, max(12, height * 0.023), bright, True)
+        ctx.move_to(pad, header * 0.62)
+        ctx.show_text("DATAFALL::LIVE_SPECTRAL_MEMORY")
+        self.mono(ctx, max(8, height * 0.014), amber)
+        status = "[ BUFFER FROZEN ]" if self.paused else "[ STREAMING ]"
+        extent = ctx.text_extents(status)
+        ctx.move_to(width - pad - extent.width, header * 0.60)
+        ctx.show_text(status)
+
+        x0, y0 = pad, header + pad
+        fall_w, fall_h = width - pad * 2, height - header - pad * 2.2
+        ctx.set_source_rgba(*rgb("#070d09"))
+        ctx.rectangle(x0, y0, fall_w, fall_h)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(green))
+        ctx.set_line_width(2)
+        ctx.stroke()
+
+        history = list(self.spectral_history)
+        band_count = 48
+        cell_w = fall_w / band_count
+        cell_h = fall_h / max(1, len(history))
+        for row, spectrum in enumerate(history):
+            y = y0 + row * cell_h
+            fade = 1.0 - row / max(1, len(history)) * 0.72
+            for band in range(band_count):
+                value = (spectrum[band * 2] + spectrum[band * 2 + 1]) / 2
+                if value < 0.055:
+                    continue
+                color = amber if value > 0.62 else (bright if value > 0.30 else green)
+                ctx.set_source_rgba(*rgb(color, (0.22 + value * 0.78) * fade))
+                inset = 1 if cell_w > 5 else 0
+                ctx.rectangle(x0 + band * cell_w + inset, y, max(1, cell_w - inset * 2), max(1, cell_h - 1))
+                ctx.fill()
+
+        # Current spectrum rides along the top edge like a packet header.
+        spectrum_points = []
+        for index, value in enumerate(self.spectrum):
+            x = x0 + index / (len(self.spectrum) - 1) * fall_w
+            spectrum_points.append((x, y0 + 2 + value * fall_h * 0.14))
+        self.line(ctx, spectrum_points, amber, 2)
+
+        self.mono(ctx, max(7, height * 0.012), bright, True)
+        labels = (("20HZ", x0), ("250HZ", x0 + fall_w * 0.25), ("2KHZ", x0 + fall_w * 0.5), ("8KHZ", x0 + fall_w * 0.75), ("20KHZ", x0 + fall_w - 45))
+        for label, x in labels:
+            ctx.move_to(x + 4, y0 + fall_h - 8)
+            ctx.show_text(label)
+        self.mono(ctx, max(7, height * 0.012), dark)
+        ctx.move_to(x0 + 6, height - 7)
+        ctx.show_text("NEWEST FRAME AT TOP // 4.2 SEC BUFFER // Q:EXIT // SPACE:HOLD")
+
+    def draw_ghostscope(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+        cyan, violet, rose, dim = "#72d8d2", "#9178b5", "#c17498", "#334d52"
+        header = max(42.0, height * 0.075)
+        pad = max(20.0, min(width, height) * 0.04)
+        self.flat_grid(ctx, width, height, "#06080d", "#263242", header, 44)
+        ctx.set_source_rgba(*rgb("#0b0d14"))
+        ctx.rectangle(0, 0, width, header)
+        ctx.fill()
+        ctx.set_source_rgba(*rgb(violet))
+        ctx.rectangle(0, header - 2, width, 2)
+        ctx.fill()
+        self.mono(ctx, max(12, height * 0.023), "#d9e4e4", True)
+        ctx.move_to(pad, header * 0.62)
+        ctx.show_text("GHOSTSCOPE::PHASE_INTERCEPT")
+        self.mono(ctx, max(8, height * 0.014), cyan)
+        status = "[ PHASE HELD ]" if self.paused else "[ SIGNAL ACQUIRED ]"
+        extent = ctx.text_extents(status)
+        ctx.move_to(width - pad - extent.width, header * 0.60)
+        ctx.show_text(status)
+
+        x0, y0 = pad, header + pad
+        scope_w, scope_h = width - pad * 2, height - header - pad * 2
+        ctx.set_source_rgba(*rgb("#090b11"))
+        ctx.rectangle(x0, y0, scope_w, scope_h)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(violet))
+        ctx.set_line_width(2)
+        ctx.stroke()
+        center_x, center_y = x0 + scope_w * 0.50, y0 + scope_h * 0.51
+        ctx.set_source_rgba(*rgb(dim, 0.75))
+        ctx.set_line_width(1)
+        ctx.move_to(center_x, y0)
+        ctx.line_to(center_x, y0 + scope_h)
+        ctx.stroke()
+        ctx.move_to(x0, center_y)
+        ctx.line_to(x0 + scope_w, center_y)
+        ctx.stroke()
+        for ring in range(1, 5):
+            ctx.arc(center_x, center_y, min(scope_w, scope_h) * ring * 0.095, 0, TAU)
+            ctx.stroke()
+
+        bass = sum(self.spectrum[:22]) / 22
+        mid = sum(self.spectrum[22:66]) / 44
+        treble = sum(self.spectrum[66:]) / 30
+        radius_x, radius_y = scope_w * 0.37, scope_h * 0.37
+        for ghost, (color, alpha) in enumerate(((violet, 0.34), (rose, 0.56), (cyan, 0.95))):
+            points = []
+            for index in range(280):
+                theta = index / 279 * TAU
+                modulation = 0.68 + self.spectrum[index % len(self.spectrum)] * 0.30
+                x = center_x + math.sin(theta * 3 + self.phase * 0.16 + ghost * 0.035) * radius_x * modulation
+                y = center_y + math.sin(theta * 2 + self.phase * 0.11 + 0.8 + ghost * 0.025) * radius_y * (0.58 + bass * 0.44)
+                x += math.sin(theta * 7) * treble * scope_w * 0.035
+                y += math.cos(theta * 5) * mid * scope_h * 0.04
+                points.append((x, y))
+            self.line(ctx, points, color, 1 if ghost < 2 else 2, alpha)
+
+        # Discrete band readouts keep the scope grounded in terminal telemetry.
+        self.mono(ctx, max(7, height * 0.012), cyan, True)
+        ctx.move_to(x0 + 10, y0 + 18)
+        ctx.show_text("XY/PHASE  3:2  //  CHANNEL:MONITOR  //  MODE:VECTOR")
+        readings = (("BASS", bass), ("MID", mid), ("TREBLE", treble))
+        for index, (name, value) in enumerate(readings):
+            y = y0 + 44 + index * 22
+            ctx.set_source_rgba(*rgb(dim))
+            ctx.rectangle(x0 + 10, y, scope_w * 0.14, 7)
+            ctx.fill()
+            ctx.set_source_rgba(*rgb((cyan, violet, rose)[index]))
+            ctx.rectangle(x0 + 10, y, scope_w * 0.14 * min(1, value * 1.5), 7)
+            ctx.fill()
+            self.mono(ctx, max(7, height * 0.011), "#9fb0b1")
+            ctx.move_to(x0 + 15 + scope_w * 0.14, y + 7)
+            ctx.show_text(name)
+
+    def draw_netrunner(self, _area: Gtk.DrawingArea, ctx: cairo.Context, width: int, height: int) -> None:
+        green, cyan, amber, red = "#67a879", "#58c6bf", "#c8a15c", "#bd5963"
+        header = max(42.0, height * 0.075)
+        pad = max(18.0, min(width, height) * 0.035)
+        self.flat_grid(ctx, width, height, "#050806", "#203a2a", header, 36)
+        ctx.set_source_rgba(*rgb("#09100b"))
+        ctx.rectangle(0, 0, width, header)
+        ctx.fill()
+        ctx.set_source_rgba(*rgb(green))
+        ctx.rectangle(0, header - 2, width, 2)
+        ctx.fill()
+        self.mono(ctx, max(12, height * 0.023), "#d8e2db", True)
+        ctx.move_to(pad, header * 0.62)
+        ctx.show_text("NETRUNNER::PACKET_AUDIO_ANALYZER")
+        self.mono(ctx, max(8, height * 0.014), cyan)
+        status = "[ TRACE PAUSED ]" if self.paused else "[ UPLINK LIVE ]"
+        extent = ctx.text_extents(status)
+        ctx.move_to(width - pad - extent.width, header * 0.60)
+        ctx.show_text(status)
+
+        y0 = header + pad
+        body_h = height - y0 - pad
+        side_w = max(150.0, width * 0.235)
+        main_x = pad + side_w + pad
+        main_w = width - main_x - pad
+        ctx.set_source_rgba(*rgb("#08100b"))
+        ctx.rectangle(pad, y0, side_w, body_h)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(green))
+        ctx.set_line_width(2)
+        ctx.stroke()
+        ctx.set_source_rgba(*rgb("#070c09"))
+        ctx.rectangle(main_x, y0, main_w, body_h)
+        ctx.fill_preserve()
+        ctx.set_source_rgba(*rgb(green))
+        ctx.stroke()
+
+        # Left-side packet/band telemetry.
+        self.mono(ctx, max(8, height * 0.013), amber, True)
+        ctx.move_to(pad + 10, y0 + 20)
+        ctx.show_text("NODE TELEMETRY")
+        band_slices = (
+            ("00 LOW", self.spectrum[:18]),
+            ("01 BODY", self.spectrum[18:45]),
+            ("02 PRES", self.spectrum[45:72]),
+            ("03 AIR", self.spectrum[72:]),
+        )
+        for index, (name, values) in enumerate(band_slices):
+            level = sum(values) / len(values)
+            y = y0 + 52 + index * 46
+            self.mono(ctx, max(7, height * 0.011), "#a5b7aa")
+            ctx.move_to(pad + 10, y)
+            ctx.show_text(f"{name}  {int(level * 100):02X}")
+            ctx.set_source_rgba(*rgb("#1b3223"))
+            ctx.rectangle(pad + 10, y + 10, side_w - 20, 8)
+            ctx.fill()
+            ctx.set_source_rgba(*rgb(red if level > 0.62 else cyan))
+            ctx.rectangle(pad + 10, y + 10, (side_w - 20) * min(1, level * 1.45), 8)
+            ctx.fill()
+        self.mono(ctx, max(7, height * 0.0105), green)
+        packet_y = y0 + body_h - 105
+        for row in range(6):
+            a = int(self.spectrum[(row * 13) % 96] * 255)
+            b = int(self.spectrum[(row * 13 + 7) % 96] * 255)
+            ctx.move_to(pad + 10, packet_y + row * 15)
+            ctx.show_text(f"{row:02X}: {a:02X} {b:02X}  ACK::{(a ^ b):02X}")
+
+        # Main waveform and packet scan cursor.
+        main_center = y0 + body_h * 0.42
+        trace_points = [
+            (
+                main_x + index / (len(self.trace) - 1) * main_w,
+                main_center - value * body_h * 0.25,
+            )
+            for index, value in enumerate(self.trace)
+        ]
+        self.line(ctx, trace_points, cyan, 2)
+        cursor_x = main_x + ((self.angle / TAU) % 1.0) * main_w
+        ctx.set_source_rgba(*rgb(amber, 0.72))
+        ctx.set_line_width(1)
+        ctx.move_to(cursor_x, y0)
+        ctx.line_to(cursor_x, y0 + body_h)
+        ctx.stroke()
+
+        # Bottom frequency packet bars.
+        bar_base = y0 + body_h * 0.91
+        bar_zone = body_h * 0.22
+        bar_w = main_w / 48
+        for band in range(48):
+            value = (self.spectrum[band * 2] + self.spectrum[band * 2 + 1]) / 2
+            color = red if value > 0.68 else (amber if band % 8 == 0 else green)
+            ctx.set_source_rgba(*rgb(color))
+            ctx.rectangle(main_x + band * bar_w + 1, bar_base - value * bar_zone, max(1, bar_w - 2), value * bar_zone)
+            ctx.fill()
+        self.mono(ctx, max(7, height * 0.012), green, True)
+        ctx.move_to(main_x + 10, y0 + 18)
+        ctx.show_text("PACKET TRACE // MONITOR SINK // 96 BANDS")
+        self.mono(ctx, max(7, height * 0.011), "#728b78")
+        ctx.move_to(main_x + 10, y0 + body_h - 8)
+        ctx.show_text("Q:DISCONNECT  SPACE:FREEZE  SOURCE:PIPEWIRE")
+
     def do_shutdown(self) -> None:
         self.stop_audio()
         super().do_shutdown()
 
 
 if __name__ == "__main__":
-    raise SystemExit(Cyberdisc().run())
+    selected_style = sys.argv[1].lower() if len(sys.argv) > 1 else "cyberdisc"
+    raise SystemExit(Cyberdisc(selected_style).run([sys.argv[0]]))

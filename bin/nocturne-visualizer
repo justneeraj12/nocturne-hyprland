@@ -9,14 +9,22 @@ mkdir -p "$state_home"
 if [[ ${1:-} == choose ]]; then
   choice=$(printf '%s\n' \
     '󰐾  Cyberdisc · flat terminal frequency deck' \
+    '󰯂  Black ICE · angular intrusion core' \
+    '󰇚  Datafall · spectral memory waterfall' \
+    '󱎖  Ghostscope · phase intercept vectors' \
+    '󰌘  Netrunner · packet-grid analyzer' \
     '󰎈  Obsidian · muted green spectrum' \
     '󰘨  Matrix · terminal green signal' \
     '󰈸  Amber · warm retro analyzer' \
     '󰖩  Ice · cyan-blue telemetry' \
     '󰜎  Wave · purple flowing signal' | \
-    "$HOME/.config/hypr/scripts/quick-menu" VISUALIZER auto 390 220) || exit 0
+    "$HOME/.config/hypr/scripts/quick-menu" VISUALIZER auto 410 390) || exit 0
   case "$choice" in
     *Cyberdisc*) theme=cyberdisc ;;
+    *'Black ICE'*) theme=blackice ;;
+    *Datafall*) theme=datafall ;;
+    *Ghostscope*) theme=ghostscope ;;
+    *Netrunner*) theme=netrunner ;;
     *Obsidian*) theme=obsidian ;;
     *Matrix*) theme=matrix ;;
     *Amber*) theme=amber ;;
@@ -30,7 +38,7 @@ else
 fi
 
 case "$theme" in
-  cyberdisc|obsidian|matrix|amber|ice|wave) ;;
+  cyberdisc|blackice|datafall|ghostscope|netrunner|obsidian|matrix|amber|ice|wave) ;;
   *) theme=cyberdisc ;;
 esac
 printf '%s\n' "$theme" > "$state_file"
@@ -49,9 +57,11 @@ if command -v hyprctl >/dev/null; then
   fi
 fi
 
-if [[ $theme == cyberdisc ]]; then
-  exec "$HOME/.local/bin/nocturne-cyberdisc"
-fi
+case "$theme" in
+  cyberdisc|blackice|datafall|ghostscope|netrunner)
+    exec "$HOME/.local/bin/nocturne-cyberdisc" "$theme"
+    ;;
+esac
 
 if [[ "${TERM:-}" == xterm-kitty ]]; then
   exec cava -p "$visualizer_config"

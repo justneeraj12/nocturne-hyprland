@@ -59,9 +59,11 @@ control center, and middle opens the key guide. The full guide is in
   run outside GNOME. Audio includes per-app volume; KDE Connect uses a matching
   dark Qt6 theme. Detailed process data lives in the resource dashboard.
 - The tiled Nocturne visualizer includes Cyberdisc: a flat terminal frequency
-  ring around a rotating record with a pickup-fed waveform trace. Five lighter Cava
-  designs—Obsidian, Matrix, Amber, Ice, and Wave—remain available. The Nocturne
-  dashboard combines btop, nvtop, and a live audio spectrum in one sharp grid.
+  ring around a rotating record with a pickup-fed waveform trace. Four additional
+  native instruments—Black ICE, Datafall, Ghostscope, and Netrunner—provide
+  distinct neo-hacker layouts. Five lighter Cava designs—Obsidian, Matrix, Amber,
+  Ice, and Wave—remain available. The Nocturne dashboard combines btop, nvtop,
+  and a live audio spectrum in one sharp grid.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
 - Steam opens tiled, its utility dialogs float centered, and its launcher
