@@ -41,8 +41,8 @@
       "return-type": "json",
       "interval": 10,
       "tooltip": true,
-      "on-click": "gnome-clocks",
-      "on-click-right": "gnome-weather"
+      "on-click": "~/.config/hypr/scripts/clock-menu",
+      "on-click-right": "~/.config/hypr/scripts/clock-menu refresh"
     },
     "custom/pomodoro": {
       "exec": "~/.config/hypr/scripts/pomodoro status",
@@ -173,7 +173,7 @@
     },
     "custom/local-clock": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,
-      "on-click": "gnome-clocks", "on-click-right": "gnome-clocks"
+      "on-click": "~/.config/hypr/scripts/clock-menu", "on-click-right": "~/.config/hypr/scripts/clock-menu refresh"
     },
     "custom/power": {
       "format": "󰐥", "tooltip-format": "Power menu",
@@ -215,7 +215,7 @@
     },
     "custom/local-clock#secondary": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,
-      "on-click": "gnome-clocks", "on-click-right": "gnome-clocks"
+      "on-click": "~/.config/hypr/scripts/clock-menu", "on-click-right": "~/.config/hypr/scripts/clock-menu refresh"
     },
     "custom/brightness#secondary": {
       "exec": "~/.config/hypr/scripts/brightness status", "return-type": "json", "interval": 2,

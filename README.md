@@ -25,7 +25,7 @@ The first shortcuts to remember are:
 
 ```text
 Super + Space       apps
-Super + R           control center
+Super + R           Nocturne Settings
 Super + Enter       terminal
 Super + /           complete key guide
 Super + Q           close a window
@@ -53,9 +53,11 @@ control center, and middle opens the key guide. The full guide is in
 - A minimal Omarchy-style bar with MPRIS, audio, network, Bluetooth, grouped
   system health, microphone-use, notification, clock, and collapsed background
   apps. Audio, Wi-Fi, Bluetooth, media, KDE Connect, and power open compact
-  click-to-toggle cards directly beneath their buttons. Audio includes per-app
-  volume; KDE Connect uses a matching dark Qt6 theme. Detailed process data
-  lives in the resource dashboard.
+  click-to-toggle cards directly beneath their buttons. A themed clock card
+  combines every saved world time, live weather, Pomodoro, and caffeine. The
+  Hyprland-native Nocturne Settings card replaces GNOME Settings, which cannot
+  run outside GNOME. Audio includes per-app volume; KDE Connect uses a matching
+  dark Qt6 theme. Detailed process data lives in the resource dashboard.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
 - Steam opens tiled, its utility dialogs float centered, and its launcher

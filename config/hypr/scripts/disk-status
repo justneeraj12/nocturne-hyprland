@@ -7,6 +7,7 @@ class=normal
 ((number >= 90)) && class=critical
 ((number >= 80 && number < 90)) && class=warning
 
+printf -v tooltip 'SYSTEM DISK\nUsed %s / %s  ·  %s free\nClick: Files  ·  Right: Resources' "$used" "$total" "$available"
 jq -cn --arg text "󰋊 $percent" --arg class "$class" \
-  --arg tooltip "System disk\nUsed $used / $total · $available free\nLeft: Files · Right: Resources" \
+  --arg tooltip "$tooltip" \
   '{text:$text,class:$class,tooltip:$tooltip}'

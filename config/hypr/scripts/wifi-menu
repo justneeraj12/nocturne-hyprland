@@ -2,7 +2,7 @@
 set -euo pipefail
 
 menu() {
-  "$HOME/.config/hypr/scripts/quick-menu" 'WI-FI' -235 370 240
+  "$HOME/.config/hypr/scripts/quick-menu" 'WI-FI' auto 370 240
 }
 
 wifi_device=$(nmcli -t -f DEVICE,TYPE device | awk -F: '$2 == "wifi" {print $1; exit}')
@@ -77,7 +77,7 @@ while true; do
 
       security=${network_security["$choice"]:-}
       if [[ -n $security && $security != -- ]]; then
-        password=$(printf '' | "$HOME/.config/hypr/scripts/quick-menu" "PASSWORD · $ssid" -235 370 170 --password) || exit 0
+        password=$(printf '' | "$HOME/.config/hypr/scripts/quick-menu" "PASSWORD · $ssid" auto 370 170 --password) || exit 0
         if nmcli --wait 20 device wifi connect "$ssid" password "$password" ifname "$wifi_device"; then
           notify-send -a Nocturne 'Wi-Fi connected' "$ssid"
           exit 0

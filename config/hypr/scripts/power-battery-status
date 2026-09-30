@@ -25,6 +25,7 @@ else
   ((capacity <= 12)) && class=critical
 fi
 
+printf -v tooltip 'Battery %s%%  ·  %s\nClick: session and power controls' "$capacity" "$status"
 jq -cn --arg text "$icon ${capacity}%  󰐥" --arg class "$class" \
-  --arg tooltip "Battery ${capacity}% · $status\nClick for lock, suspend, logout, restart and shutdown" \
+  --arg tooltip "$tooltip" \
   '{text:$text,class:$class,tooltip:$tooltip}'

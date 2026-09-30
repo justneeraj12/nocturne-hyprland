@@ -185,12 +185,16 @@ window#waybar {
 }
 
 tooltip {
-  background: alpha(@surface, 0.98);
-  border: 1px solid @line;
+  background: alpha(@base, 0.985);
+  border: 1px solid #29483c;
   border-radius: 0;
+  box-shadow: none;
 }
 
 tooltip label {
-  color: @text;
-  padding: 5px;
+  color: #bdcbc6;
+  font-family: "Inter", "MesloLGS Nerd Font Mono";
+  font-size: 11px;
+  font-weight: 500;
+  padding: 7px 9px;
 }

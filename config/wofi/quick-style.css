@@ -1,30 +1,36 @@
 * {
-  font-family: "Inter", "MesloLGS Nerd Font Mono";
+  font-family: "Inter", "MesloLGS Nerd Font Mono", sans-serif;
   font-size: 11px;
   font-weight: 500;
 }
 
 window {
   margin: 0;
-  border: 1px solid #365c4c;
+  border: 1px solid #29483c;
   border-radius: 0;
-  background-color: rgba(7, 9, 10, 0.99);
-  color: #a7b8b1;
-}
-
-#outer-box { padding: 6px; }
-
-#input {
-  margin: 1px 1px 6px;
-  padding: 8px 10px;
-  border: 1px solid #1b2925;
-  border-radius: 0;
-  color: #a7b8b1;
-  background-color: #0b0f10;
+  background-color: rgba(6, 8, 9, 0.985);
+  color: #aebdb7;
   box-shadow: none;
 }
 
-#input:focus { border-color: #477463; }
+#outer-box { padding: 5px; }
+
+#input {
+  margin: 0 0 5px;
+  padding: 6px 9px;
+  min-height: 20px;
+  border: 1px solid #1a2a25;
+  border-left: 2px solid #477463;
+  border-radius: 0;
+  color: #d8e2de;
+  background-color: #0a0e0f;
+  box-shadow: none;
+}
+
+#input:focus {
+  border-color: #315345;
+  border-left-color: #6f9c89;
+}
 #scroll { margin: 0; }
 #inner-box { padding: 0; }
 
@@ -32,12 +38,15 @@ window {
   padding: 6px 9px;
   margin: 0;
   border-radius: 0;
-  color: #879a92;
+  color: #8fa19a;
+  border-left: 2px solid transparent;
 }
 
 #entry:selected {
-  background-color: #15211d;
-  color: #d6e2dd;
+  background-color: #111b18;
+  color: #e1ebe7;
+  border-left-color: #6f9c89;
 }
 
-#text:selected { color: #d6e2dd; }
+#text { margin: 0 2px; }
+#text:selected { color: #e1ebe7; }

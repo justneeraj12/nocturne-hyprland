@@ -25,8 +25,9 @@ status() {
   elif ((percent < 50)); then icon='󰃟';
   elif ((percent < 75)); then icon='󰃝';
   else icon='󰃠'; fi
+  printf -v tooltip 'Laptop brightness %s%%\nScroll: adjust · Click: choose level' "$percent"
   jq -cn --arg text "$icon ${percent}%" \
-    --arg tooltip "Laptop brightness ${percent}%\nScroll to adjust · click for slider" \
+    --arg tooltip "$tooltip" \
     '{text:$text,tooltip:$tooltip,class:"brightness"}'
 }
 
@@ -40,13 +41,29 @@ adjust() {
 }
 
 pick() {
-  local current value
+  local current choice value
+  if "$HOME/.config/hypr/scripts/quick-menu" --toggle BRIGHTNESS; then exit 0; fi
   current=$(read_percent)
-  value=$(zenity --scale --title='Display Brightness' \
-    --text='Laptop display' --min-value=5 --max-value=100 \
-    --step=1 --value="$current" --value-pos=bottom) || exit 0
+  choice=$(printf '%s\n' \
+    "󰃠  Laptop display · ${current}%" \
+    '󰃞  Dim · 20%' \
+    '󰃟  Low · 35%' \
+    '󰃝  Balanced · 55%' \
+    '󰃠  Bright · 75%' \
+    '󰃠  Very bright · 90%' \
+    '󰃠  Maximum · 100%' | \
+    "$HOME/.config/hypr/scripts/quick-menu" BRIGHTNESS auto 330 220) || exit 0
+  case "$choice" in
+    *'20%'*) value=20 ;;
+    *'35%'*) value=35 ;;
+    *'55%'*) value=55 ;;
+    *'75%'*) value=75 ;;
+    *'90%'*) value=90 ;;
+    *'100%'*) value=100 ;;
+    *) exit 0 ;;
+  esac
   set_percent "$value"
-  notify-send 'Display brightness' "Set to ${value}%"
+  notify-send -a Nocturne 'Display brightness' "Set to ${value}%"
 }
 
 case ${1:-status} in

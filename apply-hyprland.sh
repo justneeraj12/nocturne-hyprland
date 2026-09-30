@@ -67,6 +67,10 @@ sed "s|@SCRIPT@|$CONFIG_HOME/hypr/scripts/kdeconnect-settings|g" \
   "$ROOT_DIR/assets/nocturne-kdeconnect.desktop.in" \
   > "$DATA_HOME/applications/org.kde.kdeconnect.app.desktop"
 chmod 0644 "$DATA_HOME/applications/org.kde.kdeconnect.app.desktop"
+sed "s|@SCRIPT@|$CONFIG_HOME/hypr/scripts/control-center|g" \
+  "$ROOT_DIR/assets/nocturne-settings.desktop.in" \
+  > "$DATA_HOME/applications/nocturne-settings.desktop"
+chmod 0644 "$DATA_HOME/applications/nocturne-settings.desktop"
 sed "s|@SCRIPT@|$BIN_HOME/nocturne-session-theme|g" \
   "$ROOT_DIR/assets/nocturne-gnome-theme-restore.desktop.in" \
   > "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"

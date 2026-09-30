@@ -24,6 +24,8 @@ else
   detail='Not in use'
 fi
 
+printf -v tooltip 'MICROPHONE  ·  %s\n%s%%  ·  %s\nClick: mute  ·  Right: audio panel' \
+  "${device:-Default}" "$volume" "$detail"
 jq -cn --arg text "$text" --arg class "$class" \
-  --arg tooltip "Microphone · ${device:-Default}\n${volume}% · $detail\nLeft: mute · Right: audio panel" \
+  --arg tooltip "$tooltip" \
   '{text:$text,class:$class,tooltip:$tooltip}'

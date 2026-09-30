@@ -5,7 +5,7 @@ if "$HOME/.config/hypr/scripts/quick-menu" --toggle AUDIO; then exit 0; fi
 
 menu() {
   local prompt=${1:-AUDIO}
-  "$HOME/.config/hypr/scripts/quick-menu" "$prompt" -200 380 260
+  "$HOME/.config/hypr/scripts/quick-menu" "$prompt" auto 380 260
 }
 
 sink_ids() {

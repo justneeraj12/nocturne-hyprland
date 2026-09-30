@@ -3,22 +3,50 @@ set -euo pipefail
 
 runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 state_file="$runtime_dir/nocturne-quick-menu.state"
+lock_file="$runtime_dir/nocturne-quick-menu.lock"
+mkdir -p "$runtime_dir"
+
+now_ms() {
+  date +%s%3N
+}
+
+read_state() {
+  old_prompt=NONE
+  old_pid=0
+  opened_at=0
+  closed_at=0
+  [[ -r $state_file ]] && IFS=$'\t' read -r old_prompt old_pid opened_at closed_at < "$state_file" || true
+}
+
+write_state() {
+  printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" > "$state_file"
+}
 
 if [[ ${1:-} == --toggle ]]; then
   prompt=${2:-CONTROL}
-  now=$(date +%s)
-  if [[ -r $state_file ]]; then
-    IFS=$'\t' read -r old_prompt old_pid opened_at < "$state_file" || true
-    active=false
-    if [[ ${old_pid:-} =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
-      active=true
-    fi
-    if [[ ${old_prompt:-} == "$prompt" ]] && { $active || ((now - ${opened_at:-0} <= 2)); }; then
-      $active && kill "$old_pid" 2>/dev/null || true
-      exit 0
-    fi
-    $active && kill "$old_pid" 2>/dev/null || true
+  now=$(now_ms)
+  exec 9>"$lock_file"
+  flock 9
+  read_state
+  active=false
+  if [[ $old_pid =~ ^[0-9]+$ ]] && ((old_pid > 0)) && kill -0 "$old_pid" 2>/dev/null; then
+    active=true
   fi
+
+  # Clicking a bar item first takes focus from Wofi. If that already closed
+  # the surface, remember the close for a moment instead of reopening it.
+  if [[ $old_prompt == "$prompt" ]] && $active; then
+    kill "$old_pid" 2>/dev/null || true
+    write_state "$prompt" 0 "${opened_at:-0}" "$now"
+    exit 0
+  fi
+  if [[ $old_prompt == "$prompt" && $closed_at =~ ^[0-9]+$ ]] && ((now - closed_at <= 1400)); then
+    write_state NONE 0 0 0
+    exit 0
+  fi
+
+  $active && kill "$old_pid" 2>/dev/null || true
+  write_state NONE 0 0 0
   exit 1
 fi
 
@@ -28,26 +56,63 @@ width=${3:-380}
 height=${4:-280}
 shift $(( $# < 4 ? $# : 4 ))
 
-if [[ -r $state_file ]]; then
-  IFS=$'\t' read -r old_prompt old_pid _ < "$state_file" || true
-  if [[ ${old_pid:-} =~ ^[0-9]+$ ]] && kill -0 "$old_pid" 2>/dev/null; then
+exec 9>"$lock_file"
+flock 9
+read_state
+if [[ $old_pid =~ ^[0-9]+$ ]] && ((old_pid > 0)) && kill -0 "$old_pid" 2>/dev/null; then
     kill "$old_pid" 2>/dev/null || true
     for _ in {1..20}; do
       kill -0 "$old_pid" 2>/dev/null || break
       sleep 0.02
     done
-    [[ ${old_prompt:-} == "$prompt" ]] && exit 1
+fi
+
+monitor_args=()
+if command -v hyprctl >/dev/null && command -v jq >/dev/null; then
+  cursor_json=$(hyprctl cursorpos -j 2>/dev/null || true)
+  monitors_json=$(hyprctl monitors -j 2>/dev/null || true)
+  cursor_x=$(jq -r '.x // empty' <<<"$cursor_json" 2>/dev/null || true)
+  cursor_y=$(jq -r '.y // empty' <<<"$cursor_json" 2>/dev/null || true)
+  if [[ $cursor_x =~ ^-?[0-9]+$ && $cursor_y =~ ^-?[0-9]+$ ]]; then
+    monitor_row=$(jq -r --argjson px "$cursor_x" --argjson py "$cursor_y" '
+      .[] | select($px >= .x and $px < (.x + .width) and $py >= .y and $py < (.y + .height))
+      | [.name, .x, .width] | @tsv' <<<"$monitors_json" 2>/dev/null | head -n 1)
+    if [[ -n $monitor_row ]]; then
+      IFS=$'\t' read -r monitor_name monitor_x monitor_width <<<"$monitor_row"
+      monitor_args=(--monitor "$monitor_name")
+      if [[ $xoffset == auto ]]; then
+        natural_x=$((monitor_x + monitor_width - width))
+        desired_x=$((cursor_x - width + 34))
+        minimum_x=$((monitor_x + 8))
+        maximum_x=$((monitor_x + monitor_width - width - 8))
+        ((desired_x < minimum_x)) && desired_x=$minimum_x
+        ((desired_x > maximum_x)) && desired_x=$maximum_x
+        xoffset=$((desired_x - natural_x))
+      fi
+    fi
   fi
 fi
+[[ $xoffset == auto ]] && xoffset=0
 
 exec 3<&0
 wofi --dmenu --conf "$HOME/.config/wofi/quick-menu" \
   --style "$HOME/.config/wofi/quick-style.css" \
   --prompt "$prompt" --no-custom-entry --cache-file /dev/null \
   --location top_right --xoffset "$xoffset" --yoffset 0 \
-  --width "$width" --height "$height" "$@" <&3 &
+  --width "$width" --height "$height" "${monitor_args[@]}" "$@" <&3 &
 menu_pid=$!
 exec 3<&-
-printf '%s\t%s\t%s\n' "$prompt" "$menu_pid" "$(date +%s)" > "$state_file"
+opened=$(now_ms)
+write_state "$prompt" "$menu_pid" "$opened" 0
+flock -u 9
 
-wait "$menu_pid"
+menu_status=0
+wait "$menu_pid" || menu_status=$?
+
+exec 9>"$lock_file"
+flock 9
+read_state
+if [[ $old_prompt == "$prompt" && $old_pid == "$menu_pid" ]]; then
+  write_state "$prompt" 0 "$opened" "$(now_ms)"
+fi
+exit "$menu_status"

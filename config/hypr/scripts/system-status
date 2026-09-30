@@ -19,8 +19,9 @@ cpu=0
 read -r mem_total mem_used < <(free -m | awk '/^Mem:/ {print $2, $3}')
 ram=$((100 * mem_used / mem_total))
 gpu=$(nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null | head -n 1 | tr -d ' ' || printf '0')
-gpu=${gpu:-0}
+[[ $gpu =~ ^[0-9]+$ ]] || gpu=0
 gpu_temp=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n 1 | tr -d ' ' || printf '?')
+[[ $gpu_temp =~ ^[0-9]+$ ]] || gpu_temp='?'
 read -r disk_used disk_total disk_free disk_percent < <(df -hP / | awk 'NR==2 {print $3, $2, $4, $5}')
 disk=${disk_percent%%%}
 
@@ -28,8 +29,10 @@ class=normal
 ((cpu >= 90 || ram >= 90 || gpu >= 95 || disk >= 90)) && class=critical
 if [[ $class == normal ]] && ((cpu >= 75 || ram >= 80 || gpu >= 80 || disk >= 80)); then class=warning; fi
 
+printf -v tooltip 'SYSTEM\nCPU %s%%  ·  RAM %s%%\nGPU %s%%  ·  %s°C\nDISK %s%%  ·  %s free\nClick: Resources  ·  Right: Dashboard' \
+  "$cpu" "$ram" "$gpu" "$gpu_temp" "$disk" "$disk_free"
 jq -cn \
   --arg text "󰍛 $cpu  󰘚 $ram  󰢮 $gpu  󰋊 $disk" \
   --arg class "$class" \
-  --arg tooltip "SYSTEM\nCPU ${cpu}% · RAM ${ram}%\nGPU ${gpu}% · ${gpu_temp}°C\nDisk ${disk}% · ${disk_free} free\nLeft: Resources · Right: hacker dashboard" \
+  --arg tooltip "$tooltip" \
   '{text:$text,class:$class,tooltip:$tooltip}'

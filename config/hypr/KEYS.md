@@ -3,7 +3,7 @@ NOCTURNE / HYPRLAND — QUICK GUIDE
 
 REMEMBER ONLY THESE THREE
   Super + Space           Find and launch any app
-  Super + R               Open the friendly control center
+  Super + R               Open/toggle Nocturne Settings
   Super + Shift + R       Open the graphical resource monitor
   Super + /               Reopen this guide at any time
 
@@ -63,19 +63,22 @@ THE TOP BAR
   intentionally minimal so Wi-Fi and Bluetooth are not duplicated.
 
   Ubuntu logo             Left apps · right controls · middle guide
-  City/time/weather       Rotates every 10 seconds; hover for every city
-  Local clock             + means AM · − means PM
+  City/time/weather       Rotates every 10 seconds; click the world clock card
+  Local clock             + means AM · − means PM · click for clock card
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle EasyEffects · scroll volume
   Microphone              Red means in use · left mute · right audio panel
   Wi-Fi / Bluetooth       Left quick panel · right power toggle
   Phone                   KDE Connect card · right sends clipboard
-  Brightness              Scroll to adjust · click for a precise slider
+  Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button
   SYS button              Left Resources · right hacker dashboard
   Bell                    Notification history
   Coffee/moon             Caffeine mode
   CPU                     Resource dashboard
+
+  Every quick card        Click once to open · click the same item to close
+  Different bar item      Replaces the open card instead of stacking another
 
 MEDIA
   Music title             Left full media card · middle play/pause
@@ -88,7 +91,7 @@ PERSONALIZE + SOUND
   Super + R → Appearance  GTK theme, icons and cursor
   Super + R → Equalizer   EasyEffects EQ and audio effects
   Super + R → Routing     Visual PipeWire device routing
-  Super + R → Brightness  Precise laptop backlight slider
+  Super + R → Brightness  Matching laptop backlight presets
 
 EASYEFFECTS SAFE START
   1. Open Equalizer and Effects from Super + R.

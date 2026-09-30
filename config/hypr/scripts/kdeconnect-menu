@@ -2,7 +2,7 @@
 set -euo pipefail
 
 menu() {
-  "$HOME/.config/hypr/scripts/quick-menu" 'PHONE' -300 365 240
+  "$HOME/.config/hypr/scripts/quick-menu" 'PHONE' auto 365 240
 }
 
 if [[ ${1:-} == clipboard ]]; then

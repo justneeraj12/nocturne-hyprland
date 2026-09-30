@@ -17,7 +17,9 @@ reset_values() {
 
 load_state() {
   reset_values
-  [[ -s "$state_file" ]] && source "$state_file"
+  if [[ -s "$state_file" ]]; then
+    source "$state_file"
+  fi
 }
 
 save_state() {

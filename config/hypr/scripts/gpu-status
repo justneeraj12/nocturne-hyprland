@@ -6,6 +6,8 @@ data=$(nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory
 IFS=, read -r usage temp used total power <<<"$data"
 usage=${usage// /}; temp=${temp// /}; used=${used// /}; total=${total// /}; power=${power// /}
 
+printf -v tooltip 'NVIDIA RTX 3050 Ti\nGPU %s%%  ·  %s°C\nVRAM %s / %s MiB\nPower %s W\nClick: Resources  ·  Right: Dashboard' \
+  "$usage" "$temp" "$used" "$total" "$power"
 jq -cn --arg text "󰢮 ${usage}%" \
-  --arg tooltip "NVIDIA RTX 3050 Ti\nGPU ${usage}% · ${temp}°C\nVRAM ${used} / ${total} MiB\nPower ${power} W\nLeft: Resources · Right: dashboard" \
+  --arg tooltip "$tooltip" \
   '{text:$text,tooltip:$tooltip,class:(if ($text|test(" (8[5-9]|9[0-9]|100)%")) then "busy" else "normal" end)}'

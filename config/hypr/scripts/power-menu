@@ -20,7 +20,7 @@ choice=$(printf '%s\n' \
   '󰍃  Log out' \
   '󰜉  Restart' \
   '󰐥  Shut down' | \
-  "$HOME/.config/hypr/scripts/quick-menu" POWER 0 310 200)
+  "$HOME/.config/hypr/scripts/quick-menu" POWER auto 310 200)
 [[ -n $choice ]] || exit 0
 
 case "$choice" in

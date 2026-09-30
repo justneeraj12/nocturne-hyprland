@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Nocturne Settings
+GenericName=System Settings
+Comment=Configure the Nocturne Hyprland desktop
+Exec=@SCRIPT@
+Icon=preferences-system
+Terminal=false
+Categories=Settings;System;
+OnlyShowIn=Hyprland;
+StartupNotify=false

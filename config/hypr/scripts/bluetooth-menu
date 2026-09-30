@@ -2,7 +2,7 @@
 set -euo pipefail
 
 menu() {
-  "$HOME/.config/hypr/scripts/quick-menu" 'BLUETOOTH' -270 360 220
+  "$HOME/.config/hypr/scripts/quick-menu" 'BLUETOOTH' auto 360 220
 }
 
 power_state() {

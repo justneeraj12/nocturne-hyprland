@@ -1,59 +1,51 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if "$HOME/.config/hypr/scripts/quick-menu" --toggle SETTINGS; then exit 0; fi
+
 choice=$(printf '%s\n' \
-  '󰆍  Terminal' \
-  '󰉋  Files' \
-  '  Browser' \
-  '󰭹  ChatGPT' \
-  '󰨞  VS Code' \
-  '  Steam' \
-  '󰝍  Snap focused window' \
-  '󰠮  Notes' \
-  '󰒓  System settings' \
-  '󰏘  Appearance' \
-  '󰸉  Wallpaper' \
   '󰏘  Accent color' \
-  '󰍛  System resources' \
-  '󰫮  Hacker dashboard' \
+  '󰸉  Wallpaper' \
+  '󰏘  GTK application style' \
+  '──────── DEVICES ───────────' \
   '󰃠  Display brightness' \
-  '󰕾  Nocturne audio' \
-  '󰓃  Equalizer and effects' \
-  '󰽰  Audio routing graph' \
-  '󰤨  Network' \
-  '󰂯  Bluetooth' \
+  '󰤨  Wi-Fi and network' \
+  '󰂯  Bluetooth devices' \
   '󰄜  Phone / KDE Connect' \
+  '──────── SOUND ─────────────' \
+  '󰕾  Audio outputs and apps' \
+  '󰓃  Equalizer and effects' \
+  '󱡬  Audio routing graph' \
+  '──────── DESKTOP ───────────' \
+  '󰥔  Clock and world weather' \
+  '󱅫  Notifications' \
   '󰅶  Toggle caffeine' \
   '󱎫  Pomodoro toggle' \
-  '󱅫  Notifications' \
-  '󰌾  Lock' \
-  '󰐥  Power menu' | wofi --dmenu --prompt 'Control Center' --insensitive)
+  '󰌌  Keyboard shortcuts' \
+  '──────── SYSTEM ────────────' \
+  '󰍛  System resources' \
+  '󰫮  Hacker dashboard' \
+  '󰐥  Session and power' | \
+  "$HOME/.config/hypr/scripts/quick-menu" SETTINGS auto 390 600)
 
 case "$choice" in
-  *Terminal) exec kitty ;;
-  *Files) exec nautilus --new-window ;;
-  *Browser) exec xdg-open https://www.google.com ;;
-  *ChatGPT) exec chatgpt ;;
-  *Code) exec code ;;
-  *Steam) exec "$HOME/.config/hypr/scripts/steam-launch" ;;
-  *Snap*) exec "$HOME/.config/hypr/scripts/snap-window" ;;
-  *Notes) exec iotas ;;
-  *settings) exec gnome-control-center ;;
-  *Appearance) if command -v nwg-look >/dev/null; then exec nwg-look; else exec gnome-control-center appearance; fi ;;
-  *Wallpaper) exec "$HOME/.config/hypr/scripts/wallpaper" ;;
+  '────────'*) exit 0 ;;
   *Accent*) exec "$HOME/.config/hypr/scripts/accent" ;;
-  *resources) exec resources ;;
-  *Hacker*) exec nocturne-dashboard ;;
+  *Wallpaper) exec "$HOME/.config/hypr/scripts/wallpaper" ;;
+  *'GTK application'*) exec nwg-look ;;
   *brightness) exec "$HOME/.config/hypr/scripts/brightness" pick ;;
-  *audio) exec "$HOME/.config/hypr/scripts/audio-menu" ;;
+  *Wi-Fi*) exec "$HOME/.config/hypr/scripts/wifi-menu" ;;
+  *Bluetooth*) exec "$HOME/.config/hypr/scripts/bluetooth-menu" ;;
+  *KDE*) exec "$HOME/.config/hypr/scripts/kdeconnect-menu" ;;
+  *'Audio outputs'*) exec "$HOME/.config/hypr/scripts/audio-menu" ;;
   *Equalizer*) exec easyeffects ;;
   *routing*) exec qpwgraph ;;
-  *Network) exec "$HOME/.config/hypr/scripts/wifi-menu" ;;
-  *Bluetooth) exec "$HOME/.config/hypr/scripts/bluetooth-menu" ;;
-  *KDE*) exec "$HOME/.config/hypr/scripts/kdeconnect-menu" ;;
+  *'Clock and'*) exec "$HOME/.config/hypr/scripts/clock-menu" ;;
+  *Notifications) exec swaync-client -t -sw ;;
   *caffeine) exec "$HOME/.config/hypr/scripts/caffeine" toggle ;;
   *Pomodoro) exec "$HOME/.config/hypr/scripts/pomodoro" toggle ;;
-  *Notifications) exec swaync-client -t -sw ;;
-  *Lock) exec hyprlock ;;
-  *Power) exec "$HOME/.config/hypr/scripts/power-menu" ;;
+  *shortcuts) exec "$HOME/.config/hypr/scripts/help" ;;
+  *resources) exec resources ;;
+  *Hacker*) exec nocturne-dashboard ;;
+  *power) exec "$HOME/.config/hypr/scripts/power-menu" ;;
 esac
