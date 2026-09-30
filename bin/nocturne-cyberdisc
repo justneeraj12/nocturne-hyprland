@@ -1262,12 +1262,23 @@ class Cyberdisc(Gtk.Application):
         self.mono(ctx, max(8, height * 0.0125), white, True)
         ctx.move_to(body_x + 9, body_y + 18)
         ctx.show_text("PANIC WAVE // LIVE MEMORY")
+        trace_values = list(self.trace)
+        rms = math.sqrt(sum(value * value for value in trace_values) / len(trace_values))
+        peak = max(abs(value) for value in trace_values)
+        telemetry = f"RMS {int(rms * 99):02d}  PEAK {int(peak * 99):02d}"
+        self.mono(ctx, max(7, height * 0.0105), amber)
+        extent = ctx.text_extents(telemetry)
+        ctx.move_to(body_x + left_w - extent.width - 9, body_y + 17)
+        ctx.show_text(telemetry)
 
         # Current 48-band spectrum rack below the waveform.
         self.panel(ctx, body_x, spectrum_y, left_w, spectrum_h, gray, "#0b0909", 1)
         bar_w = left_w / 48
-        for band in range(48):
-            value = (self.spectrum[band * 2] + self.spectrum[band * 2 + 1]) / 2
+        band_values = [
+            (self.spectrum[band * 2] + self.spectrum[band * 2 + 1]) / 2
+            for band in range(48)
+        ]
+        for band, value in enumerate(band_values):
             color = white if value > 0.76 else (amber if value > 0.47 or band % 8 == 0 else red)
             bar_h = max(2, value * spectrum_h * 0.77)
             ctx.set_source_rgba(*rgb(color))
@@ -1276,19 +1287,23 @@ class Cyberdisc(Gtk.Application):
         self.mono(ctx, max(7, height * 0.0105), amber, True)
         ctx.move_to(body_x + 8, spectrum_y + 15)
         ctx.show_text("FAULT SPECTRUM // 48 BANDS")
+        peak_band = max(range(48), key=band_values.__getitem__)
+        marker_x = body_x + (peak_band + 0.5) * bar_w
+        ctx.set_source_rgba(*rgb(cyan))
+        ctx.rectangle(marker_x - 2, spectrum_y + 4, 4, 4)
+        ctx.fill()
 
         # Radial core combines the same frequencies into a compact rotating view.
         self.panel(ctx, core_x, body_y, core_w, body_h, red, "#0b0808")
         dial_x = core_x + core_w * 0.50
-        dial_y = body_y + body_h * 0.40
-        radius = min(core_w * 0.38, body_h * 0.28)
+        dial_y = body_y + body_h * 0.37
+        radius = min(core_w * 0.44, body_h * 0.31)
         for ring in (0.34, 0.60, 0.84):
             ctx.set_source_rgba(*rgb(gray, 0.82))
             ctx.set_line_width(1)
             ctx.arc(dial_x, dial_y, radius * ring, 0, TAU)
             ctx.stroke()
-        for band in range(48):
-            value = (self.spectrum[band * 2] + self.spectrum[band * 2 + 1]) / 2
+        for band, value in enumerate(band_values):
             theta = band / 48 * TAU - math.pi / 2
             inner = radius * 0.72
             outer = radius * (0.78 + value * 0.40)
@@ -1301,6 +1316,23 @@ class Cyberdisc(Gtk.Application):
                 ],
                 color,
                 2,
+            )
+        # Two sparse rotating rails give the core more mechanical detail.
+        for offset, color, direction in ((0.0, amber, 1), (math.pi, cyan, -1)):
+            start = offset + self.angle * direction * 0.55
+            ctx.set_source_rgba(*rgb(color))
+            ctx.set_line_width(2)
+            ctx.arc(dial_x, dial_y, radius * 1.05, start, start + math.pi * 0.42)
+            ctx.stroke()
+        for theta in (0, math.pi / 2, math.pi, math.pi * 1.5):
+            self.line(
+                ctx,
+                [
+                    (dial_x + math.cos(theta) * radius * 1.08, dial_y + math.sin(theta) * radius * 1.08),
+                    (dial_x + math.cos(theta) * radius * 1.14, dial_y + math.sin(theta) * radius * 1.14),
+                ],
+                white,
+                1,
             )
         scan = -math.pi / 2 + self.angle * 1.8
         self.line(
@@ -1317,7 +1349,7 @@ class Cyberdisc(Gtk.Application):
 
         energy = sum(self.spectrum) / len(self.spectrum)
         self.mono(ctx, max(8, height * 0.012), white, True)
-        readout_y = body_y + body_h * 0.77
+        readout_y = body_y + body_h * 0.70
         ctx.move_to(core_x + 10, readout_y)
         ctx.show_text(f"LOAD  {int(energy * 100):02d}%")
         ctx.set_source_rgba(*rgb(gray))
@@ -1326,6 +1358,25 @@ class Cyberdisc(Gtk.Application):
         ctx.set_source_rgba(*rgb(red))
         ctx.rectangle(core_x + 10, readout_y + 10, (core_w - 20) * min(1, energy * 1.8), 8)
         ctx.fill()
+        bands = (
+            ("LOW", bass, red),
+            ("MID", sum(self.spectrum[20:65]) / 45, amber),
+            ("AIR", sum(self.spectrum[65:]) / 31, cyan),
+        )
+        meter_y = readout_y + 35
+        meter_x = core_x + 42
+        meter_w = core_w - 52
+        for index, (name, level, color) in enumerate(bands):
+            yy = meter_y + index * 18
+            self.mono(ctx, max(7, height * 0.010), white, True)
+            ctx.move_to(core_x + 10, yy + 6)
+            ctx.show_text(name)
+            ctx.set_source_rgba(*rgb(gray))
+            ctx.rectangle(meter_x, yy, meter_w, 6)
+            ctx.fill()
+            ctx.set_source_rgba(*rgb(color))
+            ctx.rectangle(meter_x, yy, meter_w * min(1, level * 1.55), 6)
+            ctx.fill()
         self.mono(ctx, max(7, height * 0.0105), "#957a7c")
         ctx.move_to(core_x + 10, body_y + body_h - 10)
         ctx.show_text("SPACE:HOLD  Q:ABORT")
