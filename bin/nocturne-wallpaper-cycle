@@ -18,6 +18,7 @@ STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")
 CONFIG = CONFIG_HOME / "nocturne/wallpaper.json"
 RUNTIME_CONFIG = CONFIG_HOME / "hypr/nocturne-wallpaper.conf"
 STATE = STATE_HOME / "nocturne/wallpaper-state.json"
+LOG = STATE_HOME / "nocturne/hyprpaper.log"
 SERVICE = "nocturne-wallpaper-cycle.service"
 DEFAULT_SOURCE = "/usr/share/backgrounds/Dynamic_Wallpapers/SolidForest.xml"
 DEFAULT_IMAGE = Path.home() / ".local/share/backgrounds/nocturne-grid.png"
@@ -77,36 +78,57 @@ def images_from(source: str) -> list[Path]:
     return unique
 
 
-def write_runtime_config(image: Path) -> None:
+def monitor_names() -> list[str]:
+    try:
+        result = subprocess.run(["hyprctl", "-j", "monitors"], capture_output=True, text=True, timeout=2, check=False)
+        monitors = json.loads(result.stdout)
+        return [item["name"] for item in monitors if item.get("name") and not item.get("disabled")]
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+
+
+def write_runtime_config(image: Path) -> list[str]:
     RUNTIME_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     temporary = RUNTIME_CONFIG.with_suffix(".tmp")
-    temporary.write_text(
-        f"preload = {image}\nwallpaper = ,{image}\nsplash = false\nipc = on\n",
-        encoding="utf-8",
-    )
+    monitors = monitor_names()
+    targets = monitors or [""]
+    lines = [f"preload = {image}"]
+    lines.extend(f"wallpaper = {monitor},{image}" for monitor in targets)
+    lines.extend(["splash = false", "ipc = on"])
+    temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
     temporary.replace(RUNTIME_CONFIG)
+    return monitors
 
 
 def quietly(command: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 
+def process_running() -> bool:
+    return quietly(["pgrep", "-x", "hyprpaper"]).returncode == 0
+
+
 def start_hyprpaper() -> None:
-    subprocess.Popen(
-        ["hyprpaper", "-c", str(RUNTIME_CONFIG)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    with LOG.open("ab") as stream:
+        process = subprocess.Popen(
+            ["hyprpaper", "-c", str(RUNTIME_CONFIG)],
+            stdout=stream,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    time.sleep(0.45)
+    if process.poll() is not None:
+        raise SystemExit(f"Hyprpaper failed to start; inspect {LOG}")
 
 
 def apply_image(image: Path, announce: bool = True) -> None:
     if not image.is_file():
         raise SystemExit(f"Wallpaper does not exist: {image}")
     image = image.resolve()
-    write_runtime_config(image)
+    monitors = write_runtime_config(image)
 
-    running = quietly(["pgrep", "-x", "hyprpaper"]).returncode == 0
+    running = process_running()
     ipc_ok = False
     if running:
         preload = quietly(["hyprctl", "hyprpaper", "preload", str(image)])
@@ -117,12 +139,17 @@ def apply_image(image: Path, announce: bool = True) -> None:
     if not running or not ipc_ok:
         if running:
             quietly(["pkill", "-x", "hyprpaper"])
-            time.sleep(0.15)
+            for _ in range(10):
+                if not process_running():
+                    break
+                time.sleep(0.1)
         start_hyprpaper()
 
     state = read_json(STATE, {})
     state["current"] = str(image)
     state["changed_at"] = int(time.time())
+    state["monitors"] = monitors
+    state["display_active"] = process_running()
     write_json(STATE, state)
     if announce:
         quietly(["notify-send", "-a", "Nocturne", "Wallpaper updated", image.stem])
@@ -152,9 +179,19 @@ def set_enabled(enabled: bool, source: str | None = None, interval: str | None =
     write_json(CONFIG, config)
     if enabled:
         next_image()
-        quietly(["systemctl", "--user", "restart", SERVICE])
-    else:
-        quietly(["systemctl", "--user", "stop", SERVICE])
+    quietly(["systemctl", "--user", "restart", SERVICE])
+
+
+def apply_source(source: str) -> None:
+    images = images_from(source)
+    if not images:
+        raise SystemExit("No usable images found in the selected wallpaper source")
+    config = read_json(CONFIG, defaults())
+    config["source"] = str(Path(source).expanduser())
+    config["enabled"] = False
+    write_json(CONFIG, config)
+    apply_image(images[0])
+    quietly(["systemctl", "--user", "restart", SERVICE])
 
 
 def use_gnome(interval: str | None = None) -> None:
@@ -179,6 +216,8 @@ def status() -> None:
         "count": len(images),
         "current": state.get("current", ""),
         "service_active": quietly(["systemctl", "--user", "is-active", "--quiet", SERVICE]).returncode == 0,
+        "display_active": process_running(),
+        "monitors": state.get("monitors", []),
     }
     print(json.dumps(output))
 
@@ -192,24 +231,32 @@ def daemon() -> None:
 
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
+    elapsed = 0
     while not stopped:
         config = read_json(CONFIG, defaults())
-        if not config.get("enabled"):
-            return
         interval = max(60, int(config.get("interval", 900)))
-        for _ in range(interval):
+        state = read_json(STATE, {})
+        current = Path(state.get("current", "")).expanduser()
+        if not process_running() and current.is_file():
+            try:
+                apply_image(current, False)
+            except SystemExit:
+                pass
+        if config.get("enabled") and elapsed >= interval:
+            try:
+                next_image(False)
+                elapsed = 0
+            except SystemExit:
+                pass
+        for _ in range(5):
             if stopped:
                 return
             time.sleep(1)
-        if not stopped:
-            try:
-                next_image(False)
-            except SystemExit:
-                time.sleep(30)
+        elapsed += 5
 
 
 def usage() -> None:
-    print("Usage: nocturne-wallpaper-cycle enable [SOURCE] [SECONDS] | disable | next | apply-file FILE | use-gnome [SECONDS] | status | daemon", file=sys.stderr)
+    print("Usage: nocturne-wallpaper-cycle enable [SOURCE] [SECONDS] | disable | next | apply-source SOURCE | apply-file FILE | use-gnome [SECONDS] | status | daemon", file=sys.stderr)
 
 
 def main() -> None:
@@ -220,6 +267,8 @@ def main() -> None:
         set_enabled(False)
     elif command == "next":
         next_image()
+    elif command == "apply-source" and len(sys.argv) > 2:
+        apply_source(sys.argv[2])
     elif command == "apply-file" and len(sys.argv) > 2:
         apply_image(Path(sys.argv[2]).expanduser())
     elif command == "use-gnome":

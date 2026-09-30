@@ -66,9 +66,16 @@ control center, and middle opens the key guide. The full guide is in
   12-hour `+`/`−` time marker, session identity, and themed auth feedback.
 - Hyprland can rotate any installed GNOME dynamic-wallpaper XML pack or any
   image folder. The previous SolidForest GNOME pack is available directly;
-  controls for collection, interval, next image and stop live under
+  a large preview and clear Apply/Rotate/Next/Stop controls live under
   **Settings → Appearance**. Choosing a static image with `Super+W` pauses the
   rotation, so the two modes never conflict.
+- Five coordinated surface designs—Obsidian Grid, Carbon Compact, Midnight
+  Circuit, Phosphor Terminal, and Crimson Relay—change shell/app surfaces and
+  layout density without changing workflow or shortcuts. Sixteen independent
+  accent colors can be mixed with any design.
+- `nocturne-doctor` performs a read-only check of the compositor, wallpaper on
+  every display, notification/idle services, network, Bluetooth, PipeWire,
+  brightness, power profiles, KDE Connect, fonts, and essential configuration.
 - Nautilus uses a session-only Nocturne GTK layer: compact sharp controls,
   list view, dark sidebar/content and a matching selection accent. Entering
   GNOME removes that layer and restores the saved MacTahoe stylesheet.

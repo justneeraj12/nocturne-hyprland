@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -u
+
+pass=0
+warn=0
+fail=0
+
+ok() { printf '[ OK ] %s\n' "$1"; pass=$((pass + 1)); }
+warning() { printf '[WARN] %s\n' "$1"; warn=$((warn + 1)); }
+bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
+
+printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
+printf '%s\n\n' '────────────────────────────────'
+
+required=(Hyprland hyprctl hyprpaper waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus)
+missing=()
+for command_name in "${required[@]}"; do
+  command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
+done
+if ((${#missing[@]} == 0)); then ok 'Required desktop commands are installed'; else bad "Missing commands: ${missing[*]}"; fi
+
+if [[ $(hyprctl configerrors 2>/dev/null) == '' ]]; then ok 'Hyprland configuration has no parser errors'; else bad 'Hyprland reports configuration errors'; fi
+pgrep -x waybar >/dev/null 2>&1 && ok 'Waybar is running' || bad 'Waybar is not running'
+pgrep -x swaync >/dev/null 2>&1 && ok 'Notification center is running' || bad 'Notification center is not running'
+pgrep -x hypridle >/dev/null 2>&1 && ok 'Idle and lock manager is running' || bad 'Hypridle is not running'
+
+wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null || true)
+if jq -e '.display_active == true and (.monitors | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
+  count=$(jq -r '.monitors | length' <<<"$wallpaper")
+  ok "Wallpaper engine is active on $count display(s)"
+else
+  bad 'Wallpaper engine is not active on detected displays'
+fi
+if jq -e '.count > 0' >/dev/null 2>&1 <<<"$wallpaper"; then ok 'Wallpaper collection contains readable images'; else bad 'Wallpaper collection has no readable images'; fi
+
+monitor_count=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
+((monitor_count > 0)) && ok "Hyprland detects $monitor_count display(s)" || bad 'No active Hyprland display detected'
+
+nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
+[[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'
+bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller is available' || warning 'No Bluetooth controller is currently available'
+wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'PipeWire default audio output responds' || bad 'Default audio output is unavailable'
+wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'PipeWire default microphone responds' || warning 'Default microphone is unavailable'
+brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'
+profile=$(powerprofilesctl get 2>/dev/null)
+[[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
+
+kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect service responds' || warning 'KDE Connect service is not responding'
+fc-match 'Inter' | rg -qi 'Inter' && ok 'Inter UI font is installed' || warning 'Inter font fallback is in use'
+fc-match 'MesloLGS Nerd Font Mono' | rg -qi 'Meslo' && ok 'Nerd Font icons are installed' || bad 'Meslo Nerd Font is missing'
+
+for file in "$HOME/.config/waybar/config.jsonc" "$HOME/.config/swaync/config.json" "$HOME/.config/nocturne/locations.json"; do
+  [[ -r $file ]] && ok "Readable config: ${file#$HOME/}" || bad "Missing config: ${file#$HOME/}"
+done
+
+printf '\n────────────────────────────────\n'
+printf 'RESULT  %d passed · %d warnings · %d failed\n' "$pass" "$warn" "$fail"
+((fail == 0))

@@ -1,9 +1,4 @@
-@define-color base #07090a;
-@define-color surface #0b0f10;
-@define-color overlay #111719;
-@define-color line #1b2925;
-@define-color text #a7b8b1;
-@define-color muted #4d5d58;
+@import url("../nocturne/palette.css");
 @import url("../nocturne/accent.css");
 @define-color green #6d9578;
 @define-color yellow #9a895c;

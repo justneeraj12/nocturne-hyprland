@@ -60,6 +60,15 @@ install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locatio
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
 install -m 0644 "$ROOT_DIR/config/nocturne/gtk-4.0.css" "$CONFIG_HOME/nocturne/gtk-4.0.css"
+if [[ ! -e "$CONFIG_HOME/nocturne/palette.css" ]]; then
+  install -m 0644 "$ROOT_DIR/config/nocturne/palette.css" "$CONFIG_HOME/nocturne/palette.css"
+fi
+if [[ ! -e "$CONFIG_HOME/nocturne/theme.conf" ]]; then
+  install -m 0644 "$ROOT_DIR/config/nocturne/theme.conf" "$CONFIG_HOME/nocturne/theme.conf"
+fi
+if [[ ! -e "$CONFIG_HOME/nocturne/theme.json" ]]; then
+  install -m 0644 "$ROOT_DIR/config/nocturne/theme.json" "$CONFIG_HOME/nocturne/theme.json"
+fi
 install -m 0644 "$ROOT_DIR/config/dconf/hyprland-profile" "$CONFIG_HOME/dconf/hyprland-profile"
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
 install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/color-schemes/Nocturne.colors"
@@ -70,6 +79,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-cyberdisc" "$BIN_HOME/nocturne-cyberdisc
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings-app" "$BIN_HOME/nocturne-settings-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
+install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/wallpaper.json" "$CONFIG_HOME/nocturne/wallpaper.json"
 fi

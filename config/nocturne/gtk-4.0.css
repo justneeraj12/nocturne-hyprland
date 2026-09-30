@@ -1,16 +1,17 @@
 @import url("accent.css");
+@import url("palette.css");
 
 /* Nocturne's GTK layer is linked only while Hyprland is active. GNOME keeps
  * its separate MacTahoe user stylesheet and button layout. */
-@define-color window_bg_color #090d0f;
+@define-color window_bg_color @base;
 @define-color window_fg_color #d4ddd8;
-@define-color view_bg_color #0b1114;
+@define-color view_bg_color @view;
 @define-color view_fg_color #cdd7d2;
-@define-color headerbar_bg_color #0c1215;
+@define-color headerbar_bg_color @header;
 @define-color headerbar_fg_color #dce5e0;
-@define-color sidebar_bg_color #0a1012;
+@define-color sidebar_bg_color @sidebar;
 @define-color sidebar_fg_color #aab7b2;
-@define-color card_bg_color #0e1518;
+@define-color card_bg_color @card;
 @define-color card_fg_color #d4ddd8;
 @define-color popover_bg_color #10171a;
 @define-color popover_fg_color #d4ddd8;
@@ -75,7 +76,7 @@ placessidebar row,
 
 placessidebar row:selected,
 .navigation-sidebar row:selected {
-  background: #15221e;
+  background: @selection;
   color: @accent;
   border-left: 2px solid @accent;
 }

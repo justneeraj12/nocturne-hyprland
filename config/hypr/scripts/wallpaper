@@ -19,7 +19,7 @@ case "$choice" in
     nocturne-wallpaper-cycle disable
     exec nocturne-wallpaper-cycle apply-file "$default"
     ;;
-  'Dynamic wallpaper settings') exec nocturne-settings ;;
+  'Dynamic wallpaper settings') exec nocturne-settings appearance ;;
   'Open wallpaper folder') exec nautilus "$backgrounds" ;;
   *) exit 0 ;;
 esac

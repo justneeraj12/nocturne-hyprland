@@ -87,6 +87,9 @@ MEDIA
 
 PERSONALIZE + SOUND
   Super + R → Appearance  Dynamic wallpapers, static images and accents
+  Desktop design          Obsidian, Carbon, Midnight, Phosphor or Crimson
+  Accent palette          Sixteen coordinated colors; shortcuts stay identical
+  Wallpaper preview       Selecting a collection immediately shows an image
   Dynamic wallpaper       Choose a GNOME XML pack, interval, enable or stop
   Use GNOME current       Reuses your previous GNOME wallpaper collection
   Super + W               Choose one image; rotation pauses automatically
@@ -96,6 +99,7 @@ PERSONALIZE + SOUND
   Super + R → Viz theme   Fifteen native cyber decks + five Cava classics
   Super + R → Routing     Visual PipeWire device routing
   Super + R → Brightness  Matching laptop backlight presets
+  Super + R → System      Run the read-only Nocturne health check
 
 VISUALIZER THEMES
   Open Settings with Super + R and choose Visualizer theme. The selected style
