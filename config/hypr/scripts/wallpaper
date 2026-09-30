@@ -11,6 +11,7 @@ choice=$(printf '%s\n' 'Choose an image' 'Restore Obsidian wallpaper' 'Dynamic w
 case "$choice" in
   'Choose an image')
     image=$(zenity --file-selection --title='Choose wallpaper' \
+      --filename="$backgrounds/" \
       --file-filter='Images | *.png *.jpg *.jpeg *.webp') || exit 0
     nocturne-wallpaper-cycle disable
     exec nocturne-wallpaper-cycle apply-file "$image"
