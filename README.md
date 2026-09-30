@@ -183,6 +183,16 @@ pkexec ./configure-msi-controls.sh
 
 The installer makes no persistent change when the kernel rejects the firmware.
 
+To clear only generated crash reports, the APT download cache, and old journal
+history after a large debugging session, run:
+
+```bash
+pkexec ./cleanup-generated-caches.sh
+```
+
+This preserves personal files, application profiles, installed packages,
+Steam data, and current logs.
+
 ## GitHub sync
 
 Machine-local backups are intentionally excluded from Git because they can
