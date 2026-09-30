@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v gnome-control-center >/dev/null 2>&1; then
+  notify-send -a Nocturne 'Online Accounts' 'GNOME Online Accounts is not installed.'
+  exit 1
+fi
+
+# The account panel is backed by GOA and works outside GNOME, but newer
+# control-center builds hide desktop-specific panels unless launched with the
+# GNOME desktop identity. This changes only the child process.
+exec env XDG_CURRENT_DESKTOP=GNOME gnome-control-center online-accounts

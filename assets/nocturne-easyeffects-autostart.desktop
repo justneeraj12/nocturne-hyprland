@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=EasyEffects audio processing
-Comment=Keep the audio effects pipeline active without opening a window
-Exec=/usr/bin/easyeffects --service-mode
-Icon=com.github.wwmm.easyeffects
-Terminal=false
-StartupNotify=false
-X-GNOME-Autostart-enabled=true

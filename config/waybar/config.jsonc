@@ -9,7 +9,7 @@
     "spacing": 0,
     "fixed-center": true,
     "expand-center": true,
-    "modules-left": ["custom/logo", "hyprland/workspaces"],
+    "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
     "modules-center": ["custom/world"],
     "modules-right": [
       "custom/pomodoro", "mpris", "custom/caffeine", "group/tray-expander",
@@ -35,6 +35,14 @@
       "persistent-workspaces": { "*": 5 },
       "on-scroll-up": "hyprctl dispatch workspace e+1",
       "on-scroll-down": "hyprctl dispatch workspace e-1"
+    },
+    "custom/minimized": {
+      "exec": "~/.config/hypr/scripts/minimize status",
+      "return-type": "json",
+      "interval": 1,
+      "tooltip": true,
+      "on-click": "~/.config/hypr/scripts/minimize show",
+      "on-click-right": "~/.config/hypr/scripts/minimize restore-all"
     },
     "custom/world": {
       "exec": "~/.config/hypr/scripts/world-status",
@@ -195,7 +203,7 @@
     "spacing": 0,
     "fixed-center": true,
     "expand-center": true,
-    "modules-left": ["custom/logo", "hyprland/workspaces"],
+    "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
     "modules-center": ["custom/local-clock#secondary"],
     "modules-right": ["custom/brightness#secondary", "custom/power-battery#secondary"],
     "custom/logo": {
@@ -212,6 +220,12 @@
         "active": "●", "urgent": "!", "default": "·"
       },
       "persistent-workspaces": { "*": 5 }
+    },
+    "custom/minimized": {
+      "exec": "~/.config/hypr/scripts/minimize status",
+      "return-type": "json", "interval": 1, "tooltip": true,
+      "on-click": "~/.config/hypr/scripts/minimize show",
+      "on-click-right": "~/.config/hypr/scripts/minimize restore-all"
     },
     "custom/local-clock#secondary": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,

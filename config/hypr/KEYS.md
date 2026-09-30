@@ -34,6 +34,9 @@ WINDOWS — NO GIANT WINDOW BUTTONS
   Super + right-drag      Resize a window with the mouse
   Alt + Tab               Cycle windows
 
+The minimized-window button only appears in the top bar when something is
+hidden. Left-click opens visual previews; right-click restores everything.
+
 STEAM + ODD APP WINDOWS
   Super + T               Open Steam, or jump to it if it is already open
   Steam's main library    Tiles with everything else automatically

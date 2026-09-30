@@ -55,13 +55,22 @@ control center, and middle opens the key guide. The full guide is in
   apps. Audio, Wi-Fi, Bluetooth, media, KDE Connect, and power open compact
   click-to-toggle cards directly beneath their buttons. A themed clock card
   combines every saved world time, live weather, Pomodoro, and caffeine. The
-  native Nocturne Settings app replaces GNOME Settings, which cannot run
+  native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
   outside GNOME. It provides a sidebar for appearance, wallpapers,
   connectivity, sound, desktop, hardware, power and shortcut help. The
   standard Settings launcher routes intelligently to Nocturne under Hyprland
   and Ubuntu Settings under GNOME. Audio includes
   per-app volume; KDE Connect uses a matching dark Qt6 theme. Detailed process
   data lives in the resource dashboard.
+  A Hyprland-session watchdog restarts the bar after an unexpected crash
+  without allowing it to leak into the restored GNOME session.
+- **Settings → Accounts + apps** opens the real GNOME Online Accounts Google
+  login used by Ubuntu. Calendar uses that shared account; native GNOME
+  Calendar and Iotas inherit the Nocturne GTK palette. This installed provider
+  does not expose Drive or Keep to desktop apps, so those open through their
+  official web apps; Iotas synchronizes with Nextcloud, not Google.
+  Keep and Drive launch in signed-in Brave app mode—no tab strip or fake sync
+  bridge—and are also searchable from the app launcher.
 - Hyprlock uses a sharp terminal-authentication card with the Nocturne palette,
   12-hour `+`/`−` time marker, session identity, and themed auth feedback.
 - Hyprland follows the start time, static durations, transitions, and full
@@ -71,10 +80,17 @@ control center, and middle opens the key guide. The full guide is in
   evening transition. A large current-phase preview and clear Apply/Follow/Stop
   controls live under **Settings → Appearance**. Choosing a static image with
   `Super+W` pauses the day cycle, so the two modes never conflict.
-- Five coordinated surface designs—Obsidian Grid, Carbon Compact, Midnight
-  Circuit, Phosphor Terminal, and Crimson Relay—change shell/app surfaces and
-  layout density without changing workflow or shortcuts. Sixteen independent
-  accent colors can be mixed with any design.
+- **Settings → Appearance** presents static wallpapers as an Ubuntu-style
+  thumbnail library, keeps the active image visibly marked, and separates the
+  dynamic preview from its schedule details. Save new downloads in
+  `~/Pictures/Wallpapers`; the picker also includes the existing Nocturne
+  collection automatically.
+- Eight coordinated surface designs—Obsidian Grid, Carbon Compact, Midnight
+  Circuit, Phosphor Terminal, Crimson Relay, Copper Blue, Copper Deep Green,
+  and Copper Deep Gold—change shell/app surfaces and layout density without
+  changing workflow or shortcuts. Sixteen independent accent colors can be
+  mixed with any design. The Settings sidebar toggles between full labels and
+  a remembered compact icon-only rail.
 - `nocturne-doctor` performs a read-only check of the compositor, wallpaper on
   every display, notification/idle services, network, Bluetooth, PipeWire,
   brightness, power profiles, KDE Connect, fonts, and essential configuration.
@@ -92,10 +108,17 @@ control center, and middle opens the key guide. The full guide is in
   nvtop, and a live audio spectrum in one sharp grid.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
+- A sharper, theme-aware app launcher with larger icons, fuzzy search, generic
+  app descriptions, and remembered launch frequency.
 - Steam opens tiled, its utility dialogs float centered, and its launcher
   focuses an existing window instead of starting redundant client work. The
   hybrid-GPU path uses native NVIDIA PRIME while background shader compilation
   stays paused so the desktop remains responsive.
+- Minimized windows live in a compact bar-attached shell card with app icons,
+  searchable title/app metadata, original-workspace restoration, and an
+  auto-hiding bar button. It never opens as a normal app or occupies a tile.
+  Left-click chooses one to restore; clicking again closes it; right-click
+  restores all.
 - Live weather and local times for BLR, Hoodi Circle, NRI Layout, Vizag, NYC,
   Potsdam NY, and Milan. Weather refreshes every 15 minutes and retries partial
   API responses.

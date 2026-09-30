@@ -4,7 +4,8 @@ set -euo pipefail
 if [[ -n ${1:-} ]]; then
   choice=$1
 else
-  choice=$(printf '%s\n' 'Obsidian Grid' 'Carbon Compact' 'Midnight Circuit' 'Phosphor Terminal' 'Crimson Relay' | \
+  choice=$(printf '%s\n' 'Obsidian Grid' 'Carbon Compact' 'Midnight Circuit' 'Phosphor Terminal' 'Crimson Relay' \
+    'Copper Blue' 'Copper Deep Green' 'Copper Deep Gold' | \
     wofi --dmenu --prompt 'Desktop design') || exit 0
 fi
 
@@ -29,6 +30,18 @@ case "${choice,,}" in
     name='Crimson Relay'; base=0b0708; surface=120c0e; overlay=1d1215; line=3b252b
     text=cbb7bb; muted=70565c; view=0e090b; sidebar=0b0708; header=100a0c; card=160e11; selection=2d171d
     gaps_in=2; gaps_out=3; active=1.0; inactive=1.0 ;;
+  copper-blue|'copper blue')
+    name='Copper Blue'; base=070b10; surface=0b1219; overlay=121e28; line=5b4637
+    text=c8d0d2; muted=667985; view=080f16; sidebar=070d13; header=0a1118; card=0d1720; selection=1a2b38
+    gaps_in=3; gaps_out=5; active=1.0; inactive=1.0 ;;
+  copper-green|'copper deep green')
+    name='Copper Deep Green'; base=060a08; surface=0a110d; overlay=111c16; line=5b4735
+    text=c6cec8; muted=617268; view=070e0a; sidebar=060b08; header=09100c; card=0c1610; selection=19271e
+    gaps_in=3; gaps_out=5; active=1.0; inactive=1.0 ;;
+  copper-gold|'copper deep gold')
+    name='Copper Deep Gold'; base=0a0805; surface=12100a; overlay=1d1910; line=665035
+    text=d0c9b9; muted=756a55; view=0d0b07; sidebar=090805; header=100d08; card=17130c; selection=2a2113
+    gaps_in=2; gaps_out=4; active=1.0; inactive=1.0 ;;
   *) exit 2 ;;
 esac
 

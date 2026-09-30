@@ -35,6 +35,7 @@ printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "
 mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$CONFIG_HOME/swaync" "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
+  "$HOME/Pictures/Wallpapers" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
   "$STATE_HOME/nocturne" "$BIN_HOME"
@@ -56,6 +57,9 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-wallpaper-cycle.service" \
   "$CONFIG_HOME/systemd/user/nocturne-wallpaper-cycle.service"
+install -m 0644 \
+  "$ROOT_DIR/config/systemd/user/nocturne-easyeffects.service" \
+  "$CONFIG_HOME/systemd/user/nocturne-easyeffects.service"
 install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
@@ -79,6 +83,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualiz
 install -m 0755 "$ROOT_DIR/bin/nocturne-cyberdisc" "$BIN_HOME/nocturne-cyberdisc"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings-app" "$BIN_HOME/nocturne-settings-app"
+install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
@@ -105,6 +110,12 @@ sed "s|@LAUNCHER@|$BIN_HOME/nocturne-visualizer|g" \
   "$ROOT_DIR/assets/nocturne-visualizer.desktop.in" \
   > "$DATA_HOME/applications/nocturne-visualizer.desktop"
 chmod 0644 "$DATA_HOME/applications/nocturne-visualizer.desktop"
+for google_app in keep drive; do
+  sed "s|@LAUNCHER@|$BIN_HOME/nocturne-web-app|g" \
+    "$ROOT_DIR/assets/nocturne-google-$google_app.desktop.in" \
+    > "$DATA_HOME/applications/nocturne-google-$google_app.desktop"
+  chmod 0644 "$DATA_HOME/applications/nocturne-google-$google_app.desktop"
+done
 sed "s|@SCRIPT@|$BIN_HOME/nocturne-session-theme|g" \
   "$ROOT_DIR/assets/nocturne-gnome-theme-restore.desktop.in" \
   > "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
@@ -123,18 +134,17 @@ fi
 chmod +x "$CONFIG_HOME"/hypr/scripts/*
 
 # Use exactly one EasyEffects backend. The Flatpak copy created an autostart
-# entry that currently crashes during login; the distro build provides the
-# same PipeWire processing as a quiet service and follows the session theme in
-# either desktop.
+# entry that currently crashes during login; the distro build now runs as a
+# restartable user service and follows the session theme in either desktop.
 if command -v easyeffects >/dev/null 2>&1; then
-  install -m 0644 \
-    "$ROOT_DIR/assets/nocturne-easyeffects-autostart.desktop" \
-    "$CONFIG_HOME/autostart/nocturne-easyeffects.desktop"
-  if [[ -e "$CONFIG_HOME/autostart/com.github.wwmm.easyeffects.desktop" ]]; then
+  for old_entry in com.github.wwmm.easyeffects.desktop nocturne-easyeffects.desktop; do
+    if [[ ! -e "$CONFIG_HOME/autostart/$old_entry" ]]; then
+      continue
+    fi
     mkdir -p "$STATE_HOME/nocturne/retired-autostarts"
-    mv -- "$CONFIG_HOME/autostart/com.github.wwmm.easyeffects.desktop" \
-      "$STATE_HOME/nocturne/retired-autostarts/com.github.wwmm.easyeffects.desktop"
-  fi
+    mv -- "$CONFIG_HOME/autostart/$old_entry" \
+      "$STATE_HOME/nocturne/retired-autostarts/$old_entry"
+  done
 fi
 
 # This historical GNOME workaround merely killed gsd-power and fails under
@@ -183,6 +193,7 @@ fi
 systemctl --user unmask swaync.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
+systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
   waybar.service \
   hypridle.service \

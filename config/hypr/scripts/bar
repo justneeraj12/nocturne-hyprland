@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -u
+
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+exec 9>"$runtime_dir/nocturne-waybar.lock"
+flock -n 9 || exit 0
+
+# Waybar is deliberately not a global user service because it must never leak
+# into the restored GNOME session. Keep it alive only while Hyprland owns the
+# session; an unexpected crash gets a calm restart instead of losing the shell.
+while hyprctl monitors -j >/dev/null 2>&1; do
+  waybar -c "$HOME/.config/waybar/config.jsonc" -s "$HOME/.config/waybar/style.css"
+  sleep 2
+done

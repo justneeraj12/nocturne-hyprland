@@ -2,24 +2,19 @@
 set -euo pipefail
 
 backgrounds=${XDG_DATA_HOME:-"$HOME/.local/share"}/backgrounds
+library=$HOME/Pictures/Wallpapers
 default=$backgrounds/nocturne-default.png
-mkdir -p "$backgrounds"
+mkdir -p "$library"
 
-choice=$(printf '%s\n' 'Choose an image' 'Restore Obsidian wallpaper' 'Dynamic wallpaper settings' 'Open wallpaper folder' | \
+choice=$(printf '%s\n' 'Wallpaper settings' 'Open wallpaper folder' 'Restore Obsidian wallpaper' | \
   wofi --dmenu --prompt 'Wallpaper') || exit 0
 
 case "$choice" in
-  'Choose an image')
-    image=$(zenity --file-selection --title='Choose wallpaper' \
-      --filename="$backgrounds/" \
-      --file-filter='Images | *.png *.jpg *.jpeg *.webp') || exit 0
-    exec nocturne-wallpaper-cycle apply-source "$image"
-    ;;
+  'Wallpaper settings') exec nocturne-settings appearance ;;
+  'Open wallpaper folder') exec nautilus --new-window "$library" ;;
   'Restore Obsidian wallpaper')
     nocturne-wallpaper-cycle disable
     exec nocturne-wallpaper-cycle apply-file "$default"
     ;;
-  'Dynamic wallpaper settings') exec nocturne-settings appearance ;;
-  'Open wallpaper folder') exec nautilus "$backgrounds" ;;
   *) exit 0 ;;
 esac

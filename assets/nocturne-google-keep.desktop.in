@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Google Keep
+Comment=Google-synced notes in a clean app window
+Exec=@LAUNCHER@ keep
+Icon=accessories-text-editor
+Terminal=false
+Categories=Office;
+StartupNotify=true

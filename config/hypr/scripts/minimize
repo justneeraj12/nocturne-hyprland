@@ -6,42 +6,131 @@ state=$state_dir/windows.tsv
 mkdir -p "$state_dir"
 touch "$state"
 
+clean_text() {
+  local value=${1:-}
+  value=${value//$'\t'/ }
+  value=${value//$'\n'/ }
+  printf '%s' "$value"
+}
+
+sync_state() {
+  local clients
+  clients=$(hyprctl clients -j 2>/dev/null || printf '[]')
+  jq -r '.[] | select(.workspace.name == "special:minimized") | .address' <<<"$clients" > "$state_dir/live"
+  awk -F '\t' 'NR==FNR {live[$1]=1; next} live[$1]' "$state_dir/live" "$state" > "$state.tmp"
+  mv "$state.tmp" "$state"
+}
+
 hide_window() {
-  local window address workspace title clean
+  local window address workspace class title
   window=$(hyprctl activewindow -j)
   address=$(jq -r '.address // empty' <<<"$window")
   workspace=$(jq -r '.workspace.name // empty' <<<"$window")
-  title=$(jq -r '.title // .class // "Window"' <<<"$window")
-  [[ -n "$address" && "$address" != 0x0 ]] || exit 0
-  clean=${title//$'\t'/ }
-  clean=${clean//$'\n'/ }
+  class=$(clean_text "$(jq -r '.class // "Application"' <<<"$window")")
+  title=$(clean_text "$(jq -r '.title // .class // "Window"' <<<"$window")")
+  [[ -n $address && $address != 0x0 && $workspace != special:minimized ]] || exit 0
+
   awk -F '\t' -v wanted="$address" '$1 != wanted' "$state" > "$state.tmp"
-  printf '%s\t%s\t%s\n' "$address" "$workspace" "$clean" >> "$state.tmp"
+  printf '%s\t%s\t%s\t%s\t\n' "$address" "$workspace" "$class" "$title" >> "$state.tmp"
   mv "$state.tmp" "$state"
   hyprctl dispatch movetoworkspacesilent "special:minimized,address:${address}" >/dev/null
 }
 
-show_window() {
-  local clients menu choice address workspace
-  clients=$(hyprctl clients -j)
-  jq -r '.[] | select(.workspace.name == "special:minimized") | .address' <<<"$clients" > "$state_dir/live"
-  awk -F '\t' 'NR==FNR {live[$1]=1; next} live[$1]' "$state_dir/live" "$state" > "$state.tmp"
-  mv "$state.tmp" "$state"
-  [[ -s "$state" ]] || { notify-send 'Minimized windows' 'Nothing is hidden.'; exit 0; }
-  menu=$(awk -F '\t' '{printf "%s  ·  workspace %s  [%s]\n", $3, $2, $1}' "$state")
-  choice=$(printf '%s' "$menu" | wofi --dmenu --prompt 'Restore window' --insensitive) || exit 0
-  address=$(sed -n 's/.*\[\(0x[0-9a-fA-F]*\)\]$/\1/p' <<<"$choice")
+list_windows() {
+  sync_state
+  jq -Rn '[inputs | split("\t") | {
+    address: .[0], workspace: .[1], class: .[2], title: .[3], preview: .[4]
+  }]' < "$state"
+}
+
+restore_window() {
+  local address=${1:-} workspace preview
+  [[ -n $address ]] || exit 0
+  sync_state
   workspace=$(awk -F '\t' -v wanted="$address" '$1 == wanted {print $2; exit}' "$state")
-  [[ -n "$workspace" ]] || exit 0
+  preview=$(awk -F '\t' -v wanted="$address" '$1 == wanted {print $5; exit}' "$state")
+  [[ -n $workspace ]] || exit 0
   hyprctl dispatch movetoworkspace "${workspace},address:${address}" >/dev/null
   hyprctl dispatch workspace "$workspace" >/dev/null
   hyprctl dispatch focuswindow "address:${address}" >/dev/null
   awk -F '\t' -v wanted="$address" '$1 != wanted' "$state" > "$state.tmp"
   mv "$state.tmp" "$state"
+  if [[ -n $preview && $preview == "$state_dir/"* ]]; then
+    rm -f -- "$preview"
+  fi
+}
+
+restore_all() {
+  local addresses address
+  sync_state
+  addresses=$(cut -f1 "$state")
+  while IFS= read -r address; do
+    [[ -n $address ]] && restore_window "$address"
+  done <<<"$addresses"
+}
+
+show_windows() {
+  local quick choice height label address workspace class title icon app short_address
+  quick="$HOME/.config/hypr/scripts/quick-menu"
+  if "$quick" --toggle MINIMIZED; then exit 0; fi
+  sync_state
+  [[ -s $state ]] || { notify-send -a Nocturne 'Minimized windows' 'Nothing is hidden.'; exit 0; }
+
+  declare -a entries=()
+  declare -A selected_address=()
+  while IFS=$'\t' read -r address workspace class title _preview; do
+    case "${class,,}" in
+      *firefox*) icon=''; app='Firefox' ;;
+      *chrom*|*brave*) icon=''; app='Browser' ;;
+      *kitty*|*terminal*) icon=''; app='Terminal' ;;
+      *code*|*vscodium*) icon='󰨞'; app='VS Code' ;;
+      *chatgpt*|*codex*) icon='󰭹'; app='ChatGPT' ;;
+      *steam*) icon=''; app='Steam' ;;
+      *nautilus*|*file*) icon='󰉋'; app='Files' ;;
+      *settings*) icon='󰒓'; app='Settings' ;;
+      *calendar*) icon='󰃭'; app='Calendar' ;;
+      *iotas*|*notes*) icon='󰠮'; app='Notes' ;;
+      *) icon='󰖯'; app='Application' ;;
+    esac
+    title=${title:0:72}
+    if [[ ${title,,} == *"${app,,}"* ]]; then
+      label="$icon  $title  ·  workspace $workspace"
+    else
+      label="$icon  $title  ·  $app  ·  workspace $workspace"
+    fi
+    if [[ -n ${selected_address["$label"]:-} ]]; then
+      short_address=${address#0x}
+      label="$label  ·  ${short_address: -5}"
+    fi
+    entries+=("$label")
+    selected_address["$label"]=$address
+  done < "$state"
+
+  height=$((96 + ${#entries[@]} * 43))
+  ((height > 430)) && height=430
+  choice=$(printf '%s\n' "${entries[@]}" | "$quick" MINIMIZED auto 620 "$height") || exit 0
+  [[ -n ${selected_address["$choice"]:-} ]] && restore_window "${selected_address["$choice"]}"
+}
+
+status() {
+  local count tooltip
+  sync_state
+  count=$(wc -l < "$state")
+  if ((count == 0)); then
+    jq -cn '{text:"", class:"empty", tooltip:"No minimized windows"}'
+    exit 0
+  fi
+  tooltip=$(awk -F '\t' '{printf "%s · workspace %s\n", $4, $2}' "$state")
+  jq -cn --arg text "󰖲 $count" --arg tooltip "${tooltip%$'\n'}" \
+    '{text:$text, class:"active", tooltip:$tooltip}'
 }
 
 case "${1:-}" in
   hide) hide_window ;;
-  show) show_window ;;
-  *) printf 'Usage: %s hide|show\n' "$0" >&2; exit 2 ;;
+  show) show_windows ;;
+  list) list_windows ;;
+  restore) restore_window "${2:-}" ;;
+  restore-all) restore_all ;;
+  status) status ;;
+  *) printf 'Usage: %s hide|show|list|restore ADDRESS|restore-all|status\n' "$0" >&2; exit 2 ;;
 esac

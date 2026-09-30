@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${1:-}" in
+  keep) url='https://keep.google.com'; name='Google Keep' ;;
+  calendar) url='https://calendar.google.com'; name='Google Calendar' ;;
+  drive) url='https://drive.google.com'; name='Google Drive' ;;
+  *) printf 'Usage: %s keep|calendar|drive\n' "$0" >&2; exit 2 ;;
+esac
+
+# Brave is already this desktop's default browser. App mode keeps the signed-in
+# Default profile while removing tabs and browser chrome, so Google tools feel
+# like normal tiled applications without inventing an unsupported sync layer.
+if command -v brave-browser >/dev/null 2>&1; then
+  exec brave-browser --profile-directory=Default --app="$url"
+fi
+if command -v brave-browser-stable >/dev/null 2>&1; then
+  exec brave-browser-stable --profile-directory=Default --app="$url"
+fi
+notify-send -a Nocturne "$name" 'Opening in the default browser.'
+exec xdg-open "$url"

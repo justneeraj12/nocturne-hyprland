@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Google Drive
+Comment=Open Google Drive in a clean app window
+Exec=@LAUNCHER@ drive
+Icon=folder-remote
+Terminal=false
+Categories=Network;
+StartupNotify=true

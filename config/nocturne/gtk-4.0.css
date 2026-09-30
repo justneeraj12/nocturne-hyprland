@@ -224,6 +224,35 @@ calendar,
   border-radius: 0;
 }
 
+/* Calendar + notes: keep libadwaita navigation and content visually joined
+ * to the shell instead of falling back to rounded, translucent defaults. */
+.calendar-view button,
+.month-view button,
+.week-view button,
+.agenda-view row,
+.event-widget,
+.notes-view,
+textview,
+textview text {
+  background-color: @nocturne_view;
+  color: @nocturne_text;
+  border-radius: 0;
+}
+
+.event-widget,
+.agenda-view row,
+.notes-view row {
+  border: 1px solid @nocturne_line;
+}
+
+navigationview,
+navigationpage,
+.navigation-view,
+.content-pane {
+  background-color: @nocturne_base;
+  color: @nocturne_text;
+}
+
 entry:focus,
 searchentry:focus {
   border-color: @nocturne_accent;
