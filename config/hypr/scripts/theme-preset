@@ -28,7 +28,7 @@ case "${choice,,}" in
   crimson|'crimson relay')
     name='Crimson Relay'; base=0b0708; surface=120c0e; overlay=1d1215; line=3b252b
     text=cbb7bb; muted=70565c; view=0e090b; sidebar=0b0708; header=100a0c; card=160e11; selection=2d171d
-    gaps_in=4; gaps_out=7; active=1.0; inactive=1.0 ;;
+    gaps_in=2; gaps_out=3; active=1.0; inactive=1.0 ;;
   *) exit 2 ;;
 esac
 
