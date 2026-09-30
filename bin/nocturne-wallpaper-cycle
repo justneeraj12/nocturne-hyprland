@@ -194,9 +194,16 @@ def write_runtime_config(image: Path) -> list[str]:
     temporary = RUNTIME_CONFIG.with_suffix(".tmp")
     monitors = monitor_names()
     targets = monitors or [""]
-    lines = [f"preload = {image}"]
-    lines.extend(f"wallpaper = {monitor},{image}" for monitor in targets)
-    lines.extend(["splash = false", "ipc = on"])
+    lines = ["splash = false", "ipc = on", ""]
+    for monitor in targets:
+        lines.extend([
+            "wallpaper {",
+            f"    monitor = {monitor}",
+            f"    path = {image}",
+            "    fit_mode = cover",
+            "}",
+            "",
+        ])
     temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
     temporary.replace(RUNTIME_CONFIG)
     return monitors
@@ -210,7 +217,30 @@ def process_running() -> bool:
     return quietly(["pgrep", "-x", "hyprpaper"]).returncode == 0
 
 
-def start_hyprpaper() -> None:
+def wallpaper_monitors() -> list[str]:
+    """Return monitors with a real Hyprpaper layer surface."""
+    try:
+        result = subprocess.run(["hyprctl", "-j", "layers"], capture_output=True, text=True, timeout=2, check=False)
+        layers = json.loads(result.stdout)
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        return []
+
+    mapped: list[str] = []
+    for monitor, surface in layers.items():
+        levels = surface.get("levels", {}) if isinstance(surface, dict) else {}
+        entries = [entry for group in levels.values() for entry in group] if isinstance(levels, dict) else []
+        if any("hyprpaper" in str(entry.get("namespace", "")).lower() for entry in entries if isinstance(entry, dict)):
+            mapped.append(monitor)
+    return mapped
+
+
+def display_is_active(expected: list[str] | None = None) -> bool:
+    targets = expected if expected is not None else monitor_names()
+    mapped = set(wallpaper_monitors())
+    return bool(targets) and set(targets).issubset(mapped)
+
+
+def start_hyprpaper(expected: list[str]) -> None:
     LOG.parent.mkdir(parents=True, exist_ok=True)
     with LOG.open("ab") as stream:
         process = subprocess.Popen(
@@ -219,9 +249,13 @@ def start_hyprpaper() -> None:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-    time.sleep(0.45)
-    if process.poll() is not None:
-        raise SystemExit(f"Hyprpaper failed to start; inspect {LOG}")
+    for _ in range(25):
+        if process.poll() is not None:
+            raise SystemExit(f"Hyprpaper failed to start; inspect {LOG}")
+        if display_is_active(expected):
+            return
+        time.sleep(0.2)
+    raise SystemExit(f"Hyprpaper started without mapping every display; inspect {LOG}")
 
 
 def apply_image(image: Path, announce: bool = True) -> None:
@@ -230,28 +264,24 @@ def apply_image(image: Path, announce: bool = True) -> None:
     image = image.resolve()
     monitors = write_runtime_config(image)
 
-    running = process_running()
-    ipc_ok = False
-    if running:
-        preload = quietly(["hyprctl", "hyprpaper", "preload", str(image)])
-        wallpaper = quietly(["hyprctl", "hyprpaper", "wallpaper", f",{image}"])
-        ipc_ok = preload.returncode == 0 and wallpaper.returncode == 0
-        if ipc_ok:
-            quietly(["hyprctl", "hyprpaper", "unload", "unused"])
-    if not running or not ipc_ok:
-        if running:
-            quietly(["pkill", "-x", "hyprpaper"])
-            for _ in range(10):
-                if not process_running():
-                    break
-                time.sleep(0.1)
-        start_hyprpaper()
+    # Hyprpaper 0.8 uses declarative wallpaper blocks and no longer accepts
+    # the legacy `hyprctl hyprpaper preload/wallpaper` requests. Phase changes
+    # are infrequent, so restart it cleanly after atomically writing config.
+    if process_running():
+        quietly(["pkill", "-x", "hyprpaper"])
+        for _ in range(20):
+            if not process_running():
+                break
+            time.sleep(0.1)
+    start_hyprpaper(monitors)
 
+    mapped = wallpaper_monitors()
     state = read_json(STATE, {})
     state["current"] = str(image)
     state["changed_at"] = int(time.time())
     state["monitors"] = monitors
-    state["display_active"] = process_running()
+    state["mapped_monitors"] = mapped
+    state["display_active"] = display_is_active(monitors)
     write_json(STATE, state)
     if announce:
         quietly(["notify-send", "-a", "Nocturne", "Wallpaper updated", image.stem])
@@ -318,12 +348,15 @@ def status() -> None:
         }
     except SystemExit:
         schedule = {}
+    monitors = monitor_names()
+    mapped = wallpaper_monitors()
     output = config | schedule | {
         "count": len(images),
         "current": state.get("current", ""),
         "service_active": quietly(["systemctl", "--user", "is-active", "--quiet", SERVICE]).returncode == 0,
-        "display_active": process_running(),
-        "monitors": state.get("monitors", []),
+        "display_active": bool(monitors) and set(monitors).issubset(set(mapped)),
+        "monitors": monitors,
+        "mapped_monitors": mapped,
     }
     print(json.dumps(output))
 
@@ -348,7 +381,7 @@ def daemon() -> None:
             except SystemExit:
                 scheduled = None
         desired = scheduled or (current if current.is_file() else None)
-        if desired and (not process_running() or current != desired):
+        if desired and (not display_is_active() or current != desired):
             try:
                 apply_image(desired, False)
             except SystemExit:

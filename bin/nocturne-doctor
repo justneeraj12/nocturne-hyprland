@@ -25,7 +25,7 @@ pgrep -x swaync >/dev/null 2>&1 && ok 'Notification center is running' || bad 'N
 pgrep -x hypridle >/dev/null 2>&1 && ok 'Idle and lock manager is running' || bad 'Hypridle is not running'
 
 wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null || true)
-if jq -e '.display_active == true and (.monitors | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
+if jq -e '.display_active == true and (.monitors | length) > 0 and ((.mapped_monitors | sort) == (.monitors | sort))' >/dev/null 2>&1 <<<"$wallpaper"; then
   count=$(jq -r '.monitors | length' <<<"$wallpaper")
   ok "Wallpaper engine is active on $count display(s)"
 else
