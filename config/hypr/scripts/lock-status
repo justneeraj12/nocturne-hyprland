@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -u
+
+network=OFFLINE
+if nmcli -t -f STATE general 2>/dev/null | head -n1 | rg -q 'connected'; then
+  network=LINKED
+fi
+
+battery='AC'
+for capacity_file in /sys/class/power_supply/BAT*/capacity; do
+  [[ -r $capacity_file ]] || continue
+  read -r battery < "$capacity_file"
+  battery="${battery}%"
+  break
+done
+
+profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
+printf 'NETWORK::%s  //  POWER::%s  //  PROFILE::%s\n' \
+  "$network" "$battery" "${profile^^}"

@@ -36,7 +36,7 @@ while true; do
   fi
 
   entries=("$header" "$toggle")
-  declare -A device_address=() device_connected=()
+  declare -A device_address=() device_connected=() device_paired=()
   if [[ $state == yes ]]; then
     entries+=('󰑐  Scan for devices' '──────── DEVICES ────────')
     while read -r _ address name; do
@@ -53,6 +53,7 @@ while true; do
       entries+=("$label")
       device_address["$label"]=$address
       device_connected["$label"]=$connected
+      device_paired["$label"]=$paired
     done < <(bluetoothctl devices)
   fi
   entries+=('󰒓  Advanced Bluetooth settings')
@@ -70,6 +71,14 @@ while true; do
       if [[ ${device_connected["$choice"]:-no} == yes ]]; then
         bluetoothctl disconnect "$address" >/dev/null
         notify-send -a Nocturne 'Bluetooth disconnected' "${choice#*  }"
+      elif [[ ${device_paired["$choice"]:-no} != yes ]]; then
+        if bluetoothctl --timeout 20 pair "$address" >/dev/null 2>&1 \
+            && bluetoothctl trust "$address" >/dev/null 2>&1 \
+            && bluetoothctl connect "$address" >/dev/null 2>&1; then
+          notify-send -a Nocturne 'Bluetooth paired + connected' "${choice#*  }"
+        else
+          notify-send -u critical -a Nocturne 'Bluetooth pairing failed' 'Keep the device in pairing mode, then scan and try again.'
+        fi
       elif bluetoothctl connect "$address" >/dev/null; then
         notify-send -a Nocturne 'Bluetooth connected' "${choice#*  }"
       else

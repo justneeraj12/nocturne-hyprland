@@ -81,7 +81,8 @@ THE TOP BAR
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel
-  Wi-Fi / Bluetooth       Always-visible NetworkManager / Blueman tray menus
+  Wi-Fi                   Native NetworkManager popup
+  Bluetooth               Matching compact devices popup · right toggles radio
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button
@@ -96,6 +97,7 @@ THE TOP BAR
 CAPTURE + SCREEN RECORDING
   Print Screen            Open the compact bottom-center Nocturne capture card
   Screenshot choices      All displays, current display, window or drag area
+  Frozen frame            Open menus/dropdowns stay visible in the screenshot
   Screen recording        Current display or a drag-selected area
   Red REC in bar          Left reopens capture card · right stops recording
   Screenshot destination  ~/Pictures/Screenshots and the clipboard

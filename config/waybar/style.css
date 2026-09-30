@@ -68,6 +68,7 @@ window#waybar {
 #mpris,
 #custom-caffeine,
 #custom-kdeconnect,
+#bluetooth,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -88,6 +89,7 @@ window#waybar {
 
 #mpris,
 #custom-kdeconnect,
+#bluetooth,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -119,6 +121,10 @@ window#waybar {
 #custom-kdeconnect { color: @muted; }
 #custom-kdeconnect.connected { color: @accent; }
 #custom-kdeconnect.disconnected { color: @muted; }
+#bluetooth { color: @text; }
+#bluetooth.off,
+#bluetooth.disabled { color: @muted; }
+#bluetooth.connected { color: @accent; }
 #pulseaudio { color: @text; }
 #pulseaudio.muted { color: @muted; }
 #custom-mic { color: @muted; }
@@ -153,6 +159,7 @@ window#waybar {
 #mpris:hover,
 #custom-caffeine:hover,
 #custom-kdeconnect:hover,
+#bluetooth:hover,
 #pulseaudio:hover,
 #custom-mic:hover,
 #custom-brightness:hover,

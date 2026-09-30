@@ -1,0 +1,78 @@
+#!/usr/bin/env -S LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0 python3
+"""Display pre-captured monitor frames as non-interactive layer surfaces."""
+
+from __future__ import annotations
+
+import argparse
+import os
+from pathlib import Path
+
+os.environ["GDK_BACKEND"] = "wayland"
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell as Layer  # noqa: E402
+
+
+class FreezeApplication(Gtk.Application):
+    def __init__(self, frames: list[str], ready: Path):
+        super().__init__(application_id=None)
+        self.frames = frames
+        self.ready = ready
+        self.windows: list[Gtk.ApplicationWindow] = []
+
+    def do_activate(self) -> None:
+        display = Gdk.Display.get_default()
+        monitor_map = {}
+        if display:
+            monitors = display.get_monitors()
+            for index in range(monitors.get_n_items()):
+                monitor = monitors.get_item(index)
+                if monitor and monitor.get_connector():
+                    monitor_map[monitor.get_connector()] = monitor
+
+        for spec in self.frames:
+            connector, separator, filename = spec.partition("=")
+            monitor = monitor_map.get(connector)
+            if not separator or not monitor or not Path(filename).is_file():
+                continue
+            window = Gtk.ApplicationWindow(application=self)
+            window.set_decorated(False)
+            Layer.init_for_window(window)
+            Layer.set_namespace(window, "nocturne-freeze")
+            Layer.set_layer(window, Layer.Layer.TOP)
+            Layer.set_monitor(window, monitor)
+            for edge in (Layer.Edge.LEFT, Layer.Edge.RIGHT, Layer.Edge.TOP, Layer.Edge.BOTTOM):
+                Layer.set_anchor(window, edge, True)
+            Layer.set_keyboard_mode(window, Layer.KeyboardMode.NONE)
+            Layer.set_exclusive_zone(window, -1)
+            picture = Gtk.Picture.new_for_filename(filename)
+            picture.set_content_fit(Gtk.ContentFit.FILL)
+            picture.set_can_shrink(True)
+            window.set_child(picture)
+            self.windows.append(window)
+            window.present()
+
+        if not self.windows:
+            self.quit()
+            return
+        GLib.timeout_add(100, self._mark_ready)
+
+    def _mark_ready(self) -> bool:
+        self.ready.write_text(str(os.getpid()), encoding="utf-8")
+        return False
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--frame", action="append", default=[])
+    parser.add_argument("--ready", type=Path, required=True)
+    args = parser.parse_args()
+    return FreezeApplication(args.frame, args.ready).run([])
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

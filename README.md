@@ -44,21 +44,27 @@ control center, and middle opens the key guide. The full guide is in
   panel at 1920×1080/144 Hz on the right.
 - Sharp Obsidian borders, small gaps, workspace animation, mouse support,
   scratchpad, window groups, and three-finger workspace swipes.
+- Compact per-design tiling gaps (1–2 px inner, 2–4 px outer) keep the layout
+  dense without letting adjacent one-pixel borders visually merge.
 - SwayNotificationCenter for application-independent notification history and
   do-not-disturb mode.
-- Cliphist clipboard picker and a compact bottom-center Nocturne capture card on Print Screen.
+- Cliphist clipboard picker and a native bottom-center Nocturne capture overlay
+  on Print Screen, following Ubuntu's Shot/Record → Area/Display/All/Window →
+  Capture workflow.
   It captures all displays, one display, the active window, or a dragged area;
   it also records a display or selected area with a red bar indicator. Still
   images save to `~/Pictures/Screenshots` and copy to the clipboard, while
-  recordings save to `~/Videos/Screencasts`.
+  recordings save to `~/Videos/Screencasts`. Opening capture freezes the
+  pre-panel frame, so transient menus and dropdowns remain in the result.
 - Caffeine toggle backed by Hypridle, with 10-minute lock and 15-minute screen
   sleep when Caffeine is off.
 - A 25/5 Pomodoro timer in the bar.
 - A minimal Omarchy-style bar with MPRIS, audio, network, Bluetooth, grouped
   system health, microphone-use, notification, clock, and native tray apps.
-  Wi-Fi and Bluetooth stay permanently visible as one native applet
-  each—NetworkManager and Blueman—with no duplicate Waybar controls or hidden
-  three-dot drawer. Audio, media, KDE Connect, and
+  Wi-Fi and Bluetooth stay permanently visible with no hidden three-dot
+  drawer. NetworkManager provides the native Wi-Fi popup; the single Waybar
+  Bluetooth button opens a matching compact connect/disconnect menu while the
+  hidden Blueman agent continues handling pairing and authentication. Audio, media, KDE Connect, and
   power use compact click-to-toggle cards. A themed clock card
   combines every saved world time, live weather, Pomodoro, and caffeine. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
@@ -77,8 +83,11 @@ control center, and middle opens the key guide. The full guide is in
   official web apps; Iotas synchronizes with Nextcloud, not Google.
   Keep and Drive launch in signed-in Brave app mode—no tab strip or fake sync
   bridge—and are also searchable from the app launcher.
-- Hyprlock uses a sharp terminal-authentication card with the Nocturne palette,
-  12-hour `+`/`−` time marker, session identity, and themed auth feedback.
+- Hyprlock uses a larger sharp authentication console over the active Nocturne
+  wallpaper, with a 12-hour `+`/`−` clock, session identity, battery/network/
+  power-profile status, visible password-dot feedback, and themed auth states.
+  Masked shell prompts accept direct keyboard input while keeping menu-only
+  cards protected from accidental custom commands.
 - Hyprland follows the start time, static durations, transitions, and full
   local-day sequence authored inside any installed GNOME dynamic-wallpaper XML
   pack. The previous SolidForest pack is available directly; its day image is

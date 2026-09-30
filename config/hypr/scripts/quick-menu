@@ -95,9 +95,16 @@ fi
 [[ $xoffset == auto ]] && xoffset=0
 
 exec 3<&0
+custom_entry_args=(--no-custom-entry)
+for menu_arg in "$@"; do
+  # Password prompts must accept text that is not already in their empty
+  # result list. Keeping --no-custom-entry here made the field look editable
+  # while Enter could never submit the password.
+  [[ $menu_arg == --password ]] && custom_entry_args=()
+done
 wofi --dmenu --conf "$HOME/.config/wofi/quick-menu" \
   --style "$HOME/.config/wofi/quick-style.css" \
-  --prompt "$prompt" --no-custom-entry --cache-file /dev/null \
+  --prompt "$prompt" "${custom_entry_args[@]}" --cache-file /dev/null \
   --location top_right --xoffset "$xoffset" --yoffset 0 \
   --width "$width" --height "$height" "${monitor_args[@]}" "$@" <&3 &
 menu_pid=$!

@@ -6,10 +6,60 @@ state_file="$runtime_dir/nocturne-recorder.state"
 log_file="$runtime_dir/nocturne-recorder.log"
 screenshots=${XDG_PICTURES_DIR:-"$HOME/Pictures"}/Screenshots
 screencasts=${XDG_VIDEOS_DIR:-"$HOME/Videos"}/Screencasts
-quick_menu="$HOME/.config/hypr/scripts/quick-menu"
+capture_ui="$HOME/.local/bin/nocturne-capture-ui"
+capture_ui_pid="$runtime_dir/nocturne-capture-ui.pid"
+freeze_ui="$HOME/.local/bin/nocturne-freeze-frame"
+freeze_pid=0
+freeze_dir=''
+freeze_ready=''
+freeze_files=()
 mkdir -p "$screenshots" "$screencasts" "$runtime_dir"
 
 stamp() { date +'%Y-%m-%d_%H-%M-%S'; }
+
+freeze_start() {
+  local output file
+  local -a frame_args=()
+  freeze_dir="$runtime_dir/nocturne-freeze-$$"
+  freeze_ready="$freeze_dir/ready"
+  mkdir -p "$freeze_dir"
+  freeze_files=()
+  # Capture before mapping any new surface, preserving transient menus exactly
+  # as they appeared when Print Screen was pressed.
+  while read -r output; do
+    [[ -n $output ]] || continue
+    file="$freeze_dir/$output.png"
+    if grim -o "$output" "$file"; then
+      freeze_files+=("$file")
+      frame_args+=(--frame "$output=$file")
+    fi
+  done < <(hyprctl monitors -j | jq -r '.[].name')
+  ((${#frame_args[@]} > 0)) || return 0
+  "$freeze_ui" "${frame_args[@]}" --ready "$freeze_ready" >/dev/null 2>&1 &
+  freeze_pid=$!
+  for _ in {1..30}; do
+    [[ -r $freeze_ready ]] && return 0
+    kill -0 "$freeze_pid" 2>/dev/null || break
+    sleep 0.02
+  done
+  freeze_stop
+}
+
+freeze_stop() {
+  if [[ $freeze_pid =~ ^[0-9]+$ ]] && ((freeze_pid > 1)); then
+    kill "$freeze_pid" 2>/dev/null || true
+    wait "$freeze_pid" 2>/dev/null || true
+  fi
+  freeze_pid=0
+  [[ -n $freeze_ready ]] && rm -f -- "$freeze_ready"
+  for file in "${freeze_files[@]}"; do
+    [[ -n $file ]] && rm -f -- "$file"
+  done
+  [[ -n $freeze_dir ]] && rmdir -- "$freeze_dir" 2>/dev/null || true
+  freeze_ready=''
+  freeze_dir=''
+  freeze_files=()
+}
 
 read_recording() {
   recorder_pid=0
@@ -44,6 +94,7 @@ copy_and_report() {
 capture_full() {
   local file="$screenshots/$(stamp).png"
   grim "$file"
+  freeze_stop
   copy_and_report "$file"
 }
 
@@ -53,6 +104,7 @@ capture_monitor() {
   [[ -n $output ]] || { notify-send -a Nocturne 'Screenshot failed' 'No display was detected.'; exit 1; }
   file="$screenshots/$(stamp).png"
   grim -o "$output" "$file"
+  freeze_stop
   copy_and_report "$file"
 }
 
@@ -65,15 +117,25 @@ capture_window() {
   [[ -n $geometry ]] || { notify-send -a Nocturne 'Screenshot failed' 'Focus a window first.'; exit 1; }
   file="$screenshots/$(stamp).png"
   grim -g "$geometry" "$file"
+  freeze_stop
   copy_and_report "$file"
 }
 
 capture_area() {
   local region file
-  region=$(slurp -b '#090c10cc' -c '#55d6a9ff' -s '#55d6a933' -w 2) || exit 0
+  if [[ -n ${NOCTURNE_CAPTURE_REGION:-} ]]; then
+    region=$NOCTURNE_CAPTURE_REGION
+  else
+    region=$(slurp -b '#090c10cc' -c '#55d6a9ff' -s '#55d6a933' -w 2) || exit 0
+  fi
   [[ -n $region ]] || exit 0
+  # slurp exits before its layer surface is guaranteed to have left the next
+  # compositor frame. Let that overlay disappear so its border is never part
+  # of the screenshot itself.
+  sleep 0.20
   file="$screenshots/$(stamp).png"
   grim -g "$region" "$file"
+  freeze_stop
   copy_and_report "$file"
 }
 
@@ -89,8 +151,13 @@ start_recording() {
       target=(-o "$output")
       ;;
     area)
-      region=$(slurp -b '#090c10cc' -c '#ff5f6dff' -s '#ff5f6d33' -w 2) || return 0
+      if [[ -n ${NOCTURNE_CAPTURE_REGION:-} ]]; then
+        region=$NOCTURNE_CAPTURE_REGION
+      else
+        region=$(slurp -b '#090c10cc' -c '#ff5f6dff' -s '#ff5f6d33' -w 2) || return 0
+      fi
       [[ -n $region ]] || return 0
+      sleep 0.20
       target=(-g "$region")
       ;;
     *) return 2 ;;
@@ -139,26 +206,30 @@ show_status() {
 }
 
 show_menu() {
-  if "$quick_menu" --toggle CAPTURE; then exit 0; fi
-  local entries choice
-  if read_recording; then
-    entries=$'󰓛  Stop recording\n󰹑  All displays\n󰍹  Current display\n󰖯  Active window\n󰩬  Select area\n󰉋  Recordings folder'
-  else
-    entries=$'󰹑  All displays\n󰍹  Current display\n󰖯  Active window\n󰩬  Select area\n󰑊  Record display\n󰻃  Record area'
+  local choice ui_pid monitor ui_args=()
+  if [[ -r $capture_ui_pid ]]; then
+    read -r ui_pid < "$capture_ui_pid" || true
+    if [[ $ui_pid =~ ^[0-9]+$ ]] && ((ui_pid > 1)) && kill -0 "$ui_pid" 2>/dev/null; then
+      kill "$ui_pid" 2>/dev/null || true
+      rm -f "$capture_ui_pid"
+      exit 0
+    fi
+    rm -f "$capture_ui_pid"
   fi
-  choice=$(printf '%s\n' "$entries" | "$quick_menu" CAPTURE 0 660 126 \
-    --location bottom --yoffset -64 --columns 3 --lines 2 --hide-search \
-    --style "$HOME/.config/wofi/capture-style.css") || exit 0
+  freeze_start
+  trap freeze_stop EXIT INT TERM
+  monitor=$(monitor_under_cursor)
+  read_recording && ui_args+=(--recording)
+  choice=$("$capture_ui" --monitor "$monitor" "${ui_args[@]}") || exit 0
   sleep 0.12
   case "$choice" in
-    *'Stop screen recording') stop_recording ;;
-    *'All displays') capture_full ;;
-    *'Current display') capture_monitor ;;
-    *'Active window') capture_window ;;
-    *'Select area') capture_area ;;
-    *'Record display') start_recording monitor ;;
-    *'Record area') start_recording area ;;
-    *'Recordings folder') xdg-open "$screencasts" ;;
+    stop-recording) freeze_stop; stop_recording ;;
+    screenshot-all) capture_full ;;
+    screenshot-display) capture_monitor ;;
+    screenshot-window) capture_window ;;
+    screenshot-area) capture_area ;;
+    record-display) freeze_stop; sleep 0.12; start_recording monitor ;;
+    record-area) freeze_stop; sleep 0.12; start_recording area ;;
   esac
 }
 

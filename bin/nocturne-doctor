@@ -46,19 +46,42 @@ nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
 [[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'
 bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller is available' || warning 'No Bluetooth controller is currently available'
 pgrep -x nm-applet >/dev/null 2>&1 && ok 'Single NetworkManager tray control is running' || warning 'NetworkManager tray control is not running'
-pgrep -f '/usr/bin/blueman-(applet|tray)' >/dev/null 2>&1 && ok 'Single Blueman tray control is running' || warning 'Blueman tray control is not running'
-if jq -e '.[] | select(.name == "main") | (."modules-right" | index("tray")) != null' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
+pgrep -f '/usr/bin/blueman-applet' >/dev/null 2>&1 && ok 'Blueman pairing agent is running in the background' || warning 'Blueman pairing agent is not running'
+if jq -e '.[] | select(.name == "main")
+    | ((."modules-right" | index("tray")) != null and (."modules-right" | index("bluetooth")) != null)' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
     && ! rg -q 'group/tray-expander' "$HOME/.config/waybar/config.jsonc"; then
-  ok 'Network and Bluetooth tray controls are permanently visible'
+  ok 'Wi-Fi and compact Bluetooth controls are permanently visible'
 else
-  warning 'Tray controls may still be hidden behind a drawer'
+  warning 'Connectivity controls may be missing or hidden behind a drawer'
+fi
+plugins=$(DCONF_PROFILE="$HOME/.config/dconf/hyprland-profile" gsettings get org.blueman.general plugin-list 2>/dev/null || true)
+if [[ $plugins == *"!StatusIcon"* && $plugins == *"!StatusNotifierItem"* && $plugins == *"!ShowConnected"* ]] \
+    && ! pgrep -f '/usr/bin/blueman-tray' >/dev/null 2>&1; then
+  ok 'Duplicate Blueman status icon is fully disabled for Hyprland'
+else
+  warning 'Blueman may expose a duplicate tray icon'
 fi
 if [[ -x $HOME/.config/hypr/scripts/screenshot ]] \
+    && [[ -x $HOME/.local/bin/nocturne-capture-ui ]] \
+    && [[ -x $HOME/.local/bin/nocturne-freeze-frame ]] \
+    && [[ -r /usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0 ]] \
+    && python3 -c "import gi; gi.require_version('Gtk4LayerShell', '1.0'); from gi.repository import Gtk4LayerShell" 2>/dev/null \
     && $HOME/.config/hypr/scripts/screenshot status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1; then
-  ok 'Screenshot and screen-recording panel responds'
+  ok 'Native screenshot and screen-recording overlay responds'
 else
   bad 'Capture panel is not responding'
 fi
+if [[ -r $HOME/.local/state/nocturne/lock-wallpaper ]] \
+    && [[ -x $HOME/.config/hypr/scripts/lock-status ]] \
+    && rg -q 'path = ~/.local/state/nocturne/lock-wallpaper' "$HOME/.config/hypr/hyprlock.conf" \
+    && [[ -r /etc/pam.d/hyprlock ]]; then
+  ok 'Lock screen wallpaper, status HUD and PAM authentication are wired'
+else
+  bad 'Lock screen integration is incomplete'
+fi
+pgrep -x hyprpolkitagent >/dev/null 2>&1 \
+  && ok 'Graphical administrator password agent is running' \
+  || bad 'Graphical administrator password agent is not running'
 wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'PipeWire default audio output responds' || bad 'Default audio output is unavailable'
 wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'PipeWire default microphone responds' || warning 'Default microphone is unavailable'
 brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'

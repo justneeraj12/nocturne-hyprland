@@ -20,6 +20,7 @@ CONFIG = CONFIG_HOME / "nocturne/wallpaper.json"
 RUNTIME_CONFIG = CONFIG_HOME / "hypr/nocturne-wallpaper.conf"
 STATE = STATE_HOME / "nocturne/wallpaper-state.json"
 LOG = STATE_HOME / "nocturne/hyprpaper.log"
+LOCK_WALLPAPER = STATE_HOME / "nocturne/lock-wallpaper"
 SERVICE = "nocturne-wallpaper-cycle.service"
 DEFAULT_SOURCE = "/usr/share/backgrounds/Dynamic_Wallpapers/SolidForest.xml"
 DEFAULT_IMAGE = Path.home() / ".local/share/backgrounds/nocturne-grid.png"
@@ -206,6 +207,11 @@ def write_runtime_config(image: Path) -> list[str]:
         ])
     temporary.write_text("\n".join(lines) + "\n", encoding="utf-8")
     temporary.replace(RUNTIME_CONFIG)
+    LOCK_WALLPAPER.parent.mkdir(parents=True, exist_ok=True)
+    temporary_link = LOCK_WALLPAPER.with_name(f"{LOCK_WALLPAPER.name}.tmp")
+    temporary_link.unlink(missing_ok=True)
+    temporary_link.symlink_to(image)
+    temporary_link.replace(LOCK_WALLPAPER)
     return monitors
 
 

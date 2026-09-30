@@ -22,6 +22,10 @@ if ((${#missing[@]})); then
   printf 'Missing Hyprland components: %s\n' "${missing[*]}" >&2
   exit 1
 fi
+if ! python3 -c "import gi; gi.require_version('Gtk4LayerShell', '1.0'); from gi.repository import Gtk4LayerShell" 2>/dev/null; then
+  printf 'Missing capture UI binding: install gir1.2-gtk4layershell-1.0\n' >&2
+  exit 1
+fi
 
 snapshot="$ROOT_DIR/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
@@ -39,6 +43,10 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
   "$STATE_HOME/nocturne" "$BIN_HOME"
+if [[ ! -e "$STATE_HOME/nocturne/lock-wallpaper" && ! -L "$STATE_HOME/nocturne/lock-wallpaper" ]]; then
+  ln -s "$DATA_HOME/backgrounds/nocturne-default.png" \
+    "$STATE_HOME/nocturne/lock-wallpaper"
+fi
 cp -a -- "$ROOT_DIR/config/hypr/." "$CONFIG_HOME/hypr/"
 cp -a -- "$ROOT_DIR/config/waybar/." "$CONFIG_HOME/waybar/"
 cp -a -- "$ROOT_DIR/config/wofi/." "$CONFIG_HOME/wofi/"
@@ -86,6 +94,8 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-settings-app" "$BIN_HOME/nocturne-settin
 install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
+install -m 0755 "$ROOT_DIR/bin/nocturne-capture-ui" "$BIN_HOME/nocturne-capture-ui"
+install -m 0755 "$ROOT_DIR/bin/nocturne-freeze-frame" "$BIN_HOME/nocturne-freeze-frame"
 if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/wallpaper.json" "$CONFIG_HOME/nocturne/wallpaper.json"
 fi
@@ -178,6 +188,11 @@ DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences show-delete-permanently true
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.list-view default-zoom-level 'small'
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.icon-view default-zoom-level 'small'
+# Keep Blueman's pairing/authentication agent, but suppress its StatusIcon in
+# Hyprland. Waybar owns the single visible Bluetooth button and opens the
+# compact Nocturne device menu; GNOME's separate dconf profile is untouched.
+DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.blueman.general plugin-list \
+  "['!StatusIcon', '!StatusNotifierItem', '!ShowConnected']"
 
 # Keep PDF handling familiar even when a browser or another desktop has
 # previously claimed the MIME association.
