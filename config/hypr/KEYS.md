@@ -16,9 +16,19 @@ EVERYDAY APPS
   Super + T               Steam
   Super + N               Notification history
   Super + Shift + V       Clipboard history
+  Print Screen            Themed screenshot + screen-recording panel
+  Shift + Print Screen    Immediately drag-select a screenshot area
   Super + W               Choose or restore a wallpaper
   Super + Escape          Lock screen
   Super + P               Power / log out
+
+LAPTOP FUNCTION KEYS
+  Mic mute                Toggle the PipeWire microphone + on-screen state
+  Touchpad (Fn+F4)        Enable/disable the internal touchpad
+  Webcam                  Firmware privacy toggle + real device feedback
+  Keyboard light          Adjust levels when the MSI EC control is available
+  MSI Center / F7         Open this same shortcut guide
+  Display / F11           Keep the current power-menu behavior
 
 WINDOWS — NO GIANT WINDOW BUTTONS
   Super + Q               Close focused window
@@ -71,7 +81,7 @@ THE TOP BAR
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel
-  Wi-Fi / Bluetooth       Left quick panel · right power toggle
+  Wi-Fi / Bluetooth       Always-visible NetworkManager / Blueman tray menus
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button
@@ -82,6 +92,14 @@ THE TOP BAR
 
   Every quick card        Click once to open · click the same item to close
   Different bar item      Replaces the open card instead of stacking another
+
+CAPTURE + SCREEN RECORDING
+  Print Screen            Open the compact bottom-center Nocturne capture card
+  Screenshot choices      All displays, current display, window or drag area
+  Screen recording        Current display or a drag-selected area
+  Red REC in bar          Left reopens capture card · right stops recording
+  Screenshot destination  ~/Pictures/Screenshots and the clipboard
+  Recording destination   ~/Videos/Screencasts
 
 MEDIA
   Music title             Left full media card · middle play/pause

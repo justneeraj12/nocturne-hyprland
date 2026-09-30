@@ -1,19 +1,176 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+state_file="$runtime_dir/nocturne-recorder.state"
+log_file="$runtime_dir/nocturne-recorder.log"
 screenshots=${XDG_PICTURES_DIR:-"$HOME/Pictures"}/Screenshots
-mkdir -p "$screenshots"
-file="$screenshots/$(date +'%Y-%m-%d_%H-%M-%S').png"
+screencasts=${XDG_VIDEOS_DIR:-"$HOME/Videos"}/Screencasts
+quick_menu="$HOME/.config/hypr/scripts/quick-menu"
+mkdir -p "$screenshots" "$screencasts" "$runtime_dir"
 
-case "${1:-area}" in
-  full) grim "$file" ;;
-  area)
-    region=$(slurp)
-    [[ -n "$region" ]] || exit 0
-    grim -g "$region" "$file"
-    ;;
-  *) exit 2 ;;
+stamp() { date +'%Y-%m-%d_%H-%M-%S'; }
+
+read_recording() {
+  recorder_pid=0
+  recorder_file=''
+  [[ -r $state_file ]] && IFS=$'\t' read -r recorder_pid recorder_file < "$state_file" || true
+  if ! [[ $recorder_pid =~ ^[0-9]+$ ]] || ((recorder_pid < 2)) || ! kill -0 "$recorder_pid" 2>/dev/null; then
+    recorder_pid=0
+    recorder_file=''
+    rm -f "$state_file"
+    return 1
+  fi
+}
+
+monitor_under_cursor() {
+  local cursor monitors
+  cursor=$(hyprctl cursorpos -j 2>/dev/null)
+  monitors=$(hyprctl monitors -j 2>/dev/null)
+  jq -r --argjson cursor "$cursor" '
+    first(.[] | select(
+      $cursor.x >= .x and $cursor.x < (.x + .width) and
+      $cursor.y >= .y and $cursor.y < (.y + .height)
+    ) | .name) // first(.[] | select(.focused) | .name) // first(.[].name)
+  ' <<<"$monitors"
+}
+
+copy_and_report() {
+  local file=$1
+  wl-copy --type image/png < "$file"
+  notify-send -a Nocturne -i "$file" 'Screenshot saved + copied' "$file"
+}
+
+capture_full() {
+  local file="$screenshots/$(stamp).png"
+  grim "$file"
+  copy_and_report "$file"
+}
+
+capture_monitor() {
+  local output file
+  output=$(monitor_under_cursor)
+  [[ -n $output ]] || { notify-send -a Nocturne 'Screenshot failed' 'No display was detected.'; exit 1; }
+  file="$screenshots/$(stamp).png"
+  grim -o "$output" "$file"
+  copy_and_report "$file"
+}
+
+capture_window() {
+  local geometry file
+  geometry=$(hyprctl activewindow -j 2>/dev/null | jq -r '
+    select(.at and .size and .size[0] > 0 and .size[1] > 0)
+    | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"
+  ')
+  [[ -n $geometry ]] || { notify-send -a Nocturne 'Screenshot failed' 'Focus a window first.'; exit 1; }
+  file="$screenshots/$(stamp).png"
+  grim -g "$geometry" "$file"
+  copy_and_report "$file"
+}
+
+capture_area() {
+  local region file
+  region=$(slurp -b '#090c10cc' -c '#55d6a9ff' -s '#55d6a933' -w 2) || exit 0
+  [[ -n $region ]] || exit 0
+  file="$screenshots/$(stamp).png"
+  grim -g "$region" "$file"
+  copy_and_report "$file"
+}
+
+start_recording() {
+  local mode=$1 file region output pid
+  local -a target
+  read_recording && { notify-send -a Nocturne 'Recording already active' 'Use Print Screen or right-click REC to stop it.'; return 0; }
+  file="$screencasts/$(stamp).mp4"
+  case "$mode" in
+    monitor)
+      output=$(monitor_under_cursor)
+      [[ -n $output ]] || { notify-send -a Nocturne 'Recording failed' 'No display was detected.'; return 1; }
+      target=(-o "$output")
+      ;;
+    area)
+      region=$(slurp -b '#090c10cc' -c '#ff5f6dff' -s '#ff5f6d33' -w 2) || return 0
+      [[ -n $region ]] || return 0
+      target=(-g "$region")
+      ;;
+    *) return 2 ;;
+  esac
+
+  # Cap capture at 60 fps even on the 180 Hz gaming display; this keeps the
+  # desktop and games responsive while still producing fluid recordings.
+  setsid wf-recorder -r 60 "${target[@]}" -f "$file" </dev/null >"$log_file" 2>&1 &
+  pid=$!
+  printf '%s\t%s\n' "$pid" "$file" > "$state_file"
+  sleep 0.35
+  if ! kill -0 "$pid" 2>/dev/null; then
+    rm -f "$state_file" "$file"
+    notify-send -a Nocturne 'Recording failed' "$(tail -n 2 "$log_file" 2>/dev/null || true)"
+    return 1
+  fi
+  notify-send -a Nocturne 'Recording started' 'A red REC indicator is now in the bar. Print Screen opens Stop.'
+}
+
+stop_recording() {
+  if ! read_recording; then
+    notify-send -a Nocturne 'Screen recording' 'No recording is active.'
+    return 0
+  fi
+  kill -INT -- "-$recorder_pid" 2>/dev/null || kill -INT "$recorder_pid" 2>/dev/null || true
+  for _ in {1..40}; do
+    kill -0 "$recorder_pid" 2>/dev/null || break
+    sleep 0.1
+  done
+  rm -f "$state_file"
+  if [[ -s $recorder_file ]]; then
+    notify-send -a Nocturne 'Screen recording saved' "$recorder_file"
+  else
+    rm -f "$recorder_file"
+    notify-send -a Nocturne 'Recording stopped' 'No usable video was produced.'
+  fi
+}
+
+show_status() {
+  if read_recording; then
+    jq -cn --arg tip "Recording screen\nLeft: capture panel · Right: stop\n$recorder_file" \
+      '{text:"󰑊 REC",class:"active",tooltip:$tip}'
+  else
+    printf '{"text":"","class":"inactive","tooltip":""}\n'
+  fi
+}
+
+show_menu() {
+  if "$quick_menu" --toggle CAPTURE; then exit 0; fi
+  local entries choice
+  if read_recording; then
+    entries=$'󰓛  Stop recording\n󰹑  All displays\n󰍹  Current display\n󰖯  Active window\n󰩬  Select area\n󰉋  Recordings folder'
+  else
+    entries=$'󰹑  All displays\n󰍹  Current display\n󰖯  Active window\n󰩬  Select area\n󰑊  Record display\n󰻃  Record area'
+  fi
+  choice=$(printf '%s\n' "$entries" | "$quick_menu" CAPTURE 0 660 126 \
+    --location bottom --yoffset -64 --columns 3 --lines 2 --hide-search \
+    --style "$HOME/.config/wofi/capture-style.css") || exit 0
+  sleep 0.12
+  case "$choice" in
+    *'Stop screen recording') stop_recording ;;
+    *'All displays') capture_full ;;
+    *'Current display') capture_monitor ;;
+    *'Active window') capture_window ;;
+    *'Select area') capture_area ;;
+    *'Record display') start_recording monitor ;;
+    *'Record area') start_recording area ;;
+    *'Recordings folder') xdg-open "$screencasts" ;;
+  esac
+}
+
+case "${1:-menu}" in
+  menu) show_menu ;;
+  full) capture_full ;;
+  current|monitor) capture_monitor ;;
+  window) capture_window ;;
+  area) capture_area ;;
+  record-monitor) start_recording monitor ;;
+  record-area) start_recording area ;;
+  stop) stop_recording ;;
+  status) show_status ;;
+  *) printf 'usage: %s {menu|full|current|window|area|record-monitor|record-area|stop|status}\n' "$0" >&2; exit 2 ;;
 esac
-
-wl-copy < "$file"
-notify-send 'Screenshot saved' "$file"

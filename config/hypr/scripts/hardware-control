@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+touchpad_state="$runtime_dir/nocturne-touchpad.state"
+
+notice() {
+  notify-send -a Nocturne -u low "$1" "$2"
+}
+
+touchpad_device() {
+  hyprctl devices -j 2>/dev/null | jq -r '.mice[] | select(.name | ascii_downcase | contains("touchpad")) | .name' | head -n 1
+}
+
+touchpad_set() {
+  local state=$1 device label
+  device=$(touchpad_device)
+  [[ -n $device ]] || { notice 'Touchpad' 'No touchpad device was found.'; return 1; }
+  hyprctl keyword "device[$device]:enabled" "$state" >/dev/null
+  if [[ $state == true ]]; then
+    printf 'on\n' > "$touchpad_state"
+    label='Enabled'
+  else
+    printf 'off\n' > "$touchpad_state"
+    label='Disabled'
+  fi
+  notice 'Touchpad' "$label · Fn+F4 toggles"
+}
+
+touchpad() {
+  case ${1:-toggle} in
+    init|on) touchpad_set true ;;
+    off) touchpad_set false ;;
+    toggle)
+      if [[ $(cat "$touchpad_state" 2>/dev/null || printf 'on') == off ]]; then
+        touchpad_set true
+      else
+        touchpad_set false
+      fi
+      ;;
+    *) return 2 ;;
+  esac
+}
+
+microphone() {
+  local state volume
+  wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+  state=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null || true)
+  volume=$(awk '{printf "%d", $2 * 100}' <<<"$state")
+  if grep -q MUTED <<<"$state"; then
+    notice 'Microphone' "Muted · ${volume}%"
+  else
+    notice 'Microphone' "Live · ${volume}%"
+  fi
+}
+
+camera_status() {
+  # The Katana firmware performs the actual electrical camera toggle. The
+  # kernel then creates/removes the UVC node; report the real result.
+  sleep 0.45
+  if compgen -G '/dev/video*' >/dev/null; then
+    notice 'Webcam' 'Enabled · camera device is available'
+  else
+    notice 'Webcam' 'Disabled · camera device is disconnected'
+  fi
+}
+
+keyboard_light() {
+  local direction=${1:-up} device level
+  device=$(brightnessctl -l 2>/dev/null | sed -n "s/^Device '\([^']*\).*kbd_backlight.*/\1/p" | head -n 1)
+  [[ -n $device ]] || device=$(brightnessctl -l 2>/dev/null | sed -n "s/^Device '\([^']*kbd[^']*\)'.*/\1/p" | head -n 1)
+  if [[ -n $device ]]; then
+    case $direction in
+      up|toggle) brightnessctl -d "$device" set 1+ >/dev/null ;;
+      down) brightnessctl -d "$device" set 1- >/dev/null ;;
+    esac
+    level=$(brightnessctl -d "$device" -m | awk -F, '{print $4}')
+    notice 'Keyboard light' "Brightness ${level:-changed}"
+    return
+  fi
+  notice 'Keyboard light' 'MSI firmware control is not exposed yet'
+}
+
+case ${1:-} in
+  touchpad) touchpad "${2:-toggle}" ;;
+  microphone) microphone ;;
+  camera) camera_status ;;
+  keyboard-light) keyboard_light "${2:-up}" ;;
+  *) printf 'Usage: %s touchpad [init|toggle|on|off]|microphone|camera|keyboard-light [up|down]\n' "$0" >&2; exit 2 ;;
+esac

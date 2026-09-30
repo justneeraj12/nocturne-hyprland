@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland hyprlock hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy)
+required=(Hyprland hyprlock hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy wf-recorder)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -35,7 +35,7 @@ printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "
 mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$CONFIG_HOME/swaync" "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
-  "$HOME/Pictures/Wallpapers" \
+  "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screencasts" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
   "$STATE_HOME/nocturne" "$BIN_HOME"

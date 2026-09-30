@@ -67,14 +67,12 @@ window#waybar {
 #custom-minimized,
 #mpris,
 #custom-caffeine,
-#custom-tray-toggle,
 #custom-kdeconnect,
-#bluetooth,
-#network,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
 #custom-system,
+#custom-recording,
 #cpu,
 #memory,
 #custom-gpu,
@@ -90,8 +88,6 @@ window#waybar {
 
 #mpris,
 #custom-kdeconnect,
-#bluetooth,
-#network,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -117,16 +113,12 @@ window#waybar {
 #mpris { color: @accent; }
 #mpris.paused { color: @muted; }
 #custom-caffeine.on { color: @yellow; }
-#custom-tray-toggle { color: @muted; padding-right: 5px; }
 #tray { padding: 0 5px; }
 #tray > .passive { -gtk-icon-effect: dim; }
 #tray > .needs-attention { -gtk-icon-effect: highlight; }
 #custom-kdeconnect { color: @muted; }
 #custom-kdeconnect.connected { color: @accent; }
 #custom-kdeconnect.disconnected { color: @muted; }
-#bluetooth { color: @text; }
-#network { color: @text; }
-#network.disconnected { color: @red; }
 #pulseaudio { color: @text; }
 #pulseaudio.muted { color: @muted; }
 #custom-mic { color: @muted; }
@@ -134,6 +126,8 @@ window#waybar {
 #custom-mic.muted { color: @muted; }
 #custom-brightness { color: @yellow; }
 #custom-system { color: @accent; padding-left: 9px; padding-right: 9px; }
+#custom-recording { color: @red; font-weight: 800; }
+#custom-recording.inactive { min-width: 0; margin: 0; padding: 0; font-size: 0; opacity: 0; }
 #custom-system.warning { color: @yellow; }
 #custom-system.critical { color: @red; }
 #cpu { color: @accent; }
@@ -158,14 +152,12 @@ window#waybar {
 #custom-minimized:hover,
 #mpris:hover,
 #custom-caffeine:hover,
-#custom-tray-toggle:hover,
 #custom-kdeconnect:hover,
-#bluetooth:hover,
-#network:hover,
 #pulseaudio:hover,
 #custom-mic:hover,
 #custom-brightness:hover,
 #custom-system:hover,
+#custom-recording:hover,
 #cpu:hover,
 #memory:hover,
 #custom-gpu:hover,

@@ -12,7 +12,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────'
 
-required=(Hyprland hyprctl hyprpaper waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus)
+required=(Hyprland hyprctl hyprpaper waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus grim slurp wl-copy wf-recorder)
 missing=()
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
@@ -45,11 +45,35 @@ monitor_count=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || pri
 nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
 [[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'
 bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller is available' || warning 'No Bluetooth controller is currently available'
+pgrep -x nm-applet >/dev/null 2>&1 && ok 'Single NetworkManager tray control is running' || warning 'NetworkManager tray control is not running'
+pgrep -f '/usr/bin/blueman-(applet|tray)' >/dev/null 2>&1 && ok 'Single Blueman tray control is running' || warning 'Blueman tray control is not running'
+if jq -e '.[] | select(.name == "main") | (."modules-right" | index("tray")) != null' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
+    && ! rg -q 'group/tray-expander' "$HOME/.config/waybar/config.jsonc"; then
+  ok 'Network and Bluetooth tray controls are permanently visible'
+else
+  warning 'Tray controls may still be hidden behind a drawer'
+fi
+if [[ -x $HOME/.config/hypr/scripts/screenshot ]] \
+    && $HOME/.config/hypr/scripts/screenshot status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1; then
+  ok 'Screenshot and screen-recording panel responds'
+else
+  bad 'Capture panel is not responding'
+fi
 wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'PipeWire default audio output responds' || bad 'Default audio output is unavailable'
 wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'PipeWire default microphone responds' || warning 'Default microphone is unavailable'
 brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'
 profile=$(powerprofilesctl get 2>/dev/null)
 [[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
+binds=$(hyprctl binds -j 2>/dev/null || printf '[]')
+for action_key in XF86AudioMicMute XF86TouchpadToggle XF86WebCam XF86Tools; do
+  jq -e --arg key "$action_key" '.[] | select(.key == $key)' <<<"$binds" >/dev/null \
+    || warning "Hardware action key is not mapped: $action_key"
+done
+if [[ -d /sys/devices/platform/msi-ec ]]; then
+  ok 'MSI embedded-controller hardware features are exposed'
+else
+  warning 'MSI EC rejected this firmware; keyboard-light software control is unavailable'
+fi
 
 if [[ -r /sys/power/mem_sleep ]] && rg -q '\[deep\]' /sys/power/mem_sleep; then
   ok 'Suspend policy is currently using ACPI S3 deep sleep'

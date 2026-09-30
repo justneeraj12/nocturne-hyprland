@@ -4,6 +4,7 @@ set -euo pipefail
 if "$HOME/.config/hypr/scripts/quick-menu" --toggle POWER; then exit 0; fi
 
 battery=$(find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' -print -quit)
+profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
 if [[ -n $battery ]]; then
   capacity=$(cat "$battery/capacity")
   status=$(cat "$battery/status")
@@ -14,17 +15,24 @@ fi
 
 choice=$(printf '%s\n' \
   "$header" \
+  "󱐋  Power profile · $profile" \
+  '󰓅  Performance profile' \
+  '󰾅  Balanced profile' \
+  '󰌪  Power saver profile' \
   '──────── SESSION ────────' \
   '󰌾  Lock screen' \
   '󰤄  Suspend' \
   '󰍃  Log out' \
   '󰜉  Restart' \
   '󰐥  Shut down' | \
-  "$HOME/.config/hypr/scripts/quick-menu" POWER auto 310 200)
+  "$HOME/.config/hypr/scripts/quick-menu" POWER auto 330 330)
 [[ -n $choice ]] || exit 0
 
 case "$choice" in
-  '󰁹'*|'󰚥'*|'────────'*) exit 0 ;;
+  '󰁹'*|'󰚥'*|'󱐋'*|'────────'*) exit 0 ;;
+  *'Performance profile') exec "$HOME/.config/hypr/scripts/power-profile" set performance ;;
+  *'Balanced profile') exec "$HOME/.config/hypr/scripts/power-profile" set balanced ;;
+  *'Power saver profile') exec "$HOME/.config/hypr/scripts/power-profile" set power-saver ;;
   *Lock*) exec hyprlock ;;
   *Suspend) exec systemctl suspend ;;
   *out) exec uwsm stop ;;

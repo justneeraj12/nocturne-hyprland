@@ -2,8 +2,9 @@
 set -euo pipefail
 
 battery=$(find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' -print -quit)
+profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
 if [[ -z $battery ]]; then
-  jq -cn '{text:"󰐥",class:"ac",tooltip:"Power menu"}'
+  jq -cn --arg profile "$profile" '{text:"󰐥",class:"ac",tooltip:("Power menu · " + $profile)}'
   exit 0
 fi
 
@@ -25,7 +26,7 @@ else
   ((capacity <= 12)) && class=critical
 fi
 
-printf -v tooltip 'Battery %s%%  ·  %s\nClick: session and power controls' "$capacity" "$status"
+printf -v tooltip 'Battery %s%%  ·  %s\nPower profile: %s\nClick: session and power controls' "$capacity" "$status" "$profile"
 jq -cn --arg text "$icon ${capacity}%  󰐥" --arg class "$class" \
   --arg tooltip "$tooltip" \
   '{text:$text,class:$class,tooltip:$tooltip}'

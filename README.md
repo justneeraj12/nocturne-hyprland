@@ -46,14 +46,20 @@ control center, and middle opens the key guide. The full guide is in
   scratchpad, window groups, and three-finger workspace swipes.
 - SwayNotificationCenter for application-independent notification history and
   do-not-disturb mode.
-- Cliphist clipboard picker; screenshot-to-file-and-clipboard actions.
+- Cliphist clipboard picker and a compact bottom-center Nocturne capture card on Print Screen.
+  It captures all displays, one display, the active window, or a dragged area;
+  it also records a display or selected area with a red bar indicator. Still
+  images save to `~/Pictures/Screenshots` and copy to the clipboard, while
+  recordings save to `~/Videos/Screencasts`.
 - Caffeine toggle backed by Hypridle, with 10-minute lock and 15-minute screen
   sleep when Caffeine is off.
 - A 25/5 Pomodoro timer in the bar.
 - A minimal Omarchy-style bar with MPRIS, audio, network, Bluetooth, grouped
-  system health, microphone-use, notification, clock, and collapsed background
-  apps. Audio, Wi-Fi, Bluetooth, media, KDE Connect, and power open compact
-  click-to-toggle cards directly beneath their buttons. A themed clock card
+  system health, microphone-use, notification, clock, and native tray apps.
+  Wi-Fi and Bluetooth stay permanently visible as one native applet
+  each—NetworkManager and Blueman—with no duplicate Waybar controls or hidden
+  three-dot drawer. Audio, media, KDE Connect, and
+  power use compact click-to-toggle cards. A themed clock card
   combines every saved world time, live weather, Pomodoro, and caffeine. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
   outside GNOME. It provides a sidebar for appearance, wallpapers,
@@ -127,6 +133,11 @@ control center, and middle opens the key guide. The full guide is in
 - Explicit ACPI S3 (`deep`) suspend through systemd, including the NVIDIA
   video-memory suspend/resume hooks required by the proprietary driver. Lid
   close suspends on battery and AC power; docked lid close remains ignored.
+- Laptop action keys cover microphone mute, touchpad toggle, webcam privacy
+  feedback, keyboard-light levels when exposed by MSI EC, and the F7 tools key
+  opens the same guide as `Super+/`. Power-profile changes are verified and
+  report the actual Intel CPU policy plus MSI firmware mode instead of failing
+  silently.
 
 ## Reapply or edit
 
@@ -152,6 +163,16 @@ The installer refuses to force S3 on hardware that does not expose `deep`,
 enables the NVIDIA suspend/resume integration when required, and does not
 automatically suspend the live session. Save open work, then test from the
 Nocturne power card or by closing the lid.
+
+MSI keyboard-light, webcam and firmware performance controls use Ubuntu's
+signed in-kernel `msi_ec` driver. Enable it only when this firmware passes the
+driver's own compatibility check:
+
+```bash
+pkexec ./configure-msi-controls.sh
+```
+
+The installer makes no persistent change when the kernel rejects the firmware.
 
 ## GitHub sync
 

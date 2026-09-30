@@ -659,7 +659,12 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.action_row(box, "Graphical resources", "Friendly per-process resource charts.", [("OPEN", ["resources"], "")])
         self.section(box, "Display + power")
         self.action_row(box, "Laptop brightness", "Use a themed preset or the hardware brightness keys.", [("CHOOSE LEVEL", [str(SCRIPT_HOME / "brightness"), "pick"], "")])
-        self.action_row(box, "Power profile", "Performance for games; balanced normally; saver away from power.", [("PERFORMANCE", ["powerprofilesctl", "set", "performance"], ""), ("BALANCED", ["powerprofilesctl", "set", "balanced"], "primary"), ("SAVER", ["powerprofilesctl", "set", "power-saver"], "")])
+        self.action_row(box, "Power profile", "Verified profile switching with on-screen CPU and MSI firmware status.", [("PERFORMANCE", [str(SCRIPT_HOME / "power-profile"), "set", "performance"], ""), ("BALANCED", [str(SCRIPT_HOME / "power-profile"), "set", "balanced"], "primary"), ("SAVER", [str(SCRIPT_HOME / "power-profile"), "set", "power-saver"], "")])
+        self.section(box, "Laptop action keys")
+        self.action_row(box, "Microphone", "Hardware mic-mute key with PipeWire state feedback.", [("TOGGLE MIC", [str(SCRIPT_HOME / "hardware-control"), "microphone"], "")])
+        self.action_row(box, "Touchpad", "Fn+F4 toggles the internal touchpad and shows its state.", [("TOGGLE", [str(SCRIPT_HOME / "hardware-control"), "touchpad", "toggle"], "primary")])
+        self.action_row(box, "Webcam privacy", "MSI firmware disconnects the camera electrically; Nocturne reports whether its device returns.", [("CHECK STATE", [str(SCRIPT_HOME / "hardware-control"), "camera"], "")])
+        self.action_row(box, "Keyboard light", "The shortcut is mapped, but this BIOS is rejected by Ubuntu's safe MSI controller driver; raw EC writes stay disabled.", [])
         self.action_row(box, "Session and power", "Lock, suspend, log out, restart or shut down.", [("OPEN CARD", [str(SCRIPT_HOME / "power-menu")], "")])
         self.section(box, "Maintenance")
         self.action_row(box, "Nocturne health check", "Read-only test of wallpaper, audio, network, Bluetooth, displays, services and required tools.", [("RUN CHECK", ["kitty", "--class", "NocturneDoctor", "--title", "Nocturne Health Check", "sh", "-lc", "nocturne-doctor; printf '\\nPress Enter to close…'; read -r"], "primary")])
@@ -670,7 +675,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
     def shortcuts_page(self) -> Gtk.Widget:
         scroll, box = self.page("Shortcuts + habits", "You only need a small core. The rest becomes discoverable when you need it.")
         groups = [
-            ("Start here", [("Super + Space", "Find any app"), ("Super + R", "Nocturne Settings"), ("Ctrl + B", "Collapse or expand Settings sidebar"), ("Super + /", "Quick guide"), ("Super + Enter", "Terminal")]),
+            ("Start here", [("Super + Space", "Find any app"), ("Super + R", "Nocturne Settings"), ("Ctrl + B", "Collapse or expand Settings sidebar"), ("Super + / or Fn+F7", "Quick guide"), ("Super + Enter", "Terminal")]),
+            ("Laptop keys", [("Mic mute", "Toggle microphone + state feedback"), ("Fn + F4", "Toggle touchpad"), ("Webcam key", "Firmware privacy toggle + feedback"), ("Volume / brightness", "Adjust normally")]),
             ("Windows", [("Super + Q", "Close"), ("Super + M", "Minimize"), ("Super + Shift + M", "Restore minimized"), ("Super + F", "Fullscreen"), ("Super + A", "Snap a floating app"), ("Super + V", "Toggle floating")]),
             ("Move around", [("Super + H/J/K/L", "Focus tiles"), ("Super + Shift + H/J/K/L", "Move tile"), ("Super + 1…9", "Change workspace"), ("Super + Shift + 1…9", "Send window"), ("Super + S", "Show scratchpad"), ("Super + Shift + S", "Send to scratchpad")]),
             ("Useful tools", [("Super + E", "Files"), ("Super + B", "Browser"), ("Super + D", "VS Code"), ("Super + T", "Steam"), ("Super + N", "Notifications"), ("Super + Shift + V", "Clipboard"), ("Super + W", "Wallpaper"), ("Super + Esc", "Lock")]),

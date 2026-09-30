@@ -10,10 +10,10 @@
     "fixed-center": true,
     "expand-center": true,
     "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
-    "modules-center": ["custom/world"],
+    "modules-center": ["custom/recording", "custom/world"],
     "modules-right": [
-      "custom/pomodoro", "mpris", "custom/caffeine", "group/tray-expander",
-      "custom/kdeconnect", "bluetooth", "network", "pulseaudio", "custom/mic", "custom/brightness",
+      "custom/pomodoro", "mpris", "custom/caffeine", "tray",
+      "custom/kdeconnect", "pulseaudio", "custom/mic", "custom/brightness",
       "custom/system", "custom/notification", "custom/local-clock", "custom/power-battery"
     ],
 
@@ -79,36 +79,12 @@
       "interval": 2,
       "on-click": "~/.config/hypr/scripts/caffeine toggle"
     },
-    "group/tray-expander": {
-      "orientation": "inherit",
-      "drawer": { "transition-duration": 250, "children-class": "tray-item", "transition-left-to-right": false },
-      "modules": ["custom/tray-toggle", "tray"]
-    },
-    "custom/tray-toggle": { "format": "󰇙", "tooltip-format": "Background apps" },
-    "tray": { "icon-size": 12, "spacing": 7 },
+    "tray": { "icon-size": 15, "spacing": 8 },
     "custom/kdeconnect": {
       "exec": "~/.config/hypr/scripts/kdeconnect-status",
       "return-type": "json", "interval": 5,
       "on-click": "~/.config/hypr/scripts/kdeconnect-menu",
       "on-click-right": "~/.config/hypr/scripts/kdeconnect-menu clipboard"
-    },
-    "bluetooth": {
-      "format": "", "format-off": "󰂲", "format-disabled": "󰂲",
-      "format-connected": "󰂱", "format-no-controller": "",
-      "tooltip-format": "Bluetooth · {num_connections} connected\n{device_enumerate}",
-      "tooltip-format-enumerate-connected": "{device_alias}",
-      "on-click": "~/.config/hypr/scripts/bluetooth-menu",
-      "on-click-right": "~/.config/hypr/scripts/bluetooth-menu toggle"
-    },
-    "network": {
-      "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
-      "format-wifi": "{icon}", "format-ethernet": "󰈀", "format-disconnected": "󰤭",
-      "tooltip-format-wifi": "{essid} · {signalStrength}%\n{ipaddr}\n↓ {bandwidthDownBits}  ↑ {bandwidthUpBits}\nLeft: quick panel · Right: Wi-Fi on/off",
-      "tooltip-format-ethernet": "Ethernet · {ipaddr}\n↓ {bandwidthDownBits}  ↑ {bandwidthUpBits}",
-      "tooltip-format-disconnected": "Network disconnected",
-      "interval": 3,
-      "on-click": "~/.config/hypr/scripts/wifi-menu",
-      "on-click-right": "~/.config/hypr/scripts/wifi-menu toggle"
     },
     "pulseaudio": {
       "format": "{icon} {volume}%", "format-muted": " mute",
@@ -138,6 +114,12 @@
       "return-type": "json", "interval": 3,
       "on-click": "~/.local/bin/nocturne-dashboard",
       "on-click-right": "resources"
+    },
+    "custom/recording": {
+      "exec": "~/.config/hypr/scripts/screenshot status",
+      "return-type": "json", "interval": 1,
+      "on-click": "~/.config/hypr/scripts/screenshot menu",
+      "on-click-right": "~/.config/hypr/scripts/screenshot stop"
     },
     "cpu": {
       "format": "󰍛 {usage}%", "interval": 3,

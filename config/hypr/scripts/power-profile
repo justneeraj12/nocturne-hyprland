@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+label_for() {
+  case $1 in
+    performance) printf 'Performance' ;;
+    balanced) printf 'Balanced' ;;
+    power-saver) printf 'Power saver' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+details() {
+  local epp firmware='not exposed by firmware'
+  epp=$(cat /sys/devices/system/cpu/cpufreq/policy0/energy_performance_preference 2>/dev/null || printf 'unknown')
+  [[ -r /sys/firmware/acpi/platform_profile ]] && firmware=$(cat /sys/firmware/acpi/platform_profile)
+  printf 'CPU policy: %s · MSI mode: %s' "$epp" "$firmware"
+}
+
+set_profile() {
+  local requested=$1 actual
+  case $requested in performance|balanced|power-saver) ;; *) exit 2 ;; esac
+  if ! powerprofilesctl set "$requested"; then
+    notify-send -a Nocturne -u critical 'Power profile failed' "Could not activate $(label_for "$requested")."
+    exit 1
+  fi
+  actual=$(powerprofilesctl get 2>/dev/null || true)
+  if [[ $actual != "$requested" ]]; then
+    notify-send -a Nocturne -u critical 'Power profile failed' "Requested $(label_for "$requested"), but the system reports $(label_for "$actual")."
+    exit 1
+  fi
+  notify-send -a Nocturne -u low "$(label_for "$actual") profile active" "$(details)"
+}
+
+case ${1:-status} in
+  status)
+    profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
+    printf '%s\t%s\n' "$profile" "$(details)"
+    ;;
+  set) set_profile "${2:-}" ;;
+  *) printf 'Usage: %s status|set performance|balanced|power-saver\n' "$0" >&2; exit 2 ;;
+esac
