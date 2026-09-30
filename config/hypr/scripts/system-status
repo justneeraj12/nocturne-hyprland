@@ -29,7 +29,7 @@ class=normal
 ((cpu >= 90 || ram >= 90 || gpu >= 95 || disk >= 90)) && class=critical
 if [[ $class == normal ]] && ((cpu >= 75 || ram >= 80 || gpu >= 80 || disk >= 80)); then class=warning; fi
 
-printf -v tooltip 'SYSTEM\nCPU %s%%  ·  RAM %s%%\nGPU %s%%  ·  %s°C\nDISK %s%%  ·  %s free\nClick: Resources  ·  Right: Dashboard' \
+printf -v tooltip 'SYSTEM\nCPU %s%%  ·  RAM %s%%\nGPU %s%%  ·  %s°C\nDISK %s%%  ·  %s free\nClick: Nocturne Dashboard  ·  Right: Resources' \
   "$cpu" "$ram" "$gpu" "$gpu_temp" "$disk" "$disk_free"
 jq -cn \
   --arg text "󰍛 $cpu  󰘚 $ram  󰢮 $gpu  󰋊 $disk" \

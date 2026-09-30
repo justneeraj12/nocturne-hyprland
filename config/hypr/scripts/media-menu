@@ -9,9 +9,10 @@ menu() {
 
 player=$(playerctl -l 2>/dev/null | head -n 1 || true)
 if [[ -z $player ]]; then
-  choice=$(printf '%s\n' '󰝚  Nothing is playing' '󰓃  Open graphical equalizer' | menu) || exit 0
+  choice=$(printf '%s\n' '󰝚  Nothing is playing' '󰎈  Open Nocturne visualizer' '󰏘  Choose visualizer theme' | menu) || exit 0
   [[ -n $choice ]] || exit 0
-  [[ $choice == *equalizer* ]] && exec easyeffects
+  [[ $choice == *'visualizer theme'* ]] && exec "$HOME/.local/bin/nocturne-visualizer" choose
+  [[ $choice == *visualizer* ]] && exec "$HOME/.local/bin/nocturne-visualizer"
   exit 0
 fi
 
@@ -29,7 +30,8 @@ choice=$(printf '%s\n' \
   "󰕾  Player volume · ${percent}%" \
   '󰝝  Player volume +5%' \
   '󰝞  Player volume −5%' \
-  '󰓃  Open graphical equalizer' \
+  '󰎈  Open Nocturne visualizer' \
+  '󰏘  Choose visualizer theme' \
   '󱡬  Open audio routing' | menu) || exit 0
 [[ -n $choice ]] || exit 0
 
@@ -39,6 +41,7 @@ case "$choice" in
   '󰒭  Next track') playerctl -p "$player" next ;;
   *'+5%'*) playerctl -p "$player" volume 0.05+ ;;
   *'−5%'*) playerctl -p "$player" volume 0.05- ;;
-  *'equalizer'*) exec easyeffects ;;
+  *'Nocturne visualizer'*) exec "$HOME/.local/bin/nocturne-visualizer" ;;
+  *'visualizer theme'*) exec "$HOME/.local/bin/nocturne-visualizer" choose ;;
   *'routing'*) exec qpwgraph ;;
 esac

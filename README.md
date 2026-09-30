@@ -58,6 +58,9 @@ control center, and middle opens the key guide. The full guide is in
   Hyprland-native Nocturne Settings card replaces GNOME Settings, which cannot
   run outside GNOME. Audio includes per-app volume; KDE Connect uses a matching
   dark Qt6 theme. Detailed process data lives in the resource dashboard.
+- The tiled Nocturne visualizer has five remembered designs: Obsidian, Matrix,
+  Amber, Ice, and Wave. The Nocturne dashboard combines btop, nvtop, and a live
+  audio spectrum in one sharp terminal grid.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
 - Steam opens tiled, its utility dialogs float centered, and its launcher

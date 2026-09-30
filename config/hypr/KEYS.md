@@ -66,13 +66,13 @@ THE TOP BAR
   City/time/weather       Rotates every 10 seconds; click the world clock card
   Local clock             + means AM · − means PM · click for clock card
   Pomodoro                Left start/pause · middle skip · right reset
-  Audio                   Left quick panel · middle EasyEffects · scroll volume
+  Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel
   Wi-Fi / Bluetooth       Left quick panel · right power toggle
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button
-  SYS button              Left Resources · right hacker dashboard
+  SYS button              Left Nocturne dashboard · right graphical Resources
   Bell                    Notification history
   Coffee/moon             Caffeine mode
   CPU                     Resource dashboard
@@ -83,24 +83,20 @@ THE TOP BAR
 MEDIA
   Music title             Left full media card · middle play/pause
   Music title             Right next track · scroll player volume
-  Media card              Previous/play/next, player volume, EQ and routing
+  Media card              Previous/play/next, player volume, visualizer, routing
 
 PERSONALIZE + SOUND
   Super + R → Wallpaper   Choose any image or restore the default
   Super + R → Accent      Change GTK, bar and active-border accent together
   Super + R → Appearance  GTK theme, icons and cursor
-  Super + R → Equalizer   EasyEffects EQ and audio effects
+  Super + R → Visualizer  Open the tiled live audio spectrum
+  Super + R → Viz theme   Obsidian, Matrix, Amber, Ice, or Wave
   Super + R → Routing     Visual PipeWire device routing
   Super + R → Brightness  Matching laptop backlight presets
 
-EASYEFFECTS SAFE START
-  1. Open Equalizer and Effects from Super + R.
-  2. Under Output, press + and add Equalizer.
-  3. Use IIR for a low-latency everyday profile.
-  4. Import an AutoEQ/parametric preset made for your exact headphones.
-  5. Save it, then use Autoload for that exact output device.
-  Keep your real headphones/speakers as the system default output. Do not set
-  the EasyEffects virtual sink as the default device.
+VISUALIZER THEMES
+  Open Settings with Super + R and choose Visualizer theme. The selected style
+  is remembered next time. Press Q inside the visualizer to close it.
 
 FALLBACK
   Log out with Super + P and choose Ubuntu from the login-screen gear to return

@@ -1,12 +1,54 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${TERM:-}" == xterm-kitty ]]; then
-  exec cava
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}/nocturne
+state_file=$state_home/visualizer-theme
+mkdir -p "$state_home"
+
+if [[ ${1:-} == choose ]]; then
+  choice=$(printf '%s\n' \
+    '󰎈  Obsidian · muted green spectrum' \
+    '󰘨  Matrix · terminal green signal' \
+    '󰈸  Amber · warm retro analyzer' \
+    '󰖩  Ice · cyan-blue telemetry' \
+    '󰜎  Wave · purple flowing signal' | \
+    "$HOME/.config/hypr/scripts/quick-menu" VISUALIZER auto 390 220) || exit 0
+  case "$choice" in
+    *Obsidian*) theme=obsidian ;;
+    *Matrix*) theme=matrix ;;
+    *Amber*) theme=amber ;;
+    *Ice*) theme=ice ;;
+    *Wave*) theme=wave ;;
+    *) exit 0 ;;
+  esac
+else
+  theme=${1:-}
+  [[ -n $theme ]] || theme=$(cat "$state_file" 2>/dev/null || printf 'obsidian')
 fi
 
-exec kitty --class NocturneVisualizer --title 'Nocturne Visualizer' \
-  --override initial_window_width=92c \
-  --override initial_window_height=24c \
-  cava
+case "$theme" in
+  obsidian|matrix|amber|ice|wave) ;;
+  *) theme=obsidian ;;
+esac
+printf '%s\n' "$theme" > "$state_file"
+visualizer_config="$config_home/cava/themes/$theme.conf"
 
+if command -v hyprctl >/dev/null; then
+  address=$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class == "NocturneVisualizer") | .address' | head -n 1)
+  if [[ -n $address ]]; then
+    if [[ ${1:-} == choose || -n ${1:-} ]]; then
+      hyprctl dispatch closewindow "address:$address" >/dev/null
+      sleep 0.2
+    else
+      hyprctl dispatch focuswindow "address:$address" >/dev/null
+      exit 0
+    fi
+  fi
+fi
+
+if [[ "${TERM:-}" == xterm-kitty ]]; then
+  exec cava -p "$visualizer_config"
+fi
+exec kitty --class NocturneVisualizer --title 'Nocturne Visualizer' \
+  cava -p "$visualizer_config"

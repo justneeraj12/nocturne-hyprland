@@ -82,7 +82,8 @@ while true; do
 
   entries+=(
     '──────── TOOLS ──────────'
-    '󰓃  Equalizer & effects'
+    '󰎈  Nocturne visualizer'
+    '󰏘  Visualizer theme'
     '󱡬  Audio routing graph'
   )
 
@@ -92,7 +93,8 @@ while true; do
     *'Volume +5%'*) wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+ ;;
     *'Volume −5%'*) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
     *'Toggle output mute'*) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
-    *'Equalizer'*) exec easyeffects ;;
+    *'Nocturne visualizer'*) exec "$HOME/.local/bin/nocturne-visualizer" ;;
+    *'Visualizer theme'*) exec "$HOME/.local/bin/nocturne-visualizer" choose ;;
     *'routing graph'*) exec qpwgraph ;;
     '────────'*|"󰕾"*) continue ;;
     *)

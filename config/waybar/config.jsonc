@@ -105,10 +105,10 @@
     "pulseaudio": {
       "format": "{icon} {volume}%", "format-muted": " mute",
       "format-icons": { "headphone": "", "headset": "", "default": ["", "", ""] },
-      "tooltip-format": "Volume {volume}% · {desc}\nLeft: Nocturne audio · Middle: equalizer · Right: mute",
+      "tooltip-format": "Volume {volume}% · {desc}\nLeft: audio panel · Middle: visualizer · Right: mute",
       "scroll-step": 5,
       "on-click": "~/.config/hypr/scripts/audio-menu",
-      "on-click-middle": "easyeffects",
+      "on-click-middle": "~/.local/bin/nocturne-visualizer",
       "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
     },
     "custom/mic": {
@@ -128,8 +128,8 @@
     "custom/system": {
       "exec": "~/.config/hypr/scripts/system-status",
       "return-type": "json", "interval": 3,
-      "on-click": "resources",
-      "on-click-right": "~/.local/bin/nocturne-dashboard"
+      "on-click": "~/.local/bin/nocturne-dashboard",
+      "on-click-right": "resources"
     },
     "cpu": {
       "format": "󰍛 {usage}%", "interval": 3,

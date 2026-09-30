@@ -14,7 +14,8 @@ choice=$(printf '%s\n' \
   '󰄜  Phone / KDE Connect' \
   '──────── SOUND ─────────────' \
   '󰕾  Audio outputs and apps' \
-  '󰓃  Equalizer and effects' \
+  '󰎈  Nocturne visualizer' \
+  '󰏘  Visualizer theme' \
   '󱡬  Audio routing graph' \
   '──────── DESKTOP ───────────' \
   '󰥔  Clock and world weather' \
@@ -38,7 +39,8 @@ case "$choice" in
   *Bluetooth*) exec "$HOME/.config/hypr/scripts/bluetooth-menu" ;;
   *KDE*) exec "$HOME/.config/hypr/scripts/kdeconnect-menu" ;;
   *'Audio outputs'*) exec "$HOME/.config/hypr/scripts/audio-menu" ;;
-  *Equalizer*) exec easyeffects ;;
+  *'Nocturne visualizer'*) exec "$HOME/.local/bin/nocturne-visualizer" ;;
+  *'Visualizer theme'*) exec "$HOME/.local/bin/nocturne-visualizer" choose ;;
   *routing*) exec qpwgraph ;;
   *'Clock and'*) exec "$HOME/.config/hypr/scripts/clock-menu" ;;
   *Notifications) exec swaync-client -t -sw ;;
