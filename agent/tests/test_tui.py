@@ -4,10 +4,17 @@ import unittest
 from unittest.mock import patch
 
 from nocturne_agent.notify import send_notification
-from nocturne_agent.tui import format_response, run_once
+from nocturne_agent.tui import Palette, format_response, run_once
 
 
 class TuiTests(unittest.TestCase):
+    def test_colored_prompt_marks_ansi_as_zero_width(self) -> None:
+        prompt = Palette(True).prompt()
+        escape_positions = [index for index, character in enumerate(prompt) if character == "\x1b"]
+        self.assertEqual(len(escape_positions), 4)
+        self.assertTrue(all(prompt[index - 1] == "\001" for index in escape_positions))
+        self.assertEqual(Palette(False).prompt(), "\nnox › ")
+
     def test_formats_system_data_compactly(self) -> None:
         response = {
             "status": "completed",

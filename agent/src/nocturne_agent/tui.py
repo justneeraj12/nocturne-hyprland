@@ -42,6 +42,15 @@ class Palette:
     def paint(self, code: str, text: str) -> str:
         return f"\x1b[{code}m{text}\x1b[0m" if self.enabled else text
 
+    def readline_paint(self, code: str, text: str) -> str:
+        """Color text while marking escape bytes as zero-width for readline."""
+        if not self.enabled:
+            return text
+        return f"\001\x1b[{code}m\002{text}\001\x1b[0m\002"
+
+    def prompt(self) -> str:
+        return f"\n{self.readline_paint('38;2;95;143;118', 'nox')} {self.readline_paint('38;2;77;93;88', '›')} "
+
     def accent(self, text: str) -> str:
         return self.paint("38;2;95;143;118", text)
 
@@ -234,7 +243,7 @@ def interactive(notifications: bool = True, plain: bool = False) -> int:
     palette = Palette(_color_enabled(plain))
     while True:
         try:
-            text = input(f"\n{palette.accent('nox')} {palette.muted('›')} ").strip()
+            text = input(palette.prompt()).strip()
         except EOFError:
             print()
             return 0
