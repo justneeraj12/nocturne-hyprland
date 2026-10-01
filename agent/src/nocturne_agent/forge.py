@@ -16,6 +16,7 @@ from .types import Action, Risk
 
 FORGE_ACTIONS = {
     "brightness",
+    "browser_open",
     "caffeine",
     "launch_app",
     "media",
@@ -123,9 +124,15 @@ class ToolForge:
         draft["enabled"] = False
         workflow = self.validate(draft)
         path = self._path(workflow.identifier)
-        path.write_text(json.dumps(workflow.to_dict(), indent=2) + "\n", encoding="utf-8")
-        os.chmod(path, 0o600)
+        self._write(path, workflow)
         return workflow
+
+    @staticmethod
+    def _write(path: Path, workflow: Workflow) -> None:
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(workflow.to_dict(), indent=2) + "\n", encoding="utf-8")
+        os.chmod(temporary, 0o600)
+        temporary.replace(path)
 
     def list(self) -> list[Workflow]:
         try:
@@ -146,8 +153,23 @@ class ToolForge:
         raw = json.loads(path.read_text(encoding="utf-8"))
         raw["enabled"] = True
         workflow = self.validate(raw, identifier)
-        path.write_text(json.dumps(workflow.to_dict(), indent=2) + "\n", encoding="utf-8")
-        os.chmod(path, 0o600)
+        conflicts = {
+            trigger
+            for other in self.list()
+            if other.enabled and other.identifier != identifier
+            for trigger in other.triggers
+        } & set(workflow.triggers)
+        if conflicts:
+            raise ValueError(f"Trigger already belongs to another enabled routine: {sorted(conflicts)[0]}")
+        self._write(path, workflow)
+        return workflow
+
+    def disable(self, identifier: str) -> Workflow:
+        path = self._path(identifier)
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        raw["enabled"] = False
+        workflow = self.validate(raw, identifier)
+        self._write(path, workflow)
         return workflow
 
     def match(self, request: str) -> Workflow | None:

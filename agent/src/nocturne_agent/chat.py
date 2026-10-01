@@ -201,6 +201,24 @@ class ChatApp:
         from .tui import _handle_meta
 
         command, _, payload = text.partition(" ")
+        if command == ":teach":
+            from .teach import Teacher
+
+            if not payload.strip():
+                self._append_output("SYSTEM", "Usage: :teach PHRASE => ACTION; OPTIONAL ACTION")
+                return True
+            try:
+                workflow = Teacher(ToolForge(self.config.state_dir)).draft(payload.strip())
+            except (OSError, ValueError) as error:
+                self._append_output("SYSTEM", f"Teaching rejected safely: {error}")
+                return True
+            steps = " → ".join(step.name for step in workflow.steps)
+            self._append_output(
+                "NØX",
+                f"Learned draft {workflow.name} [{workflow.identifier}]\nSTEPS {steps}\n"
+                f"Disabled by default. Review it, then type :enable {workflow.identifier}.",
+            )
+            return True
         if command == ":forge":
             if not payload.strip():
                 self._append_output("SYSTEM", "Usage: :forge describe the reusable routine you want")
@@ -309,8 +327,8 @@ class ChatApp:
             if key in (curses.KEY_RESIZE,):
                 continue
             if key in (curses.KEY_F1,):
-                self._append_output("SYSTEM", "Type naturally; NØX can chain verified typed actions. :profile shows local preferences · :tools lists actions · :forge creates a disabled routine · "
-                                    ":proposals lists routines · :enable ID activates one · Ctrl-D quits.")
+                self._append_output("SYSTEM", "Type naturally; NØX can chain verified typed actions. :profile shows preferences · :teach drafts an exact learned phrase · :metrics shows reliability · "
+                                    ":forge creates a model-proposed routine · :enable ID activates one · Ctrl-D quits.")
                 continue
             if key in ("\x04",):
                 return 0

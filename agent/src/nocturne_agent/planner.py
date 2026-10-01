@@ -27,6 +27,17 @@ class RulePlanner:
         ):
             return Action("browser_context")
 
+        web_search = re.search(
+            r"\b(?:search|look up|find)\s+(?:the\s+)?(?:web|internet|google|browser)\s+(?:for\s+)?(.+)$",
+            text,
+        )
+        if web_search:
+            return Action("browser_open", {"query": web_search.group(1).strip()})
+
+        url = re.search(r"\b(?:open|go to|visit)\s+(https?://\S+)\s*$", text)
+        if url:
+            return Action("browser_open", {"url": url.group(1)})
+
         observation = self._observation(text)
         if observation:
             return Action("observe", observation)
@@ -167,6 +178,7 @@ class LocalModelPlanner:
             "never use it as a generic fallback. For unsupported actions, use respond to explain the limitation. "
             "Use browser_context when asked what is visible, playing, or happening in the browser; do not launch "
             "a browser unless the user explicitly asks to open or launch one. "
+            "Use browser_open only when the user explicitly asks to open a URL or search the web; never infer a URL. "
             "App names may be natural installed names; the host resolves them and rejects guesses. "
             "When an app name is uncertain, call find_app first and use an exact returned reference. "
             "find_app results are authoritative installed desktop entries: do not call observe to verify them. "

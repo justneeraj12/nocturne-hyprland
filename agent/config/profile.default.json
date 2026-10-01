@@ -15,6 +15,10 @@
     "audio_behavior": "Bluetooth headphones become output; laptop microphone remains preferred",
     "desktop": "Nocturne Hyprland"
   },
+  "media": {
+    "service": "YouTube Music",
+    "player_patterns": ["youtube", "brave"]
+  },
   "system": {
     "device": "MSI Katana GF66 12UD",
     "os": "Ubuntu 26.04.1 LTS",

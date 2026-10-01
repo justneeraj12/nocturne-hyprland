@@ -115,6 +115,27 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(response.action.source, "rules")
         self.assertEqual(response.action.arguments, {"app": "desktop:youtube-music"})
 
+    def test_short_lived_context_rechecks_last_observation(self) -> None:
+        observed = ActionResult(True, "Steam is running", {"subject": "processes", "item_count": 1})
+        with patch.object(self.engine.tools, "execute", return_value=observed):
+            self.engine.handle("is steam running")
+            response = self.engine.handle("what about now")
+        self.assertEqual(response.action.name, "observe")
+        self.assertEqual(response.action.arguments, {"subject": "processes", "query": "steam"})
+        self.assertEqual(response.action.source, "context")
+
+    def test_retry_reuses_last_failed_safe_action(self) -> None:
+        with patch.object(
+            self.engine.tools,
+            "execute",
+            side_effect=[ActionResult(False, "temporary"), ActionResult(True, "worked")],
+        ):
+            self.engine.handle("volume down 5")
+            response = self.engine.handle("try again")
+        self.assertEqual(response.status, "completed")
+        self.assertEqual(response.action.name, "volume")
+        self.assertEqual(response.action.source, "context")
+
     def test_memory_never_contains_prompt_text(self) -> None:
         secret = "volume down 5 secret-do-not-store"
         with patch.object(self.engine.tools, "execute", return_value=ActionResult(True, "ok")):

@@ -23,7 +23,7 @@ from .policy import PolicyEngine
 from .runtime import model_is_ready
 
 
-VERSION = "0.4.1"
+VERSION = "0.5.0"
 LOGO = (
     "       ▄████▄       ",
     "    ▄██▀    ▀██▄    ",
@@ -136,6 +136,7 @@ def format_response(response: dict[str, Any], plain: bool = False) -> str:
     memory = data.get("memory") or {}
     disk = data.get("disk") or {}
     gpu = data.get("gpu") or {}
+    verification = data.get("verification") or {}
     if memory:
         used = memory.get("MemTotal", 0) - memory.get("MemAvailable", 0)
         lines.append(f"  RAM     {_bytes(used)} / {_bytes(memory.get('MemTotal'))}")
@@ -145,6 +146,10 @@ def format_response(response: dict[str, Any], plain: bool = False) -> str:
         lines.append(
             f"  GPU     {gpu.get('utilization', '?')}% · {gpu.get('temperature', '?')}°C · "
             f"{gpu.get('memory_used', '?')}/{gpu.get('memory_total', '?')} MiB"
+        )
+    if verification:
+        lines.append(
+            f"  VERIFY  {str(verification.get('status', '?')).upper()} · {verification.get('evidence', '')}"
         )
     return "\n".join(lines)
 
@@ -161,9 +166,13 @@ def _help(plain: bool = False) -> str:
             "  :profile            show the editable owner/system profile",
             "  :doctor             verify desktop action prerequisites",
             "  :memory             show privacy-safe action counts",
+            "  :metrics            show reliability, routing, and verification stats",
+            "  :eval               run the side-effect-free intent regression suite",
+            "  :teach A => B; C    draft a learned phrase from safe deterministic actions",
             "  :forge DESCRIPTION  draft a safe reusable workflow (disabled)",
             "  :proposals          list drafted and enabled workflows",
             "  :enable ID          explicitly enable a reviewed workflow",
+            "  :disable ID         disable a learned or forged workflow",
             "  :sleep              unload and stop the language runtime now",
             "  :clear              clear and redraw NØX",
             "  :help               show this guide",
@@ -220,6 +229,31 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
             f"  {row['action']:<16} {row['count']:>4} calls · {row['succeeded']:>4} passed"
             for row in rows
         )
+    if normalized == ":metrics":
+        try:
+            memory: UsageMemory | NullUsageMemory = UsageMemory(config.state_dir)
+        except OSError:
+            memory = NullUsageMemory()
+        report = memory.dashboard()
+        routes = " · ".join(
+            f"{item['source']} {item['succeeded']}/{item['count']}" for item in report["routes"]
+        ) or "none"
+        checks = " · ".join(f"{key} {value}" for key, value in report["verifications"].items()) or "none"
+        return True, (
+            f"  ACTIONS {report['succeeded']}/{report['total']} passed · {report['success_rate']}%\n"
+            f"  LATENCY {report['average_latency_ms']} ms average\n"
+            f"  ROUTES  {routes}\n"
+            f"  VERIFY  {checks}"
+        )
+    if normalized == ":eval":
+        from .evaluation import run_routing_evaluation
+
+        report = run_routing_evaluation()
+        state = "PASS" if report["ok"] else "FAIL"
+        return True, (
+            f"  {state} {report['passed']}/{report['total']} intents · {report['pass_rate']}%\n"
+            f"  {report['elapsed_ms']} ms · side effects disabled"
+        )
     if normalized == ":proposals":
         from .forge import ToolForge
 
@@ -239,6 +273,29 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
         except (OSError, ValueError, KeyError) as error:
             return True, f"  Could not enable that workflow: {error}"
         return True, f"  Enabled {workflow.name}. Triggers: {', '.join(workflow.triggers)}"
+    if normalized.startswith(":disable "):
+        from .forge import ToolForge
+
+        identifier = command.split(None, 1)[1].strip()
+        try:
+            workflow = ToolForge(config.state_dir).disable(identifier)
+        except (OSError, ValueError, KeyError) as error:
+            return True, f"  Could not disable that workflow: {error}"
+        return True, f"  Disabled {workflow.name}."
+    if normalized.startswith(":teach "):
+        from .forge import ToolForge
+        from .teach import Teacher
+
+        try:
+            workflow = Teacher(ToolForge(config.state_dir)).draft(command.split(None, 1)[1].strip())
+        except (OSError, ValueError) as error:
+            return True, f"  Teaching rejected safely: {error}"
+        steps = " → ".join(step.name for step in workflow.steps)
+        return True, (
+            f"  Learned draft {workflow.name} [{workflow.identifier}]\n"
+            f"  STEPS {steps}\n"
+            f"  Disabled. Review it, then type :enable {workflow.identifier}"
+        )
     if normalized.startswith(":forge "):
         from .forge import ToolForge
         from .planner import LocalModelPlanner

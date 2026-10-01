@@ -15,7 +15,9 @@ from typing import Callable
 from .apps import normalize_app_name, resolve_app, resolve_reference, search_apps
 from .browser import inspect_browser
 from .observe import observe
+from .profile import load_profile, preferred_app
 from .types import Action, ActionResult
+from .verifier import ActionVerifier
 
 
 HOME = Path.home()
@@ -54,10 +56,12 @@ def _run(command: list[str], timeout: float = 8) -> subprocess.CompletedProcess:
 
 
 class ToolExecutor:
-    def __init__(self) -> None:
+    def __init__(self, verifier: ActionVerifier | None = None) -> None:
+        self.verifier = verifier or ActionVerifier()
         self.handlers: dict[str, Callable[[dict], ActionResult]] = {
             "respond": self.respond,
             "browser_context": self.browser_context,
+            "browser_open": self.browser_open,
             "observe": self.observe,
             "system_status": self.system_status,
             "find_app": self.find_app,
@@ -77,7 +81,8 @@ class ToolExecutor:
         if not handler:
             return ActionResult(False, "No executor exists for this action")
         try:
-            return handler(action.arguments)
+            before = self.verifier.snapshot(action)
+            return self.verifier.verify(action, handler(action.arguments), before)
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             return ActionResult(False, f"Action failed safely: {error}")
 
@@ -88,6 +93,30 @@ class ToolExecutor:
     @staticmethod
     def browser_context(_arguments: dict) -> ActionResult:
         return inspect_browser()
+
+    @staticmethod
+    def browser_open(arguments: dict) -> ActionResult:
+        target = arguments.get("url")
+        if target is None:
+            target = "https://duckduckgo.com/?" + urllib.parse.urlencode({"q": arguments["query"]})
+        browser_name = preferred_app("browser") or "browser"
+        app = resolve_app(browser_name)
+        executable_candidates = ("brave-browser", "brave", "firefox")
+        if app and app.desktop_id and app.desktop_id.casefold().startswith("firefox"):
+            executable_candidates = ("firefox", "brave-browser", "brave")
+        executable = next((name for name in executable_candidates if shutil.which(name)), None)
+        if executable is None:
+            return ActionResult(False, "No supported browser executable was found")
+        command = [executable, target]
+        if shutil.which("uwsm"):
+            result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *command], timeout=10)
+            if result.returncode != 0:
+                return ActionResult(False, result.stderr.strip() or "Browser navigation failed")
+        else:
+            subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL, start_new_session=True)
+        label = arguments.get("query") or urllib.parse.urlsplit(target).netloc
+        return ActionResult(True, f"Opened {label} in {app.name if app else executable}")
 
     @staticmethod
     def observe(arguments: dict) -> ActionResult:
@@ -143,7 +172,8 @@ class ToolExecutor:
 
     @staticmethod
     def media(arguments: dict) -> ActionResult:
-        result = _run(["playerctl", arguments["action"]])
+        command = _preferred_player_command(arguments["action"])
+        result = _run(command)
         return ActionResult(result.returncode == 0, "Media updated" if result.returncode == 0 else result.stderr.strip())
 
     @staticmethod
@@ -281,6 +311,17 @@ def _youtube_music_command(url: str) -> tuple[str, ...]:
         app_id, profile = match.groups()
         return ("brave-browser", f"--profile-directory={profile}", f"--app-id={app_id}", url)
     return ("brave-browser", f"--app={url}")
+
+
+def _preferred_player_command(action: str) -> list[str]:
+    listed = _run(["playerctl", "-l"], timeout=3)
+    players = [line.strip() for line in listed.stdout.splitlines() if line.strip()] if listed.returncode == 0 else []
+    profile = load_profile()
+    media = profile.get("media", {}) if isinstance(profile, dict) else {}
+    configured = media.get("player_patterns", ["youtube", "brave"]) if isinstance(media, dict) else ["youtube", "brave"]
+    patterns = [str(item).casefold() for item in configured[:8]] if isinstance(configured, list) else []
+    selected = next((player for pattern in patterns for player in players if pattern in player.casefold()), None)
+    return ["playerctl", "--player", selected, action] if selected else ["playerctl", action]
 
 
 def _window_matches_app(client: dict, app) -> bool:

@@ -37,6 +37,11 @@ class RulePlannerTests(unittest.TestCase):
         self.assertEqual(action.name, "browser_context")
         self.assertEqual(action.arguments, {})
 
+    def test_explicit_web_search_uses_typed_browser_action(self) -> None:
+        action = self.planner.plan("search the web for hyprland documentation")
+        self.assertEqual(action.name, "browser_open")
+        self.assertEqual(action.arguments, {"query": "hyprland documentation"})
+
     def test_named_process_observation(self) -> None:
         action = self.planner.plan("is steam running")
         self.assertEqual(action.name, "observe")

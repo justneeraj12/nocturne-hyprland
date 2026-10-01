@@ -72,6 +72,28 @@ deterministic path without waking the model. This behaves like a lightweight
 intent adapter while avoiding a training runtime, optimizer state, duplicate
 base model, and permanent LoRA memory on the 4 GiB GPU.
 
+NØX 0.5 adds production-oriented reliability without another resident model or
+daemon:
+
+- Every state-changing action receives a bounded post-action receipt. Volume,
+  brightness, workspace, caffeine, power-profile, and named-window actions are
+  compared against observed state; asynchronous launches report `pending`
+  rather than claiming that a window already exists.
+- The zero-resident router resolves deterministic grammar and exact packaged
+  intents before the 4B model is considered. Ambiguous language alone reaches
+  bounded inference.
+- `:teach PHRASE => ACTION; ACTION` creates an exact declarative routine using
+  the deterministic planner. It is saved disabled and cannot include confirmed
+  or unknown actions. `:enable ID` remains the explicit approval boundary.
+- Explicit `search the web for ...` and `open https://...` requests use a typed
+  browser action. Only HTTP(S) URLs without embedded credentials are accepted.
+- Media control prefers the configured YouTube Music/Brave MPRIS player.
+  `play it again` reuses only the current in-memory track query.
+- Short-lived context supports `close it`, `what about now`, media pronouns,
+  and `try again`. Failed actions include a bounded recovery hint.
+- `:metrics` reports privacy-safe success, latency, route, and verification
+  counts. `:eval` runs a side-effect-free routing regression suite.
+
 ## Design goals
 
 - Stay asleep unless a request actually requires language inference.
@@ -124,9 +146,13 @@ Useful terminal deck commands:
 :apps                          list installed apps NØX can resolve
 :profile                       show the local owner/system profile
 :doctor                        check desktop tools and model state
+:metrics                       show reliability and verification receipts
+:eval                          run the side-effect-free routing regression suite
+:teach lock in => caffeine mode on; switch to workspace 2
 :forge start focus mode by...  propose a disabled reusable routine
 :proposals                     review routines and enabled state
 :enable focus-mode-ab12        enable one reviewed routine
+:disable focus-mode-ab12       deactivate a routine without deleting it
 :sleep                         unload the model immediately
 ```
 

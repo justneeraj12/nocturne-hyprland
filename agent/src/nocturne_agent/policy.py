@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import urlparse
 
 from .apps import resolve_reference
 from .types import Action, PolicyDecision, Risk
@@ -97,6 +98,18 @@ def _music_query(arguments: dict[str, Any]) -> bool:
     )
 
 
+def _browser_open(arguments: dict[str, Any]) -> bool:
+    if not _keys(set(), {"query", "url"})(arguments) or len(arguments) != 1:
+        return False
+    if "query" in arguments:
+        return isinstance(arguments["query"], str) and 1 <= len(arguments["query"].strip()) <= 240
+    url = arguments.get("url")
+    if not isinstance(url, str) or len(url) > 2048:
+        return False
+    parsed = urlparse(url)
+    return parsed.scheme in {"http", "https"} and bool(parsed.hostname) and parsed.username is None
+
+
 def _close_window(arguments: dict[str, Any]) -> bool:
     if not _keys(set(), {"app"})(arguments):
         return False
@@ -115,6 +128,11 @@ POLICIES: dict[str, ToolPolicy] = {
         Risk.SAFE,
         _keys(set()),
         "Read and summarize the visible content of the most recently used browser window",
+    ),
+    "browser_open": ToolPolicy(
+        Risk.SAFE,
+        _browser_open,
+        "Open an explicit HTTP(S) address or web search in the preferred browser",
     ),
     "observe": ToolPolicy(
         Risk.SAFE,
@@ -147,6 +165,16 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "additionalProperties": False,
     },
     "browser_context": {"type": "object", "properties": {}, "additionalProperties": False},
+    "browser_open": {
+        "type": "object",
+        "properties": {
+            "query": {"type": "string", "minLength": 1, "maxLength": 240},
+            "url": {"type": "string", "minLength": 8, "maxLength": 2048},
+        },
+        "minProperties": 1,
+        "maxProperties": 1,
+        "additionalProperties": False,
+    },
     "observe": {
         "type": "object",
         "properties": {

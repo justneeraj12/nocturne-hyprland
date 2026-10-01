@@ -16,6 +16,7 @@ from .observe import summarize_without_model
 from .planner import LocalModelPlanner, RulePlanner
 from .policy import PolicyEngine
 from .profile import preferred_app
+from .router import LightweightRouter
 from .tools import ToolExecutor
 from .types import Action, ActionResult, AgentResponse, Risk
 
@@ -24,6 +25,7 @@ class AgentEngine:
     def __init__(self, config: AgentConfig | None = None) -> None:
         self.config = config or AgentConfig.load()
         self.rules = RulePlanner()
+        self.router = LightweightRouter(self.rules)
         self.model = LocalModelPlanner(self.config)
         self.policy = PolicyEngine()
         self.tools = ToolExecutor()
@@ -32,6 +34,10 @@ class AgentEngine:
         receipt_count = max(0, min(self.config.session_receipts, 12))
         self._session_receipts: deque[dict] = deque(maxlen=receipt_count or 1)
         self._last_app_reference: str | None = None
+        self._last_action: Action | None = None
+        self._last_failed_action: Action | None = None
+        self._last_observation_action: Action | None = None
+        self._last_music_query: str | None = None
         self.memory_error: str | None = None
         try:
             self.memory = UsageMemory(self.config.state_dir)
@@ -51,7 +57,9 @@ class AgentEngine:
         workflow = self.forge.match(request)
         if workflow is not None:
             return self._run_workflow(workflow, started)
-        action = self._contextual_action(request) or self._preference_action(request) or self.rules.plan(request)
+        action = self._contextual_action(request) or self._preference_action(request)
+        if action is None:
+            action = self.router.route(request).action
         if action is None:
             context = gather_context(
                 minimum_battery=self.config.minimum_battery_for_model,
@@ -84,6 +92,7 @@ class AgentEngine:
 
         result = self.tools.execute(action)
         result = self._present_result(action, result)
+        result = self._recovery_hint(action, result)
         elapsed = int((time.monotonic() - started) * 1000)
         self.memory.record(action, result, elapsed)
         self._remember(action, result)
@@ -173,29 +182,82 @@ class AgentEngine:
         }
 
     def _remember(self, action: Action, result: ActionResult) -> None:
+        verification = result.data.get("verification", {}) if isinstance(result.data, dict) else {}
         if self.config.session_receipts > 0:
             self._session_receipts.append({
                 "action": action.name,
                 "ok": result.ok,
                 "message": result.message[:240],
+                "verified": verification.get("status", "not_applicable"),
             })
         if not result.ok:
+            self._last_failed_action = action
             return
+        self._last_action = action
+        self._last_failed_action = None
+        if action.name in {"browser_context", "observe", "system_status"}:
+            self._last_observation_action = action
         if action.name == "launch_app":
             self._last_app_reference = action.arguments.get("app")
         elif action.name == "play_music":
             app = resolve_app("youtube music")
             self._last_app_reference = app.reference if app else None
+            self._last_music_query = action.arguments.get("query")
+        elif action.name == "find_app":
+            candidates = result.data.get("candidates", [])
+            if candidates and isinstance(candidates[0], dict):
+                self._last_app_reference = candidates[0].get("reference")
         elif action.name == "close_window" and action.arguments.get("app") == self._last_app_reference:
             self._last_app_reference = None
 
     def _contextual_action(self, request: str) -> Action | None:
-        if self._last_app_reference is None:
-            return None
         text = " ".join(request.casefold().strip().split())
-        if re.fullmatch(r"(?:please\s+)?(?:close|quit|exit)\s+(?:it|that|that app|the last app)", text):
+        if self._last_app_reference and re.fullmatch(
+            r"(?:please\s+)?(?:close|quit|exit)\s+(?:it|that|that app|the last app)", text
+        ):
             return Action("close_window", {"app": self._last_app_reference})
+        if self._last_app_reference and re.fullmatch(r"(?:please\s+)?(?:open|launch|start)\s+it", text):
+            return Action("launch_app", {"app": self._last_app_reference}, source="context")
+        if re.fullmatch(r"(?:pause|resume|play|stop|skip|next|previous)\s+it", text):
+            media = {
+                "pause": "play-pause", "resume": "play-pause", "play": "play-pause",
+                "stop": "stop", "skip": "next", "next": "next", "previous": "previous",
+            }
+            return Action("media", {"action": media[text.split()[0]]}, source="context")
+        if self._last_music_query and re.fullmatch(r"(?:please\s+)?play\s+it\s+again", text):
+            return Action("play_music", {"query": self._last_music_query}, source="context")
+        if self._last_observation_action and re.fullmatch(
+            r"(?:and\s+)?(?:what about now|check again|check it again|how about now|now\??)", text
+        ):
+            return Action(
+                self._last_observation_action.name,
+                dict(self._last_observation_action.arguments),
+                source="context",
+            )
+        if re.fullmatch(r"(?:please\s+)?(?:try|retry|do)(?:\s+it|\s+that)?\s+again", text):
+            candidate = self._last_failed_action or self._last_action
+            if candidate is not None:
+                decision = self.policy.evaluate(candidate)
+                if decision.allowed and decision.risk is Risk.SAFE and candidate.name != "respond":
+                    return Action(candidate.name, dict(candidate.arguments), source="context")
         return None
+
+    @staticmethod
+    def _recovery_hint(action: Action, result: ActionResult) -> ActionResult:
+        if result.ok or "recovery" in result.data:
+            return result
+        hints = {
+            "browser_context": "Open the browser window you want inspected, then ask me to check again.",
+            "browser_open": "Check the network and :doctor, then retry the exact search or URL.",
+            "launch_app": "Use :apps to verify the installed name, then retry.",
+            "media": "Start playback in a playerctl-compatible app, then retry.",
+            "play_music": "Check the network or open YouTube Music, then retry.",
+            "power_profile": "Run :doctor and verify power-profiles-daemon is available.",
+        }
+        hint = hints.get(action.name, "Run :doctor for dependencies, then retry the same request.")
+        data = dict(result.data)
+        data["recovery"] = hint
+        return ActionResult(False, f"{result.message}. {hint}", data)
 
     @staticmethod
     def _preference_action(request: str) -> Action | None:

@@ -7,6 +7,13 @@ from nocturne_agent.types import Action, Risk
 
 
 class PolicyTests(unittest.TestCase):
+    def test_browser_open_requires_safe_explicit_http_url_or_bounded_query(self) -> None:
+        policy = PolicyEngine()
+        self.assertTrue(policy.evaluate(Action("browser_open", {"url": "https://example.com"})).allowed)
+        self.assertTrue(policy.evaluate(Action("browser_open", {"query": "hyprland docs"})).allowed)
+        self.assertFalse(policy.evaluate(Action("browser_open", {"url": "file:///etc/passwd"})).allowed)
+        self.assertFalse(policy.evaluate(Action("browser_open", {"url": "https://user@example.com"})).allowed)
+
     def setUp(self) -> None:
         self.policy = PolicyEngine()
 

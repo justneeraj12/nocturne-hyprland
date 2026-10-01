@@ -27,6 +27,8 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("doctor", help="check the control-plane prerequisites")
     subparsers.add_parser("tools", help="show the model-callable tool manifest")
     subparsers.add_parser("memory", help="show privacy-safe action statistics")
+    subparsers.add_parser("metrics", help="show privacy-safe reliability and routing metrics")
+    subparsers.add_parser("eval", help="run the side-effect-free routing evaluation")
     return parser
 
 
@@ -55,6 +57,10 @@ def main(argv: list[str] | None = None) -> int:
         output = doctor()
     elif args.command == "tools":
         output = PolicyEngine.tool_manifest()
+    elif args.command == "eval":
+        from .evaluation import run_routing_evaluation
+
+        output = run_routing_evaluation()
     elif args.command == "ask" and not args.direct:
         try:
             output = request_service(" ".join(args.request), args.confirm)
@@ -64,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
         engine = AgentEngine()
         if args.command == "memory":
             output = engine.memory.summary()
+        elif args.command == "metrics":
+            output = engine.memory.dashboard()
         else:
             output = engine.handle(" ".join(args.request), args.confirm).to_dict()
     print(json.dumps(output, indent=2))

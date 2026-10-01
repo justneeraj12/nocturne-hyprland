@@ -88,6 +88,19 @@ def relevant_intents(request: str, limit: int = 3) -> str:
     return json.dumps(selected, ensure_ascii=False, separators=(",", ":"))
 
 
+def matched_intent(request: str) -> dict | None:
+    """Return only an exact packaged intent; fuzzy guesses still go to the model."""
+    normalized = " ".join(request.casefold().strip().split())
+    for item in _intent_pack():
+        triggers = item.get("triggers", [])
+        action = item.get("action")
+        if isinstance(action, dict) and any(
+            normalized == " ".join(str(trigger).casefold().strip().split()) for trigger in triggers
+        ):
+            return action
+    return None
+
+
 def profile_summary() -> str:
     profile = load_profile()
     defaults = profile.get("defaults", {})
