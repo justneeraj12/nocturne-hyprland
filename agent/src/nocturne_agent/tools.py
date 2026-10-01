@@ -39,6 +39,7 @@ def _run(command: list[str], timeout: float = 8) -> subprocess.CompletedProcess:
 class ToolExecutor:
     def __init__(self) -> None:
         self.handlers: dict[str, Callable[[dict], ActionResult]] = {
+            "respond": self.respond,
             "system_status": self.system_status,
             "launch_app": self.launch_app,
             "volume": self.volume,
@@ -58,6 +59,10 @@ class ToolExecutor:
             return handler(action.arguments)
         except (OSError, subprocess.SubprocessError, ValueError) as error:
             return ActionResult(False, f"Action failed safely: {error}")
+
+    @staticmethod
+    def respond(arguments: dict) -> ActionResult:
+        return ActionResult(True, arguments["text"].strip())
 
     @staticmethod
     def launch_app(arguments: dict) -> ActionResult:

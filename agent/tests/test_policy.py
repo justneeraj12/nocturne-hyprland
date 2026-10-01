@@ -15,6 +15,13 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.risk, Risk.SAFE)
 
+    def test_conversational_response_is_bounded(self) -> None:
+        decision = self.policy.evaluate(Action("respond", {"text": "Hey. What can I do for you?"}))
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.risk, Risk.SAFE)
+        self.assertFalse(self.policy.evaluate(Action("respond", {"text": ""})).allowed)
+        self.assertFalse(self.policy.evaluate(Action("respond", {"text": "x" * 1201})).allowed)
+
     def test_close_requires_confirmation(self) -> None:
         decision = self.policy.evaluate(Action("close_window"))
         self.assertTrue(decision.allowed)

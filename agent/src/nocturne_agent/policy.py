@@ -55,6 +55,13 @@ def _brightness(arguments: dict[str, Any]) -> bool:
     return isinstance(step, int) and 1 <= step <= 20
 
 
+def _response(arguments: dict[str, Any]) -> bool:
+    if not _keys({"text"})(arguments):
+        return False
+    text = arguments["text"]
+    return isinstance(text, str) and 1 <= len(text.strip()) <= 1200
+
+
 APP_NAMES = {
     "browser",
     "chatgpt",
@@ -68,6 +75,11 @@ APP_NAMES = {
 
 
 POLICIES: dict[str, ToolPolicy] = {
+    "respond": ToolPolicy(
+        Risk.SAFE,
+        _response,
+        "Reply conversationally when no desktop side effect is requested",
+    ),
     "system_status": ToolPolicy(Risk.SAFE, _keys(set()), "Read CPU, memory, disk and GPU state"),
     "launch_app": ToolPolicy(Risk.SAFE, _choice("app", APP_NAMES), "Launch an approved desktop application"),
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
@@ -81,6 +93,12 @@ POLICIES: dict[str, ToolPolicy] = {
 
 
 PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
+    "respond": {
+        "type": "object",
+        "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 1200}},
+        "required": ["text"],
+        "additionalProperties": False,
+    },
     "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
     "launch_app": {
         "type": "object",
