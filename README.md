@@ -61,10 +61,10 @@ control center, and middle opens the key guide. The full guide is in
 - A 25/5 Pomodoro timer in the bar.
 - A minimal Omarchy-style bar with MPRIS, audio, network, Bluetooth, grouped
   system health, microphone-use, notification, clock, and native tray apps.
-  Wi-Fi and Bluetooth stay permanently visible with no hidden three-dot
-  drawer. NetworkManager provides the native Wi-Fi popup; the single Waybar
-  Bluetooth button opens a matching compact connect/disconnect menu while the
-  hidden Blueman agent continues handling pairing and authentication. Audio, media, KDE Connect, and
+  Wi-Fi and Bluetooth stay permanently visible with matching compact panels.
+  Ordinary background-app icons live in a three-dot drawer at the far-right
+  edge, while the hidden Blueman agent continues handling pairing and
+  authentication without adding another icon. Audio, media, KDE Connect, and
   power use compact click-to-toggle cards. A themed clock card
   combines every saved world time, live weather, Pomodoro, and caffeine. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run

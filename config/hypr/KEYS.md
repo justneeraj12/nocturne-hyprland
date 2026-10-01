@@ -81,8 +81,9 @@ THE TOP BAR
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel
-  Wi-Fi                   Native NetworkManager popup
+  Wi-Fi                   Compact network card · right toggles radio
   Bluetooth               Matching compact devices popup · right toggles radio
+  Three dots              Reveal background app tray icons at far right
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button

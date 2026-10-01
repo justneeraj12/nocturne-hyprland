@@ -14,7 +14,8 @@
     "modules-right": [
       "custom/pomodoro", "mpris", "custom/caffeine", "custom/kdeconnect",
       "pulseaudio", "custom/mic", "custom/brightness", "custom/system",
-      "tray", "bluetooth", "custom/notification", "custom/local-clock", "custom/power-battery"
+      "network", "bluetooth", "custom/notification", "custom/local-clock",
+      "custom/power-battery", "group/tray-expander"
     ],
 
     "custom/logo": {
@@ -79,7 +80,16 @@
       "interval": 2,
       "on-click": "~/.config/hypr/scripts/caffeine toggle"
     },
-    "tray": { "icon-size": 15, "spacing": 8 },
+    "network": {
+      "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
+      "format-wifi": "{icon}", "format-ethernet": "󰈀", "format-disconnected": "󰤭",
+      "tooltip-format-wifi": "{essid} · {signalStrength}%\n{ipaddr}\n↓ {bandwidthDownBits}  ↑ {bandwidthUpBits}\nLeft: networks · Right: Wi-Fi on/off",
+      "tooltip-format-ethernet": "Ethernet · {ipaddr}\n↓ {bandwidthDownBits}  ↑ {bandwidthUpBits}",
+      "tooltip-format-disconnected": "Network disconnected\nLeft: networks · Right: Wi-Fi on/off",
+      "interval": 3,
+      "on-click": "~/.config/hypr/scripts/wifi-menu",
+      "on-click-right": "~/.config/hypr/scripts/wifi-menu toggle"
+    },
     "bluetooth": {
       "format": "", "format-off": "󰂲", "format-disabled": "󰂲",
       "format-connected": "󰂱", "format-no-controller": "",
@@ -95,6 +105,20 @@
       "on-click": "~/.config/hypr/scripts/kdeconnect-menu",
       "on-click-right": "~/.config/hypr/scripts/kdeconnect-menu clipboard"
     },
+    "group/tray-expander": {
+      "orientation": "inherit",
+      "drawer": {
+        "transition-duration": 220,
+        "children-class": "tray-item",
+        "transition-left-to-right": false
+      },
+      "modules": ["custom/tray-toggle", "tray"]
+    },
+    "custom/tray-toggle": {
+      "format": "󰇙",
+      "tooltip-format": "Background apps"
+    },
+    "tray": { "icon-size": 13, "spacing": 7 },
     "pulseaudio": {
       "format": "{icon} {volume}%", "format-muted": " mute",
       "format-icons": { "headphone": "", "headset": "", "default": ["", "", ""] },

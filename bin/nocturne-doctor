@@ -45,14 +45,24 @@ monitor_count=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || pri
 nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
 [[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'
 bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller is available' || warning 'No Bluetooth controller is currently available'
-pgrep -x nm-applet >/dev/null 2>&1 && ok 'Single NetworkManager tray control is running' || warning 'NetworkManager tray control is not running'
+if ! pgrep -x nm-applet >/dev/null 2>&1; then
+  ok 'Legacy NetworkManager tray icon is retired'
+else
+  warning 'nm-applet is still running and may duplicate the dedicated Wi-Fi control'
+fi
 pgrep -f '/usr/bin/blueman-applet' >/dev/null 2>&1 && ok 'Blueman pairing agent is running in the background' || warning 'Blueman pairing agent is not running'
 if jq -e '.[] | select(.name == "main")
-    | ((."modules-right" | index("tray")) != null and (."modules-right" | index("bluetooth")) != null)' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && ! rg -q 'group/tray-expander' "$HOME/.config/waybar/config.jsonc"; then
+    | ((."modules-right" | index("network")) != null and (."modules-right" | index("bluetooth")) != null)' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
   ok 'Wi-Fi and compact Bluetooth controls are permanently visible'
 else
-  warning 'Connectivity controls may be missing or hidden behind a drawer'
+  warning 'Connectivity controls may be missing from the visible bar'
+fi
+if jq -e '.[] | select(.name == "main")
+    | ."modules-right"[-1] == "group/tray-expander"
+    and ."group/tray-expander".modules == ["custom/tray-toggle", "tray"]' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
+  ok 'Background apps are in the far-right tray drawer'
+else
+  warning 'Background app tray drawer is missing or misplaced'
 fi
 plugins=$(DCONF_PROFILE="$HOME/.config/dconf/hyprland-profile" gsettings get org.blueman.general plugin-list 2>/dev/null || true)
 if [[ $plugins == *"!StatusIcon"* && $plugins == *"!StatusNotifierItem"* && $plugins == *"!ShowConnected"* ]] \

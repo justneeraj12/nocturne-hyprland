@@ -143,6 +143,10 @@ if [[ ! -e "$CONFIG_HOME/hypr/nocturne-wallpaper.conf" ]]; then
 fi
 chmod +x "$CONFIG_HOME"/hypr/scripts/*
 
+# Wi-Fi has a dedicated always-visible Waybar module. Retire nm-applet's
+# inseparable tray icon so the far-right drawer contains background apps only.
+pkill -x nm-applet 2>/dev/null || true
+
 # Use exactly one EasyEffects backend. The Flatpak copy created an autostart
 # entry that currently crashes during login; the distro build now runs as a
 # restartable user service and follows the session theme in either desktop.
