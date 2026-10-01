@@ -32,8 +32,9 @@ names are not guessed by the language model: an unknown or uninstalled name
 fails honestly instead of launching a different application.
 
 Common installed-app aliases are deterministic too: `open YT Music` resolves
-to the installed YouTube Music PWA. `play SONG by ARTIST` resolves a direct
-track and starts it in that PWA. `close APP` targets that app's Hyprland
+to the installed YouTube Music PWA. `play SONG by ARTIST` resolves a catalogue
+audio track (not a music video) and starts it in that PWA. `play my liked music`
+opens the private Liked Music queue and starts it. `close APP` targets that app's Hyprland
 windows and requires an explicit confirmation before anything is closed.
 
 The Tool Forge creates declarative routines from those same typed tools. A
@@ -92,7 +93,8 @@ daemon:
 - YouTube Music is navigable as an authenticated PWA: Liked Music, playlist,
   album, and artist libraries open directly, while named playlists and
   follow-up phrases such as `look for road trip playlists in the app` use the
-  app's own search view.
+  app's own search view. Opening Liked Music is navigation-only; asking to play
+  it starts the private queue and verifies that its track changed and is playing.
 - Short-lived context supports `close it`, `what about now`, media pronouns,
   and `try again`. Failed actions include a bounded recovery hint.
 - `:metrics` reports privacy-safe success, latency, route, and verification

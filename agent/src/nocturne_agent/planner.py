@@ -60,6 +60,12 @@ class RulePlanner:
             ("artists", r"(?:my\s+)?(?:saved )?artists"),
             ("home", r"(?:youtube|yt) music home"),
         )
+        liked_play = re.fullmatch(
+            r"(?:play|start|put on)\s+(?:my\s+)?(?:liked music|liked songs|likes)(?:\s+(?:playlist|list))?",
+            text,
+        )
+        if liked_play:
+            return Action("music_open", {"section": "liked", "play": True})
         for section, target in music_sections:
             if re.fullmatch(rf"(?:open|show|find|look for|go to|take me to)\s+{target}", text):
                 return Action("music_open", {"section": section})
@@ -97,8 +103,8 @@ class RulePlanner:
 
         media_map = {
             "play pause": "play-pause",
-            "pause music": "play-pause",
-            "resume music": "play-pause",
+            "pause music": "pause",
+            "resume music": "play",
             "next song": "next",
             "next track": "next",
             "previous song": "previous",
@@ -107,7 +113,8 @@ class RulePlanner:
         }
         for phrase, action in media_map.items():
             if phrase in text:
-                return Action("media", {"action": action})
+                target = "music" if any(word in phrase for word in ("music", "song", "track")) else "current"
+                return Action("media", {"action": action, "target": target})
 
         caffeine = re.search(r"\bcaffeine(?: mode)?\s+(on|off|toggle)\b", text)
         if caffeine:
@@ -202,6 +209,9 @@ class LocalModelPlanner:
             "a browser unless the user explicitly asks to open or launch one. "
             "Use browser_open only when the user explicitly asks to open a URL or search the web; never infer a URL. "
             "Use music_open for Liked Music, playlist/library sections, or a playlist search inside the YouTube Music PWA. "
+            "When asked to play/start the owner's liked or saved songs, use music_open with section liked and play true; "
+            "when asked only to open/show them, omit play. "
+            "For play-pause, next, or previous requests about music, use media with target music; do not control generic browser media. "
             "App names may be natural installed names; the host resolves them and rejects guesses. "
             "When an app name is uncertain, call find_app first and use an exact returned reference. "
             "find_app results are authoritative installed desktop entries: do not call observe to verify them. "

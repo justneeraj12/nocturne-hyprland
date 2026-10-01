@@ -8,6 +8,10 @@
     "action": {"name": "play_music", "arguments": {"query": "song by artist"}}
   },
   {
+    "triggers": ["put on the songs I saved", "start my liked songs", "play my likes"],
+    "action": {"name": "music_open", "arguments": {"section": "liked", "play": true}}
+  },
+  {
     "triggers": ["make it a little quieter", "turn the sound down a bit"],
     "action": {"name": "volume", "arguments": {"direction": "down", "step": 5}}
   },

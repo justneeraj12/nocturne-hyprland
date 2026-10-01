@@ -235,10 +235,11 @@ class AgentEngine:
             return Action("launch_app", {"app": self._last_app_reference}, source="context")
         if re.fullmatch(r"(?:pause|resume|play|stop|skip|next|previous)\s+it", text):
             media = {
-                "pause": "play-pause", "resume": "play-pause", "play": "play-pause",
+                "pause": "pause", "resume": "play", "play": "play",
                 "stop": "stop", "skip": "next", "next": "next", "previous": "previous",
             }
-            return Action("media", {"action": media[text.split()[0]]}, source="context")
+            target = "music" if referenced_app and "youtube music" in referenced_app.name.casefold() else "current"
+            return Action("media", {"action": media[text.split()[0]], "target": target}, source="context")
         if self._last_music_query and re.fullmatch(r"(?:please\s+)?play\s+it\s+again", text):
             return Action("play_music", {"query": self._last_music_query}, source="context")
         if self._last_observation_action and re.fullmatch(
@@ -265,7 +266,7 @@ class AgentEngine:
             "browser_context": "Open the browser window you want inspected, then ask me to check again.",
             "browser_open": "Check the network and :doctor, then retry the exact search or URL.",
             "launch_app": "Use :apps to verify the installed name, then retry.",
-            "media": "Start playback in a playerctl-compatible app, then retry.",
+            "media": "Open YouTube Music and start a track, then retry the music control.",
             "play_music": "Check the network or open YouTube Music, then retry.",
             "power_profile": "Run :doctor and verify power-profiles-daemon is available.",
         }

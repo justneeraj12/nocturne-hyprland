@@ -12,7 +12,7 @@ ROUTING_CASES: tuple[tuple[str, str, dict[str, Any]], ...] = (
     ("volume down 7", "volume", {"direction": "down", "step": 7}),
     ("brightness up 10", "brightness", {"direction": "up", "step": 10}),
     ("switch to workspace 4", "workspace", {"number": 4}),
-    ("pause music", "media", {"action": "play-pause"}),
+    ("pause music", "media", {"action": "pause", "target": "music"}),
     ("caffeine mode on", "caffeine", {"action": "on"}),
     ("tell me what is happening on my browser", "browser_context", {}),
     ("is steam running", "observe", {"subject": "processes", "query": "steam"}),
@@ -21,6 +21,7 @@ ROUTING_CASES: tuple[tuple[str, str, dict[str, Any]], ...] = (
     ("system status", "system_status", {}),
     ("play Teardrop by Massive Attack", "play_music", {"query": "teardrop by massive attack"}),
     ("open my liked music", "music_open", {"section": "liked"}),
+    ("play my liked music", "music_open", {"section": "liked", "play": True}),
     ("open my road trip playlist", "music_open", {"section": "search", "query": "road trip playlist"}),
     ("search the web for hyprland documentation", "browser_open", {"query": "hyprland documentation"}),
 )

@@ -64,10 +64,24 @@ class PolicyTests(unittest.TestCase):
     def test_music_navigation_is_section_bounded(self) -> None:
         self.assertTrue(self.policy.evaluate(Action("music_open", {"section": "liked"})).allowed)
         self.assertTrue(
+            self.policy.evaluate(Action("music_open", {"section": "liked", "play": True})).allowed
+        )
+        self.assertFalse(
+            self.policy.evaluate(Action("music_open", {"section": "albums", "play": True})).allowed
+        )
+        self.assertTrue(
             self.policy.evaluate(Action("music_open", {"section": "search", "query": "road trip playlist"})).allowed
         )
         self.assertFalse(self.policy.evaluate(Action("music_open", {"section": "search"})).allowed)
         self.assertFalse(self.policy.evaluate(Action("music_open", {"section": "settings"})).allowed)
+
+    def test_media_target_is_bounded(self) -> None:
+        self.assertTrue(
+            self.policy.evaluate(Action("media", {"action": "next", "target": "music"})).allowed
+        )
+        self.assertFalse(
+            self.policy.evaluate(Action("media", {"action": "next", "target": "browser"})).allowed
+        )
 
     def test_arbitrary_shell_is_blocked(self) -> None:
         decision = self.policy.evaluate(Action("shell", {"command": "rm -rf /"}))

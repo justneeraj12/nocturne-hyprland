@@ -7,8 +7,8 @@ import os
 import re
 import shutil
 import subprocess
+import time
 import urllib.parse
-import urllib.request
 from pathlib import Path
 from typing import Callable
 
@@ -173,6 +173,24 @@ class ToolExecutor:
 
     @staticmethod
     def media(arguments: dict) -> ActionResult:
+        if arguments.get("target") == "music":
+            handled, error = _control_existing_youtube_music(arguments["action"])
+            if error:
+                return ActionResult(False, error)
+            if handled:
+                labels = {
+                    "play-pause": "Toggled YouTube Music playback",
+                    "play": "Playing YouTube Music",
+                    "pause": "Paused YouTube Music",
+                    "next": "Skipped to the next YouTube Music track",
+                    "previous": "Returned to the previous YouTube Music track",
+                }
+                return ActionResult(
+                    True,
+                    labels[arguments["action"]],
+                    {"media": {"target": "youtube_music", "delivery": "existing-window"}},
+                )
+            return ActionResult(False, "YouTube Music is not open")
         command = _preferred_player_command(arguments["action"])
         result = _run(command)
         return ActionResult(result.returncode == 0, "Media updated" if result.returncode == 0 else result.stderr.strip())
@@ -181,9 +199,9 @@ class ToolExecutor:
     def play_music(arguments: dict) -> ActionResult:
         query = arguments["query"].strip()
         try:
-            video_id = _youtube_video_id(query)
+            video_id = _youtube_audio_id(query)
         except (OSError, ValueError):
-            return ActionResult(False, f"I couldn't resolve a YouTube Music track for {query}")
+            return ActionResult(False, f"I couldn't resolve an audio-only YouTube Music track for {query}")
         url = f"https://music.youtube.com/watch?v={video_id}"
         error = _launch_youtube_music_url(url)
         if error:
@@ -191,15 +209,20 @@ class ToolExecutor:
         return ActionResult(
             True,
             f"Playing {query} in YouTube Music",
-            {"media": {"service": "YouTube Music", "video_id": video_id}},
+            {"media": {"service": "YouTube Music", "video_id": video_id, "kind": "audio_track"}},
         )
 
     @staticmethod
     def music_open(arguments: dict) -> ActionResult:
         section = arguments["section"]
+        play = arguments.get("play", False)
+        previous_music_windows = _youtube_music_addresses() if section == "liked" and play else set()
         routes = {
             "home": "https://music.youtube.com/",
-            "liked": "https://music.youtube.com/playlist?list=LM",
+            "liked": (
+                "https://music.youtube.com/watch?list=LM"
+                if play else "https://music.youtube.com/playlist?list=LM"
+            ),
             "playlists": "https://music.youtube.com/library/playlists",
             "albums": "https://music.youtube.com/library/albums",
             "artists": "https://music.youtube.com/library/artists",
@@ -230,6 +253,15 @@ class ToolExecutor:
         error = _launch_youtube_music_url(url)
         if error:
             return ActionResult(False, error)
+        if section == "liked" and play:
+            start_error = _start_youtube_music_queue(previous_music_windows)
+            if start_error:
+                return ActionResult(False, start_error)
+            return ActionResult(
+                True,
+                "Playing your Liked Music in YouTube Music",
+                {"music": {"section": section, "playback": True}},
+            )
         return ActionResult(True, f"Opened {label} in YouTube Music", {"music": {"section": section}})
 
     @staticmethod
@@ -320,20 +352,66 @@ class ToolExecutor:
         return ActionResult(True, f"Verified installed app matches: {names}", {"candidates": candidates})
 
 
-def _youtube_video_id(query: str) -> str:
-    params = urllib.parse.urlencode({"search_query": query, "sp": "EgIQAQ=="})
-    request = urllib.request.Request(
-        f"https://www.youtube.com/results?{params}",
-        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Nox/1.0"},
-    )
-    with urllib.request.urlopen(request, timeout=12) as response:
-        page = response.read(3_000_000).decode("utf-8", errors="ignore")
-    match = re.search(r'"videoRenderer":\{"videoId":"([A-Za-z0-9_-]{11})"', page)
-    if match is None:
-        match = re.search(r'"videoId":"([A-Za-z0-9_-]{11})"', page)
-    if match is None:
-        raise ValueError("No matching video")
-    return match.group(1)
+def _youtube_audio_id(query: str) -> str:
+    """Resolve the first catalogue song, never a music-video or generic video result."""
+    payload = {
+        "query": query,
+        # YouTube Music's Songs filter. The response still gets type-checked below.
+        "params": "EgWKAQIIAWoMEA4QChADEAQQCRAF",
+        "context": {
+            "client": {
+                "clientName": "WEB_REMIX",
+                "clientVersion": f"1.{time.strftime('%Y%m%d', time.gmtime())}.01.00",
+                "hl": "en",
+            },
+            "user": {},
+        },
+    }
+    endpoint = "https://music.youtube.com/youtubei/v1/search?alt=json"
+    result = _run([
+        "curl",
+        "--fail",
+        "--silent",
+        "--show-error",
+        "--max-time", "12",
+        "--max-filesize", "3000000",
+        endpoint,
+        "--header", "Content-Type: application/json",
+        "--header", "Cookie: SOCS=CAI",
+        "--header", "Origin: https://music.youtube.com",
+        "--header", "User-Agent: Mozilla/5.0 (X11; Linux x86_64) Nox/1.0",
+        "--data-binary", json.dumps(payload, separators=(",", ":")),
+    ], timeout=15)
+    if result.returncode != 0:
+        raise OSError(result.stderr.strip() or "YouTube Music catalogue request failed")
+    raw = result.stdout.encode("utf-8")
+    if len(raw) > 3_000_000:
+        raise ValueError("YouTube Music response exceeded the safety limit")
+    document = json.loads(raw)
+    for node in _walk_json(document):
+        endpoint = node.get("watchEndpoint")
+        if not isinstance(endpoint, dict):
+            continue
+        config = endpoint.get("watchEndpointMusicSupportedConfigs", {})
+        music_config = config.get("watchEndpointMusicConfig", {}) if isinstance(config, dict) else {}
+        video_id = endpoint.get("videoId")
+        if (
+            music_config.get("musicVideoType") == "MUSIC_VIDEO_TYPE_ATV"
+            and isinstance(video_id, str)
+            and re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id)
+        ):
+            return video_id
+    raise ValueError("No audio-track result")
+
+
+def _walk_json(value):
+    if isinstance(value, dict):
+        yield value
+        for child in value.values():
+            yield from _walk_json(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from _walk_json(child)
 
 
 def _youtube_music_command(url: str) -> tuple[str, ...]:
@@ -353,10 +431,14 @@ def _youtube_music_command(url: str) -> tuple[str, ...]:
 
 
 def _launch_youtube_music_url(url: str) -> str | None:
+    previous_addresses = _youtube_music_addresses()
     command = _youtube_music_command(url)
     if shutil.which("uwsm"):
         result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *command], timeout=12)
-        return None if result.returncode == 0 else (result.stderr.strip() or "YouTube Music could not be opened")
+        if result.returncode != 0:
+            return result.stderr.strip() or "YouTube Music could not be opened"
+        _remove_replaced_youtube_music_windows(previous_addresses)
+        return None
     subprocess.Popen(
         list(command),
         stdin=subprocess.DEVNULL,
@@ -364,7 +446,108 @@ def _launch_youtube_music_url(url: str) -> str | None:
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
+    _remove_replaced_youtube_music_windows(previous_addresses)
     return None
+
+
+def _youtube_music_addresses() -> set[str]:
+    if shutil.which("hyprctl") is None:
+        return set()
+    app = resolve_app("youtube music")
+    if app is None:
+        return set()
+    result = _run(["hyprctl", "-j", "clients"], timeout=3)
+    if result.returncode != 0:
+        return set()
+    try:
+        clients = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return set()
+    return {
+        str(client.get("address", "")).casefold()
+        for client in clients
+        if _window_matches_app(client, app)
+        and re.fullmatch(r"0x[0-9a-fA-F]+", str(client.get("address", "")))
+    }
+
+
+def _remove_replaced_youtube_music_windows(previous_addresses: set[str]) -> None:
+    """Keep one PWA window when Brave implements navigation as a new app window."""
+    if not previous_addresses:
+        return
+    deadline = time.monotonic() + 6.0
+    while time.monotonic() < deadline:
+        current = _youtube_music_addresses()
+        if current - previous_addresses:
+            for address in sorted(current & previous_addresses):
+                _run(["hyprctl", "dispatch", "closewindow", f"address:{address}"], timeout=3)
+            return
+        time.sleep(0.1)
+
+
+def _start_youtube_music_queue(previous_addresses: set[str]) -> str | None:
+    """Start a freshly navigated private queue only after exact PWA focus verification."""
+    if shutil.which("wtype") is None or shutil.which("hyprctl") is None:
+        return "Starting a private YouTube Music queue requires wtype and Hyprland"
+    app = resolve_app("youtube music")
+    if app is None:
+        return "The YouTube Music PWA is not installed"
+    deadline = time.monotonic() + 6.0
+    target = None
+    while time.monotonic() < deadline:
+        clients_result = _run(["hyprctl", "-j", "clients"], timeout=3)
+        if clients_result.returncode != 0:
+            return clients_result.stderr.strip() or "Could not inspect YouTube Music windows"
+        try:
+            clients = json.loads(clients_result.stdout)
+        except json.JSONDecodeError:
+            return "Hyprland returned invalid window data"
+        candidates = [client for client in clients if _window_matches_app(client, app)]
+        fresh = [
+            client for client in candidates
+            if str(client.get("address", "")).casefold() not in previous_addresses
+        ]
+        ready = [
+            client for client in (fresh or candidates)
+            if normalize_app_name(str(client.get("title", ""))) not in {"", "youtube music"}
+        ]
+        if ready:
+            target = min(ready, key=lambda client: int(client.get("focusHistoryID", 10_000)))
+            break
+        time.sleep(0.1)
+    if target is None:
+        return "Liked Music opened, but its playable queue did not become ready"
+    address = str(target.get("address", ""))
+    if not re.fullmatch(r"0x[0-9a-fA-F]+", address):
+        return "YouTube Music window address was invalid"
+    focused = _run(["hyprctl", "dispatch", "focuswindow", f"address:{address}"], timeout=3)
+    if focused.returncode != 0:
+        return focused.stderr.strip() or "Could not focus the Liked Music queue"
+    active = _run(["hyprctl", "-j", "activewindow"], timeout=3)
+    try:
+        active_address = str(json.loads(active.stdout).get("address", "")) if active.returncode == 0 else ""
+    except json.JSONDecodeError:
+        active_address = ""
+    if active_address.casefold() != address.casefold():
+        return "Refused to start playback because Liked Music did not receive focus"
+    state = _run(["playerctl", "status"], timeout=3)
+    metadata = _run(["playerctl", "metadata", "--format", "{{title}}"], timeout=3)
+    selected_title = normalize_app_name(str(target.get("title", "")))
+    current_title = normalize_app_name(metadata.stdout)
+    if state.stdout.strip().casefold() == "playing" and current_title and current_title in selected_title:
+        return None
+    started = _run(["wtype", "-k", "space"], timeout=3)
+    if started.returncode != 0:
+        return started.stderr.strip() or "Liked Music playback key failed"
+    playback_deadline = time.monotonic() + 8.0
+    while time.monotonic() < playback_deadline:
+        state = _run(["playerctl", "status"], timeout=3)
+        metadata = _run(["playerctl", "metadata", "--format", "{{title}}"], timeout=3)
+        current_title = normalize_app_name(metadata.stdout)
+        if state.stdout.strip().casefold() == "playing" and current_title and current_title in selected_title:
+            return None
+        time.sleep(0.1)
+    return "Liked Music opened, but its selected track did not start playing"
 
 
 def _search_existing_youtube_music(query: str) -> tuple[bool, str | None]:
@@ -408,6 +591,59 @@ def _search_existing_youtube_music(query: str) -> tuple[bool, str | None]:
     ], timeout=8)
     if typed.returncode != 0:
         return False, typed.stderr.strip() or "YouTube Music search input failed"
+    return True, None
+
+
+def _control_existing_youtube_music(action: str) -> tuple[bool, str | None]:
+    """Send YouTube Music shortcuts only after exact-window focus verification."""
+    if action == "stop":
+        return False, "YouTube Music has no reliable stop shortcut; use pause music instead"
+    if shutil.which("playerctl") is None or shutil.which("hyprctl") is None:
+        return False, "Direct YouTube Music controls require playerctl and Hyprland"
+    app = resolve_app("youtube music")
+    if app is None:
+        return False, "The YouTube Music PWA is not installed"
+    clients_result = _run(["hyprctl", "-j", "clients"], timeout=3)
+    if clients_result.returncode != 0:
+        return False, clients_result.stderr.strip() or "Could not inspect YouTube Music windows"
+    try:
+        clients = json.loads(clients_result.stdout)
+    except json.JSONDecodeError:
+        return False, "Hyprland returned invalid window data"
+    candidates = [client for client in clients if _window_matches_app(client, app)]
+    if not candidates:
+        return False, None
+    target = min(candidates, key=lambda client: int(client.get("focusHistoryID", 10_000)))
+    address = str(target.get("address", ""))
+    if not re.fullmatch(r"0x[0-9a-fA-F]+", address):
+        return False, "YouTube Music window address was invalid"
+    focused = _run(["hyprctl", "dispatch", "focuswindow", f"address:{address}"], timeout=3)
+    if focused.returncode != 0:
+        return False, focused.stderr.strip() or "Could not focus YouTube Music"
+    active = _run(["hyprctl", "-j", "activewindow"], timeout=3)
+    try:
+        active_address = str(json.loads(active.stdout).get("address", "")) if active.returncode == 0 else ""
+    except json.JSONDecodeError:
+        active_address = ""
+    if active_address.casefold() != address.casefold():
+        return False, "Refused to send media keys because YouTube Music did not receive focus"
+    state_result = _run(["playerctl", "status"], timeout=3)
+    metadata_result = _run(["playerctl", "metadata", "--format", "{{artist}}|{{title}}"], timeout=3)
+    state = state_result.stdout.strip().casefold() if state_result.returncode == 0 else ""
+    artist, separator, raw_title = metadata_result.stdout.strip().partition("|")
+    metadata_title = normalize_app_name(raw_title if separator else metadata_result.stdout)
+    window_title = normalize_app_name(str(target.get("title", "")))
+    title_matches = bool(metadata_title and metadata_title in window_title)
+    paused_app_matches = window_title == "youtube music" and bool(artist.strip())
+    if not title_matches and not paused_app_matches:
+        return False, "No loaded YouTube Music track is available to control"
+    if action == "pause" and state == "paused":
+        return True, None
+    if action == "play" and state == "playing":
+        return True, None
+    sent = _run(["playerctl", action], timeout=5)
+    if sent.returncode != 0:
+        return False, sent.stderr.strip() or "YouTube Music shortcut failed"
     return True, None
 
 

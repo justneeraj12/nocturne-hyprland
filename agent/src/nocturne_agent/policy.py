@@ -99,15 +99,26 @@ def _music_query(arguments: dict[str, Any]) -> bool:
 
 
 def _music_open(arguments: dict[str, Any]) -> bool:
-    if not _keys({"section"}, {"query"})(arguments):
+    if not _keys({"section"}, {"query", "play"})(arguments):
         return False
     section = arguments.get("section")
     if section not in {"home", "liked", "playlists", "albums", "artists", "search"}:
         return False
     query = arguments.get("query")
+    play = arguments.get("play", False)
+    if not isinstance(play, bool) or (play and section != "liked"):
+        return False
     if section == "search":
-        return isinstance(query, str) and 1 <= len(query.strip()) <= 180
+        return not play and isinstance(query, str) and 1 <= len(query.strip()) <= 180
     return query is None
+
+
+def _media(arguments: dict[str, Any]) -> bool:
+    return (
+        _keys({"action"}, {"target"})(arguments)
+        and arguments["action"] in {"play-pause", "play", "pause", "next", "previous", "stop"}
+        and arguments.get("target", "current") in {"current", "music"}
+    )
 
 
 def _browser_open(arguments: dict[str, Any]) -> bool:
@@ -160,7 +171,7 @@ POLICIES: dict[str, ToolPolicy] = {
     ),
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
     "brightness": ToolPolicy(Risk.SAFE, _brightness, "Adjust laptop display brightness"),
-    "media": ToolPolicy(Risk.SAFE, _choice("action", {"play-pause", "next", "previous", "stop"}), "Control current media"),
+    "media": ToolPolicy(Risk.SAFE, _media, "Control current media or the verified YouTube Music PWA"),
     "play_music": ToolPolicy(Risk.SAFE, _music_query, "Find and play a requested song in YouTube Music"),
     "music_open": ToolPolicy(
         Risk.SAFE,
@@ -234,7 +245,10 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
     },
     "media": {
         "type": "object",
-        "properties": {"action": {"type": "string", "enum": ["play-pause", "next", "previous", "stop"]}},
+        "properties": {
+            "action": {"type": "string", "enum": ["play-pause", "play", "pause", "next", "previous", "stop"]},
+            "target": {"type": "string", "enum": ["current", "music"]},
+        },
         "required": ["action"],
         "additionalProperties": False,
     },
@@ -252,6 +266,7 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
                 "enum": ["home", "liked", "playlists", "albums", "artists", "search"],
             },
             "query": {"type": "string", "minLength": 1, "maxLength": 180},
+            "play": {"type": "boolean"},
         },
         "required": ["section"],
         "additionalProperties": False,

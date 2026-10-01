@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import signal
 import socket
 import stat
 from collections.abc import Callable
@@ -17,6 +18,30 @@ from .engine import AgentEngine
 
 def _response(status: str, message: str) -> dict[str, Any]:
     return {"status": status, "message": message, "action": None, "result": None}
+
+
+class _RequestDeadline:
+    """Hard-stop a wedged local action without leaving the service unavailable."""
+
+    def __init__(self, seconds: float = 45) -> None:
+        self.seconds = seconds
+        self.previous = None
+
+    @staticmethod
+    def _expired(_signum, _frame) -> None:
+        raise TimeoutError("request deadline exceeded")
+
+    def __enter__(self):
+        if hasattr(signal, "SIGALRM"):
+            self.previous = signal.signal(signal.SIGALRM, self._expired)
+            signal.setitimer(signal.ITIMER_REAL, self.seconds)
+        return self
+
+    def __exit__(self, *_args) -> None:
+        if hasattr(signal, "SIGALRM"):
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            if self.previous is not None:
+                signal.signal(signal.SIGALRM, self.previous)
 
 
 def _read_request(connection: socket.socket) -> dict[str, Any]:
@@ -93,7 +118,10 @@ def serve(
                 payload = _read_request(connection)
                 if engine is None:
                     engine = engine_factory()
-                response = engine.handle(payload["request"], payload["confirmed"]).to_dict()
+                with _RequestDeadline():
+                    response = engine.handle(payload["request"], payload["confirmed"]).to_dict()
+            except TimeoutError:
+                response = _response("failed", "Action exceeded the 45-second safety deadline")
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 response = _response("blocked", f"Invalid local request: {error}")
             encoded = json.dumps(response, separators=(",", ":")).encode("utf-8") + b"\n"

@@ -12,6 +12,11 @@ class _FakeEngine:
         return AgentResponse("completed", f"{request}:{confirmed}")
 
 
+class _TimeoutEngine:
+    def handle(self, _request: str, _confirmed: bool = False) -> AgentResponse:
+        raise TimeoutError
+
+
 class _Connection:
     def __init__(self, incoming: bytes) -> None:
         self.incoming = incoming
@@ -61,6 +66,13 @@ class ServiceTests(unittest.TestCase):
     def test_unknown_protocol_fields_fail_closed(self) -> None:
         response = self._serve_once(b'{"request":"hello","command":"rm"}\n')
         self.assertEqual(response["status"], "blocked")
+
+    def test_wedged_action_fails_without_killing_service(self) -> None:
+        connection = _Connection(b'{"request":"play anything"}\n')
+        serve(_OneConnectionListener(connection), 0.1, _TimeoutEngine)
+        response = json.loads(connection.sent)
+        self.assertEqual(response["status"], "failed")
+        self.assertIn("45-second", response["message"])
 
 
 if __name__ == "__main__":

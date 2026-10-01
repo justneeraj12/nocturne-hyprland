@@ -1,20 +1,83 @@
 from __future__ import annotations
 
+import json
 import unittest
 from unittest.mock import patch
 
 from nocturne_agent.apps import DesktopApp
 from nocturne_agent.tools import (
     ToolExecutor,
+    _control_existing_youtube_music,
     _preferred_player_command,
+    _remove_replaced_youtube_music_windows,
     _search_existing_youtube_music,
+    _start_youtube_music_queue,
     _window_matches_app,
+    _youtube_audio_id,
     _youtube_music_command,
 )
 from nocturne_agent.types import Action
 
 
 class ToolTests(unittest.TestCase):
+    @patch("nocturne_agent.tools._run")
+    @patch("nocturne_agent.tools._youtube_music_addresses")
+    def test_replaced_music_window_closes_only_previous_pwa(self, addresses, run) -> None:
+        addresses.return_value = {"0xold", "0xnew"}
+        _remove_replaced_youtube_music_windows({"0xold"})
+        run.assert_called_once_with(
+            ["hyprctl", "dispatch", "closewindow", "address:0xold"], timeout=3
+        )
+
+    @patch("nocturne_agent.tools._run")
+    def test_audio_resolver_skips_music_videos_and_selects_catalogue_song(self, run) -> None:
+        run.return_value = type("Result", (), {
+            "returncode": 0,
+            "stderr": "",
+            "stdout": json.dumps({
+                "contents": [
+                    {"watchEndpoint": {
+                        "videoId": "video123456",
+                        "watchEndpointMusicSupportedConfigs": {"watchEndpointMusicConfig": {
+                            "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                        }},
+                    }},
+                    {"watchEndpoint": {
+                        "videoId": "audio123456",
+                        "watchEndpointMusicSupportedConfigs": {"watchEndpointMusicConfig": {
+                            "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                        }},
+                    }},
+                ]
+            }),
+        })()
+        self.assertEqual(_youtube_audio_id("a song"), "audio123456")
+        command = run.call_args.args[0]
+        self.assertEqual(command[0], "curl")
+        self.assertIn('"params":"EgWKAQII', command[-1])
+
+    @patch("nocturne_agent.tools._run")
+    def test_audio_resolver_rejects_video_only_results(self, run) -> None:
+        run.return_value = type("Result", (), {
+            "returncode": 0,
+            "stderr": "",
+            "stdout": json.dumps({
+                "watchEndpoint": {
+                    "videoId": "video123456",
+                    "watchEndpointMusicSupportedConfigs": {"watchEndpointMusicConfig": {
+                        "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                    }},
+                }
+            }),
+        })()
+        with self.assertRaisesRegex(ValueError, "audio-track"):
+            _youtube_audio_id("video only")
+
+    def test_music_stop_fails_honestly_instead_of_toggling(self) -> None:
+        handled, error = _control_existing_youtube_music("stop")
+        self.assertFalse(handled)
+        self.assertIn("use pause music", error)
+
     @patch("nocturne_agent.tools.resolve_app")
     @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/tool")
     @patch("nocturne_agent.tools._run")
@@ -73,6 +136,16 @@ class ToolTests(unittest.TestCase):
         result = ToolExecutor.music_open({"section": "search", "query": "road trip & rain"})
         self.assertTrue(result.ok)
         self.assertIn("q=road+trip+%26+rain", launch.call_args.args[0])
+
+    @patch("nocturne_agent.tools._start_youtube_music_queue", return_value=None)
+    @patch("nocturne_agent.tools._youtube_music_addresses", return_value={"0xold"})
+    @patch("nocturne_agent.tools._launch_youtube_music_url", return_value=None)
+    def test_liked_music_playback_uses_private_watch_queue(self, launch, _addresses, start) -> None:
+        result = ToolExecutor.music_open({"section": "liked", "play": True})
+        self.assertTrue(result.ok)
+        self.assertEqual(launch.call_args.args[0], "https://music.youtube.com/watch?list=LM")
+        start.assert_called_once_with({"0xold"})
+        self.assertTrue(result.data["music"]["playback"])
 
     @patch("nocturne_agent.tools._launch_youtube_music_url")
     @patch("nocturne_agent.tools._search_existing_youtube_music", return_value=(True, None))

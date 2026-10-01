@@ -26,10 +26,22 @@ class RulePlannerTests(unittest.TestCase):
         action = self.planner.plan("show my playlists")
         self.assertEqual(action.arguments, {"section": "playlists"})
 
+    def test_liked_music_playback_is_distinct_from_opening(self) -> None:
+        action = self.planner.plan("play my liked music")
+        self.assertEqual(action.name, "music_open")
+        self.assertEqual(action.arguments, {"section": "liked", "play": True})
+
     def test_named_playlist_opens_music_search(self) -> None:
         action = self.planner.plan("open my road trip playlist")
         self.assertEqual(action.name, "music_open")
         self.assertEqual(action.arguments, {"section": "search", "query": "road trip playlist"})
+
+    def test_music_transport_targets_pwa_not_generic_browser_media(self) -> None:
+        action = self.planner.plan("pause music")
+        self.assertEqual(action.name, "media")
+        self.assertEqual(action.arguments, {"action": "pause", "target": "music"})
+        action = self.planner.plan("next track")
+        self.assertEqual(action.arguments, {"action": "next", "target": "music"})
 
     def test_named_app_close_keeps_resolved_reference(self) -> None:
         action = self.planner.plan("close VS Code")
