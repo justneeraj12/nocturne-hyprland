@@ -23,7 +23,7 @@ from .policy import PolicyEngine
 from .runtime import model_is_ready
 
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 LOGO = (
     "       ▄████▄       ",
     "    ▄██▀    ▀██▄    ",
@@ -157,6 +157,8 @@ def _help(plain: bool = False) -> str:
             "  type naturally     open steam · volume down 10 · is my laptop healthy?",
             "  :status             redraw local runtime status",
             "  :tools              list the only actions inference may select",
+            "  :apps               list installed apps NØX can launch",
+            "  :doctor             verify desktop action prerequisites",
             "  :memory             show privacy-safe action counts",
             "  :forge DESCRIPTION  draft a safe reusable workflow (disabled)",
             "  :proposals          list drafted and enabled workflows",
@@ -191,6 +193,20 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
         return True, "\n".join(
             f"  {item['risk'].upper():7} {item['name']:<16} {item['description']}" for item in tools
         )
+    if normalized == ":apps":
+        from .apps import BUILTIN_ALIASES, desktop_apps
+
+        names = sorted({app.name for app in desktop_apps()} | set(BUILTIN_ALIASES), key=str.casefold)
+        return True, "  " + " · ".join(names)
+    if normalized == ":doctor":
+        from .cli import doctor
+
+        report = doctor()
+        commands = report["commands"]
+        missing = [name for name, available in commands.items() if not available]
+        state = "READY" if report["ok"] else f"MISSING {', '.join(missing)}"
+        model = "READY" if report["model_ready"] else ("ON-DEMAND" if report["model_enabled"] else "DISABLED")
+        return True, f"  DESKTOP {state}\n  MODEL   {model}\n  POLICY  TYPED TOOLS · NO SHELL"
     if normalized == ":memory":
         rows = _memory(config)
         if not rows:

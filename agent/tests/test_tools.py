@@ -14,16 +14,17 @@ class ToolTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(result.message, "Hello from NØX.")
 
-    @patch("nocturne_agent.tools.subprocess.Popen")
+    @patch("nocturne_agent.tools._run")
     @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/uwsm")
     @patch("nocturne_agent.tools.resolve_reference")
-    def test_apps_are_handed_to_uwsm_outside_service_sandbox(self, resolve, _which, popen) -> None:
+    def test_apps_are_handed_to_uwsm_outside_service_sandbox(self, resolve, _which, run) -> None:
         resolve.return_value = DesktopApp("desktop:org.gnome.Calculator", "Calculator", "org.gnome.Calculator")
+        run.return_value.returncode = 0
         result = ToolExecutor.launch_app({"app": "desktop:org.gnome.Calculator"})
         self.assertTrue(result.ok)
         self.assertEqual(
-            popen.call_args.args[0],
-            ["uwsm", "app", "-S", "both", "--", "org.gnome.Calculator.desktop"],
+            run.call_args.args[0],
+            ["uwsm", "app", "-t", "service", "-S", "both", "--", "org.gnome.Calculator.desktop"],
         )
 
     @patch("nocturne_agent.tools._run")

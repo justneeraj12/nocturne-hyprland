@@ -37,6 +37,11 @@ def wrap_message(message: Message, width: int) -> list[tuple[str, str]]:
     return lines
 
 
+def is_enter_key(key: object) -> bool:
+    """Curses may expose Enter as a character, key code, or raw integer."""
+    return key in ("\n", "\r", 10, 13, curses.KEY_ENTER)
+
+
 class ChatApp:
     def __init__(self, notifications: bool = True) -> None:
         self.notifications = notifications
@@ -313,7 +318,7 @@ class ChatApp:
                 self.messages.clear()
                 self.scroll = 0
                 continue
-            if key in ("\n", "\r", curses.KEY_ENTER):
+            if is_enter_key(key):
                 if not self._submit(screen):
                     return 0
                 continue

@@ -86,6 +86,8 @@ Useful terminal deck commands:
 
 ```text
 :tools                         list model-callable typed actions
+:apps                          list installed apps NØX can resolve
+:doctor                        check desktop tools and model state
 :forge start focus mode by...  propose a disabled reusable routine
 :proposals                     review routines and enabled state
 :enable focus-mode-ab12        enable one reviewed routine

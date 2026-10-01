@@ -88,14 +88,19 @@ class ToolExecutor:
             if not _available(candidate):
                 if app.desktop_id is None:
                     continue
-            command = ["uwsm", "app", "-S", "both", "--", *candidate] if shutil.which("uwsm") else list(candidate)
-            subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+            if shutil.which("uwsm"):
+                result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *candidate], timeout=10)
+                if result.returncode != 0:
+                    error = result.stderr.strip() or result.stdout.strip()
+                    return ActionResult(False, error or f"UWSM could not launch {app.name}")
+            else:
+                subprocess.Popen(
+                    list(candidate),
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    start_new_session=True,
+                )
             return ActionResult(True, f"Launching {app.name}")
         return ActionResult(False, f"No installed launcher was found for {app.name}")
 

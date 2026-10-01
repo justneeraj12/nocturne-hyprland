@@ -4,11 +4,17 @@ import unittest
 from unittest.mock import patch
 
 from nocturne_agent.notify import send_notification
-from nocturne_agent.chat import Message, wrap_message
+from nocturne_agent.chat import Message, is_enter_key, wrap_message
 from nocturne_agent.tui import Palette, format_response, run_once
 
 
 class TuiTests(unittest.TestCase):
+    def test_chat_accepts_character_and_integer_enter_codes(self) -> None:
+        self.assertTrue(is_enter_key("\n"))
+        self.assertTrue(is_enter_key(10))
+        self.assertTrue(is_enter_key(13))
+        self.assertFalse(is_enter_key("x"))
+
     def test_chat_wraps_without_losing_role_or_text(self) -> None:
         lines = wrap_message(Message("NØX", "one two three four five"), 18)
         self.assertEqual(lines[0][0], "NØX")
