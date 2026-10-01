@@ -15,10 +15,10 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.risk, Risk.SAFE)
 
-    def test_launch_is_resolved_deterministically_not_guessed_by_model(self) -> None:
+    def test_launch_requires_a_deterministically_resolved_reference(self) -> None:
         self.assertTrue(self.policy.evaluate(Action("launch_app", {"app": "code"})).allowed)
         self.assertFalse(self.policy.evaluate(Action("launch_app", {"app": "spotify"})).allowed)
-        self.assertNotIn("launch_app", {item["name"] for item in self.policy.tool_manifest()})
+        self.assertIn("launch_app", {item["name"] for item in self.policy.tool_manifest()})
         self.assertIn("launch_app", {item["name"] for item in self.policy.tool_manifest(model_only=False)})
 
     def test_browser_observation_is_read_only_safe_action(self) -> None:

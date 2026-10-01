@@ -11,6 +11,9 @@ from pathlib import Path
 from .config import AgentConfig
 
 
+MODEL_IDLE_TIMER = "nocturne-agent-model-idle.timer"
+
+
 def api_key(config: AgentConfig) -> str | None:
     try:
         value = config.model_api_key_path.read_text(encoding="utf-8").strip()
@@ -37,6 +40,7 @@ def model_is_ready(config: AgentConfig, timeout: float = 0.5) -> bool:
 
 def ensure_model_server(config: AgentConfig, startup_timeout: float = 45) -> bool:
     """Start the user service only when inference is actually requested."""
+    cancel_model_stop()
     if model_is_ready(config):
         return True
     try:
@@ -57,3 +61,31 @@ def ensure_model_server(config: AgentConfig, startup_timeout: float = 45) -> boo
             return True
         time.sleep(0.25)
     return False
+
+
+def cancel_model_stop() -> None:
+    """Keep the warm model alive while a bounded agent turn is using it."""
+    try:
+        subprocess.run(
+            ["systemctl", "--user", "stop", MODEL_IDLE_TIMER],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return
+
+
+def schedule_model_stop() -> None:
+    """Reset the no-process timer that fully releases idle model RAM."""
+    try:
+        subprocess.run(
+            ["systemctl", "--user", "restart", MODEL_IDLE_TIMER],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=3,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return

@@ -1,0 +1,8 @@
+[Unit]
+Description=Release NØX model RAM after a warm follow-up window
+
+[Timer]
+OnActiveSec=180
+AccuracySec=10s
+Unit=nocturne-agent-model-idle.service
+

@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
+import re
 import time
+from collections import deque
 
+from .apps import resolve_app
 from .config import AgentConfig
 from .context import gather_context
 from .forge import ToolForge
@@ -23,6 +27,10 @@ class AgentEngine:
         self.policy = PolicyEngine()
         self.tools = ToolExecutor()
         self.forge = ToolForge(self.config.state_dir)
+        self._pending_confirmation: tuple[str, Action] | None = None
+        receipt_count = max(0, min(self.config.session_receipts, 12))
+        self._session_receipts: deque[dict] = deque(maxlen=receipt_count or 1)
+        self._last_app_reference: str | None = None
         self.memory_error: str | None = None
         try:
             self.memory = UsageMemory(self.config.state_dir)
@@ -32,10 +40,17 @@ class AgentEngine:
 
     def handle(self, request: str, confirmed: bool = False) -> AgentResponse:
         started = time.monotonic()
+        if confirmed and self._pending_confirmation is not None:
+            pending_request, pending_action = self._pending_confirmation
+            if pending_request == request:
+                self._pending_confirmation = None
+                return self._dispatch(pending_action, request, True, started)
+        elif self._pending_confirmation is not None and self._pending_confirmation[0] != request:
+            self._pending_confirmation = None
         workflow = self.forge.match(request)
         if workflow is not None:
             return self._run_workflow(workflow, started)
-        action = self.rules.plan(request)
+        action = self._contextual_action(request) or self.rules.plan(request)
         if action is None:
             context = gather_context(
                 minimum_battery=self.config.minimum_battery_for_model,
@@ -44,19 +59,36 @@ class AgentEngine:
             if context.inference_mode == "sleep":
                 reasons = ", ".join(context.reasons)
                 return AgentResponse("sleeping", f"Local model stayed asleep: {reasons}")
-            action = self.model.plan(request)
+            return self._run_agent_loop(request, confirmed, started)
         if action is None:
             if self.config.model_enabled:
                 return AgentResponse("unhandled", "The local planner could not map that request safely")
             return AgentResponse("unhandled", "No deterministic action matched; local model is not installed yet")
 
+        return self._dispatch(action, request, confirmed, started)
+
+    def _dispatch(
+        self,
+        action: Action,
+        request: str,
+        confirmed: bool,
+        started: float,
+    ) -> AgentResponse:
         decision = self.policy.evaluate(action)
         if not decision.allowed:
             return AgentResponse("blocked", decision.reason, action=action)
         if decision.risk is Risk.CONFIRM and not confirmed:
+            self._pending_confirmation = (request, action)
             return AgentResponse("confirmation_required", decision.reason, action=action)
 
         result = self.tools.execute(action)
+        result = self._present_result(action, result)
+        elapsed = int((time.monotonic() - started) * 1000)
+        self.memory.record(action, result, elapsed)
+        self._remember(action, result)
+        return AgentResponse("completed" if result.ok else "failed", result.message, action, result)
+
+    def _present_result(self, action: Action, result: ActionResult) -> ActionResult:
         if action.name == "browser_context" and result.ok:
             observation = result.data
             context = gather_context(
@@ -92,9 +124,77 @@ class AgentEngine:
                 summary = summarize_without_model(subject, observation)
             item_count = sum(len(value) for value in observation.values() if isinstance(value, list))
             result = ActionResult(True, summary, {"subject": subject, "item_count": item_count})
-        elapsed = int((time.monotonic() - started) * 1000)
-        self.memory.record(action, result, elapsed)
-        return AgentResponse("completed" if result.ok else "failed", result.message, action, result)
+        return result
+
+    def _run_agent_loop(self, request: str, confirmed: bool, started: float) -> AgentResponse:
+        history: list[dict] = []
+        seen: set[str] = set()
+        last_response: AgentResponse | None = None
+        max_steps = max(1, min(self.config.max_agent_steps, 5))
+        receipts = list(self._session_receipts)
+        for _step in range(max_steps):
+            action = self.model.plan(request, history, receipts)
+            if action is None:
+                break
+            fingerprint = json.dumps(action.to_dict(), sort_keys=True, separators=(",", ":"))
+            if fingerprint in seen:
+                return AgentResponse(
+                    "failed",
+                    "I stopped a repeated tool call instead of looping.",
+                    action=action,
+                )
+            seen.add(fingerprint)
+            response = self._dispatch(action, request, confirmed, started)
+            if response.status == "confirmation_required" or action.name == "respond":
+                return response
+            last_response = response
+            result = response.result or ActionResult(False, response.message)
+            history.append({
+                "action": {"name": action.name, "arguments": action.arguments},
+                "result": self._bounded_result(result),
+            })
+        if last_response is not None:
+            return last_response
+        if self.config.model_enabled:
+            return AgentResponse("unhandled", "The local agent could not map that request safely")
+        return AgentResponse("unhandled", "No deterministic action matched; local model is not installed yet")
+
+    def _bounded_result(self, result: ActionResult) -> dict:
+        compact = {"ok": result.ok, "message": result.message, "data": result.data}
+        encoded = json.dumps(compact, ensure_ascii=False, default=str, separators=(",", ":"))
+        limit = max(256, min(self.config.max_tool_result_chars, 4000))
+        if len(encoded) <= limit:
+            return compact
+        return {
+            "ok": result.ok,
+            "message": result.message[: max(80, limit - 100)],
+            "truncated": True,
+        }
+
+    def _remember(self, action: Action, result: ActionResult) -> None:
+        if self.config.session_receipts > 0:
+            self._session_receipts.append({
+                "action": action.name,
+                "ok": result.ok,
+                "message": result.message[:240],
+            })
+        if not result.ok:
+            return
+        if action.name == "launch_app":
+            self._last_app_reference = action.arguments.get("app")
+        elif action.name == "play_music":
+            app = resolve_app("youtube music")
+            self._last_app_reference = app.reference if app else None
+        elif action.name == "close_window" and action.arguments.get("app") == self._last_app_reference:
+            self._last_app_reference = None
+
+    def _contextual_action(self, request: str) -> Action | None:
+        if self._last_app_reference is None:
+            return None
+        text = " ".join(request.casefold().strip().split())
+        if re.fullmatch(r"(?:please\s+)?(?:close|quit|exit)\s+(?:it|that|that app|the last app)", text):
+            return Action("close_window", {"app": self._last_app_reference})
+        return None
 
     def _run_workflow(self, workflow, started: float) -> AgentResponse:
         completed = []

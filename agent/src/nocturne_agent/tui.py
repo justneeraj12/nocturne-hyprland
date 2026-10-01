@@ -23,7 +23,7 @@ from .policy import PolicyEngine
 from .runtime import model_is_ready
 
 
-VERSION = "0.3.2"
+VERSION = "0.4.0"
 LOGO = (
     "       ▄████▄       ",
     "    ▄██▀    ▀██▄    ",
@@ -85,7 +85,7 @@ def _banner_lines(config: AgentConfig, palette: Palette) -> list[str]:
         f"KERNEL  {platform.release()}",
         f"MODEL   {model}",
         f"MODE    {context.inference_mode.upper()} · {power}",
-        palette.accent("POLICY  TYPED TOOLS · NO SHELL"),
+        palette.accent("POLICY  BOUNDED AGENT LOOP · NO SHELL"),
     )
     return [
         f"{palette.accent(logo)}  {detail}"
@@ -154,7 +154,7 @@ def _help(plain: bool = False) -> str:
     return "\n".join(
         (
             palette.bright("NØX COMMAND DECK"),
-            "  type naturally     open steam · volume down 10 · is my laptop healthy?",
+            "  type naturally     combine actions, recover failures, or ask follow-ups",
             "  :status             redraw local runtime status",
             "  :tools              list the only actions inference may select",
             "  :apps               list installed apps NØX can launch",

@@ -1,0 +1,7 @@
+[Unit]
+Description=Release the idle NØX language model
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl --user stop nocturne-agent-model.service
+

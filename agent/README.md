@@ -43,6 +43,22 @@ with `:proposals`, then explicitly activate one with `:enable ID`. Enabled
 routines run only on their exact trigger phrases and every step is revalidated
 at execution time.
 
+NØX 0.4 adds a compact agent loop modeled on the public tool-loop architecture
+used by modern coding and desktop agents. Unmatched natural requests can take
+up to three typed steps: select a capability, execute it behind policy, return
+a compact result for verification, then continue, recover, or answer. Repeated
+calls are stopped, tool results are capped at 1,200 characters, and the loop
+never gains a shell. A read-only app finder lets the loop discover exact
+desktop entries instead of requiring a hand-written alias for every phrasing.
+
+Only six compact action receipts live in RAM for follow-ups such as `close it`;
+raw prompts are still never written to disk. The socket-activated controller
+exits after five idle minutes and the llama.cpp model independently unloads
+most VRAM after 75 idle seconds. A process-free systemd timer preserves a
+three-minute warm follow-up window, then stops llama.cpp to release the
+remaining mapped RAM as well. No OpenClaw Gateway, Node runtime, channel
+connectors, or second background agent is installed.
+
 ## Design goals
 
 - Stay asleep unless a request actually requires language inference.
@@ -57,9 +73,10 @@ at execution time.
 
 ## Current milestone
 
-The current milestone contains the deterministic planner, policy engine,
-desktop and observation registries, safe Tool Forge, modern terminal chat,
-hardware-aware wake policy, private SQLite usage memory, CLI, and tests. The
+The current milestone contains the deterministic fast path, bounded agent
+loop, policy engine, desktop discovery and observation registries, safe Tool
+Forge, modern terminal chat, hardware-aware wake policy, private SQLite usage
+memory, CLI, and tests. The
 controller runs through a private systemd user socket and exits
 after five idle minutes. The socket remains available at effectively zero idle
 cost and starts the controller again on the next request.

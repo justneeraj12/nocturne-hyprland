@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 from typing import Callable
 
-from .apps import normalize_app_name, resolve_app, resolve_reference
+from .apps import normalize_app_name, resolve_app, resolve_reference, search_apps
 from .browser import inspect_browser
 from .observe import observe
 from .types import Action, ActionResult
@@ -60,6 +60,7 @@ class ToolExecutor:
             "browser_context": self.browser_context,
             "observe": self.observe,
             "system_status": self.system_status,
+            "find_app": self.find_app,
             "launch_app": self.launch_app,
             "volume": self.volume,
             "brightness": self.brightness,
@@ -245,6 +246,15 @@ class ToolExecutor:
             "gpu": gpu,
         }
         return ActionResult(True, "System status collected", data)
+
+    @staticmethod
+    def find_app(arguments: dict) -> ActionResult:
+        matches = search_apps(arguments["query"])
+        if not matches:
+            return ActionResult(False, f"No installed app matched {arguments['query']}")
+        candidates = [{"name": app.name, "reference": app.reference} for app in matches]
+        names = ", ".join(item["name"] for item in candidates)
+        return ActionResult(True, f"Verified installed app matches: {names}", {"candidates": candidates})
 
 
 def _youtube_video_id(query: str) -> str:

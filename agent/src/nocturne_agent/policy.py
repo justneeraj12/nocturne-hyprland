@@ -72,6 +72,14 @@ def _observe(arguments: dict[str, Any]) -> bool:
     return arguments["subject"] in SUBJECTS and isinstance(query, str) and len(query) <= 80
 
 
+def _app_query(arguments: dict[str, Any]) -> bool:
+    return (
+        _keys({"query"})(arguments)
+        and isinstance(arguments["query"], str)
+        and 1 <= len(arguments["query"].strip()) <= 80
+    )
+
+
 def _installed_app(arguments: dict[str, Any]) -> bool:
     return (
         _keys({"app"})(arguments)
@@ -114,11 +122,11 @@ POLICIES: dict[str, ToolPolicy] = {
         "Read process, window, service, download, network, audio, or power status",
     ),
     "system_status": ToolPolicy(Risk.SAFE, _keys(set()), "Read CPU, memory, disk and GPU state"),
+    "find_app": ToolPolicy(Risk.SAFE, _app_query, "Find exact installed app references from a natural name"),
     "launch_app": ToolPolicy(
         Risk.SAFE,
         _installed_app,
         "Launch a locally resolved installed desktop application",
-        model_callable=False,
     ),
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
     "brightness": ToolPolicy(Risk.SAFE, _brightness, "Adjust laptop display brightness"),
@@ -149,6 +157,12 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "additionalProperties": False,
     },
     "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
+    "find_app": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 80}},
+        "required": ["query"],
+        "additionalProperties": False,
+    },
     "launch_app": {
         "type": "object",
         "properties": {"app": {"type": "string", "minLength": 1, "maxLength": 120}},

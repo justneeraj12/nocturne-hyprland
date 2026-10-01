@@ -53,6 +53,13 @@ class ToolTests(unittest.TestCase):
         app = DesktopApp("desktop:music", "YouTube Music", "music", "crx_music")
         self.assertTrue(_window_matches_app({"class": "crx_music", "title": "Song"}, app))
 
+    @patch("nocturne_agent.tools.search_apps")
+    def test_find_app_returns_typed_references(self, search) -> None:
+        search.return_value = (DesktopApp("desktop:youtube-music", "YouTube Music"),)
+        result = ToolExecutor.find_app({"query": "music player"})
+        self.assertTrue(result.ok)
+        self.assertEqual(result.data["candidates"][0]["reference"], "desktop:youtube-music")
+
 
 if __name__ == "__main__":
     unittest.main()

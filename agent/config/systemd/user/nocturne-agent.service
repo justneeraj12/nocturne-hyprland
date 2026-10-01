@@ -7,6 +7,11 @@ After=graphical-session.target
 Type=simple
 ExecStart=%h/.local/bin/nocturne-agent-service --idle-seconds 300
 Environment=PYTHONDONTWRITEBYTECODE=1
+Nice=5
+CPUWeight=25
+MemoryHigh=256M
+MemoryMax=512M
+TasksMax=64
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

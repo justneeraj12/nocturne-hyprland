@@ -32,6 +32,10 @@ network, audio, and power. Its Tool Forge can propose policy-validated routines
 from existing typed actions, but saves them disabled until the user explicitly
 enables one. There is no floating agent control panel. See `agent/README.md`
 for the architecture, tests, and install path.
+Unmatched requests enter a three-step bounded agent loop that can discover
+installed apps, chain typed actions, inspect compact results, recover from a
+failed step, and stop repeated calls. Six ephemeral action receipts support
+follow-ups without storing raw prompt text.
 Installed-app requests are resolved from desktop entries and launched in
 separate UWSM graphical scopes, so they tile normally without inheriting the
 agent controller's read-only sandbox.

@@ -23,6 +23,8 @@ install -m 0755 "$root_dir/bin/nocturne-ocr" "$bin_dir/nocturne-ocr"
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent.socket" "$unit_dir/nocturne-agent.socket"
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent.service" "$unit_dir/nocturne-agent.service"
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model.service" "$unit_dir/nocturne-agent-model.service"
+install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model-idle.service" "$unit_dir/nocturne-agent-model-idle.service"
+install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model-idle.timer" "$unit_dir/nocturne-agent-model-idle.timer"
 
 systemctl --user daemon-reload
 systemctl --user enable --now nocturne-agent.socket

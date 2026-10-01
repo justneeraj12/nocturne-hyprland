@@ -24,6 +24,9 @@ class AgentConfig:
     idle_sleep_seconds: int = 75
     minimum_battery_for_model: int = 40
     maximum_gpu_utilization: int = 25
+    max_agent_steps: int = 3
+    max_tool_result_chars: int = 1200
+    session_receipts: int = 6
     remember_prompt_text: bool = False
     state_dir: Path = _state_home() / "nocturne-agent"
     model_api_key_path: Path = _state_home() / "nocturne-agent/model-api-key"

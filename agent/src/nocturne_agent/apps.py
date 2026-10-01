@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import configparser
+import difflib
 import os
 import re
 from dataclasses import dataclass
@@ -122,3 +123,34 @@ def resolve_reference(reference: str) -> DesktopApp | None:
     if reference.startswith("desktop:"):
         return next((app for app in desktop_apps() if app.reference == reference), None)
     return None
+
+
+def search_apps(value: str, limit: int = 5) -> tuple[DesktopApp, ...]:
+    query = normalize_app_name(value)
+    if not query:
+        return ()
+    unique: dict[str, DesktopApp] = {}
+    for reference in dict.fromkeys(BUILTIN_ALIASES.values()):
+        app = resolve_reference(reference)
+        if app is not None:
+            unique[app.reference] = app
+    for app in desktop_apps():
+        unique.setdefault(app.reference, app)
+
+    query_tokens = set(query.split())
+    ranked: list[tuple[float, str, DesktopApp]] = []
+    for app in unique.values():
+        name = normalize_app_name(app.name)
+        identifier = normalize_app_name(app.desktop_id or "")
+        name_tokens = set(name.split())
+        overlap = len(query_tokens & name_tokens) / max(1, min(len(query_tokens), len(name_tokens)))
+        similarity = max(
+            difflib.SequenceMatcher(None, query, name).ratio(),
+            difflib.SequenceMatcher(None, query, identifier).ratio(),
+        )
+        exact_bonus = 2.0 if query == name else 1.0 if query in name else 0.0
+        score = exact_bonus + overlap + similarity
+        if score >= 0.72:
+            ranked.append((score, name, app))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    return tuple(item[2] for item in ranked[: max(1, min(limit, 10))])
