@@ -53,5 +53,18 @@ desktop commands already work without a model. When installed, llama.cpp will
 only be consulted for unmatched requests, and the same policy boundary will
 validate its proposed action before execution.
 
+Install the optional local intelligence layer (about 2.7 GB total download):
+
+```bash
+./install-model.sh
+```
+
+This installs a checksummed official llama.cpp CUDA binary and the official
+Qwen3-4B Q4_K_M model. It listens on localhost with a machine-local API key,
+does not expose llama.cpp's shell/file tools or web UI, and unloads model/KV
+memory from RAM and VRAM after 75 idle seconds. GPU layers are fitted around
+the desktop's current VRAM use, with CPU fallback instead of taking memory from
+a running game.
+
 State is stored under `~/.local/state/nocturne-agent/` and is excluded from
 Git. Model files are stored outside the repository.

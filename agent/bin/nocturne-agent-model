@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+runtime_dir="$data_home/nocturne-agent-runtime/current"
+model="$data_home/nocturne-agent-models/Qwen3-4B-Q4_K_M.gguf"
+api_key="$state_home/nocturne-agent/model-api-key"
+
+server=$(find -L "$runtime_dir" -type f -name llama-server -perm -u+x -print -quit)
+[[ -n $server ]] || { printf 'llama-server is not installed\n' >&2; exit 1; }
+[[ -r $model ]] || { printf 'Qwen model is not installed\n' >&2; exit 1; }
+[[ -r $api_key ]] || { printf 'Nocturne model API key is missing\n' >&2; exit 1; }
+
+server_dir=$(dirname -- "$server")
+export LD_LIBRARY_PATH="$server_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+exec "$server" \
+  --model "$model" \
+  --alias nocturne-qwen3-4b \
+  --host 127.0.0.1 \
+  --port 8844 \
+  --api-key-file "$api_key" \
+  --offline \
+  --no-webui \
+  --no-slots \
+  --threads 6 \
+  --threads-batch 8 \
+  --poll 0 \
+  --ctx-size 4096 \
+  --parallel 1 \
+  --batch-size 256 \
+  --ubatch-size 128 \
+  --cache-type-k q8_0 \
+  --cache-type-v q8_0 \
+  --flash-attn on \
+  --n-gpu-layers auto \
+  --fit on \
+  --fit-target 512 \
+  --fit-ctx 4096 \
+  --sleep-idle-seconds 75

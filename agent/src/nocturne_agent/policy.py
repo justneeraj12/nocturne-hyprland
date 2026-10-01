@@ -80,6 +80,62 @@ POLICIES: dict[str, ToolPolicy] = {
 }
 
 
+PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
+    "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
+    "launch_app": {
+        "type": "object",
+        "properties": {"app": {"type": "string", "enum": sorted(APP_NAMES)}},
+        "required": ["app"],
+        "additionalProperties": False,
+    },
+    "volume": {
+        "type": "object",
+        "properties": {
+            "direction": {"type": "string", "enum": ["up", "down", "mute", "unmute", "toggle"]},
+            "step": {"type": "integer", "minimum": 1, "maximum": 20},
+        },
+        "required": ["direction"],
+        "additionalProperties": False,
+    },
+    "brightness": {
+        "type": "object",
+        "properties": {
+            "direction": {"type": "string", "enum": ["up", "down"]},
+            "step": {"type": "integer", "minimum": 1, "maximum": 20},
+        },
+        "required": ["direction"],
+        "additionalProperties": False,
+    },
+    "media": {
+        "type": "object",
+        "properties": {"action": {"type": "string", "enum": ["play-pause", "next", "previous", "stop"]}},
+        "required": ["action"],
+        "additionalProperties": False,
+    },
+    "workspace": {
+        "type": "object",
+        "properties": {"number": {"type": "integer", "minimum": 1, "maximum": 9}},
+        "required": ["number"],
+        "additionalProperties": False,
+    },
+    "caffeine": {
+        "type": "object",
+        "properties": {"action": {"type": "string", "enum": ["on", "off", "toggle"]}},
+        "required": ["action"],
+        "additionalProperties": False,
+    },
+    "close_window": {"type": "object", "properties": {}, "additionalProperties": False},
+    "power_profile": {
+        "type": "object",
+        "properties": {
+            "profile": {"type": "string", "enum": ["power-saver", "balanced", "performance"]}
+        },
+        "required": ["profile"],
+        "additionalProperties": False,
+    },
+}
+
+
 class PolicyEngine:
     def evaluate(self, action: Action) -> PolicyDecision:
         policy = POLICIES.get(action.name)
@@ -92,8 +148,13 @@ class PolicyEngine:
         return PolicyDecision(True, Risk.SAFE, "Safe allowlisted action")
 
     @staticmethod
-    def tool_manifest() -> list[dict[str, str]]:
+    def tool_manifest() -> list[dict[str, Any]]:
         return [
-            {"name": name, "risk": policy.risk.value, "description": policy.description}
+            {
+                "name": name,
+                "risk": policy.risk.value,
+                "description": policy.description,
+                "parameters": PARAMETER_SCHEMAS[name],
+            }
             for name, policy in POLICIES.items()
         ]

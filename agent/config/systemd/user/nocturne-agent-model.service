@@ -1,0 +1,15 @@
+[Unit]
+Description=Nocturne Agent sleeping local language model
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/nocturne-agent-model
+Restart=on-failure
+RestartSec=3
+Nice=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

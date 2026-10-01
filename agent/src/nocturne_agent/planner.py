@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from .config import AgentConfig
 from .policy import APP_NAMES, PolicyEngine
+from .runtime import api_key, ensure_model_server
 from .types import Action
 
 
@@ -111,25 +112,46 @@ class LocalModelPlanner:
     def plan(self, request: str) -> Action | None:
         if not self.config.model_enabled:
             return None
+        if not ensure_model_server(self.config):
+            return None
         manifest = PolicyEngine.tool_manifest()
         system = (
             "You are the Nocturne desktop intent planner. Select exactly one tool from the manifest. "
             "Never create shell commands. Return only JSON with keys name and arguments. "
-            f"Tool manifest: {json.dumps(manifest, separators=(',', ':'))}"
+            f"Tool manifest: {json.dumps(manifest, separators=(',', ':'))} /no_think"
         )
         payload = {
             "model": self.config.model_name,
             "temperature": 0.1,
             "max_tokens": 180,
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "desktop_action",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "enum": [item["name"] for item in manifest]},
+                            "arguments": {"type": "object"},
+                        },
+                        "required": ["name", "arguments"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": request},
             ],
         }
+        headers = {"Content-Type": "application/json"}
+        key = api_key(self.config)
+        if key:
+            headers["Authorization"] = f"Bearer {key}"
         request_object = urllib.request.Request(
             self.config.model_endpoint,
             data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         try:
             with urllib.request.urlopen(request_object, timeout=25) as response:

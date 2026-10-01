@@ -17,9 +17,12 @@ for source in "$root_dir"/src/nocturne_agent/*.py; do
 done
 install -m 0755 "$root_dir/bin/nocturne-agent" "$bin_dir/nocturne-agent"
 install -m 0755 "$root_dir/bin/nocturne-agent-service" "$bin_dir/nocturne-agent-service"
+install -m 0755 "$root_dir/bin/nocturne-agent-model" "$bin_dir/nocturne-agent-model"
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent.socket" "$unit_dir/nocturne-agent.socket"
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent.service" "$unit_dir/nocturne-agent.service"
+install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model.service" "$unit_dir/nocturne-agent-model.service"
 
 systemctl --user daemon-reload
 systemctl --user enable --now nocturne-agent.socket
+systemctl --user try-restart nocturne-agent.service
 printf 'Nocturne Agent installed. Try: nocturne-agent ask "system status"\n'

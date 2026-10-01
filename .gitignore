@@ -16,6 +16,10 @@ agent/models/
 agent/*.sqlite3
 agent/*.gguf
 
+# Optional local inference runtime and downloaded weights live outside Git.
+agent-runtime/
+agent-models/
+
 # Temporary package and screenshot artifacts.
 *.deb
 *.tmp

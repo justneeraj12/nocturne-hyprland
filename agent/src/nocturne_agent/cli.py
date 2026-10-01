@@ -13,6 +13,7 @@ from .config import AgentConfig
 from .context import gather_context
 from .engine import AgentEngine
 from .policy import PolicyEngine
+from .runtime import model_is_ready
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -38,6 +39,8 @@ def doctor() -> dict:
         "ok": all(commands.values()),
         "commands": commands,
         "model_enabled": config.model_enabled,
+        "model_ready": model_is_ready(config) if config.model_enabled else False,
+        "model_api_key_present": config.model_api_key_path.is_file(),
         "model_endpoint": config.model_endpoint,
         "raw_shell_exposed": False,
         "prompt_memory_enabled": config.remember_prompt_text,
