@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
+from .apps import resolve_reference
 from .browser import inspect_browser
 from .observe import observe
 from .types import Action, ActionResult
@@ -78,14 +79,25 @@ class ToolExecutor:
 
     @staticmethod
     def launch_app(arguments: dict) -> ActionResult:
-        app = arguments["app"]
-        for candidate in APP_COMMANDS[app]:
+        reference = arguments["app"]
+        app = resolve_reference(reference)
+        if app is None:
+            return ActionResult(False, "That installed app reference is no longer available")
+        candidates = ((f"{app.desktop_id}.desktop",),) if app.desktop_id else APP_COMMANDS[reference]
+        for candidate in candidates:
             if not _available(candidate):
-                continue
-            subprocess.Popen(list(candidate), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL, start_new_session=True)
-            return ActionResult(True, f"Launching {app}")
-        return ActionResult(False, f"No installed launcher was found for {app}")
+                if app.desktop_id is None:
+                    continue
+            command = ["uwsm", "app", "-S", "both", "--", *candidate] if shutil.which("uwsm") else list(candidate)
+            subprocess.Popen(
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+            return ActionResult(True, f"Launching {app.name}")
+        return ActionResult(False, f"No installed launcher was found for {app.name}")
 
     @staticmethod
     def volume(arguments: dict) -> ActionResult:
@@ -121,7 +133,12 @@ class ToolExecutor:
     @staticmethod
     def caffeine(arguments: dict) -> ActionResult:
         script = HOME / ".config/hypr/scripts/caffeine"
-        result = _run([str(script), arguments["action"]])
+        action = arguments["action"]
+        idle_running = _run(["pgrep", "-x", "hypridle"], timeout=3).returncode == 0
+        should_toggle = action == "toggle" or (action == "on" and idle_running) or (action == "off" and not idle_running)
+        if not should_toggle:
+            return ActionResult(True, f"Caffeine already {action}")
+        result = _run([str(script), "toggle"])
         return ActionResult(result.returncode == 0, "Caffeine updated" if result.returncode == 0 else result.stderr.strip())
 
     @staticmethod

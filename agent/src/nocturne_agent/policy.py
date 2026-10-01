@@ -6,6 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from .apps import resolve_reference
 from .types import Action, PolicyDecision, Risk
 from .observe import SUBJECTS
 
@@ -18,6 +19,7 @@ class ToolPolicy:
     risk: Risk
     validator: Validator
     description: str
+    model_callable: bool = True
 
 
 def _keys(required: set[str], optional: set[str] | None = None) -> Validator:
@@ -70,16 +72,13 @@ def _observe(arguments: dict[str, Any]) -> bool:
     return arguments["subject"] in SUBJECTS and isinstance(query, str) and len(query) <= 80
 
 
-APP_NAMES = {
-    "browser",
-    "chatgpt",
-    "code",
-    "files",
-    "settings",
-    "steam",
-    "terminal",
-    "resources",
-}
+def _installed_app(arguments: dict[str, Any]) -> bool:
+    return (
+        _keys({"app"})(arguments)
+        and isinstance(arguments["app"], str)
+        and len(arguments["app"]) <= 120
+        and resolve_reference(arguments["app"]) is not None
+    )
 
 
 POLICIES: dict[str, ToolPolicy] = {
@@ -99,7 +98,12 @@ POLICIES: dict[str, ToolPolicy] = {
         "Read process, window, service, download, network, audio, or power status",
     ),
     "system_status": ToolPolicy(Risk.SAFE, _keys(set()), "Read CPU, memory, disk and GPU state"),
-    "launch_app": ToolPolicy(Risk.SAFE, _choice("app", APP_NAMES), "Launch an approved desktop application"),
+    "launch_app": ToolPolicy(
+        Risk.SAFE,
+        _installed_app,
+        "Launch a locally resolved installed desktop application",
+        model_callable=False,
+    ),
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
     "brightness": ToolPolicy(Risk.SAFE, _brightness, "Adjust laptop display brightness"),
     "media": ToolPolicy(Risk.SAFE, _choice("action", {"play-pause", "next", "previous", "stop"}), "Control current media"),
@@ -130,7 +134,7 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
     "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
     "launch_app": {
         "type": "object",
-        "properties": {"app": {"type": "string", "enum": sorted(APP_NAMES)}},
+        "properties": {"app": {"type": "string", "minLength": 1, "maxLength": 120}},
         "required": ["app"],
         "additionalProperties": False,
     },
@@ -194,7 +198,7 @@ class PolicyEngine:
         return PolicyDecision(True, Risk.SAFE, "Safe allowlisted action")
 
     @staticmethod
-    def tool_manifest() -> list[dict[str, Any]]:
+    def tool_manifest(model_only: bool = True) -> list[dict[str, Any]]:
         return [
             {
                 "name": name,
@@ -203,4 +207,5 @@ class PolicyEngine:
                 "parameters": PARAMETER_SCHEMAS[name],
             }
             for name, policy in POLICIES.items()
+            if policy.model_callable or not model_only
         ]

@@ -32,6 +32,9 @@ network, audio, and power. Its Tool Forge can propose policy-validated routines
 from existing typed actions, but saves them disabled until the user explicitly
 enables one. There is no floating agent control panel. See `agent/README.md`
 for the architecture, tests, and install path.
+Installed-app requests are resolved from desktop entries and launched in
+separate UWSM graphical scopes, so they tile normally without inheriting the
+agent controller's read-only sandbox.
 
 ## Start Hyprland
 

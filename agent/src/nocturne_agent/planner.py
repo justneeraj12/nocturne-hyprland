@@ -8,29 +8,11 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 
+from .apps import resolve_app
 from .config import AgentConfig
-from .policy import APP_NAMES, PolicyEngine
+from .policy import PolicyEngine
 from .runtime import api_key, ensure_model_server
 from .types import Action
-
-
-APP_ALIASES = {
-    "brave": "browser",
-    "browser": "browser",
-    "chatgpt": "chatgpt",
-    "chat gpt": "chatgpt",
-    "code": "code",
-    "vscode": "code",
-    "vs code": "code",
-    "files": "files",
-    "file manager": "files",
-    "settings": "settings",
-    "steam": "steam",
-    "terminal": "terminal",
-    "kitty": "terminal",
-    "resources": "resources",
-    "system monitor": "resources",
-}
 
 
 class RulePlanner:
@@ -54,9 +36,10 @@ class RulePlanner:
         launch = re.search(r"\b(?:open|launch|start|run)\s+(.+?)\s*$", text)
         if launch:
             target = launch.group(1).strip()
-            app = APP_ALIASES.get(target)
-            if app in APP_NAMES:
-                return Action("launch_app", {"app": app})
+            app = resolve_app(target)
+            if app is not None:
+                return Action("launch_app", {"app": app.reference})
+            return Action("respond", {"text": f"I couldn't find an installed app named {target}."})
 
         workspace = re.search(r"\b(?:go to|switch to|open)?\s*workspace\s+([1-9])\b", text)
         if workspace:
@@ -288,7 +271,7 @@ class LocalModelPlanner:
         if not self.config.model_enabled or not ensure_model_server(self.config):
             return None
         manifest = [item for item in PolicyEngine.tool_manifest() if item["name"] in {
-            "brightness", "caffeine", "launch_app", "media", "observe", "system_status", "volume", "workspace"
+            "brightness", "caffeine", "media", "observe", "system_status", "volume", "workspace"
         }]
         system = (
             "You design a small reusable NØX workflow from the supplied safe tool manifest. Return JSON only. "

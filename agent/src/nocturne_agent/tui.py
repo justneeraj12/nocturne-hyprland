@@ -23,7 +23,7 @@ from .policy import PolicyEngine
 from .runtime import model_is_ready
 
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 LOGO = (
     "       ▄████▄       ",
     "    ▄██▀    ▀██▄    ",
@@ -187,7 +187,7 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
     if normalized == ":status":
         return True, render_banner(config, plain)
     if normalized == ":tools":
-        tools = PolicyEngine.tool_manifest()
+        tools = PolicyEngine.tool_manifest(model_only=False)
         return True, "\n".join(
             f"  {item['risk'].upper():7} {item['name']:<16} {item['description']}" for item in tools
         )

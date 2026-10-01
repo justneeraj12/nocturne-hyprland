@@ -25,6 +25,12 @@ metadata, NetworkManager devices, PipeWire state, battery, and power profile.
 It does not read downloaded file contents, and raw snapshots are reduced to a
 short answer before being returned to the terminal.
 
+App launches are resolved deterministically against the machine's installed
+desktop entries, then handed to UWSM as a separate graphical scope. This keeps
+GUI apps outside the controller's hardened read-only service sandbox. App
+names are not guessed by the language model: an unknown or uninstalled name
+fails honestly instead of launching a different application.
+
 The Tool Forge creates declarative routines from those same typed tools. A
 proposal contains JSON actions rather than generated code or shell commands,
 is independently policy-validated, and is saved disabled. Review proposals
