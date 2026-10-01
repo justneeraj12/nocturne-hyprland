@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+agent_data=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne-agent
+export PYTHONPATH="$agent_data${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m nocturne_agent.tui "$@"

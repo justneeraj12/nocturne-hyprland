@@ -1,9 +1,15 @@
-# Nocturne Agent
+# NØX — Nocturne Agent
 
 Nocturne Agent is a local-first desktop operator for the Nocturne Hyprland
 environment. Its control plane is deliberately independent from the language
 model: routine commands are resolved without inference, and model output can
 only select typed actions from a small allowlist.
+
+The user interface is terminal-native. Run `nox` for its neofetch-style night
+sigil, compact system/model state, natural-language prompt, typed confirmation
+flow, and built-in command deck. NØX does not use a floating control panel.
+Completed actions and attention states are mirrored to the existing themed
+notification center. `Super+X` opens NØX in a tiled Kitty terminal.
 
 ## Design goals
 

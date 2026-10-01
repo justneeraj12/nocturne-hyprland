@@ -14,7 +14,7 @@ This machine now has two independent desktop sessions:
 Steam, VS Code, ChatGPT, browsers, PipeWire audio, and the Intel/NVIDIA gaming
 stack were not replaced. They run as ordinary applications in either session.
 
-## Nocturne Agent
+## NØX — Nocturne Agent
 
 The repository now also contains `agent/`, a local-first desktop operator built
 for this exact Hyprland setup. Common requests such as opening an approved app,
@@ -25,7 +25,10 @@ management, and messaging are not exposed to inference.
 
 Its controller is activated by a private systemd user socket and exits after
 five idle minutes. Prompt text and file contents are not written to its usage
-database. See `agent/README.md` for the architecture, tests, and install path.
+database. Run `nox` or press `Super+X` for the neofetch-style terminal deck;
+results also arrive through the existing themed notification center. There is
+no floating agent control panel. See `agent/README.md` for the architecture,
+tests, and install path.
 
 ## Start Hyprland
 

@@ -12,6 +12,7 @@ EVERYDAY APPS
   Super + E               Files
   Super + B               Browser
   Super + C               ChatGPT
+  Super + X               NØX local terminal operator
   Super + D               VS Code
   Super + T               Steam
   Super + N               Notification history

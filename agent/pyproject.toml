@@ -13,6 +13,7 @@ dependencies = []
 [project.scripts]
 nocturne-agent = "nocturne_agent.cli:main"
 nocturne-agent-service = "nocturne_agent.service:main"
+nox = "nocturne_agent.tui:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
