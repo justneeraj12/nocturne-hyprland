@@ -94,6 +94,12 @@ pgrep -x hyprpolkitagent >/dev/null 2>&1 \
   || bad 'Graphical administrator password agent is not running'
 wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'PipeWire default audio output responds' || bad 'Default audio output is unavailable'
 wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'PipeWire default microphone responds' || warning 'Default microphone is unavailable'
+if systemctl --user is-active --quiet nocturne-audio-autoswitch.service \
+    && [[ -x $HOME/.config/hypr/scripts/audio-route ]]; then
+  ok 'Bluetooth output switching and microphone routing service is active'
+else
+  warning 'Automatic Bluetooth audio routing is not active'
+fi
 brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'
 profile=$(powerprofilesctl get 2>/dev/null)
 [[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'

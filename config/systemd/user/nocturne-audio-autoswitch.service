@@ -1,0 +1,14 @@
+[Unit]
+Description=Nocturne automatic Bluetooth audio output switching
+After=pipewire-pulse.service wireplumber.service bluetooth.target
+Wants=pipewire-pulse.service wireplumber.service
+
+[Service]
+Type=simple
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.config/hypr/scripts/audio-route watch
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

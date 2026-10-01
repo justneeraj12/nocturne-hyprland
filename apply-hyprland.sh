@@ -68,6 +68,9 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-easyeffects.service" \
   "$CONFIG_HOME/systemd/user/nocturne-easyeffects.service"
+install -m 0644 \
+  "$ROOT_DIR/config/systemd/user/nocturne-audio-autoswitch.service" \
+  "$CONFIG_HOME/systemd/user/nocturne-audio-autoswitch.service"
 install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
@@ -213,6 +216,7 @@ systemctl --user unmask swaync.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
+systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
   waybar.service \
   hypridle.service \

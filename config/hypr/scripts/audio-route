@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+resolve_command() {
+  local name=$1 candidate
+  shift
+  if command -v "$name" >/dev/null 2>&1; then
+    command -v "$name"
+    return
+  fi
+  for candidate in "$@"; do
+    [[ -x $candidate ]] && { printf '%s\n' "$candidate"; return; }
+  done
+  printf 'audio-route: required command not found: %s\n' "$name" >&2
+  return 1
+}
+
+PACTL_BIN=$(resolve_command pactl "$HOME/.local/bin/pactl" /usr/bin/pactl /usr/local/bin/pactl)
+WPCTL_BIN=$(resolve_command wpctl "$HOME/.local/bin/wpctl" /usr/bin/wpctl /usr/local/bin/wpctl)
+JQ_BIN=$(resolve_command jq "$HOME/.local/bin/jq" /usr/bin/jq /usr/local/bin/jq)
+
+bluetooth_sinks() {
+  "$PACTL_BIN" -f json list sinks | "$JQ_BIN" -r '
+    .[] | select(.name | startswith("bluez_output."))
+    | [.name, (.description // .name)] | @tsv
+  '
+}
+
+sink_exists() {
+  local target=$1
+  "$PACTL_BIN" -f json list sinks | "$JQ_BIN" -e --arg target "$target" \
+    'any(.[]; .name == $target)' >/dev/null
+}
+
+source_exists() {
+  local target=$1
+  "$PACTL_BIN" -f json list sources | "$JQ_BIN" -e --arg target "$target" \
+    'any(.[]; .name == $target)' >/dev/null
+}
+
+bluetooth_card_for_source() {
+  local source=$1 address
+  [[ $source == bluez_input.* ]] || return 1
+  address=${source#bluez_input.}
+  printf 'bluez_card.%s\n' "${address//:/_}"
+}
+
+enable_bluetooth_mic_profile() {
+  local source=$1 card profile
+  card=$(bluetooth_card_for_source "$source") || return 0
+  profile=$("$PACTL_BIN" -f json list cards | "$JQ_BIN" -r --arg card "$card" '
+    .[] | select(.name == $card)
+    | if .profiles["headset-head-unit"].available == true then "headset-head-unit"
+      elif .profiles["headset-head-unit-cvsd"].available == true then "headset-head-unit-cvsd"
+      else empty end
+  ' | head -n 1)
+  [[ -n $profile ]] || return 1
+  "$PACTL_BIN" set-card-profile "$card" "$profile"
+  sleep 0.7
+}
+
+restore_bluetooth_playback_profiles() {
+  local card profile
+  while IFS=$'\t' read -r card profile; do
+    [[ -n $card && -n $profile ]] || continue
+    "$PACTL_BIN" set-card-profile "$card" "$profile" || true
+  done < <("$PACTL_BIN" -f json list cards | "$JQ_BIN" -r '
+    .[] | select(.name | startswith("bluez_card."))
+    | select(.active_profile | startswith("headset-head-unit"))
+    | [
+        .name,
+        (if .profiles["a2dp-sink"].available == true then "a2dp-sink"
+         elif .profiles["a2dp-sink-sbc_xq"].available == true then "a2dp-sink-sbc_xq"
+         elif .profiles["a2dp-sink-sbc"].available == true then "a2dp-sink-sbc"
+         else "" end)
+      ] | @tsv
+  ')
+  sleep 0.7
+}
+
+physical_sources() {
+  "$PACTL_BIN" -f json list sources | "$JQ_BIN" -r '
+    .[]
+    | select((.name | endswith(".monitor")) | not)
+    | select(.name != "easyeffects_source")
+    | select((.properties["node.virtual"] // "false") != "true")
+    | select((.ports | length) == 0 or ([.ports[] | select(.availability != "not available")] | length) > 0)
+    | [.name, (.description // .name), (.properties["object.id"] // "")] | @tsv
+  '
+}
+
+laptop_source() {
+  local sources preferred
+  sources=$(physical_sources)
+  preferred=$(awk -F '\t' 'tolower($2) ~ /digital microphone/ { print; exit }' <<<"$sources")
+  [[ -n $preferred ]] || preferred=$(awk -F '\t' '$1 ~ /^alsa_input\./ { print; exit }' <<<"$sources")
+  [[ -n $preferred ]] || preferred=$(head -n 1 <<<"$sources")
+  printf '%s\n' "$preferred"
+}
+
+current_mic_id() {
+  local default_source driver_id
+  default_source=$("$PACTL_BIN" get-default-source 2>/dev/null || true)
+  if [[ $default_source != easyeffects_source ]]; then
+    "$PACTL_BIN" -f json list sources | "$JQ_BIN" -r --arg source "$default_source" \
+      '.[] | select(.name == $source) | .properties["object.id"] // empty' | head -n 1
+    return
+  fi
+  driver_id=$("$WPCTL_BIN" inspect @DEFAULT_AUDIO_SOURCE@ 2>/dev/null \
+    | sed -n 's/^[[:space:]]*node.driver-id = "\{0,1\}\([0-9][0-9]*\)"\{0,1\}$/\1/p' | head -n 1)
+  printf '%s\n' "$driver_id"
+}
+
+switch_sink() {
+  local sink=$1 label=${2:-$1} notify=${3:-yes}
+  sink_exists "$sink" || return 1
+  "$PACTL_BIN" set-default-sink "$sink"
+
+  # WirePlumber mirrors Pulse's default metadata. EasyEffects follows that
+  # physical target automatically, so existing streams keep their EQ chain.
+  for _attempt in {1..20}; do
+    [[ $("$PACTL_BIN" get-default-sink 2>/dev/null || true) == "$sink" ]] && break
+    sleep 0.05
+  done
+  [[ $("$PACTL_BIN" get-default-sink 2>/dev/null || true) == "$sink" ]] || return 1
+  [[ $notify == yes ]] && notify-send -a Nocturne 'Audio output changed' "$label" || true
+}
+
+switch_source() {
+  local source=$1 label=${2:-$1} notify=${3:-yes} unmute=${4:-yes}
+  if [[ $source == bluez_input.* ]]; then
+    enable_bluetooth_mic_profile "$source"
+  else
+    restore_bluetooth_playback_profiles
+  fi
+  source_exists "$source" || return 1
+  [[ $unmute == yes ]] && "$PACTL_BIN" set-source-mute "$source" 0
+
+  # Point WirePlumber/EasyEffects at the selected physical microphone, then
+  # restore the EasyEffects virtual source as the app-facing default.
+  "$PACTL_BIN" set-default-source "$source"
+  sleep 0.15
+  if [[ $source != easyeffects_source ]] && source_exists easyeffects_source; then
+    [[ $unmute == yes ]] && "$PACTL_BIN" set-source-mute easyeffects_source 0
+    "$PACTL_BIN" set-default-source easyeffects_source
+  fi
+  if [[ $source != bluez_input.* ]]; then
+    auto_bluetooth no || true
+  fi
+  [[ $notify == yes ]] && notify-send -a Nocturne 'Microphone changed' "$label" || true
+}
+
+prefer_laptop_mic() {
+  local row source label _id
+  row=$(laptop_source)
+  [[ -n $row ]] || return 0
+  IFS=$'\t' read -r source label _id <<<"$row"
+  switch_source "$source" "$label" "${1:-no}" no
+}
+
+auto_bluetooth() {
+  local row sink label
+  row=$(bluetooth_sinks | tail -n 1)
+  [[ -n $row ]] || return 0
+  IFS=$'\t' read -r sink label <<<"$row"
+  [[ $("$PACTL_BIN" get-default-sink 2>/dev/null || true) == "$sink" ]] && return 0
+  switch_sink "$sink" "$label" "${1:-yes}"
+}
+
+watch_bluetooth() {
+  local known current sink label event
+  known=$(bluetooth_sinks | cut -f1 || true)
+  auto_bluetooth yes || true
+  prefer_laptop_mic no || true
+
+  while IFS= read -r event; do
+    [[ $event == *"on sink"* || $event == *"on card"* || $event == *"on server"* ]] || continue
+    current=$(bluetooth_sinks | cut -f1 || true)
+    while IFS=$'\t' read -r sink label; do
+      [[ -n $sink ]] || continue
+      if ! grep -Fqx -- "$sink" <<<"$known"; then
+        switch_sink "$sink" "$label" yes || true
+        prefer_laptop_mic no || true
+      fi
+    done < <(bluetooth_sinks)
+    known=$current
+  done < <("$PACTL_BIN" subscribe)
+}
+
+case "${1:-}" in
+  set)
+    [[ $# -ge 2 ]] || exit 2
+    switch_sink "$2" "${3:-$2}" yes
+    ;;
+  set-mic)
+    [[ $# -ge 2 ]] || exit 2
+    switch_source "$2" "${3:-$2}" yes yes
+    ;;
+  prefer-laptop-mic) prefer_laptop_mic "${2:-no}" ;;
+  current-mic-id) current_mic_id ;;
+  auto-bluetooth) auto_bluetooth "${2:-yes}" ;;
+  watch) watch_bluetooth ;;
+  *) printf 'usage: %s {set SINK [LABEL]|set-mic SOURCE [LABEL]|prefer-laptop-mic|current-mic-id|auto-bluetooth|watch}\n' "$0" >&2; exit 2 ;;
+esac

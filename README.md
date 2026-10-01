@@ -84,6 +84,11 @@ control center, and middle opens the key guide. The full guide is in
 - A minimal Omarchy-style bar with MPRIS, audio, network, Bluetooth, grouped
   system health, microphone-use, notification, clock, and native tray apps.
   Wi-Fi and Bluetooth stay permanently visible with matching compact panels.
+- The compact audio card switches real PipeWire outputs, per-app volume, and
+  physical microphones. Newly connected Bluetooth audio becomes the active
+  output automatically while the laptop Digital Microphone stays preferred;
+  choosing a headset mic temporarily enters HFP and switching back restores
+  high-quality A2DP playback.
   Ordinary background-app icons live in a three-dot drawer at the far-right
   edge, while the hidden Blueman agent continues handling pairing and
   authentication without adding another icon. Audio, media, KDE Connect, and

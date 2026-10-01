@@ -8,36 +8,17 @@ menu() {
   "$HOME/.config/hypr/scripts/quick-menu" "$prompt" auto 380 260
 }
 
-sink_ids() {
-  local in_sinks=false line
-  while IFS= read -r line; do
-    if [[ $line == *'Sinks:'* ]]; then
-      in_sinks=true
-      continue
-    fi
-    if [[ $line == *'Sources:'* ]]; then
-      break
-    fi
-    if $in_sinks && [[ $line =~ ([0-9]+)\. ]]; then
-      printf '%s\n' "${BASH_REMATCH[1]}"
-    fi
-  done < <(wpctl status -n)
-}
-
-node_value() {
-  wpctl inspect "$1" | sed -n "s/.*$2 = \"\(.*\)\"/\1/p" | head -n 1
-}
-
 while true; do
-  default_id=$(wpctl status -n | sed -n '/Sinks:/,/Sources:/s/.*\* *\([0-9][0-9]*\)\..*/\1/p' | head -n 1)
+  default_sink=$(pactl get-default-sink)
   default_volume=$(wpctl get-volume @DEFAULT_AUDIO_SINK@)
   volume=$(awk '{printf "%d", $2 * 100}' <<<"$default_volume")
   muted=''
   grep -q MUTED <<<"$default_volume" && muted=' · MUTED'
-  default_name=$(node_value @DEFAULT_AUDIO_SINK@ node.nick)
+  default_name=$(pactl -f json list sinks | jq -r --arg sink "$default_sink" \
+    '.[] | select(.name == $sink) | .description' | head -n 1)
   [[ -n $default_name ]] || default_name='Default output'
 
-  declare -A output_id=() app_id=() app_name=()
+  declare -A output_sink=() input_source=() app_id=() app_name=()
   entries=(
     "󰕾  $default_name · ${volume}%${muted}"
     '󰝝  Volume +5%'
@@ -46,21 +27,46 @@ while true; do
     '──────── OUTPUTS ────────'
   )
 
-  while IFS= read -r id; do
-    [[ -n $id ]] || continue
-    name=$(node_value "$id" node.nick)
-    [[ -n $name ]] || name=$(node_value "$id" node.description)
-    [[ -n $name ]] || name="Output $id"
-    state=$(wpctl get-volume "$id" 2>/dev/null || printf 'Volume: 0')
-    level=$(awk '{printf "%d", $2 * 100}' <<<"$state")
+  while IFS=$'\t' read -r sink name level is_muted; do
+    [[ -n $sink ]] || continue
     suffix=''
-    grep -q MUTED <<<"$state" && suffix=' · muted'
+    [[ $is_muted == true ]] && suffix=' · muted'
     marker='○'
-    [[ $id == "$default_id" ]] && marker='●'
+    [[ $sink == "$default_sink" ]] && marker='●'
     label="$marker  $name · ${level}%${suffix}"
     entries+=("$label")
-    output_id["$label"]=$id
-  done < <(sink_ids)
+    output_sink["$label"]=$sink
+  done < <(pactl -f json list sinks | jq -r '
+    .[]
+    | select((.properties["node.virtual"] // "false") != "true")
+    | select((.ports | length) == 0 or ([.ports[] | select(.availability != "not available")] | length) > 0)
+    | [.name, (.description // .name),
+       (.volume | to_entries[0].value.value_percent | sub("%"; "")), .mute]
+    | @tsv
+  ')
+
+  current_mic_id=$("$HOME/.config/hypr/scripts/audio-route" current-mic-id 2>/dev/null || true)
+  entries+=('──────── MICROPHONES ────────')
+  while IFS=$'\t' read -r source name object_id level is_muted; do
+    [[ -n $source ]] || continue
+    suffix=''
+    [[ $is_muted == true ]] && suffix=' · muted'
+    marker='○'
+    [[ -n $object_id && $object_id == "$current_mic_id" ]] && marker='●'
+    label="$marker  $name · ${level}%${suffix}"
+    [[ -n ${input_source["$label"]:-} ]] && label="$marker  $name ($object_id) · ${level}%${suffix}"
+    entries+=("$label")
+    input_source["$label"]=$source
+  done < <(pactl -f json list sources | jq -r '
+    .[]
+    | select((.name | endswith(".monitor")) | not)
+    | select(.name != "easyeffects_source")
+    | select((.properties["node.virtual"] // "false") != "true")
+    | select((.ports | length) == 0 or ([.ports[] | select(.availability != "not available")] | length) > 0)
+    | [.name, (.description // .name), (.properties["object.id"] // ""),
+       (.volume | to_entries[0].value.value_percent | sub("%"; "")), .mute]
+    | @tsv
+  ')
 
   entries+=('──────── APP VOLUMES ────────')
   while IFS=$'\t' read -r id name media; do
@@ -98,18 +104,25 @@ while true; do
     *'routing graph'*) exec qpwgraph ;;
     '────────'*|"󰕾"*) continue ;;
     *)
-      id=${output_id["$choice"]:-}
-      if [[ -n $id ]]; then
-        wpctl set-default "$id"
-        name=$(node_value "$id" node.nick)
-        sink_name=$(node_value "$id" node.name)
-        if command -v pactl >/dev/null && [[ -n $sink_name ]]; then
-          pactl set-default-sink "$sink_name" || true
-          while read -r stream _; do
-            [[ $stream =~ ^[0-9]+$ ]] && pactl move-sink-input "$stream" "$sink_name" || true
-          done < <(pactl list short sink-inputs)
+      sink=${output_sink["$choice"]:-}
+      if [[ -n $sink ]]; then
+        name=${choice#*  }
+        name=${name%% ·*}
+        if "$HOME/.config/hypr/scripts/audio-route" set "$sink" "$name"; then
+          exit 0
         fi
-        notify-send -a Nocturne 'Audio output changed' "${name:-Output $id}"
+        notify-send -u critical -a Nocturne 'Audio output failed' "$name could not become the default output."
+        exit 0
+      fi
+
+      source=${input_source["$choice"]:-}
+      if [[ -n $source ]]; then
+        name=${choice#*  }
+        name=${name%% ·*}
+        if "$HOME/.config/hypr/scripts/audio-route" set-mic "$source" "$name"; then
+          exit 0
+        fi
+        notify-send -u critical -a Nocturne 'Microphone failed' "$name could not become the active microphone."
         exit 0
       fi
 
