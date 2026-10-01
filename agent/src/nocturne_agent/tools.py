@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import Callable
 
+from .browser import inspect_browser
 from .types import Action, ActionResult
 
 
@@ -40,6 +41,7 @@ class ToolExecutor:
     def __init__(self) -> None:
         self.handlers: dict[str, Callable[[dict], ActionResult]] = {
             "respond": self.respond,
+            "browser_context": self.browser_context,
             "system_status": self.system_status,
             "launch_app": self.launch_app,
             "volume": self.volume,
@@ -63,6 +65,10 @@ class ToolExecutor:
     @staticmethod
     def respond(arguments: dict) -> ActionResult:
         return ActionResult(True, arguments["text"].strip())
+
+    @staticmethod
+    def browser_context(_arguments: dict) -> ActionResult:
+        return inspect_browser()
 
     @staticmethod
     def launch_app(arguments: dict) -> ActionResult:

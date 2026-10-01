@@ -10,7 +10,7 @@ from .memory import NullUsageMemory, UsageMemory
 from .planner import LocalModelPlanner, RulePlanner
 from .policy import PolicyEngine
 from .tools import ToolExecutor
-from .types import AgentResponse, Risk
+from .types import ActionResult, AgentResponse, Risk
 
 
 class AgentEngine:
@@ -51,6 +51,27 @@ class AgentEngine:
             return AgentResponse("confirmation_required", decision.reason, action=action)
 
         result = self.tools.execute(action)
+        if action.name == "browser_context" and result.ok:
+            observation = result.data
+            context = gather_context(
+                minimum_battery=self.config.minimum_battery_for_model,
+                maximum_gpu=self.config.maximum_gpu_utilization,
+            )
+            summary = None if context.inference_mode == "sleep" else self.model.summarize_browser(observation)
+            if summary is None:
+                title = observation.get("window_title") or "the browser"
+                media = observation.get("media") or {}
+                media_text = f" Media: {media.get('title')} ({media.get('status', 'unknown')})." if media else ""
+                summary = f"The most recent browser window is {title}.{media_text} Detailed visual summary is unavailable."
+            result = ActionResult(
+                True,
+                summary,
+                {
+                    "window_title": observation.get("window_title"),
+                    "media": observation.get("media"),
+                    "visible_text_characters": len(observation.get("visible_text", "")),
+                },
+            )
         elapsed = int((time.monotonic() - started) * 1000)
         self.memory.record(action, result, elapsed)
         return AgentResponse("completed" if result.ok else "failed", result.message, action, result)

@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ocr_root=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne-agent-ocr
+tesseract="$ocr_root/usr/bin/tesseract"
+tessdata="$ocr_root/usr/share/tesseract-ocr/5/tessdata"
+[[ -x $tesseract ]] || { printf 'NØX OCR runtime is not installed\n' >&2; exit 1; }
+[[ -d $tessdata ]] || { printf 'NØX OCR language data is not installed\n' >&2; exit 1; }
+export TESSDATA_PREFIX="$tessdata"
+exec "$tesseract" "$@"

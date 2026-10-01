@@ -15,6 +15,11 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.risk, Risk.SAFE)
 
+    def test_browser_observation_is_read_only_safe_action(self) -> None:
+        decision = self.policy.evaluate(Action("browser_context"))
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.risk, Risk.SAFE)
+
     def test_conversational_response_is_bounded(self) -> None:
         decision = self.policy.evaluate(Action("respond", {"text": "Hey. What can I do for you?"}))
         self.assertTrue(decision.allowed)

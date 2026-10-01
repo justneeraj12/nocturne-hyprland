@@ -36,6 +36,28 @@ class EngineTests(unittest.TestCase):
         database = (Path(self.temporary.name) / "usage.sqlite3").read_bytes()
         self.assertNotIn(secret.encode(), database)
 
+    @patch("nocturne_agent.engine.gather_context")
+    def test_browser_ocr_is_summarized_and_not_returned(self, context) -> None:
+        context.return_value.inference_mode = "full"
+        captured = ActionResult(
+            True,
+            "captured",
+            {
+                "window_title": "Example - Brave",
+                "media": None,
+                "visible_text": "private visible browser words",
+            },
+        )
+        with patch.object(self.engine.tools, "execute", return_value=captured):
+            with patch(
+                "nocturne_agent.engine.LocalModelPlanner.summarize_browser",
+                return_value="The Example page is visible.",
+            ):
+                response = self.engine.handle("tell me whats happening on my browser")
+        self.assertEqual(response.result.message, "The Example page is visible.")
+        self.assertNotIn("visible_text", response.result.data)
+        self.assertEqual(response.result.data["visible_text_characters"], 29)
+
 
 if __name__ == "__main__":
     unittest.main()

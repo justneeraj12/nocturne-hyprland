@@ -11,6 +11,13 @@ flow, and built-in command deck. NØX does not use a floating control panel.
 Completed actions and attention states are mirrored to the existing themed
 notification center. `Super+X` opens NØX in a tiled Kitty terminal.
 
+Browser observation is explicit and read-only. When asked what is happening in
+the browser, NØX reads the most recently used browser's window/media metadata
+and temporarily OCRs only its visible viewport. The screenshot is deleted
+immediately, OCR text is never stored, and browser text is sent only to a
+non-tool-calling local summarizer. Install the private OCR helper with
+`./install-ocr.sh`; it does not modify Ubuntu's system packages.
+
 ## Design goals
 
 - Stay asleep unless a request actually requires language inference.

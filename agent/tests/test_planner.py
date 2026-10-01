@@ -22,6 +22,11 @@ class RulePlannerTests(unittest.TestCase):
         action = self.planner.plan("switch to workspace 7")
         self.assertEqual(action.arguments, {"number": 7})
 
+    def test_browser_observation_is_not_browser_launch(self) -> None:
+        action = self.planner.plan("tell me whats happening on my browser")
+        self.assertEqual(action.name, "browser_context")
+        self.assertEqual(action.arguments, {})
+
     def test_unknown_returns_none(self) -> None:
         self.assertIsNone(self.planner.plan("rewrite my kernel in assembly"))
 

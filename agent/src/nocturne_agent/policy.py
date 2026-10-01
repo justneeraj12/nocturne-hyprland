@@ -80,6 +80,11 @@ POLICIES: dict[str, ToolPolicy] = {
         _response,
         "Reply conversationally when no desktop side effect is requested",
     ),
+    "browser_context": ToolPolicy(
+        Risk.SAFE,
+        _keys(set()),
+        "Read and summarize the visible content of the most recently used browser window",
+    ),
     "system_status": ToolPolicy(Risk.SAFE, _keys(set()), "Read CPU, memory, disk and GPU state"),
     "launch_app": ToolPolicy(Risk.SAFE, _choice("app", APP_NAMES), "Launch an approved desktop application"),
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
@@ -99,6 +104,7 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "required": ["text"],
         "additionalProperties": False,
     },
+    "browser_context": {"type": "object", "properties": {}, "additionalProperties": False},
     "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
     "launch_app": {
         "type": "object",
