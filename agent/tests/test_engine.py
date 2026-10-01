@@ -77,6 +77,22 @@ class EngineTests(unittest.TestCase):
         execute.assert_called_once()
 
     @patch("nocturne_agent.engine.gather_context")
+    def test_repeated_successful_ui_inspection_returns_the_first_result(self, context) -> None:
+        context.return_value.inference_mode = "full"
+        repeated = Action("ui_inspect", {"query": "calculator controls"}, source="model")
+        inspection = ActionResult(True, "found", {
+            "snapshot": "Snapshot_123",
+            "window": "Calculator",
+            "controls": [{"name": "=", "role": "button"}],
+        })
+        with patch("nocturne_agent.engine.LocalModelPlanner.plan", side_effect=[repeated, repeated]):
+            with patch.object(self.engine.tools, "execute", return_value=inspection) as execute:
+                response = self.engine.handle("what controls can you use here?")
+        self.assertEqual(response.status, "completed")
+        self.assertIn("= [button]", response.message)
+        execute.assert_called_once()
+
+    @patch("nocturne_agent.engine.gather_context")
     def test_agent_loop_can_recover_from_rejected_arguments(self, context) -> None:
         context.return_value.inference_mode = "full"
         actions = [

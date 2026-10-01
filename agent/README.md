@@ -31,6 +31,16 @@ GUI apps outside the controller's hardened read-only service sandbox. App
 names are not guessed by the language model: an unknown or uninstalled name
 fails honestly instead of launching a different application.
 
+NØX can also operate labeled controls in accessible GTK, Qt, Electron, and web
+apps without a hand-written integration for every button. It first takes a
+short-lived semantic snapshot of the exact focused Hyprland window, then may
+enter text or activate an exposed control only by its returned label. The
+interaction requires confirmation, expires after five minutes, and is refused
+if focus changes, a label is ambiguous, or the control is hidden. Password
+fields are intentionally never exposed. Brave and its installed PWAs are
+launched with renderer accessibility enabled; an already-running Brave session
+must be fully restarted once before its web controls become available.
+
 Common installed-app aliases are deterministic too: `open YT Music` resolves
 to the installed YouTube Music PWA. `play SONG by ARTIST` resolves a catalogue
 audio track (not a music video) and starts it in that PWA. `play my liked music`
@@ -108,7 +118,7 @@ daemon:
 - Never expose a general shell, `sudo`, file deletion, package management, or
   messaging as model-callable tools.
 - Require confirmation for disruptive actions such as closing a window or
-  changing the system power profile.
+  changing the system power profile, and for semantic app interaction.
 - Store action names and outcomes for personalization, not prompt text or file
   contents.
 

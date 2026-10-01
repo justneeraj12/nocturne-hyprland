@@ -134,6 +134,16 @@ class AgentEngine:
                 summary = summarize_without_model(subject, observation)
             item_count = sum(len(value) for value in observation.values() if isinstance(value, list))
             result = ActionResult(True, summary, {"subject": subject, "item_count": item_count})
+        elif action.name == "ui_inspect" and result.ok:
+            controls = result.data.get("controls", [])
+            labels = [
+                f"{item.get('name')} [{item.get('role')}]"
+                for item in controls
+                if isinstance(item, dict) and item.get("name") and item.get("role")
+            ]
+            window = result.data.get("window", "the focused app")
+            summary = ", ".join(labels) if labels else "no labeled controls"
+            result = ActionResult(True, f"{window}: {summary}", result.data)
         return result
 
     def _run_agent_loop(self, request: str, confirmed: bool, started: float) -> AgentResponse:
@@ -148,6 +158,13 @@ class AgentEngine:
                 break
             fingerprint = json.dumps(action.to_dict(), sort_keys=True, separators=(",", ":"))
             if fingerprint in seen:
+                if (
+                    action.name == "ui_inspect"
+                    and last_response is not None
+                    and last_response.result is not None
+                    and last_response.result.ok
+                ):
+                    return last_response
                 return AgentResponse(
                     "failed",
                     "I stopped a repeated tool call instead of looping.",
@@ -269,6 +286,8 @@ class AgentEngine:
             "media": "Open YouTube Music and start a track, then retry the music control.",
             "play_music": "Check the network or open YouTube Music, then retry.",
             "power_profile": "Run :doctor and verify power-profiles-daemon is available.",
+            "ui_inspect": "Focus the app you want controlled, then retry.",
+            "ui_interact": "Keep the target app focused, inspect it again, then retry with the fresh controls.",
         }
         hint = hints.get(action.name, "Run :doctor for dependencies, then retry the same request.")
         data = dict(result.data)

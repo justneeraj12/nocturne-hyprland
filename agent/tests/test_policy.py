@@ -96,6 +96,29 @@ class PolicyTests(unittest.TestCase):
         decision = self.policy.evaluate(Action("brightness", {"direction": "mute"}))
         self.assertFalse(decision.allowed)
 
+    def test_ui_inspection_is_safe_but_interaction_requires_confirmation(self) -> None:
+        inspected = self.policy.evaluate(Action("ui_inspect", {"query": "join meeting"}))
+        self.assertTrue(inspected.allowed)
+        self.assertEqual(inspected.risk, Risk.SAFE)
+        interaction = self.policy.evaluate(Action("ui_interact", {
+            "snapshot": "Snapshot_123",
+            "operations": [
+                {"kind": "input", "control": "Enter a code", "role": "entry", "text": "abc-defg-hij"},
+                {"kind": "activate", "control": "Join", "role": "push button"},
+            ],
+        }))
+        self.assertTrue(interaction.allowed)
+        self.assertEqual(interaction.risk, Risk.CONFIRM)
+
+    def test_ui_interaction_rejects_unbounded_or_malformed_operations(self) -> None:
+        self.assertFalse(self.policy.evaluate(Action("ui_interact", {
+            "snapshot": "too short", "operations": []
+        })).allowed)
+        self.assertFalse(self.policy.evaluate(Action("ui_interact", {
+            "snapshot": "Snapshot_123",
+            "operations": [{"kind": "shell", "control": "Terminal", "text": "anything"}],
+        })).allowed)
+
 
 if __name__ == "__main__":
     unittest.main()

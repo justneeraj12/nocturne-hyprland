@@ -17,6 +17,7 @@ from .browser import inspect_browser
 from .observe import observe
 from .profile import load_profile, preferred_app
 from .types import Action, ActionResult
+from .ui_control import UIController
 from .verifier import ActionVerifier
 
 
@@ -55,9 +56,31 @@ def _run(command: list[str], timeout: float = 8) -> subprocess.CompletedProcess:
     return subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
 
 
+def _accessible_browser_command(executable: str, *arguments: str) -> tuple[str, ...]:
+    """Expose semantic web controls without changing non-Chromium browsers."""
+    command = [executable]
+    if "brave" in Path(executable).name.casefold():
+        command.append("--force-renderer-accessibility")
+    command.extend(arguments)
+    return tuple(command)
+
+
+def _brave_pwa_command(desktop_id: str | None) -> tuple[str, ...] | None:
+    match = re.fullmatch(r"brave-([a-p]{32})-(.+)", desktop_id or "")
+    if not match:
+        return None
+    app_id, profile = match.groups()
+    return _accessible_browser_command(
+        "brave-browser",
+        f"--profile-directory={profile}",
+        f"--app-id={app_id}",
+    )
+
+
 class ToolExecutor:
     def __init__(self, verifier: ActionVerifier | None = None) -> None:
         self.verifier = verifier or ActionVerifier()
+        self.ui = UIController()
         self.handlers: dict[str, Callable[[dict], ActionResult]] = {
             "respond": self.respond,
             "browser_context": self.browser_context,
@@ -75,6 +98,8 @@ class ToolExecutor:
             "caffeine": self.caffeine,
             "close_window": self.close_window,
             "power_profile": self.power_profile,
+            "ui_inspect": self.ui.inspect,
+            "ui_interact": self.ui.interact,
         }
 
     def execute(self, action: Action) -> ActionResult:
@@ -108,7 +133,7 @@ class ToolExecutor:
         executable = next((name for name in executable_candidates if shutil.which(name)), None)
         if executable is None:
             return ActionResult(False, "No supported browser executable was found")
-        command = [executable, target]
+        command = list(_accessible_browser_command(executable, target))
         if shutil.which("uwsm"):
             result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *command], timeout=10)
             if result.returncode != 0:
@@ -129,7 +154,10 @@ class ToolExecutor:
         app = resolve_reference(reference)
         if app is None:
             return ActionResult(False, "That installed app reference is no longer available")
-        candidates = ((f"{app.desktop_id}.desktop",),) if app.desktop_id else APP_COMMANDS[reference]
+        pwa_command = _brave_pwa_command(app.desktop_id)
+        candidates = (pwa_command,) if pwa_command else (
+            ((f"{app.desktop_id}.desktop",),) if app.desktop_id else APP_COMMANDS[reference]
+        )
         for candidate in candidates:
             if not _available(candidate):
                 if app.desktop_id is None:
@@ -416,18 +444,14 @@ def _walk_json(value):
 
 def _youtube_music_command(url: str) -> tuple[str, ...]:
     app = resolve_app("youtube music")
-    desktop_id = app.desktop_id if app else None
-    match = re.fullmatch(r"brave-([a-p]{32})-(.+)", desktop_id or "")
-    if match:
-        app_id, profile = match.groups()
+    command = _brave_pwa_command(app.desktop_id if app else None)
+    if command:
         return (
-            "brave-browser",
-            f"--profile-directory={profile}",
-            f"--app-id={app_id}",
+            *command,
             f"--app-launch-url-for-shortcuts-menu-item={url}",
         )
     separator = "&" if "?" in url else "?"
-    return ("brave-browser", f"--app={url}{separator}autoplay=1")
+    return _accessible_browser_command("brave-browser", f"--app={url}{separator}autoplay=1")
 
 
 def _launch_youtube_music_url(url: str) -> str | None:

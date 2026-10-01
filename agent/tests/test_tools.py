@@ -176,6 +176,7 @@ class ToolTests(unittest.TestCase):
         result = ToolExecutor.browser_open({"query": "hyprland docs & tricks"})
         self.assertTrue(result.ok)
         command = run.call_args.args[0]
+        self.assertIn("--force-renderer-accessibility", command)
         self.assertIn("q=hyprland+docs+%26+tricks", command[-1])
         self.assertIsInstance(command, list)
 
@@ -198,6 +199,23 @@ class ToolTests(unittest.TestCase):
         )
 
     @patch("nocturne_agent.tools._run")
+    @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/uwsm")
+    @patch("nocturne_agent.tools.resolve_reference")
+    def test_brave_pwas_launch_with_semantic_accessibility(self, resolve, _which, run) -> None:
+        resolve.return_value = DesktopApp(
+            "desktop:brave-kjgfgldnnfoeklkmfkjfagphfepbbdan-Default",
+            "Google Meet",
+            "brave-kjgfgldnnfoeklkmfkjfagphfepbbdan-Default",
+            "crx_kjgfgldnnfoeklkmfkjfagphfepbbdan",
+        )
+        run.return_value.returncode = 0
+        result = ToolExecutor.launch_app({"app": resolve.return_value.reference})
+        self.assertTrue(result.ok)
+        command = run.call_args.args[0]
+        self.assertIn("--force-renderer-accessibility", command)
+        self.assertIn("--app-id=kjgfgldnnfoeklkmfkjfagphfepbbdan", command)
+
+    @patch("nocturne_agent.tools._run")
     def test_caffeine_on_translates_to_toggle_only_when_needed(self, run) -> None:
         run.side_effect = [
             type("Result", (), {"returncode": 0, "stderr": ""})(),
@@ -216,7 +234,8 @@ class ToolTests(unittest.TestCase):
             "crx_cinhimbnkkaeohfgghhklpknlkffjgod",
         )
         command = _youtube_music_command("https://music.youtube.com/watch?v=abcdefghijk")
-        self.assertEqual(command[-2], "--app-id=cinhimbnkkaeohfgghhklpknlkffjgod")
+        self.assertIn("--force-renderer-accessibility", command)
+        self.assertIn("--app-id=cinhimbnkkaeohfgghhklpknlkffjgod", command)
         self.assertEqual(
             command[-1],
             "--app-launch-url-for-shortcuts-menu-item=https://music.youtube.com/watch?v=abcdefghijk",

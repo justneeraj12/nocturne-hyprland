@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -141,6 +142,43 @@ def _close_window(arguments: dict[str, Any]) -> bool:
     )
 
 
+def _ui_interact(arguments: dict[str, Any]) -> bool:
+    if not _keys({"snapshot", "operations"})(arguments):
+        return False
+    snapshot = arguments.get("snapshot")
+    operations = arguments.get("operations")
+    if not isinstance(snapshot, str) or not re.fullmatch(r"[A-Za-z0-9_-]{8,40}", snapshot):
+        return False
+    if not isinstance(operations, list) or not 1 <= len(operations) <= 4:
+        return False
+    for operation in operations:
+        if not isinstance(operation, dict) or operation.get("kind") not in {"activate", "input"}:
+            return False
+        kind = operation["kind"]
+        allowed = {"kind", "control", "role"} | ({"text"} if kind == "input" else set())
+        required = {"kind", "control"} | ({"text"} if kind == "input" else set())
+        if not required.issubset(operation) or not set(operation).issubset(allowed):
+            return False
+        control = operation.get("control")
+        role = operation.get("role", "")
+        if not isinstance(control, str) or not 1 <= len(control.strip()) <= 160:
+            return False
+        if not isinstance(role, str) or len(role) > 40:
+            return False
+        if kind == "input":
+            text = operation.get("text")
+            if not isinstance(text, str) or not 1 <= len(text) <= 500:
+                return False
+    return True
+
+
+def _ui_inspect(arguments: dict[str, Any]) -> bool:
+    if not _keys(set(), {"query"})(arguments):
+        return False
+    query = arguments.get("query", "")
+    return isinstance(query, str) and len(query) <= 120
+
+
 POLICIES: dict[str, ToolPolicy] = {
     "respond": ToolPolicy(
         Risk.SAFE,
@@ -182,6 +220,16 @@ POLICIES: dict[str, ToolPolicy] = {
     "caffeine": ToolPolicy(Risk.SAFE, _choice("action", {"on", "off", "toggle"}), "Control idle inhibition"),
     "close_window": ToolPolicy(Risk.CONFIRM, _close_window, "Close the active window or a named installed app"),
     "power_profile": ToolPolicy(Risk.CONFIRM, _choice("profile", {"power-saver", "balanced", "performance"}), "Change system power profile"),
+    "ui_inspect": ToolPolicy(
+        Risk.SAFE,
+        _ui_inspect,
+        "List the labeled accessible controls in the exact active app window",
+    ),
+    "ui_interact": ToolPolicy(
+        Risk.CONFIRM,
+        _ui_interact,
+        "Enter text or activate labeled controls from a fresh active-window snapshot",
+    ),
 }
 
 
@@ -294,6 +342,35 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
             "profile": {"type": "string", "enum": ["power-saver", "balanced", "performance"]}
         },
         "required": ["profile"],
+        "additionalProperties": False,
+    },
+    "ui_inspect": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "maxLength": 120}},
+        "additionalProperties": False,
+    },
+    "ui_interact": {
+        "type": "object",
+        "properties": {
+            "snapshot": {"type": "string", "minLength": 8, "maxLength": 40},
+            "operations": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 4,
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "kind": {"type": "string", "enum": ["activate", "input"]},
+                        "control": {"type": "string", "minLength": 1, "maxLength": 160},
+                        "role": {"type": "string", "maxLength": 40},
+                        "text": {"type": "string", "minLength": 1, "maxLength": 500},
+                    },
+                    "required": ["kind", "control"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["snapshot", "operations"],
         "additionalProperties": False,
     },
 }

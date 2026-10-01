@@ -32,6 +32,13 @@ install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model.service" "$u
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model-idle.service" "$unit_dir/nocturne-agent-model-idle.service"
 install -m 0644 "$root_dir/config/systemd/user/nocturne-agent-model-idle.timer" "$unit_dir/nocturne-agent-model-idle.timer"
 
+if command -v gsettings >/dev/null 2>&1; then
+  if ! gsettings set org.gnome.desktop.interface toolkit-accessibility true; then
+    printf 'Warning: could not enable semantic app accessibility. Run :doctor after login.\n' >&2
+  fi
+fi
+systemctl --user start at-spi-dbus-bus.service >/dev/null 2>&1 || true
+
 systemctl --user daemon-reload
 systemctl --user enable --now nocturne-agent.socket
 systemctl --user try-restart nocturne-agent.service

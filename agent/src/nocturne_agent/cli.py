@@ -6,6 +6,7 @@ import argparse
 import json
 import shutil
 import socket
+import subprocess
 import sys
 
 from .client import request_service
@@ -14,6 +15,7 @@ from .context import gather_context
 from .engine import AgentEngine
 from .policy import PolicyEngine
 from .runtime import model_is_ready
+from .ui_control import UIController
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -37,9 +39,27 @@ def doctor() -> dict:
         "hyprctl", "wpctl", "brightnessctl", "playerctl", "powerprofilesctl", "nvidia-smi"
     )}
     config = AgentConfig.load()
+    accessibility_setting = False
+    if shutil.which("gsettings"):
+        try:
+            setting = subprocess.run(
+                ["gsettings", "get", "org.gnome.desktop.interface", "toolkit-accessibility"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+                check=False,
+            )
+            accessibility_setting = setting.returncode == 0 and setting.stdout.strip() == "true"
+        except (OSError, subprocess.SubprocessError):
+            pass
+    accessibility = {
+        "atspi_runtime": UIController.support_available(),
+        "toolkit_accessibility": accessibility_setting,
+    }
     return {
-        "ok": all(commands.values()),
+        "ok": all(commands.values()) and all(accessibility.values()),
         "commands": commands,
+        "semantic_ui_control": accessibility,
         "model_enabled": config.model_enabled,
         "model_ready": model_is_ready(config) if config.model_enabled else False,
         "model_api_key_present": config.model_api_key_path.is_file(),
