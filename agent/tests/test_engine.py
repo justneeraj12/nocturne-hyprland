@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from nocturne_agent.config import AgentConfig
+from nocturne_agent.apps import DesktopApp
 from nocturne_agent.engine import AgentEngine
 from nocturne_agent.types import ActionResult
 from nocturne_agent.types import Action
@@ -104,6 +105,15 @@ class EngineTests(unittest.TestCase):
         response = self.engine.handle("close it")
         self.assertEqual(response.status, "confirmation_required")
         self.assertEqual(response.action.arguments, {"app": "code"})
+
+    def test_owner_app_preference_uses_zero_inference_path(self) -> None:
+        music = DesktopApp("desktop:youtube-music", "YouTube Music", "youtube-music", "crx_music")
+        with patch("nocturne_agent.engine.preferred_app", return_value="YouTube Music"):
+            with patch("nocturne_agent.engine.resolve_app", return_value=music):
+                with patch.object(self.engine.tools, "execute", return_value=ActionResult(True, "launched")):
+                    response = self.engine.handle("open my music player")
+        self.assertEqual(response.action.source, "rules")
+        self.assertEqual(response.action.arguments, {"app": "desktop:youtube-music"})
 
     def test_memory_never_contains_prompt_text(self) -> None:
         secret = "volume down 5 secret-do-not-store"

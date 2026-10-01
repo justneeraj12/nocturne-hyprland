@@ -36,6 +36,10 @@ Unmatched requests enter a three-step bounded agent loop that can discover
 installed apps, chain typed actions, inspect compact results, recover from a
 failed step, and stop repeated calls. Six ephemeral action receipts support
 follow-ups without storing raw prompt text.
+Its editable local owner/system profile remembers explicit workflow, app,
+audio, aesthetic, and hardware preferences. Request-matched intent examples
+improve unfamiliar phrasing without waking or retraining the model for common
+personal commands such as `open my music player`.
 Installed-app requests are resolved from desktop entries and launched in
 separate UWSM graphical scopes, so they tile normally without inheriting the
 agent controller's read-only sandbox.

@@ -59,6 +59,19 @@ three-minute warm follow-up window, then stops llama.cpp to release the
 remaining mapped RAM as well. No OpenClaw Gateway, Node runtime, channel
 connectors, or second background agent is installed.
 
+The editable profile at `~/.config/nocturne-agent/profile.json` contains only
+explicit preferences and non-secret hardware/session facts. It supplies app
+defaults such as Brave, YouTube Music, VS Code, Kitty, and Files; audio and UI
+preferences; and a compact machine description. Profile preferences are never
+treated as authorization. `:profile` displays the active summary.
+
+A tiny packaged intent curriculum is matched per request, and only the three
+most relevant examples are injected into an unmatched model turn. Common
+owner phrases such as `open my music player` resolve through the profile on the
+deterministic path without waking the model. This behaves like a lightweight
+intent adapter while avoiding a training runtime, optimizer state, duplicate
+base model, and permanent LoRA memory on the 4 GiB GPU.
+
 ## Design goals
 
 - Stay asleep unless a request actually requires language inference.
@@ -109,6 +122,7 @@ Useful terminal deck commands:
 ```text
 :tools                         list model-callable typed actions
 :apps                          list installed apps NØX can resolve
+:profile                       show the local owner/system profile
 :doctor                        check desktop tools and model state
 :forge start focus mode by...  propose a disabled reusable routine
 :proposals                     review routines and enabled state

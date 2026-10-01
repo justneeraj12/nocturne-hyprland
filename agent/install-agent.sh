@@ -8,13 +8,19 @@ config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 app_dir="$data_home/nocturne-agent"
 bin_dir="$HOME/.local/bin"
 unit_dir="$config_home/systemd/user"
+agent_config_dir="$config_home/nocturne-agent"
 
-mkdir -p "$app_dir/nocturne_agent" "$bin_dir" "$unit_dir" "$state_home/nocturne-agent"
+mkdir -p "$app_dir/nocturne_agent" "$bin_dir" "$unit_dir" "$state_home/nocturne-agent" "$agent_config_dir"
 chmod 700 "$state_home/nocturne-agent"
 
 for source in "$root_dir"/src/nocturne_agent/*.py; do
   install -m 0644 "$source" "$app_dir/nocturne_agent/$(basename -- "$source")"
 done
+install -m 0644 "$root_dir/src/nocturne_agent/intent_pack.json" "$app_dir/nocturne_agent/intent_pack.json"
+install -m 0644 "$root_dir/config/profile.default.json" "$agent_config_dir/profile.default.json"
+if [[ ! -e "$agent_config_dir/profile.json" ]]; then
+  install -m 0600 "$root_dir/config/profile.default.json" "$agent_config_dir/profile.json"
+fi
 install -m 0755 "$root_dir/bin/nocturne-agent" "$bin_dir/nocturne-agent"
 install -m 0755 "$root_dir/bin/nocturne-agent-service" "$bin_dir/nocturne-agent-service"
 install -m 0755 "$root_dir/bin/nocturne-agent-model" "$bin_dir/nocturne-agent-model"

@@ -15,6 +15,7 @@ from .memory import NullUsageMemory, UsageMemory
 from .observe import summarize_without_model
 from .planner import LocalModelPlanner, RulePlanner
 from .policy import PolicyEngine
+from .profile import preferred_app
 from .tools import ToolExecutor
 from .types import Action, ActionResult, AgentResponse, Risk
 
@@ -50,7 +51,7 @@ class AgentEngine:
         workflow = self.forge.match(request)
         if workflow is not None:
             return self._run_workflow(workflow, started)
-        action = self._contextual_action(request) or self.rules.plan(request)
+        action = self._contextual_action(request) or self._preference_action(request) or self.rules.plan(request)
         if action is None:
             context = gather_context(
                 minimum_battery=self.config.minimum_battery_for_model,
@@ -195,6 +196,38 @@ class AgentEngine:
         if re.fullmatch(r"(?:please\s+)?(?:close|quit|exit)\s+(?:it|that|that app|the last app)", text):
             return Action("close_window", {"app": self._last_app_reference})
         return None
+
+    @staticmethod
+    def _preference_action(request: str) -> Action | None:
+        text = " ".join(request.casefold().strip().split())
+        match = re.fullmatch(
+            r"(?:please\s+)?(open|launch|start|run|fire up|close|quit|exit)\s+(?:my|the)\s+"
+            r"(music(?: player| app)?|browser|web browser|(?:code )?editor|terminal|shell|files|file manager)",
+            text,
+        )
+        if match is None:
+            return None
+        verb, label = match.groups()
+        categories = {
+            "music": "music_app",
+            "music player": "music_app",
+            "music app": "music_app",
+            "browser": "browser",
+            "web browser": "browser",
+            "editor": "editor",
+            "code editor": "editor",
+            "terminal": "terminal",
+            "shell": "terminal",
+            "files": "file_manager",
+            "file manager": "file_manager",
+        }
+        configured = preferred_app(categories[label])
+        app = resolve_app(configured) if configured else None
+        if app is None:
+            return None
+        if verb in {"close", "quit", "exit"}:
+            return Action("close_window", {"app": app.reference})
+        return Action("launch_app", {"app": app.reference})
 
     def _run_workflow(self, workflow, started: float) -> AgentResponse:
         completed = []

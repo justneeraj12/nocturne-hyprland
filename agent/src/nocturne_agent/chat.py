@@ -309,7 +309,7 @@ class ChatApp:
             if key in (curses.KEY_RESIZE,):
                 continue
             if key in (curses.KEY_F1,):
-                self._append_output("SYSTEM", "Type naturally; NØX can chain verified typed actions. :tools lists actions · :forge creates a disabled routine · "
+                self._append_output("SYSTEM", "Type naturally; NØX can chain verified typed actions. :profile shows local preferences · :tools lists actions · :forge creates a disabled routine · "
                                     ":proposals lists routines · :enable ID activates one · Ctrl-D quits.")
                 continue
             if key in ("\x04",):

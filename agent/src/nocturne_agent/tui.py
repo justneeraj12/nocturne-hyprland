@@ -23,7 +23,7 @@ from .policy import PolicyEngine
 from .runtime import model_is_ready
 
 
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 LOGO = (
     "       ▄████▄       ",
     "    ▄██▀    ▀██▄    ",
@@ -158,6 +158,7 @@ def _help(plain: bool = False) -> str:
             "  :status             redraw local runtime status",
             "  :tools              list the only actions inference may select",
             "  :apps               list installed apps NØX can launch",
+            "  :profile            show the editable owner/system profile",
             "  :doctor             verify desktop action prerequisites",
             "  :memory             show privacy-safe action counts",
             "  :forge DESCRIPTION  draft a safe reusable workflow (disabled)",
@@ -198,6 +199,10 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
 
         names = sorted({app.name for app in desktop_apps()} | set(BUILTIN_ALIASES), key=str.casefold)
         return True, "  " + " · ".join(names)
+    if normalized == ":profile":
+        from .profile import profile_summary
+
+        return True, profile_summary()
     if normalized == ":doctor":
         from .cli import doctor
 

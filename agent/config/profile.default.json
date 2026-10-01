@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "owner": {
+    "communication": ["casual", "concise", "direct"],
+    "workflow": ["simple", "seamless", "low-friction"],
+    "aesthetic": ["Nocturne", "dark", "sharp", "cyberpunk", "neo-hacker"]
+  },
+  "defaults": {
+    "browser": "Brave",
+    "music_app": "YouTube Music",
+    "editor": "Visual Studio Code",
+    "terminal": "Kitty",
+    "file_manager": "Files",
+    "microphone": "Laptop Digital Microphone",
+    "audio_behavior": "Bluetooth headphones become output; laptop microphone remains preferred",
+    "desktop": "Nocturne Hyprland"
+  },
+  "system": {
+    "device": "MSI Katana GF66 12UD",
+    "os": "Ubuntu 26.04.1 LTS",
+    "session": "Hyprland on Wayland",
+    "cpu": "Intel Core i5-12450H, 12 logical CPUs",
+    "gpu": "NVIDIA GeForce RTX 3050 Ti Laptop GPU, 4 GiB VRAM",
+    "memory": "14 GiB RAM",
+    "displays": ["1920x1080 144 Hz internal", "1920x1080 180 Hz external"]
+  },
+  "guardrails": [
+    "Preferences never grant permission for destructive or externally visible actions",
+    "Keep disruptive actions behind confirmation",
+    "Do not store raw prompt text"
+  ]
+}

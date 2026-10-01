@@ -1,0 +1,34 @@
+[
+  {
+    "triggers": ["fire up my music", "open my music player", "launch the music app"],
+    "action": {"name": "find_app", "arguments": {"query": "music player"}}
+  },
+  {
+    "triggers": ["put on teardrop by massive attack", "play a song by an artist"],
+    "action": {"name": "play_music", "arguments": {"query": "song by artist"}}
+  },
+  {
+    "triggers": ["make it a little quieter", "turn the sound down a bit"],
+    "action": {"name": "volume", "arguments": {"direction": "down", "step": 5}}
+  },
+  {
+    "triggers": ["keep the screen awake", "do not let the laptop sleep"],
+    "action": {"name": "caffeine", "arguments": {"action": "on"}}
+  },
+  {
+    "triggers": ["what is happening in my browser", "tell me what page I am on"],
+    "action": {"name": "browser_context", "arguments": {}}
+  },
+  {
+    "triggers": ["is steam alive", "check whether an app is running"],
+    "action": {"name": "observe", "arguments": {"subject": "processes", "query": "steam"}}
+  },
+  {
+    "triggers": ["how is my laptop doing", "check system health"],
+    "action": {"name": "system_status", "arguments": {}}
+  },
+  {
+    "triggers": ["move me to workspace five", "switch desktops"],
+    "action": {"name": "workspace", "arguments": {"number": 5}}
+  }
+]
