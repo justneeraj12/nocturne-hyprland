@@ -53,6 +53,28 @@ class RulePlanner:
             title, artist = (part.strip() for part in song.groups())
             return Action("play_music", {"query": f"{title} by {artist}"})
 
+        music_sections = (
+            ("liked", r"(?:my\s+)?(?:liked music|liked songs|likes)"),
+            ("playlists", r"(?:my\s+)?(?:playlist library|playlists)"),
+            ("albums", r"(?:my\s+)?(?:saved )?albums"),
+            ("artists", r"(?:my\s+)?(?:saved )?artists"),
+            ("home", r"(?:youtube|yt) music home"),
+        )
+        for section, target in music_sections:
+            if re.fullmatch(rf"(?:open|show|find|look for|go to|take me to)\s+{target}", text):
+                return Action("music_open", {"section": section})
+
+        playlist = re.fullmatch(r"(?:open|show|find|look for)\s+(?:my\s+)?(.+?)\s+playlist", text)
+        if playlist:
+            return Action("music_open", {"section": "search", "query": f"{playlist.group(1).strip()} playlist"})
+
+        music_search = re.fullmatch(
+            r"(?:search|find|look for)\s+(.+?)\s+(?:in|on)\s+(?:youtube|yt)\s+music",
+            text,
+        )
+        if music_search:
+            return Action("music_open", {"section": "search", "query": music_search.group(1).strip()})
+
         launch = re.search(r"\b(?:open|launch|start|run)\s+(.+?)\s*$", text)
         if launch:
             target = launch.group(1).strip()
@@ -179,6 +201,7 @@ class LocalModelPlanner:
             "Use browser_context when asked what is visible, playing, or happening in the browser; do not launch "
             "a browser unless the user explicitly asks to open or launch one. "
             "Use browser_open only when the user explicitly asks to open a URL or search the web; never infer a URL. "
+            "Use music_open for Liked Music, playlist/library sections, or a playlist search inside the YouTube Music PWA. "
             "App names may be natural installed names; the host resolves them and rejects guesses. "
             "When an app name is uncertain, call find_app first and use an exact returned reference. "
             "find_app results are authoritative installed desktop entries: do not call observe to verify them. "

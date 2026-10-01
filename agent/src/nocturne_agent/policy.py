@@ -98,6 +98,18 @@ def _music_query(arguments: dict[str, Any]) -> bool:
     )
 
 
+def _music_open(arguments: dict[str, Any]) -> bool:
+    if not _keys({"section"}, {"query"})(arguments):
+        return False
+    section = arguments.get("section")
+    if section not in {"home", "liked", "playlists", "albums", "artists", "search"}:
+        return False
+    query = arguments.get("query")
+    if section == "search":
+        return isinstance(query, str) and 1 <= len(query.strip()) <= 180
+    return query is None
+
+
 def _browser_open(arguments: dict[str, Any]) -> bool:
     if not _keys(set(), {"query", "url"})(arguments) or len(arguments) != 1:
         return False
@@ -150,6 +162,11 @@ POLICIES: dict[str, ToolPolicy] = {
     "brightness": ToolPolicy(Risk.SAFE, _brightness, "Adjust laptop display brightness"),
     "media": ToolPolicy(Risk.SAFE, _choice("action", {"play-pause", "next", "previous", "stop"}), "Control current media"),
     "play_music": ToolPolicy(Risk.SAFE, _music_query, "Find and play a requested song in YouTube Music"),
+    "music_open": ToolPolicy(
+        Risk.SAFE,
+        _music_open,
+        "Navigate the YouTube Music PWA to Liked Music, library sections, or a playlist search",
+    ),
     "workspace": ToolPolicy(Risk.SAFE, _workspace, "Switch to a numbered workspace"),
     "caffeine": ToolPolicy(Risk.SAFE, _choice("action", {"on", "off", "toggle"}), "Control idle inhibition"),
     "close_window": ToolPolicy(Risk.CONFIRM, _close_window, "Close the active window or a named installed app"),
@@ -225,6 +242,18 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "type": "object",
         "properties": {"query": {"type": "string", "minLength": 3, "maxLength": 180}},
         "required": ["query"],
+        "additionalProperties": False,
+    },
+    "music_open": {
+        "type": "object",
+        "properties": {
+            "section": {
+                "type": "string",
+                "enum": ["home", "liked", "playlists", "albums", "artists", "search"],
+            },
+            "query": {"type": "string", "minLength": 1, "maxLength": 180},
+        },
+        "required": ["section"],
         "additionalProperties": False,
     },
     "workspace": {

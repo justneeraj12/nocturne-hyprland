@@ -70,6 +70,7 @@ class ToolExecutor:
             "brightness": self.brightness,
             "media": self.media,
             "play_music": self.play_music,
+            "music_open": self.music_open,
             "workspace": self.workspace,
             "caffeine": self.caffeine,
             "close_window": self.close_window,
@@ -184,24 +185,52 @@ class ToolExecutor:
         except (OSError, ValueError):
             return ActionResult(False, f"I couldn't resolve a YouTube Music track for {query}")
         url = f"https://music.youtube.com/watch?v={video_id}"
-        command = _youtube_music_command(url)
-        if shutil.which("uwsm"):
-            result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *command], timeout=12)
-            if result.returncode != 0:
-                return ActionResult(False, result.stderr.strip() or "YouTube Music could not be launched")
-        else:
-            subprocess.Popen(
-                list(command),
-                stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+        error = _launch_youtube_music_url(url)
+        if error:
+            return ActionResult(False, error)
         return ActionResult(
             True,
             f"Playing {query} in YouTube Music",
             {"media": {"service": "YouTube Music", "video_id": video_id}},
         )
+
+    @staticmethod
+    def music_open(arguments: dict) -> ActionResult:
+        section = arguments["section"]
+        routes = {
+            "home": "https://music.youtube.com/",
+            "liked": "https://music.youtube.com/playlist?list=LM",
+            "playlists": "https://music.youtube.com/library/playlists",
+            "albums": "https://music.youtube.com/library/albums",
+            "artists": "https://music.youtube.com/library/artists",
+        }
+        if section == "search":
+            query = arguments["query"].strip()
+            label = f"YouTube Music results for {query}"
+            handled, error = _search_existing_youtube_music(query)
+            if error:
+                return ActionResult(False, error)
+            if handled:
+                return ActionResult(
+                    True,
+                    f"Searched for {query} inside YouTube Music",
+                    {"music": {"section": section, "delivery": "existing-window"}},
+                )
+            url = "https://music.youtube.com/search?" + urllib.parse.urlencode({"q": query})
+        else:
+            url = routes[section]
+            labels = {
+                "home": "YouTube Music home",
+                "liked": "Liked Music",
+                "playlists": "your playlists",
+                "albums": "your albums",
+                "artists": "your artists",
+            }
+            label = labels[section]
+        error = _launch_youtube_music_url(url)
+        if error:
+            return ActionResult(False, error)
+        return ActionResult(True, f"Opened {label} in YouTube Music", {"music": {"section": section}})
 
     @staticmethod
     def workspace(arguments: dict) -> ActionResult:
@@ -321,6 +350,65 @@ def _youtube_music_command(url: str) -> tuple[str, ...]:
         )
     separator = "&" if "?" in url else "?"
     return ("brave-browser", f"--app={url}{separator}autoplay=1")
+
+
+def _launch_youtube_music_url(url: str) -> str | None:
+    command = _youtube_music_command(url)
+    if shutil.which("uwsm"):
+        result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *command], timeout=12)
+        return None if result.returncode == 0 else (result.stderr.strip() or "YouTube Music could not be opened")
+    subprocess.Popen(
+        list(command),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return None
+
+
+def _search_existing_youtube_music(query: str) -> tuple[bool, str | None]:
+    """Safely type only after proving the exact PWA window owns keyboard focus."""
+    if shutil.which("wtype") is None or shutil.which("hyprctl") is None:
+        return False, None
+    app = resolve_app("youtube music")
+    if app is None:
+        return False, None
+    clients_result = _run(["hyprctl", "-j", "clients"], timeout=3)
+    if clients_result.returncode != 0:
+        return False, clients_result.stderr.strip() or "Could not inspect YouTube Music windows"
+    try:
+        clients = json.loads(clients_result.stdout)
+    except json.JSONDecodeError:
+        return False, "Hyprland returned invalid window data"
+    candidates = [client for client in clients if _window_matches_app(client, app)]
+    if not candidates:
+        return False, None
+    target = min(candidates, key=lambda client: int(client.get("focusHistoryID", 10_000)))
+    address = str(target.get("address", ""))
+    if not re.fullmatch(r"0x[0-9a-fA-F]+", address):
+        return False, "YouTube Music window address was invalid"
+    focused = _run(["hyprctl", "dispatch", "focuswindow", f"address:{address}"], timeout=3)
+    if focused.returncode != 0:
+        return False, focused.stderr.strip() or "Could not focus YouTube Music"
+    active = _run(["hyprctl", "-j", "activewindow"], timeout=3)
+    try:
+        active_address = str(json.loads(active.stdout).get("address", "")) if active.returncode == 0 else ""
+    except json.JSONDecodeError:
+        active_address = ""
+    if active_address.casefold() != address.casefold():
+        return False, "Refused to type because YouTube Music did not receive focus"
+    typed = _run([
+        "wtype",
+        "-k", "slash",
+        "-s", "250",
+        "-M", "ctrl", "-k", "a", "-m", "ctrl",
+        query,
+        "-k", "Return",
+    ], timeout=8)
+    if typed.returncode != 0:
+        return False, typed.stderr.strip() or "YouTube Music search input failed"
+    return True, None
 
 
 def _preferred_player_command(action: str) -> list[str]:

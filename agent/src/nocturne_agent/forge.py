@@ -20,6 +20,7 @@ FORGE_ACTIONS = {
     "caffeine",
     "launch_app",
     "media",
+    "music_open",
     "observe",
     "system_status",
     "volume",

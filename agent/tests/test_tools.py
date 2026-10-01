@@ -7,6 +7,7 @@ from nocturne_agent.apps import DesktopApp
 from nocturne_agent.tools import (
     ToolExecutor,
     _preferred_player_command,
+    _search_existing_youtube_music,
     _window_matches_app,
     _youtube_music_command,
 )
@@ -14,6 +15,73 @@ from nocturne_agent.types import Action
 
 
 class ToolTests(unittest.TestCase):
+    @patch("nocturne_agent.tools.resolve_app")
+    @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/tool")
+    @patch("nocturne_agent.tools._run")
+    def test_existing_music_search_types_only_after_exact_focus_check(self, run, _which, resolve) -> None:
+        resolve.return_value = DesktopApp(
+            "desktop:music", "YouTube Music", "music", "crx_music"
+        )
+        result = type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})
+        run.side_effect = [
+            type("Result", (), {
+                "returncode": 0,
+                "stdout": '[{"address":"0xabc","class":"crx_music","focusHistoryID":2}]',
+                "stderr": "",
+            })(),
+            result(),
+            type("Result", (), {
+                "returncode": 0, "stdout": '{"address":"0xabc"}', "stderr": "",
+            })(),
+            result(),
+        ]
+        handled, error = _search_existing_youtube_music("road trip playlists")
+        self.assertTrue(handled)
+        self.assertIsNone(error)
+        self.assertEqual(run.call_args_list[-1].args[0][0], "wtype")
+        self.assertIn("road trip playlists", run.call_args_list[-1].args[0])
+
+    @patch("nocturne_agent.tools.resolve_app")
+    @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/tool")
+    @patch("nocturne_agent.tools._run")
+    def test_existing_music_search_refuses_to_type_if_focus_differs(self, run, _which, resolve) -> None:
+        resolve.return_value = DesktopApp(
+            "desktop:music", "YouTube Music", "music", "crx_music"
+        )
+        run.side_effect = [
+            type("Result", (), {
+                "returncode": 0,
+                "stdout": '[{"address":"0xabc","class":"crx_music","focusHistoryID":2}]',
+                "stderr": "",
+            })(),
+            type("Result", (), {"returncode": 0, "stdout": "", "stderr": ""})(),
+            type("Result", (), {
+                "returncode": 0, "stdout": '{"address":"0xdef"}', "stderr": "",
+            })(),
+        ]
+        handled, error = _search_existing_youtube_music("private words")
+        self.assertFalse(handled)
+        self.assertIn("Refused to type", error)
+        self.assertEqual(run.call_count, 3)
+
+    @patch("nocturne_agent.tools._launch_youtube_music_url", return_value=None)
+    @patch("nocturne_agent.tools._search_existing_youtube_music", return_value=(False, None))
+    def test_music_sections_use_private_pwa_routes(self, _search, launch) -> None:
+        result = ToolExecutor.music_open({"section": "liked"})
+        self.assertTrue(result.ok)
+        self.assertEqual(launch.call_args.args[0], "https://music.youtube.com/playlist?list=LM")
+        result = ToolExecutor.music_open({"section": "search", "query": "road trip & rain"})
+        self.assertTrue(result.ok)
+        self.assertIn("q=road+trip+%26+rain", launch.call_args.args[0])
+
+    @patch("nocturne_agent.tools._launch_youtube_music_url")
+    @patch("nocturne_agent.tools._search_existing_youtube_music", return_value=(True, None))
+    def test_music_search_reuses_existing_pwa(self, _search, launch) -> None:
+        result = ToolExecutor.music_open({"section": "search", "query": "road trip playlists"})
+        self.assertTrue(result.ok)
+        self.assertEqual(result.data["music"]["delivery"], "existing-window")
+        launch.assert_not_called()
+
     @patch("nocturne_agent.tools.load_profile", return_value={"media": {"player_patterns": ["youtube"]}})
     @patch("nocturne_agent.tools._run")
     def test_media_prefers_configured_player(self, run, _profile) -> None:

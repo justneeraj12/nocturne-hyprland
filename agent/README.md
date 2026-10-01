@@ -89,6 +89,10 @@ daemon:
   browser action. Only HTTP(S) URLs without embedded credentials are accepted.
 - Media control prefers the configured YouTube Music/Brave MPRIS player.
   `play it again` reuses only the current in-memory track query.
+- YouTube Music is navigable as an authenticated PWA: Liked Music, playlist,
+  album, and artist libraries open directly, while named playlists and
+  follow-up phrases such as `look for road trip playlists in the app` use the
+  app's own search view.
 - Short-lived context supports `close it`, `what about now`, media pronouns,
   and `try again`. Failed actions include a bounded recovery hint.
 - `:metrics` reports privacy-safe success, latency, route, and verification

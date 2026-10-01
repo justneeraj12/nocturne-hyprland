@@ -61,6 +61,14 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(self.policy.evaluate(Action("play_music", {"query": "Teardrop by Massive Attack"})).allowed)
         self.assertFalse(self.policy.evaluate(Action("play_music", {"query": "x"})).allowed)
 
+    def test_music_navigation_is_section_bounded(self) -> None:
+        self.assertTrue(self.policy.evaluate(Action("music_open", {"section": "liked"})).allowed)
+        self.assertTrue(
+            self.policy.evaluate(Action("music_open", {"section": "search", "query": "road trip playlist"})).allowed
+        )
+        self.assertFalse(self.policy.evaluate(Action("music_open", {"section": "search"})).allowed)
+        self.assertFalse(self.policy.evaluate(Action("music_open", {"section": "settings"})).allowed)
+
     def test_arbitrary_shell_is_blocked(self) -> None:
         decision = self.policy.evaluate(Action("shell", {"command": "rm -rf /"}))
         self.assertFalse(decision.allowed)

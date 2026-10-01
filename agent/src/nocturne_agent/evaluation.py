@@ -20,6 +20,8 @@ ROUTING_CASES: tuple[tuple[str, str, dict[str, Any]], ...] = (
     ("check network status", "observe", {"subject": "network"}),
     ("system status", "system_status", {}),
     ("play Teardrop by Massive Attack", "play_music", {"query": "teardrop by massive attack"}),
+    ("open my liked music", "music_open", {"section": "liked"}),
+    ("open my road trip playlist", "music_open", {"section": "search", "query": "road trip playlist"}),
     ("search the web for hyprland documentation", "browser_open", {"query": "hyprland documentation"}),
 )
 

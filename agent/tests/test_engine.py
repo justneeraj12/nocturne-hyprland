@@ -136,6 +136,19 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(response.action.name, "volume")
         self.assertEqual(response.action.source, "context")
 
+    @patch("nocturne_agent.engine.resolve_app")
+    @patch("nocturne_agent.engine.resolve_reference")
+    def test_open_music_app_context_routes_followup_search_inside_pwa(self, resolve_reference, resolve_app) -> None:
+        music = DesktopApp("desktop:youtube-music", "YouTube Music")
+        resolve_app.return_value = music
+        resolve_reference.return_value = music
+        with patch.object(self.engine.tools, "execute", return_value=ActionResult(True, "ok")):
+            self.engine.handle("open my liked music")
+            response = self.engine.handle("look for road trip playlists in the app")
+        self.assertEqual(response.action.name, "music_open")
+        self.assertEqual(response.action.arguments, {"section": "search", "query": "road trip playlists"})
+        self.assertEqual(response.action.source, "context")
+
     def test_memory_never_contains_prompt_text(self) -> None:
         secret = "volume down 5 secret-do-not-store"
         with patch.object(self.engine.tools, "execute", return_value=ActionResult(True, "ok")):

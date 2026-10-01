@@ -19,6 +19,18 @@ class RulePlannerTests(unittest.TestCase):
         self.assertEqual(action.name, "play_music")
         self.assertEqual(action.arguments, {"query": "teardrop by massive attack"})
 
+    def test_music_library_sections_stay_inside_pwa(self) -> None:
+        action = self.planner.plan("open my liked music")
+        self.assertEqual(action.name, "music_open")
+        self.assertEqual(action.arguments, {"section": "liked"})
+        action = self.planner.plan("show my playlists")
+        self.assertEqual(action.arguments, {"section": "playlists"})
+
+    def test_named_playlist_opens_music_search(self) -> None:
+        action = self.planner.plan("open my road trip playlist")
+        self.assertEqual(action.name, "music_open")
+        self.assertEqual(action.arguments, {"section": "search", "query": "road trip playlist"})
+
     def test_named_app_close_keeps_resolved_reference(self) -> None:
         action = self.planner.plan("close VS Code")
         self.assertEqual(action.name, "close_window")

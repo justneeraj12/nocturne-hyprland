@@ -7,7 +7,7 @@ import re
 import time
 from collections import deque
 
-from .apps import resolve_app
+from .apps import resolve_app, resolve_reference
 from .config import AgentConfig
 from .context import gather_context
 from .forge import ToolForge
@@ -203,6 +203,9 @@ class AgentEngine:
             app = resolve_app("youtube music")
             self._last_app_reference = app.reference if app else None
             self._last_music_query = action.arguments.get("query")
+        elif action.name == "music_open":
+            app = resolve_app("youtube music")
+            self._last_app_reference = app.reference if app else None
         elif action.name == "find_app":
             candidates = result.data.get("candidates", [])
             if candidates and isinstance(candidates[0], dict):
@@ -212,6 +215,18 @@ class AgentEngine:
 
     def _contextual_action(self, request: str) -> Action | None:
         text = " ".join(request.casefold().strip().split())
+        referenced_app = resolve_reference(self._last_app_reference) if self._last_app_reference else None
+        if referenced_app and "youtube music" in referenced_app.name.casefold():
+            search = re.fullmatch(
+                r"(?:search(?:\s+for)?|find|look\s+for)\s+(.+?)(?:\s+in\s+(?:the\s+)?app)?",
+                text,
+            )
+            if search and search.group(1).strip() not in {"it", "that"}:
+                return Action(
+                    "music_open",
+                    {"section": "search", "query": search.group(1).strip()},
+                    source="context",
+                )
         if self._last_app_reference and re.fullmatch(
             r"(?:please\s+)?(?:close|quit|exit)\s+(?:it|that|that app|the last app)", text
         ):

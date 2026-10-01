@@ -40,6 +40,7 @@ class ActionVerifier:
         "close_window",
         "launch_app",
         "media",
+        "music_open",
         "play_music",
         "power_profile",
         "volume",
@@ -71,6 +72,14 @@ class ActionVerifier:
             if action.name == "close_window" and action.arguments.get("app"):
                 reference = action.arguments["app"]
                 return sum(self._matches(client, reference) for client in self._clients())
+            if action.name == "music_open":
+                app = resolve_app("youtube music")
+                if app is not None:
+                    return next((
+                        str(client.get("title", "")).strip()
+                        for client in self._clients()
+                        if self._matches(client, app.reference)
+                    ), None)
         except (OSError, ValueError, subprocess.SubprocessError, json.JSONDecodeError):
             return None
         return None
@@ -79,7 +88,11 @@ class ActionVerifier:
         if not result.ok or action.name not in self.MUTATIONS:
             return result
         try:
-            receipt = self._observe(action, before)
+            music = result.data.get("music", {}) if isinstance(result.data, dict) else {}
+            if action.name == "music_open" and music.get("delivery") == "existing-window":
+                receipt = _receipt("verified", "search submitted to the focused YouTube Music window")
+            else:
+                receipt = self._observe(action, before)
         except (OSError, ValueError, subprocess.SubprocessError, json.JSONDecodeError) as error:
             receipt = _receipt("unavailable", str(error))
         data = dict(result.data)
@@ -97,6 +110,7 @@ class ActionVerifier:
             "close_window": self._close,
             "launch_app": self._launch,
             "media": self._media,
+            "music_open": self._music_navigation,
             "play_music": self._music,
             "power_profile": self._power_profile,
             "volume": self._volume,
@@ -226,7 +240,16 @@ class ActionVerifier:
             if track_title:
                 status = self._command(["playerctl", "status"])
                 state = status.stdout.strip() if status.returncode == 0 else "unknown"
-                if state.casefold() == "playing":
+                metadata = self._command(["playerctl", "metadata", "--format", "{{artist}}|{{title}}"])
+                description = f"{track_title} {metadata.stdout}".casefold()
+                ignored = {"a", "an", "by", "music", "official", "song", "the", "video"}
+                requested = {
+                    token for token in re.findall(r"[a-z0-9]+", str(_arguments.get("query", "")).casefold())
+                    if token not in ignored
+                }
+                matching = {token for token in requested if token in description}
+                threshold = max(1, (len(requested) + 1) // 2)
+                if state.casefold() == "playing" and len(matching) >= threshold:
                     return _receipt("verified", f"YouTube Music playing: {track_title}")
             if time.monotonic() >= deadline:
                 break
@@ -234,6 +257,25 @@ class ActionVerifier:
         if music_windows:
             return _receipt("pending", "YouTube Music opened; track playback metadata is not ready")
         return _receipt("pending", "YouTube Music launch accepted; its window is still starting")
+
+    def _music_navigation(self, arguments: dict, before: object | None = None) -> dict[str, str]:
+        app = resolve_app("youtube music")
+        deadline = time.monotonic() + max(5.0, self.launch_wait_seconds)
+        while True:
+            music_windows = [
+                client for client in self._clients()
+                if app is not None and self._matches(client, app.reference)
+            ]
+            if music_windows:
+                title = str(music_windows[0].get("title", "YouTube Music")).strip() or "YouTube Music"
+                if before is None or title != before:
+                    return _receipt("verified", f"{arguments['section']} opened: {title}")
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.1)
+        if music_windows:
+            return _receipt("pending", "YouTube Music is open; the page title did not change yet")
+        return _receipt("pending", "YouTube Music navigation accepted; its window is still starting")
 
     def _browser(self, _arguments: dict, _before: object | None = None) -> dict[str, str]:
         browser_pattern = re.compile(r"brave|firefox|chrom", re.IGNORECASE)
