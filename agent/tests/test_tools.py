@@ -76,7 +76,10 @@ class ToolTests(unittest.TestCase):
         )
         command = _youtube_music_command("https://music.youtube.com/watch?v=abcdefghijk")
         self.assertEqual(command[-2], "--app-id=cinhimbnkkaeohfgghhklpknlkffjgod")
-        self.assertEqual(command[-1], "https://music.youtube.com/watch?v=abcdefghijk")
+        self.assertEqual(
+            command[-1],
+            "--app-launch-url-for-shortcuts-menu-item=https://music.youtube.com/watch?v=abcdefghijk",
+        )
 
     def test_window_match_uses_desktop_startup_class(self) -> None:
         app = DesktopApp("desktop:music", "YouTube Music", "music", "crx_music")

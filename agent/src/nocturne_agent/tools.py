@@ -197,7 +197,11 @@ class ToolExecutor:
                 stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
-        return ActionResult(True, f"Playing {query} in YouTube Music")
+        return ActionResult(
+            True,
+            f"Playing {query} in YouTube Music",
+            {"media": {"service": "YouTube Music", "video_id": video_id}},
+        )
 
     @staticmethod
     def workspace(arguments: dict) -> ActionResult:
@@ -309,8 +313,14 @@ def _youtube_music_command(url: str) -> tuple[str, ...]:
     match = re.fullmatch(r"brave-([a-p]{32})-(.+)", desktop_id or "")
     if match:
         app_id, profile = match.groups()
-        return ("brave-browser", f"--profile-directory={profile}", f"--app-id={app_id}", url)
-    return ("brave-browser", f"--app={url}")
+        return (
+            "brave-browser",
+            f"--profile-directory={profile}",
+            f"--app-id={app_id}",
+            f"--app-launch-url-for-shortcuts-menu-item={url}",
+        )
+    separator = "&" if "?" in url else "?"
+    return ("brave-browser", f"--app={url}{separator}autoplay=1")
 
 
 def _preferred_player_command(action: str) -> list[str]:

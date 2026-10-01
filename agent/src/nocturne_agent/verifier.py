@@ -15,7 +15,7 @@ import subprocess
 import time
 from collections.abc import Callable
 
-from .apps import normalize_app_name, resolve_reference
+from .apps import normalize_app_name, resolve_app, resolve_reference
 from .types import Action, ActionResult
 
 
@@ -211,10 +211,29 @@ class ActionVerifier:
         return self._wait_for_app(arguments["app"])
 
     def _music(self, _arguments: dict, _before: object | None = None) -> dict[str, str]:
-        result = self._command(["playerctl", "status"])
-        if result.returncode == 0 and result.stdout.strip():
-            return _receipt("verified", f"player state {result.stdout.strip()}")
-        return _receipt("pending", "YouTube Music launch accepted; playback metadata is not ready")
+        app = resolve_app("youtube music")
+        deadline = time.monotonic() + max(5.0, self.launch_wait_seconds)
+        while True:
+            music_windows = [
+                client for client in self._clients()
+                if app is not None and self._matches(client, app.reference)
+            ]
+            track_title = next((
+                str(client.get("title", "")).strip()
+                for client in music_windows
+                if normalize_app_name(str(client.get("title", ""))) not in {"", "youtube music"}
+            ), "")
+            if track_title:
+                status = self._command(["playerctl", "status"])
+                state = status.stdout.strip() if status.returncode == 0 else "unknown"
+                if state.casefold() == "playing":
+                    return _receipt("verified", f"YouTube Music playing: {track_title}")
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.1)
+        if music_windows:
+            return _receipt("pending", "YouTube Music opened; track playback metadata is not ready")
+        return _receipt("pending", "YouTube Music launch accepted; its window is still starting")
 
     def _browser(self, _arguments: dict, _before: object | None = None) -> dict[str, str]:
         browser_pattern = re.compile(r"brave|firefox|chrom", re.IGNORECASE)
