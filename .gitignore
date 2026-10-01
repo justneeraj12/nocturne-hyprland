@@ -10,6 +10,12 @@ __pycache__/
 .cache/
 .local-state/
 
+# Nocturne Agent runtime, model weights and private personalization state.
+agent/.venv/
+agent/models/
+agent/*.sqlite3
+agent/*.gguf
+
 # Temporary package and screenshot artifacts.
 *.deb
 *.tmp

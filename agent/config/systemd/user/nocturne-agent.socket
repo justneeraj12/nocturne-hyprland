@@ -1,0 +1,10 @@
+[Unit]
+Description=Nocturne Agent on-demand control socket
+
+[Socket]
+ListenStream=%t/nocturne-agent.sock
+SocketMode=0600
+RemoveOnStop=true
+
+[Install]
+WantedBy=sockets.target

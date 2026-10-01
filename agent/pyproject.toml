@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nocturne-agent"
+version = "0.1.0"
+description = "Local-first, policy-constrained desktop agent for Nocturne"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = []
+
+[project.scripts]
+nocturne-agent = "nocturne_agent.cli:main"
+nocturne-agent-service = "nocturne_agent.service:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

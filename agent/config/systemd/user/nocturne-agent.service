@@ -1,0 +1,18 @@
+[Unit]
+Description=Nocturne Agent local control plane
+Requires=nocturne-agent.socket
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/nocturne-agent-service --idle-seconds 300
+Environment=PYTHONDONTWRITEBYTECODE=1
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/state/nocturne-agent
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=default.target

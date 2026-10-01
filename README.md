@@ -14,6 +14,19 @@ This machine now has two independent desktop sessions:
 Steam, VS Code, ChatGPT, browsers, PipeWire audio, and the Intel/NVIDIA gaming
 stack were not replaced. They run as ordinary applications in either session.
 
+## Nocturne Agent
+
+The repository now also contains `agent/`, a local-first desktop operator built
+for this exact Hyprland setup. Common requests such as opening an approved app,
+changing volume or brightness, moving to a workspace, controlling media, and
+checking system health are handled without loading a language model. Every
+action passes through a typed allowlist; raw shell, `sudo`, deletion, package
+management, and messaging are not exposed to inference.
+
+Its controller is activated by a private systemd user socket and exits after
+five idle minutes. Prompt text and file contents are not written to its usage
+database. See `agent/README.md` for the architecture, tests, and install path.
+
 ## Start Hyprland
 
 1. Log out of GNOME.

@@ -13,7 +13,7 @@ git remote get-url origin >/dev/null 2>&1 || {
   exit 1
 }
 
-git add -- .gitignore README.md assets bin config *.sh
+git add -- .gitignore README.md agent assets bin config *.sh
 git diff --cached --quiet && {
   printf 'No project changes to sync.\n'
   exit 0
