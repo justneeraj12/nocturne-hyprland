@@ -4,10 +4,16 @@ import unittest
 from unittest.mock import patch
 
 from nocturne_agent.notify import send_notification
+from nocturne_agent.chat import Message, wrap_message
 from nocturne_agent.tui import Palette, format_response, run_once
 
 
 class TuiTests(unittest.TestCase):
+    def test_chat_wraps_without_losing_role_or_text(self) -> None:
+        lines = wrap_message(Message("NØX", "one two three four five"), 18)
+        self.assertEqual(lines[0][0], "NØX")
+        self.assertEqual(" ".join(text for _role, text in lines), "one two three four five")
+
     def test_colored_prompt_marks_ansi_as_zero_width(self) -> None:
         prompt = Palette(True).prompt()
         escape_positions = [index for index, character in enumerate(prompt) if character == "\x1b"]

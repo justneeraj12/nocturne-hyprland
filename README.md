@@ -25,10 +25,13 @@ management, and messaging are not exposed to inference.
 
 Its controller is activated by a private systemd user socket and exits after
 five idle minutes. Prompt text and file contents are not written to its usage
-database. Run `nox` or press `Super+X` for the neofetch-style terminal deck;
-results also arrive through the existing themed notification center. There is
-no floating agent control panel. See `agent/README.md` for the architecture,
-tests, and install path.
+database. Run `nox` or press `Super+X` for the full-screen terminal chat;
+results also arrive through the existing themed notification center. It can
+perform explicit read-only checks of processes, windows, services, downloads,
+network, audio, and power. Its Tool Forge can propose policy-validated routines
+from existing typed actions, but saves them disabled until the user explicitly
+enables one. There is no floating agent control panel. See `agent/README.md`
+for the architecture, tests, and install path.
 
 ## Start Hyprland
 

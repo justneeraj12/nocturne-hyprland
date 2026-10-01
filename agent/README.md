@@ -5,9 +5,10 @@ environment. Its control plane is deliberately independent from the language
 model: routine commands are resolved without inference, and model output can
 only select typed actions from a small allowlist.
 
-The user interface is terminal-native. Run `nox` for its neofetch-style night
-sigil, compact system/model state, natural-language prompt, typed confirmation
-flow, and built-in command deck. NØX does not use a floating control panel.
+The user interface is terminal-native. Run `nox` for its full-screen night
+console, scrollable chat, editable in-memory prompt history, typed confirmation
+flow, and built-in command deck. Use `nox --classic` for the original
+line-oriented sigil view. NØX does not use a floating control panel.
 Completed actions and attention states are mirrored to the existing themed
 notification center. `Super+X` opens NØX in a tiled Kitty terminal.
 
@@ -17,6 +18,19 @@ and temporarily OCRs only its visible viewport. The screenshot is deleted
 immediately, OCR text is never stored, and browser text is sent only to a
 non-tool-calling local summarizer. Install the private OCR helper with
 `./install-ocr.sh`; it does not modify Ubuntu's system packages.
+
+General observation is also read-only and loaded only when requested. NØX can
+inspect the current user's processes, Hyprland windows, user services, download
+metadata, NetworkManager devices, PipeWire state, battery, and power profile.
+It does not read downloaded file contents, and raw snapshots are reduced to a
+short answer before being returned to the terminal.
+
+The Tool Forge creates declarative routines from those same typed tools. A
+proposal contains JSON actions rather than generated code or shell commands,
+is independently policy-validated, and is saved disabled. Review proposals
+with `:proposals`, then explicitly activate one with `:enable ID`. Enabled
+routines run only on their exact trigger phrases and every step is revalidated
+at execution time.
 
 ## Design goals
 
@@ -32,9 +46,10 @@ non-tool-calling local summarizer. Install the private OCR helper with
 
 ## Current milestone
 
-The first milestone contains the deterministic planner, policy engine, desktop
-tool registry, hardware-aware wake policy, private SQLite usage memory, CLI,
-and tests. The controller runs through a private systemd user socket and exits
+The current milestone contains the deterministic planner, policy engine,
+desktop and observation registries, safe Tool Forge, modern terminal chat,
+hardware-aware wake policy, private SQLite usage memory, CLI, and tests. The
+controller runs through a private systemd user socket and exits
 after five idle minutes. The socket remains available at effectively zero idle
 cost and starts the controller again on the next request.
 
@@ -61,10 +76,20 @@ Install the on-demand user service:
 nocturne-agent ask "open terminal"
 ```
 
-The local language runtime is deliberately a separate milestone. Routine
-desktop commands already work without a model. When installed, llama.cpp will
-only be consulted for unmatched requests, and the same policy boundary will
-validate its proposed action before execution.
+Useful terminal deck commands:
+
+```text
+:tools                         list model-callable typed actions
+:forge start focus mode by...  propose a disabled reusable routine
+:proposals                     review routines and enabled state
+:enable focus-mode-ab12        enable one reviewed routine
+:sleep                         unload the model immediately
+```
+
+Routine desktop commands work without a model. When installed, llama.cpp is
+consulted only for unmatched requests, observation summaries, and requested
+Tool Forge proposals. The same policy boundary validates model-selected
+actions before execution.
 
 Install the optional local intelligence layer (about 2.7 GB total download):
 

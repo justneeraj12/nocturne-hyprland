@@ -20,6 +20,13 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.risk, Risk.SAFE)
 
+    def test_general_observation_is_bounded(self) -> None:
+        decision = self.policy.evaluate(Action("observe", {"subject": "processes", "query": "steam"}))
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.risk, Risk.SAFE)
+        self.assertFalse(self.policy.evaluate(Action("observe", {"subject": "files"})).allowed)
+        self.assertFalse(self.policy.evaluate(Action("observe", {"subject": "processes", "query": "x" * 81})).allowed)
+
     def test_conversational_response_is_bounded(self) -> None:
         decision = self.policy.evaluate(Action("respond", {"text": "Hey. What can I do for you?"}))
         self.assertTrue(decision.allowed)

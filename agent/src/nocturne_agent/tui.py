@@ -23,7 +23,7 @@ from .policy import PolicyEngine
 from .runtime import model_is_ready
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 LOGO = (
     "       ▄████▄       ",
     "    ▄██▀    ▀██▄    ",
@@ -158,6 +158,9 @@ def _help(plain: bool = False) -> str:
             "  :status             redraw local runtime status",
             "  :tools              list the only actions inference may select",
             "  :memory             show privacy-safe action counts",
+            "  :forge DESCRIPTION  draft a safe reusable workflow (disabled)",
+            "  :proposals          list drafted and enabled workflows",
+            "  :enable ID          explicitly enable a reviewed workflow",
             "  :sleep              unload and stop the language runtime now",
             "  :clear              clear and redraw NØX",
             "  :help               show this guide",
@@ -176,18 +179,19 @@ def _memory(config: AgentConfig) -> list[dict]:
 
 
 def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, str]:
-    if command in {":quit", ":exit", ":q"}:
+    normalized = command.casefold()
+    if normalized in {":quit", ":exit", ":q"}:
         return False, ""
-    if command in {":help", ":h", ":?"}:
+    if normalized in {":help", ":h", ":?"}:
         return True, _help(plain)
-    if command == ":status":
+    if normalized == ":status":
         return True, render_banner(config, plain)
-    if command == ":tools":
+    if normalized == ":tools":
         tools = PolicyEngine.tool_manifest()
         return True, "\n".join(
             f"  {item['risk'].upper():7} {item['name']:<16} {item['description']}" for item in tools
         )
-    if command == ":memory":
+    if normalized == ":memory":
         rows = _memory(config)
         if not rows:
             return True, "  No recorded actions yet."
@@ -195,7 +199,42 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
             f"  {row['action']:<16} {row['count']:>4} calls · {row['succeeded']:>4} passed"
             for row in rows
         )
-    if command == ":sleep":
+    if normalized == ":proposals":
+        from .forge import ToolForge
+
+        workflows = ToolForge(config.state_dir).list()
+        if not workflows:
+            return True, "  No forged workflows yet."
+        return True, "\n".join(
+            f"  {'ENABLED' if item.enabled else 'DRAFT':7} {item.identifier} · {item.name}"
+            for item in workflows
+        )
+    if normalized.startswith(":enable "):
+        from .forge import ToolForge
+
+        identifier = command.split(None, 1)[1].strip()
+        try:
+            workflow = ToolForge(config.state_dir).enable(identifier)
+        except (OSError, ValueError, KeyError) as error:
+            return True, f"  Could not enable that workflow: {error}"
+        return True, f"  Enabled {workflow.name}. Triggers: {', '.join(workflow.triggers)}"
+    if normalized.startswith(":forge "):
+        from .forge import ToolForge
+        from .planner import LocalModelPlanner
+
+        proposal = LocalModelPlanner(config).propose_tool(command.split(None, 1)[1].strip())
+        if proposal is None:
+            return True, "  The local model could not produce a workflow proposal."
+        try:
+            workflow = ToolForge(config.state_dir).save_draft(proposal)
+        except (OSError, ValueError) as error:
+            return True, f"  Proposal rejected by the forge validator: {error}"
+        return True, (
+            f"  Drafted {workflow.name} [{workflow.identifier}]\n"
+            f"  {workflow.summary}\n"
+            f"  Disabled. Review it, then type :enable {workflow.identifier}"
+        )
+    if normalized == ":sleep":
         result = subprocess.run(
             ["systemctl", "--user", "stop", "nocturne-agent-model.service"],
             capture_output=True,
@@ -204,7 +243,7 @@ def _handle_meta(command: str, config: AgentConfig, plain: bool) -> tuple[bool, 
             check=False,
         )
         return True, "  Model runtime stopped." if result.returncode == 0 else "  Could not stop model runtime."
-    if command == ":clear":
+    if normalized == ":clear":
         if sys.stdout.isatty():
             sys.stdout.write("\x1b[2J\x1b[H")
         return True, render_banner(config, plain)
@@ -253,7 +292,7 @@ def interactive(notifications: bool = True, plain: bool = False) -> int:
         if not text:
             continue
         if text.startswith(":"):
-            keep_running, output = _handle_meta(text.lower(), config, plain)
+            keep_running, output = _handle_meta(text, config, plain)
             if output:
                 print(output)
             if not keep_running:
@@ -267,11 +306,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("request", nargs="*", help="optional one-shot natural-language request")
     parser.add_argument("--no-notify", action="store_true", help="do not send a result notification")
     parser.add_argument("--plain", action="store_true", help="disable ANSI color")
+    parser.add_argument("--classic", action="store_true", help="use the original line-oriented terminal UI")
     parser.add_argument("--version", action="version", version=f"NØX {VERSION}")
     args = parser.parse_args(argv)
     if args.request:
         response = run_once(" ".join(args.request), not args.no_notify, args.plain)
         return 1 if response.get("status") in {"blocked", "failed"} else 0
+    if not args.classic and not args.plain and sys.stdin.isatty() and sys.stdout.isatty():
+        from .chat import interactive_chat
+
+        return interactive_chat(notifications=not args.no_notify)
     return interactive(notifications=not args.no_notify, plain=args.plain)
 
 

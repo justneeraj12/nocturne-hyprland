@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .types import Action, PolicyDecision, Risk
+from .observe import SUBJECTS
 
 
 Validator = Callable[[dict[str, Any]], bool]
@@ -62,6 +63,13 @@ def _response(arguments: dict[str, Any]) -> bool:
     return isinstance(text, str) and 1 <= len(text.strip()) <= 1200
 
 
+def _observe(arguments: dict[str, Any]) -> bool:
+    if not _keys({"subject"}, {"query"})(arguments):
+        return False
+    query = arguments.get("query", "")
+    return arguments["subject"] in SUBJECTS and isinstance(query, str) and len(query) <= 80
+
+
 APP_NAMES = {
     "browser",
     "chatgpt",
@@ -85,6 +93,11 @@ POLICIES: dict[str, ToolPolicy] = {
         _keys(set()),
         "Read and summarize the visible content of the most recently used browser window",
     ),
+    "observe": ToolPolicy(
+        Risk.SAFE,
+        _observe,
+        "Read process, window, service, download, network, audio, or power status",
+    ),
     "system_status": ToolPolicy(Risk.SAFE, _keys(set()), "Read CPU, memory, disk and GPU state"),
     "launch_app": ToolPolicy(Risk.SAFE, _choice("app", APP_NAMES), "Launch an approved desktop application"),
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
@@ -105,6 +118,15 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "additionalProperties": False,
     },
     "browser_context": {"type": "object", "properties": {}, "additionalProperties": False},
+    "observe": {
+        "type": "object",
+        "properties": {
+            "subject": {"type": "string", "enum": sorted(SUBJECTS)},
+            "query": {"type": "string", "maxLength": 80},
+        },
+        "required": ["subject"],
+        "additionalProperties": False,
+    },
     "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
     "launch_app": {
         "type": "object",

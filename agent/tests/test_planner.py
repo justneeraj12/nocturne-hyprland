@@ -27,6 +27,16 @@ class RulePlannerTests(unittest.TestCase):
         self.assertEqual(action.name, "browser_context")
         self.assertEqual(action.arguments, {})
 
+    def test_named_process_observation(self) -> None:
+        action = self.planner.plan("is steam running")
+        self.assertEqual(action.name, "observe")
+        self.assertEqual(action.arguments, {"subject": "processes", "query": "steam"})
+
+    def test_download_observation(self) -> None:
+        action = self.planner.plan("show download progress")
+        self.assertEqual(action.name, "observe")
+        self.assertEqual(action.arguments, {"subject": "downloads"})
+
     def test_unknown_returns_none(self) -> None:
         self.assertIsNone(self.planner.plan("rewrite my kernel in assembly"))
 

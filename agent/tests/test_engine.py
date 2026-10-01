@@ -8,9 +8,16 @@ from unittest.mock import patch
 from nocturne_agent.config import AgentConfig
 from nocturne_agent.engine import AgentEngine
 from nocturne_agent.types import ActionResult
+from nocturne_agent.observe import summarize_without_model
 
 
 class EngineTests(unittest.TestCase):
+    def test_zero_inference_observation_summaries_are_useful(self) -> None:
+        network = {"devices": [{"device": "wlan0", "type": "wifi", "state": "connected", "connection": "Home"}]}
+        self.assertEqual(summarize_without_model("network", network), "Connected: wlan0 → Home.")
+        processes = {"query": "steam", "processes": []}
+        self.assertEqual(summarize_without_model("processes", processes), "steam is not running under your user session.")
+
     def setUp(self) -> None:
         self.temporary = tempfile.TemporaryDirectory()
         config = AgentConfig(state_dir=Path(self.temporary.name))
@@ -57,6 +64,23 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(response.result.message, "The Example page is visible.")
         self.assertNotIn("visible_text", response.result.data)
         self.assertEqual(response.result.data["visible_text_characters"], 29)
+
+    @patch("nocturne_agent.engine.gather_context")
+    def test_general_observation_is_summarized_and_raw_data_removed(self, context) -> None:
+        context.return_value.inference_mode = "full"
+        captured = ActionResult(
+            True,
+            "observed",
+            {"subject": "processes", "observation": {"query": "steam", "processes": [{"pid": 42}]}},
+        )
+        with patch.object(self.engine.tools, "execute", return_value=captured):
+            with patch(
+                "nocturne_agent.engine.LocalModelPlanner.summarize_observation",
+                return_value="Steam is running.",
+            ):
+                response = self.engine.handle("is steam running")
+        self.assertEqual(response.result.message, "Steam is running.")
+        self.assertEqual(response.result.data, {"subject": "processes", "item_count": 1})
 
 
 if __name__ == "__main__":

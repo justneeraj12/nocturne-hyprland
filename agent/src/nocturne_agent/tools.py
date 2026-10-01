@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Callable
 
 from .browser import inspect_browser
+from .observe import observe
 from .types import Action, ActionResult
 
 
@@ -42,6 +43,7 @@ class ToolExecutor:
         self.handlers: dict[str, Callable[[dict], ActionResult]] = {
             "respond": self.respond,
             "browser_context": self.browser_context,
+            "observe": self.observe,
             "system_status": self.system_status,
             "launch_app": self.launch_app,
             "volume": self.volume,
@@ -69,6 +71,10 @@ class ToolExecutor:
     @staticmethod
     def browser_context(_arguments: dict) -> ActionResult:
         return inspect_browser()
+
+    @staticmethod
+    def observe(arguments: dict) -> ActionResult:
+        return observe(arguments["subject"], arguments.get("query", ""))
 
     @staticmethod
     def launch_app(arguments: dict) -> ActionResult:
