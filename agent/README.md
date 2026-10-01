@@ -31,6 +31,11 @@ GUI apps outside the controller's hardened read-only service sandbox. App
 names are not guessed by the language model: an unknown or uninstalled name
 fails honestly instead of launching a different application.
 
+Common installed-app aliases are deterministic too: `open YT Music` resolves
+to the installed YouTube Music PWA. `play SONG by ARTIST` resolves a direct
+track and starts it in that PWA. `close APP` targets that app's Hyprland
+windows and requires an explicit confirmation before anything is closed.
+
 The Tool Forge creates declarative routines from those same typed tools. A
 proposal contains JSON actions rather than generated code or shell commands,
 is independently policy-validated, and is saved disabled. Review proposals

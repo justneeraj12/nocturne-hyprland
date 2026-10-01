@@ -45,6 +45,15 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.risk, Risk.CONFIRM)
 
+    def test_named_close_requires_confirmation(self) -> None:
+        decision = self.policy.evaluate(Action("close_window", {"app": "steam"}))
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.risk, Risk.CONFIRM)
+
+    def test_music_query_is_safe_and_bounded(self) -> None:
+        self.assertTrue(self.policy.evaluate(Action("play_music", {"query": "Teardrop by Massive Attack"})).allowed)
+        self.assertFalse(self.policy.evaluate(Action("play_music", {"query": "x"})).allowed)
+
     def test_arbitrary_shell_is_blocked(self) -> None:
         decision = self.policy.evaluate(Action("shell", {"command": "rm -rf /"}))
         self.assertFalse(decision.allowed)

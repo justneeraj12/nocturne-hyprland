@@ -33,6 +33,14 @@ class RulePlanner:
         if re.search(r"\b(system status|resource usage|how is (the )?(system|computer)|cpu usage|gpu usage)\b", text):
             return Action("system_status")
 
+        song = re.search(
+            r"\b(?:play|put on)\s+(?:(?:the|a)\s+)?(?:song\s+)?(.+?)\s+by\s+(.+?)(?:\s+on\s+(?:yt|youtube)\s+music)?$",
+            text,
+        )
+        if song:
+            title, artist = (part.strip() for part in song.groups())
+            return Action("play_music", {"query": f"{title} by {artist}"})
+
         launch = re.search(r"\b(?:open|launch|start|run)\s+(.+?)\s*$", text)
         if launch:
             target = launch.group(1).strip()
@@ -71,8 +79,16 @@ class RulePlanner:
         if caffeine:
             return Action("caffeine", {"action": caffeine.group(1)})
 
-        if re.search(r"\b(close|quit)\s+(this|active|current)\s+window\b", text):
+        if re.search(r"\b(close|quit|exit)\s+(this|the|active|current)\s+(?:app|window)\b", text):
             return Action("close_window")
+
+        close = re.search(r"\b(?:close|quit|exit)\s+(.+?)(?:\s+app|\s+application)?$", text)
+        if close:
+            target = close.group(1).strip()
+            app = resolve_app(target)
+            if app is not None:
+                return Action("close_window", {"app": app.reference})
+            return Action("respond", {"text": f"I couldn't find an installed app named {target}."})
 
         profile = re.search(r"\b(?:set\s+)?(?:power\s+)?profile\s+(power-saver|balanced|performance)\b", text)
         if profile:

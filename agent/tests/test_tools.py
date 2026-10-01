@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 from nocturne_agent.apps import DesktopApp
-from nocturne_agent.tools import ToolExecutor
+from nocturne_agent.tools import ToolExecutor, _window_matches_app, _youtube_music_command
 from nocturne_agent.types import Action
 
 
@@ -36,6 +36,22 @@ class ToolTests(unittest.TestCase):
         result = ToolExecutor.caffeine({"action": "on"})
         self.assertTrue(result.ok)
         self.assertEqual(run.call_args_list[-1].args[0][-1], "toggle")
+
+    @patch("nocturne_agent.tools.resolve_app")
+    def test_youtube_music_uses_installed_brave_pwa(self, resolve) -> None:
+        resolve.return_value = DesktopApp(
+            "desktop:brave-cinhimbnkkaeohfgghhklpknlkffjgod-Default",
+            "YouTube Music",
+            "brave-cinhimbnkkaeohfgghhklpknlkffjgod-Default",
+            "crx_cinhimbnkkaeohfgghhklpknlkffjgod",
+        )
+        command = _youtube_music_command("https://music.youtube.com/watch?v=abcdefghijk")
+        self.assertEqual(command[-2], "--app-id=cinhimbnkkaeohfgghhklpknlkffjgod")
+        self.assertEqual(command[-1], "https://music.youtube.com/watch?v=abcdefghijk")
+
+    def test_window_match_uses_desktop_startup_class(self) -> None:
+        app = DesktopApp("desktop:music", "YouTube Music", "music", "crx_music")
+        self.assertTrue(_window_matches_app({"class": "crx_music", "title": "Song"}, app))
 
 
 if __name__ == "__main__":

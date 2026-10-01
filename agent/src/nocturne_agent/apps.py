@@ -30,12 +30,18 @@ BUILTIN_ALIASES = {
     "system monitor": "resources",
 }
 
+INSTALLED_APP_ALIASES = {
+    "yt music": "youtube music",
+    "youtubemusic": "youtube music",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class DesktopApp:
     reference: str
     name: str
     desktop_id: str | None = None
+    startup_class: str | None = None
 
 
 def normalize_app_name(value: str) -> str:
@@ -77,7 +83,8 @@ def desktop_apps() -> tuple[DesktopApp, ...]:
             if not name:
                 continue
             desktop_id = path.stem
-            app = DesktopApp(f"desktop:{desktop_id}", name, desktop_id)
+            startup_class = entry.get("StartupWMClass", "").strip() or None
+            app = DesktopApp(f"desktop:{desktop_id}", name, desktop_id, startup_class)
             aliases = {normalize_app_name(name), normalize_app_name(desktop_id)}
             generic_name = entry.get("GenericName", "").strip()
             if generic_name:
@@ -105,6 +112,7 @@ def resolve_app(value: str) -> DesktopApp | None:
     builtin = BUILTIN_ALIASES.get(normalized)
     if builtin:
         return DesktopApp(builtin, normalized.title())
+    normalized = INSTALLED_APP_ALIASES.get(normalized, normalized)
     return _app_index().get(normalized)
 
 

@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
+import urllib.parse
+import urllib.request
 from pathlib import Path
 from typing import Callable
 
-from .apps import resolve_reference
+from .apps import normalize_app_name, resolve_app, resolve_reference
 from .browser import inspect_browser
 from .observe import observe
 from .types import Action, ActionResult
@@ -27,6 +30,17 @@ APP_COMMANDS: dict[str, tuple[tuple[str, ...], ...]] = {
     "steam": ((str(HOME / ".config/hypr/scripts/steam-launch"),), ("steam",)),
     "terminal": (("kitty",),),
     "resources": ((str(HOME / ".local/bin/nocturne-dashboard"),), ("resources",)),
+}
+
+BUILTIN_WINDOW_CLASSES: dict[str, tuple[str, ...]] = {
+    "browser": ("brave-browser", "firefox"),
+    "chatgpt": ("chatgpt",),
+    "code": ("code",),
+    "files": ("org.gnome.nautilus", "nautilus"),
+    "settings": ("com.nocturne.settings",),
+    "steam": ("steam",),
+    "terminal": ("kitty",),
+    "resources": ("nocturnedashboard", "net.nokyan.resources"),
 }
 
 
@@ -50,6 +64,7 @@ class ToolExecutor:
             "volume": self.volume,
             "brightness": self.brightness,
             "media": self.media,
+            "play_music": self.play_music,
             "workspace": self.workspace,
             "caffeine": self.caffeine,
             "close_window": self.close_window,
@@ -131,6 +146,29 @@ class ToolExecutor:
         return ActionResult(result.returncode == 0, "Media updated" if result.returncode == 0 else result.stderr.strip())
 
     @staticmethod
+    def play_music(arguments: dict) -> ActionResult:
+        query = arguments["query"].strip()
+        try:
+            video_id = _youtube_video_id(query)
+        except (OSError, ValueError):
+            return ActionResult(False, f"I couldn't resolve a YouTube Music track for {query}")
+        url = f"https://music.youtube.com/watch?v={video_id}"
+        command = _youtube_music_command(url)
+        if shutil.which("uwsm"):
+            result = _run(["uwsm", "app", "-t", "service", "-S", "both", "--", *command], timeout=12)
+            if result.returncode != 0:
+                return ActionResult(False, result.stderr.strip() or "YouTube Music could not be launched")
+        else:
+            subprocess.Popen(
+                list(command),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        return ActionResult(True, f"Playing {query} in YouTube Music")
+
+    @staticmethod
     def workspace(arguments: dict) -> ActionResult:
         result = _run(["hyprctl", "dispatch", "workspace", str(arguments["number"])])
         return ActionResult(result.returncode == 0, f"Workspace {arguments['number']}" if result.returncode == 0 else result.stderr.strip())
@@ -147,9 +185,35 @@ class ToolExecutor:
         return ActionResult(result.returncode == 0, "Caffeine updated" if result.returncode == 0 else result.stderr.strip())
 
     @staticmethod
-    def close_window(_arguments: dict) -> ActionResult:
-        result = _run(["hyprctl", "dispatch", "killactive"])
-        return ActionResult(result.returncode == 0, "Closed active window" if result.returncode == 0 else result.stderr.strip())
+    def close_window(arguments: dict) -> ActionResult:
+        reference = arguments.get("app")
+        if not reference:
+            result = _run(["hyprctl", "dispatch", "killactive"])
+            return ActionResult(result.returncode == 0, "Closed active window" if result.returncode == 0 else result.stderr.strip())
+
+        app = resolve_reference(reference)
+        if app is None:
+            return ActionResult(False, "That installed app reference is no longer available")
+        result = _run(["hyprctl", "-j", "clients"])
+        if result.returncode != 0:
+            return ActionResult(False, result.stderr.strip() or "Could not inspect open windows")
+        try:
+            clients = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return ActionResult(False, "Hyprland returned invalid window data")
+        matches = [client for client in clients if _window_matches_app(client, app)]
+        if not matches:
+            return ActionResult(False, f"{app.name} has no open windows")
+        closed = 0
+        for client in matches:
+            address = str(client.get("address", ""))
+            if not address:
+                continue
+            close = _run(["hyprctl", "dispatch", "closewindow", f"address:{address}"])
+            closed += close.returncode == 0
+        if closed == 0:
+            return ActionResult(False, f"Could not close {app.name}")
+        return ActionResult(True, f"Closed {app.name}" if closed == 1 else f"Closed {closed} {app.name} windows")
 
     @staticmethod
     def power_profile(arguments: dict) -> ActionResult:
@@ -181,3 +245,44 @@ class ToolExecutor:
             "gpu": gpu,
         }
         return ActionResult(True, "System status collected", data)
+
+
+def _youtube_video_id(query: str) -> str:
+    params = urllib.parse.urlencode({"search_query": query, "sp": "EgIQAQ=="})
+    request = urllib.request.Request(
+        f"https://www.youtube.com/results?{params}",
+        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Nox/1.0"},
+    )
+    with urllib.request.urlopen(request, timeout=12) as response:
+        page = response.read(3_000_000).decode("utf-8", errors="ignore")
+    match = re.search(r'"videoRenderer":\{"videoId":"([A-Za-z0-9_-]{11})"', page)
+    if match is None:
+        match = re.search(r'"videoId":"([A-Za-z0-9_-]{11})"', page)
+    if match is None:
+        raise ValueError("No matching video")
+    return match.group(1)
+
+
+def _youtube_music_command(url: str) -> tuple[str, ...]:
+    app = resolve_app("youtube music")
+    desktop_id = app.desktop_id if app else None
+    match = re.fullmatch(r"brave-([a-p]{32})-(.+)", desktop_id or "")
+    if match:
+        app_id, profile = match.groups()
+        return ("brave-browser", f"--profile-directory={profile}", f"--app-id={app_id}", url)
+    return ("brave-browser", f"--app={url}")
+
+
+def _window_matches_app(client: dict, app) -> bool:
+    window_classes = {
+        str(client.get("class", "")).casefold(),
+        str(client.get("initialClass", "")).casefold(),
+    }
+    if app.startup_class and app.startup_class.casefold() in window_classes:
+        return True
+    expected = {item.casefold() for item in BUILTIN_WINDOW_CLASSES.get(app.reference, ())}
+    if expected & window_classes:
+        return True
+    title = normalize_app_name(str(client.get("title", "")))
+    app_name = normalize_app_name(app.name)
+    return bool(app_name and (title == app_name or title.startswith(f"{app_name} ")))

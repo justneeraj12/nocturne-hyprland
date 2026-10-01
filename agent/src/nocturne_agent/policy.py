@@ -81,6 +81,22 @@ def _installed_app(arguments: dict[str, Any]) -> bool:
     )
 
 
+def _music_query(arguments: dict[str, Any]) -> bool:
+    return (
+        _keys({"query"})(arguments)
+        and isinstance(arguments["query"], str)
+        and 3 <= len(arguments["query"].strip()) <= 180
+    )
+
+
+def _close_window(arguments: dict[str, Any]) -> bool:
+    if not _keys(set(), {"app"})(arguments):
+        return False
+    return "app" not in arguments or (
+        isinstance(arguments["app"], str) and resolve_reference(arguments["app"]) is not None
+    )
+
+
 POLICIES: dict[str, ToolPolicy] = {
     "respond": ToolPolicy(
         Risk.SAFE,
@@ -107,9 +123,10 @@ POLICIES: dict[str, ToolPolicy] = {
     "volume": ToolPolicy(Risk.SAFE, _step_action, "Adjust the default audio sink"),
     "brightness": ToolPolicy(Risk.SAFE, _brightness, "Adjust laptop display brightness"),
     "media": ToolPolicy(Risk.SAFE, _choice("action", {"play-pause", "next", "previous", "stop"}), "Control current media"),
+    "play_music": ToolPolicy(Risk.SAFE, _music_query, "Find and play a requested song in YouTube Music"),
     "workspace": ToolPolicy(Risk.SAFE, _workspace, "Switch to a numbered workspace"),
     "caffeine": ToolPolicy(Risk.SAFE, _choice("action", {"on", "off", "toggle"}), "Control idle inhibition"),
-    "close_window": ToolPolicy(Risk.CONFIRM, _keys(set()), "Close the active window"),
+    "close_window": ToolPolicy(Risk.CONFIRM, _close_window, "Close the active window or a named installed app"),
     "power_profile": ToolPolicy(Risk.CONFIRM, _choice("profile", {"power-saver", "balanced", "performance"}), "Change system power profile"),
 }
 
@@ -162,6 +179,12 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "required": ["action"],
         "additionalProperties": False,
     },
+    "play_music": {
+        "type": "object",
+        "properties": {"query": {"type": "string", "minLength": 3, "maxLength": 180}},
+        "required": ["query"],
+        "additionalProperties": False,
+    },
     "workspace": {
         "type": "object",
         "properties": {"number": {"type": "integer", "minimum": 1, "maximum": 9}},
@@ -174,7 +197,11 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "required": ["action"],
         "additionalProperties": False,
     },
-    "close_window": {"type": "object", "properties": {}, "additionalProperties": False},
+    "close_window": {
+        "type": "object",
+        "properties": {"app": {"type": "string", "minLength": 1, "maxLength": 120}},
+        "additionalProperties": False,
+    },
     "power_profile": {
         "type": "object",
         "properties": {
