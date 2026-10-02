@@ -3,6 +3,13 @@ set -euo pipefail
 
 SESSION_NAME=${NOCTURNE_SESSION_NAME:-nocturne-monitor-v2}
 
+cleanup_detached_session() {
+  local attached
+  tmux has-session -t "$SESSION_NAME" 2>/dev/null || return 0
+  attached=$(tmux display-message -p -t "$SESSION_NAME" '#{session_attached}' 2>/dev/null || printf '0')
+  [[ $attached != 0 ]] || tmux kill-session -t "$SESSION_NAME" 2>/dev/null || true
+}
+
 create_session() {
   tmux -f "${XDG_CONFIG_HOME:-$HOME/.config}/tmux/tmux.conf" \
     new-session -d -s "$SESSION_NAME" -n dashboard
@@ -28,7 +35,8 @@ tmux has-session -t "$SESSION_NAME" 2>/dev/null || create_session
 if [[ -n "${TMUX:-}" ]]; then
   exec tmux switch-client -t "$SESSION_NAME"
 else
-  exec kitty --class NocturneDashboard --title 'Nocturne Dashboard' \
+  trap cleanup_detached_session EXIT INT TERM
+  kitty --class NocturneDashboard --title 'Nocturne Dashboard' \
     --override initial_window_width=190c \
     --override initial_window_height=50c \
     tmux attach-session -t "$SESSION_NAME"
