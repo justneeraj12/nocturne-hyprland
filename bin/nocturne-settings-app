@@ -550,8 +550,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
     def connectivity_page(self) -> Gtk.Widget:
         scroll, box = self.page("Connectivity", "Fast themed cards for everyday use, with advanced tools one click away.")
         self.section(box, "Network")
-        self.action_row(box, "Wi-Fi", "Connect, disconnect, scan and see the active network.", [("QUICK PANEL", [str(SCRIPT_HOME / "wifi-menu")], "primary"), ("ADVANCED", ["nm-connection-editor"], "")])
-        self.action_row(box, "Bluetooth", "Power, scan, connect and disconnect devices.", [("QUICK PANEL", [str(SCRIPT_HOME / "bluetooth-menu")], "primary"), ("DEVICE MANAGER", ["blueman-manager"], "")])
+        self.action_row(box, "Wi-Fi", "Connect, disconnect, scan and manage VPNs in the bar card.", [("QUICK PANEL", [str(SCRIPT_HOME / "orbit-popup"), "wifi"], "primary"), ("ADVANCED", ["nm-connection-editor"], "")])
+        self.action_row(box, "Bluetooth", "Power, scan, pair, connect and disconnect devices.", [("QUICK PANEL", [str(SCRIPT_HOME / "orbit-popup"), "bluetooth"], "primary"), ("DEVICE MANAGER", ["blueman-manager"], "")])
         self.section(box, "Phone")
         self.action_row(box, "KDE Connect", "Clipboard, file transfer, battery, ringing and device status.", [("PHONE CARD", [str(SCRIPT_HOME / "kdeconnect-menu")], "primary"), ("DEVICE SETTINGS", [str(SCRIPT_HOME / "kdeconnect-settings")], "")])
         return scroll
@@ -632,7 +632,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
     def sound_page(self) -> Gtk.Widget:
         scroll, box = self.page("Sound + media", "PipeWire controls, per-app volume, DSP and your Nocturne visualizer.")
         self.section(box, "Playback")
-        self.action_row(box, "Volume and output", "Switch outputs and change individual app streams.", [("QUICK MIXER", [str(SCRIPT_HOME / "audio-menu")], "primary"), ("FULL MIXER", ["pavucontrol"], "")])
+        self.action_row(box, "Volume and output", "Switch outputs, microphones, app streams, and PipeWire routes.", [("AUDIO CENTER", [str(SCRIPT_HOME / "audio-panel")], "primary"), ("EQUALIZER", ["easyeffects"], "")])
         self.action_row(box, "Audio routing graph", "Patch microphones, applications, effects and output devices visually.", [("OPEN GRAPH", ["qpwgraph"], "")])
         self.section(box, "Effects + visuals")
         self.action_row(box, "EasyEffects", "Equalizer, limiter, compressor and output effects. Start with subtle presets.", [("OPEN EQ", ["easyeffects"], "primary")])
@@ -657,6 +657,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.section(box, "Resources")
         self.action_row(box, "Nocturne dashboard", "Full keyboard-first CPU, GPU, RAM, disk, process and audio telemetry.", [("OPEN", [str(HOME / ".local/bin/nocturne-dashboard")], "primary")])
         self.action_row(box, "Graphical resources", "Friendly per-process resource charts.", [("OPEN", ["resources"], "")])
+        self.action_row(box, "Hyprland system", "Compositor, renderer, displays, portals, and session details.", [("OPEN", ["hyprsysteminfo"], "")])
         self.section(box, "Display + power")
         self.action_row(box, "Laptop brightness", "Use a themed preset or the hardware brightness keys.", [("CHOOSE LEVEL", [str(SCRIPT_HOME / "brightness"), "pick"], "")])
         self.action_row(box, "Power profile", "Verified profile switching with on-screen CPU and MSI firmware status.", [("PERFORMANCE", [str(SCRIPT_HOME / "power-profile"), "set", "performance"], ""), ("BALANCED", [str(SCRIPT_HOME / "power-profile"), "set", "balanced"], "primary"), ("SAVER", [str(SCRIPT_HOME / "power-profile"), "set", "power-saver"], "")])

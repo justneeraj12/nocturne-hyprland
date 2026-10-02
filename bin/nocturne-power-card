@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""Compact GNOME-like power, battery, profile, and session card."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import signal
+import subprocess
+from pathlib import Path
+
+os.environ["GDK_BACKEND"] = "wayland"
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+
+
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
+PID_FILE = RUNTIME / "nocturne-power-card.pid"
+SCRIPT_HOME = Path.home() / ".config" / "hypr" / "scripts"
+
+CSS_TEMPLATE = b"""
+* { font-family: Inter, sans-serif; font-size: 11px; }
+window { background: transparent; }
+.card { background: alpha(@BASE@, .99); color: @TEXT@; border: 1px solid @ACCENT2@; border-bottom: 2px solid @LINE@; padding: 10px; }
+.eyebrow { color: @ACCENT@; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.battery { color: @TEXT@; font-size: 18px; font-weight: 800; }
+.subtle { color: @MUTED@; font-size: 10px; }
+.section { color: @MUTED@; font-size: 9px; font-weight: 800; letter-spacing: 1px; margin-top: 3px; }
+button { min-height: 31px; padding: 2px 8px; color: @TEXT@; background: @SURFACE@; border: 1px solid @LINE@; border-radius: 0; }
+button:hover { color: @TEXT@; background: @OVERLAY@; border-color: @ACCENT@; }
+button.active { color: @BASE@; background: @ACCENT@; border-color: @ACCENT2@; font-weight: 800; }
+button.destructive { color: #ff8c96; border-color: #613038; }
+button.confirm { color: #160507; background: #ff5f6d; border-color: #ff8c96; font-weight: 800; }
+"""
+
+
+def themed_css(template: bytes) -> bytes:
+    colors = {
+        "BASE": "07090a", "SURFACE": "0b0f10", "OVERLAY": "111719",
+        "LINE": "1b2925", "TEXT": "a7b8b1", "MUTED": "4d5d58",
+        "ACCENT": "5f8f76", "ACCENT2": "477463",
+    }
+    config = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "nocturne"
+    for filename in ("palette.css", "accent.css"):
+        try:
+            data = (config / filename).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for name in colors:
+            match = re.search(rf"^@define-color {name.lower()} #([0-9a-fA-F]{{6}});", data, re.MULTILINE)
+            if match:
+                colors[name] = match.group(1)
+    for name, value in colors.items():
+        template = template.replace(f"@{name}@".encode(), f"#{value}".encode())
+    return template
+
+
+def stop_existing() -> bool:
+    try:
+        pid = int(PID_FILE.read_text(encoding="utf-8").strip())
+        command = Path(f"/proc/{pid}/cmdline").read_bytes()
+        if b"nocturne-power-card" not in command:
+            PID_FILE.unlink(missing_ok=True)
+            return False
+        os.kill(pid, 0)
+        os.kill(pid, signal.SIGTERM)
+        return True
+    except (OSError, ValueError):
+        PID_FILE.unlink(missing_ok=True)
+        return False
+
+
+class PowerCard(Gtk.Application):
+    def __init__(self) -> None:
+        super().__init__(application_id="com.nocturne.PowerCard")
+        self.window: Gtk.ApplicationWindow | None = None
+        self.was_active = False
+        self.profile_buttons: dict[str, Gtk.Button] = {}
+        self.pending: str | None = None
+        self.pending_button: Gtk.Button | None = None
+        self.pending_label = ""
+
+    def do_activate(self) -> None:
+        provider = Gtk.CssProvider()
+        provider.load_from_data(themed_css(CSS_TEMPLATE))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        window = Gtk.ApplicationWindow(application=self, title="Nocturne Power")
+        window.set_decorated(False)
+        window.set_resizable(False)
+        window.set_default_size(350, 258)
+        window.connect("notify::is-active", self._activity_changed)
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        root.add_css_class("card")
+        root.append(self._label("POWER // SESSION", "eyebrow", 0))
+
+        capacity, status = self._battery()
+        title = f"{capacity}%" if capacity is not None else "AC POWER"
+        root.append(self._label(title, "battery", 0))
+        root.append(self._label(status.upper(), "subtle", 0))
+
+        root.append(self._label("POWER MODE", "section", 0))
+        profiles = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        for key, label in (("performance", "PERFORMANCE"), ("balanced", "BALANCED"), ("power-saver", "SAVER")):
+            button = Gtk.Button(label=label)
+            button.connect("clicked", self._set_profile, key)
+            profiles.append(button)
+            self.profile_buttons[key] = button
+        root.append(profiles)
+        self._refresh_profile()
+
+        root.append(self._label("SESSION", "section", 0))
+        session = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        for label, command in (
+            ("󰌾  LOCK", [str(SCRIPT_HOME / "lock-screen")]),
+            ("󰤄  SLEEP", ["systemctl", "suspend"]),
+            ("󰍃  LOG OUT", ["uwsm", "stop"]),
+        ):
+            button = Gtk.Button(label=label)
+            button.connect("clicked", self._run, command)
+            session.append(button)
+        root.append(session)
+
+        destructive = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        for key, label, command in (
+            ("restart", "󰜉  RESTART", ["systemctl", "reboot"]),
+            ("shutdown", "󰐥  SHUT DOWN", ["systemctl", "poweroff"]),
+        ):
+            button = Gtk.Button(label=label)
+            button.add_css_class("destructive")
+            button.connect("clicked", self._confirm, key, label, command)
+            destructive.append(button)
+        root.append(destructive)
+
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", self._on_key)
+        window.add_controller(keys)
+        window.set_child(root)
+        self.window = window
+        PID_FILE.write_text(str(os.getpid()), encoding="utf-8")
+        window.present()
+        GLib.timeout_add(35, self._place_window)
+
+    @staticmethod
+    def _label(text: str, css: str, xalign: float) -> Gtk.Label:
+        label = Gtk.Label(label=text, xalign=xalign)
+        label.add_css_class(css)
+        return label
+
+    @staticmethod
+    def _battery() -> tuple[int | None, str]:
+        batteries = list(Path("/sys/class/power_supply").glob("BAT*"))
+        if not batteries:
+            return None, "Connected to external power"
+        battery = batteries[0]
+        try:
+            capacity = int((battery / "capacity").read_text().strip())
+            status = (battery / "status").read_text().strip()
+            return capacity, status
+        except (OSError, ValueError):
+            return None, "Battery status unavailable"
+
+    def _refresh_profile(self) -> None:
+        result = subprocess.run(["powerprofilesctl", "get"], capture_output=True, text=True, check=False)
+        current = result.stdout.strip()
+        for profile, button in self.profile_buttons.items():
+            if profile == current:
+                button.add_css_class("active")
+            else:
+                button.remove_css_class("active")
+
+    def _set_profile(self, _button: Gtk.Button, profile: str) -> None:
+        subprocess.run([str(SCRIPT_HOME / "power-profile"), "set", profile], check=False)
+        self._refresh_profile()
+
+    def _run(self, _button: Gtk.Button, command: list[str]) -> None:
+        try:
+            subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        except OSError:
+            return
+        self.quit()
+
+    def _confirm(self, button: Gtk.Button, key: str, label: str, command: list[str]) -> None:
+        if self.pending == key:
+            self._run(button, command)
+            return
+        self._reset_confirmation()
+        self.pending = key
+        self.pending_button = button
+        self.pending_label = label
+        button.set_label("CONFIRM")
+        button.add_css_class("confirm")
+        GLib.timeout_add_seconds(4, self._reset_confirmation)
+
+    def _reset_confirmation(self) -> bool:
+        if self.pending_button is not None:
+            self.pending_button.set_label(self.pending_label)
+            self.pending_button.remove_css_class("confirm")
+        self.pending = None
+        self.pending_button = None
+        self.pending_label = ""
+        return False
+
+    def _activity_changed(self, window: Gtk.ApplicationWindow, _param: object) -> None:
+        if window.is_active():
+            self.was_active = True
+        elif self.was_active:
+            GLib.idle_add(self.quit)
+
+    def _on_key(self, _controller: object, keyval: int, _keycode: int, _state: int) -> bool:
+        if keyval == Gdk.KEY_Escape:
+            self.quit()
+            return True
+        return False
+
+    def _place_window(self) -> bool:
+        if self.window is None:
+            return False
+        try:
+            clients = json.loads(subprocess.check_output(["hyprctl", "clients", "-j"], text=True))
+            monitors = json.loads(subprocess.check_output(["hyprctl", "monitors", "-j"], text=True))
+            cursor = json.loads(subprocess.check_output(["hyprctl", "cursorpos", "-j"], text=True))
+            client = next(item for item in clients if item.get("pid") == os.getpid())
+            px, py = int(cursor["x"]), int(cursor["y"])
+            monitor = next(item for item in monitors if item["x"] <= px < item["x"] + item["width"] and item["y"] <= py < item["y"] + item["height"])
+            width = int(client["size"][0])
+            x = max(int(monitor["x"] + 8), min(px - width + 34, int(monitor["x"] + monitor["width"] - width - 8)))
+            y = int(monitor["y"] + 34)
+            subprocess.run(["hyprctl", "dispatch", "movewindowpixel", f"exact {x} {y},address:{client['address']}"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return False
+        except (OSError, ValueError, KeyError, StopIteration, subprocess.SubprocessError):
+            return True
+
+    def do_shutdown(self) -> None:
+        try:
+            if PID_FILE.read_text(encoding="utf-8").strip() == str(os.getpid()):
+                PID_FILE.unlink(missing_ok=True)
+        except OSError:
+            pass
+        Gtk.Application.do_shutdown(self)
+
+
+if __name__ == "__main__":
+    if stop_existing():
+        raise SystemExit(0)
+    raise SystemExit(PowerCard().run([]))

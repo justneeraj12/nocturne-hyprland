@@ -17,8 +17,7 @@ EVERYDAY APPS
   Super + T               Steam
   Super + N               Notification history
   Super + Shift + V       Clipboard history
-  Print Screen            Themed screenshot + screen-recording panel
-  Shift + Print Screen    Immediately drag-select a screenshot area
+  Print Screen            One capture UI: area, window, display, or recording
   Super + W               Choose or restore a wallpaper
   Super + Escape          Lock screen
   Super + P               Power / log out
@@ -73,8 +72,8 @@ TERMINAL BASICS
   nocturne-dashboard      Open the full resource monitor
 
 THE TOP BAR
-  The full controls live only on the external display; the laptop bar stays
-  intentionally minimal so Wi-Fi and Bluetooth are not duplicated.
+  The external display carries the full system strip. The laptop bar stays
+  minimal but keeps Wi-Fi, Bluetooth, notifications, brightness and battery.
 
   Ubuntu logo             Left apps · right quick controls · middle guide
   Center date/time        + means AM · − means PM · click interactive calendar
@@ -82,28 +81,29 @@ THE TOP BAR
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel
-  Connectivity            Wi-Fi + Bluetooth + VPN in one compact Orbit card
+  Wi-Fi                    Opens Wi-Fi · middle opens VPN · click again closes
+  Bluetooth                Opens Bluetooth devices · click again closes
   Three dots              Reveal background app tray icons at far right
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button
   SYS button              Left Nocturne dashboard · right graphical Resources
   Bell                    Notification history
+  Battery                 Battery state · click power/profile/session card
   Coffee/moon             Caffeine mode
   CPU                     Resource dashboard
 
   Every quick card        Click once to open · click the same item to close
   Different bar item      Replaces the open card instead of stacking another
 
-CAPTURE + SCREEN RECORDING
-  Print Screen            Open the compact bottom-center Nocturne capture card
-  Screenshot choices      All displays, current display, window or drag area
-  Frozen frame            Open menus/dropdowns stay visible in the screenshot
-  Screen recording        Current display or a drag-selected area
-  Red REC in bar          Left reopens capture card · right stops recording
-  Screenshot destination  ~/Pictures/Screenshots and the clipboard
-  EDIT before capture     Open the saved result in Swappy for annotation
-  Recording destination   ~/Videos/Screencasts
+SCREENSHOT + SCREEN RECORDING
+  Print Screen            Open the frozen unified HyprCapture surface
+  Capture modes           Drag area · click window · choose display
+  Recording               Switch modes in the same bottom toolbar
+  Screenshot destination  ~/Pictures/Screenshots + current clipboard item
+  Clipboard behavior      Paste normally; your next copy replaces it normally
+  REC in center bar       Hidden when idle · timer appears only while recording
+  Recording destination   ~/Videos/Screenrecords
 
 MEDIA
   Music title             Left full media card · middle play/pause

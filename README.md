@@ -78,28 +78,26 @@ control center, and middle opens the key guide. The full guide is in
   dense without letting adjacent one-pixel borders visually merge.
 - SwayNotificationCenter for application-independent notification history and
   do-not-disturb mode.
-- Cliphist clipboard picker and a native bottom-center Nocturne capture overlay
-  on Print Screen, following Ubuntu's Shot/Record → Area/Display/All/Window →
-  Capture workflow.
-  It captures all displays, one display, the active window, or a dragged area;
-  it also records a display or selected area with a red bar indicator. Still
-  images save to `~/Pictures/Screenshots` and copy to the clipboard, while
-  recordings save to `~/Videos/Screencasts`. Opening capture freezes the
-  pre-panel frame, so transient menus and dropdowns remain in the result. The
-  optional EDIT toggle hands the saved image to Swappy for arrows, text, blur,
-  and markup without adding another idle screenshot daemon.
+- Cliphist clipboard picker plus upstream HyprCapture for one frozen,
+  GNOME-like screenshot and recording surface. `Print` selects an area,
+  window, or display and can switch into recording without opening a second
+  tool. Screenshots save to `~/Pictures/Screenshots` and become the current
+  normal clipboard item; recordings save to `~/Videos/Screenrecords`. The
+  centered recording indicator exists only while capture is active.
 - Caffeine toggle backed by Hypridle, with 10-minute lock and 15-minute screen
   sleep when Caffeine is off.
 - A 25/5 Pomodoro timer in the bar.
 - A minimal Omarchy-style bar with MPRIS, audio, connectivity, grouped
   system health, microphone-use, notification, clock, and native tray apps.
-  One permanently visible Orbit button opens a sharp, compact Wi-Fi, Bluetooth,
-  and VPN panel directly below the bar; clicking the button again closes it,
-  middle-click opens VPN, and right-click opens Bluetooth. The Nocturne build
+  Separate, permanently visible Wi-Fi and Bluetooth icons open the matching tab
+  in one sharp, compact connectivity card directly below the bar. Clicking the
+  active icon again closes it; middle-clicking Wi-Fi opens VPN. The Nocturne build
   removes Orbit's oversized logo, wired-network, and public-IP surfaces, while
   Ubuntu's `nm-applet` and the
   Blueman tray applet are persistently suppressed so duplicate icons cannot
-  return.
+  return. Connectivity, calendar and power cards are initially compositor-
+  positioned below the clicked bar item with animation disabled, so they never
+  flash in the center before moving into place.
 - The compact audio card switches real PipeWire outputs, per-app volume, and
   physical microphones. Newly connected Bluetooth audio becomes the active
   output automatically while the laptop Digital Microphone stays preferred;
@@ -107,7 +105,9 @@ control center, and middle opens the key guide. The full guide is in
   high-quality A2DP playback.
   Ordinary background-app icons live in a three-dot drawer at the far-right
   edge. Audio, media, KDE Connect, and
-  power use compact click-to-toggle cards. The centered local date/time opens
+  power use compact click-to-toggle cards. The battery button opens one compact
+  GNOME-style card for Performance, Balanced and Saver modes plus session power
+  actions; restart and shutdown require a second confirming click. The centered local date/time opens
   a themed, interactive month calendar; a small globe+clock button opens every
   saved world time and live weather entry. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
@@ -126,11 +126,10 @@ control center, and middle opens the key guide. The full guide is in
   official web apps; Iotas synchronizes with Nextcloud, not Google.
   Keep and Drive launch in signed-in Brave app mode—no tab strip or fake sync
   bridge—and are also searchable from the app launcher.
-- The default lock path uses Ubuntu's current GTK Wayland locker with a sharp
-  Nocturne surface, the active wallpaper, a large 12-hour clock, visible
-  password feedback, and themed authentication states. It intentionally avoids
-  polling scripts and Hyprlock's affected asynchronous widget path so it stays
-  dependable across long idle periods and suspend/resume cycles.
+- The default lock path uses current upstream Hyprlock with an open,
+  typography-led Nocturne composition: active wallpaper, large 12-hour clock,
+  local weather, world times, media state, notification count, and a minimal
+  password line. GTKlock remains installed only as an emergency fallback.
   Masked shell prompts accept direct keyboard input while keeping menu-only
   cards protected from accidental custom commands.
 - Hyprland follows the start time, static durations, transitions, and full
@@ -168,8 +167,10 @@ control center, and middle opens the key guide. The full guide is in
   nvtop, and a live audio spectrum in one sharp grid.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
-- A sharper, theme-aware app launcher with larger icons, fuzzy search, generic
-  app descriptions, and remembered launch frequency.
+- The upstream Hyprlauncher daemon provides instant fuzzy app search, icons,
+  remembered launch frequency, Unicode, font, and calculator modes. It shares
+  the sharp Nocturne Hyprtoolkit theme with audio, system-info, permission, and
+  authentication surfaces.
 - Steam opens tiled, its utility dialogs float centered, and its launcher
   focuses an existing window instead of starting redundant client work. The
   hybrid-GPU path uses native NVIDIA PRIME while background shader compilation
@@ -203,12 +204,33 @@ The source configuration is under `config/hypr`, `config/waybar`,
 ./apply-hyprland.sh
 ```
 
+After a Hyprland package upgrade, log out and back into **Hyprland
+(uwsm-managed)** once, then run:
+
+```bash
+./scripts/install-hyprcapture.sh
+```
+
 The Orbit installer checks out an exact reviewed upstream commit, applies the
 small Nocturne connectivity patch, performs a locked Rust build, and
 places the result in `~/.local/bin`. The apply script checks for required programs,
 snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from
-leaking into GNOME. Hyprland's parser currently reports `config ok`.
+leaking into GNOME. HyprCapture is managed through `hyprpm` so its plugin is
+rebuilt against the exact compositor ABI instead of leaving a stale binary.
+Its installer uses a graphical administrator prompt and pins the reviewed
+HyprCapture revision; it must run from the new compositor session so the
+running ABI and installed headers agree.
+
+Before committing a desktop upgrade, run the source-level regression suite:
+
+```bash
+./scripts/validate-nocturne.sh
+```
+
+It validates shell/Python/JSON/Lua configuration, rejects duplicate
+connectivity owners, checks patch hygiene, and runs the complete local-agent
+test suite.
 
 Deep sleep is a one-time system-level setup because its policy lives under
 `/etc`. Apply it through the graphical administrator prompt with:

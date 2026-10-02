@@ -69,7 +69,8 @@ window#waybar {
 #custom-caffeine,
 #custom-kdeconnect,
 #custom-tray-toggle,
-#custom-orbit,
+#custom-wifi,
+#custom-bluetooth,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -90,7 +91,8 @@ window#waybar {
 
 #mpris,
 #custom-kdeconnect,
-#custom-orbit,
+#custom-wifi,
+#custom-bluetooth,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -123,7 +125,14 @@ window#waybar {
 #custom-kdeconnect { color: @muted; }
 #custom-kdeconnect.connected { color: @accent; }
 #custom-kdeconnect.disconnected { color: @muted; }
-#custom-orbit { color: @accent; }
+#custom-wifi,
+#custom-bluetooth { color: @text; padding-left: 6px; padding-right: 6px; }
+#custom-wifi.connected,
+#custom-bluetooth.connected { color: @accent; }
+#custom-wifi.disconnected,
+#custom-wifi.off,
+#custom-bluetooth.off,
+#custom-bluetooth.unavailable { color: @muted; }
 #pulseaudio { color: @text; }
 #pulseaudio.muted { color: @muted; }
 #custom-mic { color: @muted; }
@@ -132,7 +141,14 @@ window#waybar {
 #custom-brightness { color: @yellow; }
 #custom-system { color: @accent; padding-left: 9px; padding-right: 9px; }
 #custom-recording { color: @red; font-weight: 800; }
-#custom-recording.inactive { min-width: 0; margin: 0; padding: 0; font-size: 0; opacity: 0; }
+#custom-recording.inactive {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  font-size: 0;
+  opacity: 0;
+}
+#custom-recording.finalizing { color: @yellow; }
 #custom-system.warning { color: @yellow; }
 #custom-system.critical { color: @red; }
 #cpu { color: @accent; }
@@ -148,8 +164,10 @@ window#waybar {
 #custom-notification { color: @text; }
 #custom-local-clock { color: #e6eeeb; font-weight: 800; padding-left: 8px; padding-right: 8px; }
 #custom-power { color: @red; padding-right: 4px; }
-#custom-power-battery { color: @red; padding: 0 5px 0 8px; font-weight: 800; }
-#custom-power-battery.warning { color: @red; }
+#custom-power-battery { color: @text; padding: 0 6px 0 8px; font-weight: 800; }
+#custom-power-battery.charging,
+#custom-power-battery.full { color: @green; }
+#custom-power-battery.warning { color: @yellow; }
 #custom-power-battery.critical { color: @red; }
 
 #custom-logo:hover,
@@ -159,7 +177,8 @@ window#waybar {
 #custom-caffeine:hover,
 #custom-kdeconnect:hover,
 #custom-tray-toggle:hover,
-#custom-orbit:hover,
+#custom-wifi:hover,
+#custom-bluetooth:hover,
 #pulseaudio:hover,
 #custom-mic:hover,
 #custom-brightness:hover,

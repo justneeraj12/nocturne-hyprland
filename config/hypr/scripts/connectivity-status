@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case ${1:-} in
+  wifi)
+    if [[ $(nmcli -t -f WIFI general 2>/dev/null) != enabled ]]; then
+      jq -cn '{text:"󰤭",class:"off",tooltip:"Wi-Fi is off\nClick: open connectivity"}'
+      exit 0
+    fi
+    row=$(nmcli -t -f IN-USE,SSID,SIGNAL device wifi list --rescan no 2>/dev/null | awk -F: '$1 == "*" {print; exit}')
+    if [[ -z $row ]]; then
+      jq -cn '{text:"󰤯",class:"disconnected",tooltip:"Wi-Fi disconnected\nClick: choose a network"}'
+      exit 0
+    fi
+    IFS=: read -r _ ssid signal <<<"$row"
+    signal=${signal:-0}
+    if ((signal >= 75)); then icon='󰤨'; elif ((signal >= 50)); then icon='󰤥'; elif ((signal >= 25)); then icon='󰤢'; else icon='󰤟'; fi
+    jq -cn --arg text "$icon" --arg tooltip "$ssid · ${signal}%\nClick: Wi-Fi · Middle: VPN" \
+      '{text:$text,class:"connected",tooltip:$tooltip}'
+    ;;
+  bluetooth)
+    show=$(bluetoothctl show 2>/dev/null || true)
+    if [[ -z $show ]]; then
+      jq -cn '{text:"󰂲",class:"unavailable",tooltip:"Bluetooth controller unavailable"}'
+      exit 0
+    fi
+    if ! grep -q $'Powered: yes' <<<"$show"; then
+      jq -cn '{text:"󰂲",class:"off",tooltip:"Bluetooth is off\nClick: Bluetooth controls"}'
+      exit 0
+    fi
+    mapfile -t devices < <(bluetoothctl devices Connected 2>/dev/null | sed -E 's/^Device [0-9A-F:]+ //')
+    count=${#devices[@]}
+    if ((count)); then
+      names=$(printf '%s\n' "${devices[@]}" | paste -sd, - | sed 's/,/, /g')
+      jq -cn --arg tooltip "$count connected · $names\nClick: Bluetooth devices" \
+        '{text:"󰂱",class:"connected",tooltip:$tooltip}'
+    else
+      jq -cn '{text:"󰂯",class:"on",tooltip:"Bluetooth on · no connected devices\nClick: Bluetooth devices"}'
+    fi
+    ;;
+  *) printf 'Usage: %s wifi|bluetooth\n' "$0" >&2; exit 2 ;;
+esac

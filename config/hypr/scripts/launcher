@@ -1,15 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if pgrep -x wofi >/dev/null 2>&1; then
-  pkill -x wofi
-  exit 0
-fi
-
-cache=${XDG_CACHE_HOME:-"$HOME/.cache"}/wofi/nocturne-apps
-mkdir -p "${cache%/*}"
-exec wofi --show drun \
-  --conf "$HOME/.config/wofi/config" \
-  --style "$HOME/.config/wofi/style.css" \
-  --prompt 'APPS // SEARCH' \
-  --allow-images --insensitive --cache-file "$cache"
+# The upstream launcher is a cached daemon and toggles itself on repeated calls.
+exec hyprlauncher

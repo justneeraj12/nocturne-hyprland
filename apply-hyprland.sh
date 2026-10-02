@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland gtklock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy wf-recorder orbit)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprlauncher hyprpwcenter waybar swaync wofi cliphist wl-copy orbit socat ffmpeg hyprpm)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -22,11 +22,6 @@ if ((${#missing[@]})); then
   printf 'Missing Hyprland components: %s\n' "${missing[*]}" >&2
   exit 1
 fi
-if ! python3 -c "import gi; gi.require_version('Gtk4LayerShell', '1.0'); from gi.repository import Gtk4LayerShell" 2>/dev/null; then
-  printf 'Missing capture UI binding: install gir1.2-gtk4layershell-1.0\n' >&2
-  exit 1
-fi
-
 snapshot="$ROOT_DIR/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
 for relative in hypr gtklock waybar wofi swaync kitty btop tmux qt6ct kdeglobals; do
@@ -38,8 +33,8 @@ printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "
 
 mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/gtklock" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$CONFIG_HOME/swaync" "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
-  "$CONFIG_HOME/nocturne" "$CONFIG_HOME/orbit" "$CONFIG_HOME/swappy" "$DATA_HOME/backgrounds" \
-  "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screencasts" \
+  "$CONFIG_HOME/nocturne" "$CONFIG_HOME/orbit" "$DATA_HOME/backgrounds" \
+  "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screenrecords" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
   "$STATE_HOME/nocturne" "$BIN_HOME"
@@ -47,6 +42,9 @@ if [[ ! -e "$STATE_HOME/nocturne/lock-wallpaper" && ! -L "$STATE_HOME/nocturne/l
   ln -s "$DATA_HOME/backgrounds/nocturne-default.png" \
     "$STATE_HOME/nocturne/lock-wallpaper"
 fi
+# Hyprland 0.56+ uses Lua. Remove the retired legacy entry point so the
+# compositor never has two competing configuration providers.
+rm -f -- "$CONFIG_HOME/hypr/hyprland.conf"
 cp -a -- "$ROOT_DIR/config/hypr/." "$CONFIG_HOME/hypr/"
 cp -a -- "$ROOT_DIR/config/gtklock/." "$CONFIG_HOME/gtklock/"
 cp -a -- "$ROOT_DIR/config/waybar/." "$CONFIG_HOME/waybar/"
@@ -60,7 +58,6 @@ install -m 0644 "$ROOT_DIR/config/btop/btop.conf" "$CONFIG_HOME/btop/btop.conf"
 install -m 0644 "$ROOT_DIR/config/btop/nocturne.theme" "$CONFIG_HOME/btop/themes/nocturne.theme"
 install -m 0644 "$ROOT_DIR/config/tmux/tmux.conf" "$CONFIG_HOME/tmux/tmux.conf"
 cp -a -- "$ROOT_DIR/config/cava/." "$CONFIG_HOME/cava/"
-cp -a -- "$ROOT_DIR/config/swappy/." "$CONFIG_HOME/swappy/"
 cp -a -- "$ROOT_DIR/config/orbit/." "$CONFIG_HOME/orbit/"
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/swaync.service.d/only-hyprland.conf" \
@@ -74,6 +71,9 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-audio-autoswitch.service" \
   "$CONFIG_HOME/systemd/user/nocturne-audio-autoswitch.service"
+install -m 0644 \
+  "$ROOT_DIR/config/systemd/user/nocturne-orbit.service" \
+  "$CONFIG_HOME/systemd/user/nocturne-orbit.service"
 install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
@@ -100,9 +100,13 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-settings-app" "$BIN_HOME/nocturne-settin
 install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
-install -m 0755 "$ROOT_DIR/bin/nocturne-capture-ui" "$BIN_HOME/nocturne-capture-ui"
-install -m 0755 "$ROOT_DIR/bin/nocturne-freeze-frame" "$BIN_HOME/nocturne-freeze-frame"
 install -m 0755 "$ROOT_DIR/bin/nocturne-calendar" "$BIN_HOME/nocturne-calendar"
+install -m 0755 "$ROOT_DIR/bin/nocturne-power-card" "$BIN_HOME/nocturne-power-card"
+rm -f -- "$BIN_HOME/nocturne-capture-ui" "$BIN_HOME/nocturne-freeze-frame" \
+  "$CONFIG_HOME/hypr/scripts/screenshot" "$CONFIG_HOME/hypr/scripts/hyprshot-capture" \
+  "$CONFIG_HOME/hypr/scripts/screen-record" "$CONFIG_HOME/hypr/scripts/audio-menu" \
+  "$CONFIG_HOME/swappy/config" "$BIN_HOME/hyprshot"
+rmdir -- "$CONFIG_HOME/swappy" 2>/dev/null || true
 if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/wallpaper.json" "$CONFIG_HOME/nocturne/wallpaper.json"
 fi
@@ -151,8 +155,10 @@ if [[ ! -e "$CONFIG_HOME/hypr/nocturne-wallpaper.conf" ]]; then
     > "$CONFIG_HOME/hypr/nocturne-wallpaper.conf"
 fi
 chmod +x "$CONFIG_HOME"/hypr/scripts/*
+"$CONFIG_HOME/hypr/scripts/sync-hyprtoolkit-theme"
 
-# Orbit owns one always-visible Wi-Fi + Bluetooth + VPN Waybar module. The per-user
+# Orbit backs the separate always-visible Wi-Fi and Bluetooth controls; VPN is
+# one middle-click away from Wi-Fi. The per-user
 # XDG autostart override permanently masks Ubuntu's system nm-applet entry;
 # stopping the generated unit and Blueman applet fixes the current session too.
 systemctl --user stop 'app-nm\x2dapplet@autostart.service' >/dev/null 2>&1 || true
@@ -163,7 +169,11 @@ rm -f -- "$DATA_HOME/applications/innu.desktop" "$BIN_HOME/innu"
 rm -rf -- "$CONFIG_HOME/innu"
 if [[ ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
   pkill -x orbit 2>/dev/null || true
-  hyprctl dispatch exec "$BIN_HOME/orbit daemon" >/dev/null 2>&1 || true
+  systemctl --user daemon-reload >/dev/null 2>&1 || true
+  systemctl --user restart nocturne-orbit.service >/dev/null 2>&1 || true
+  # The existing session bar wrapper owns restart policy; stopping only Waybar
+  # makes it reload the new modules without creating a second wrapper.
+  pkill -x waybar 2>/dev/null || true
 fi
 
 # Use exactly one EasyEffects backend. The Flatpak copy created an autostart

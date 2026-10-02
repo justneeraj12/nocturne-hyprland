@@ -14,7 +14,7 @@
     "modules-right": [
       "custom/pomodoro", "mpris", "custom/caffeine", "custom/kdeconnect",
       "pulseaudio", "custom/mic", "custom/brightness", "custom/system",
-      "custom/orbit", "custom/notification",
+      "custom/wifi", "custom/bluetooth", "custom/notification",
       "custom/power-battery", "group/tray-expander"
     ],
 
@@ -80,13 +80,16 @@
       "interval": 2,
       "on-click": "~/.config/hypr/scripts/caffeine toggle"
     },
-    "custom/orbit": {
-      "format": "󱗿",
-      "tooltip": true,
-      "tooltip-format": "Wi-Fi + Bluetooth + VPN\nLeft: Wi-Fi · Middle: VPN · Right: Bluetooth",
+    "custom/wifi": {
+      "exec": "~/.config/hypr/scripts/connectivity-status wifi",
+      "return-type": "json", "interval": 4,
       "on-click": "~/.config/hypr/scripts/orbit-popup wifi",
-      "on-click-middle": "~/.config/hypr/scripts/orbit-popup vpn",
-      "on-click-right": "~/.config/hypr/scripts/orbit-popup bluetooth"
+      "on-click-middle": "~/.config/hypr/scripts/orbit-popup vpn"
+    },
+    "custom/bluetooth": {
+      "exec": "~/.config/hypr/scripts/connectivity-status bluetooth",
+      "return-type": "json", "interval": 4,
+      "on-click": "~/.config/hypr/scripts/orbit-popup bluetooth"
     },
     "custom/kdeconnect": {
       "exec": "~/.config/hypr/scripts/kdeconnect-status",
@@ -113,7 +116,7 @@
       "format-icons": { "headphone": "", "headset": "", "default": ["", "", ""] },
       "tooltip-format": "Volume {volume}% · {desc}\nLeft: audio panel · Middle: visualizer · Right: mute",
       "scroll-step": 5,
-      "on-click": "~/.config/hypr/scripts/audio-menu",
+      "on-click": "~/.config/hypr/scripts/audio-panel",
       "on-click-middle": "~/.local/bin/nocturne-visualizer",
       "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
     },
@@ -121,7 +124,7 @@
       "exec": "~/.config/hypr/scripts/mic-status",
       "return-type": "json", "interval": 2,
       "on-click": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle",
-      "on-click-right": "~/.config/hypr/scripts/audio-menu"
+      "on-click-right": "~/.config/hypr/scripts/audio-panel"
     },
     "custom/brightness": {
       "exec": "~/.config/hypr/scripts/brightness status",
@@ -138,10 +141,9 @@
       "on-click-right": "resources"
     },
     "custom/recording": {
-      "exec": "~/.config/hypr/scripts/screenshot status",
+      "exec": "~/.config/hypr/scripts/capture-status",
       "return-type": "json", "interval": 1,
-      "on-click": "~/.config/hypr/scripts/screenshot menu",
-      "on-click-right": "~/.config/hypr/scripts/screenshot stop"
+      "on-click": "~/.config/hypr/scripts/capture-open"
     },
     "cpu": {
       "format": "󰍛 {usage}%", "interval": 3,
@@ -209,7 +211,11 @@
     "expand-center": true,
     "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
     "modules-center": ["custom/local-clock#secondary"],
-    "modules-right": ["custom/brightness#secondary", "custom/power-battery#secondary"],
+    "modules-right": [
+      "custom/brightness#secondary", "custom/wifi#secondary",
+      "custom/bluetooth#secondary", "custom/notification#secondary",
+      "custom/power-battery#secondary"
+    ],
     "custom/logo": {
       "format": "", "tooltip-format": "Apps · right click controls · middle click key guide",
       "on-click": "~/.config/hypr/scripts/launcher",
@@ -240,6 +246,27 @@
       "on-click": "~/.config/hypr/scripts/brightness pick",
       "on-scroll-up": "~/.config/hypr/scripts/brightness up",
       "on-scroll-down": "~/.config/hypr/scripts/brightness down"
+    },
+    "custom/wifi#secondary": {
+      "exec": "~/.config/hypr/scripts/connectivity-status wifi",
+      "return-type": "json", "interval": 4,
+      "on-click": "~/.config/hypr/scripts/orbit-popup wifi",
+      "on-click-middle": "~/.config/hypr/scripts/orbit-popup vpn"
+    },
+    "custom/bluetooth#secondary": {
+      "exec": "~/.config/hypr/scripts/connectivity-status bluetooth",
+      "return-type": "json", "interval": 4,
+      "on-click": "~/.config/hypr/scripts/orbit-popup bluetooth"
+    },
+    "custom/notification#secondary": {
+      "tooltip-format": "Notification history", "format": "{icon}",
+      "format-icons": {
+        "notification": "󱅫", "none": "󰂚", "dnd-notification": "󰂠", "dnd-none": "󰂛",
+        "inhibited-notification": "󰂛", "inhibited-none": "󰂚",
+        "dnd-inhibited-notification": "󰂛", "dnd-inhibited-none": "󰂛"
+      },
+      "return-type": "json", "exec-if": "which swaync-client", "exec": "swaync-client -swb",
+      "on-click": "swaync-client -t -sw", "on-click-right": "swaync-client -d -sw"
     },
     "battery": {
       "states": { "warning": 25, "critical": 12 },

@@ -42,7 +42,7 @@ case "$choice" in
   *Bluetooth*) exec "$HOME/.config/hypr/scripts/orbit-popup" bluetooth ;;
   *VPN*) exec "$HOME/.config/hypr/scripts/orbit-popup" vpn ;;
   *KDE*) exec "$HOME/.config/hypr/scripts/kdeconnect-menu" ;;
-  *'Audio outputs'*) exec "$HOME/.config/hypr/scripts/audio-menu" ;;
+  *'Audio outputs'*) exec "$HOME/.config/hypr/scripts/audio-panel" ;;
   *'Nocturne visualizer'*) exec "$HOME/.local/bin/nocturne-visualizer" ;;
   *'Visualizer theme'*) exec "$HOME/.local/bin/nocturne-visualizer" choose ;;
   *routing*) exec qpwgraph ;;

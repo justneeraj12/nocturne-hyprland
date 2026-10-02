@@ -12,7 +12,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────'
 
-required=(Hyprland hyprctl hyprland-dialog gtklock hyprpaper waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus grim slurp wl-copy wf-recorder)
+required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper hyprlauncher hyprpwcenter waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus wl-copy socat ffmpeg hyprcapture-ui)
 missing=()
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
@@ -55,28 +55,31 @@ fi
 if command -v orbit >/dev/null 2>&1 \
     && orbit --version 2>/dev/null | rg -q '^orbit 2\.4\.13$' \
     && pgrep -x orbit >/dev/null 2>&1 \
+    && systemctl --user is-active --quiet nocturne-orbit.service \
     && [[ -r $HOME/.config/orbit/style.css ]]; then
   ok 'Unified Nocturne Orbit Wi-Fi/Bluetooth/VPN panel is active'
 else
   bad 'Orbit connectivity panel is not fully active'
 fi
-if command -v swappy >/dev/null 2>&1; then
-  ok 'Optional Swappy screenshot annotation is available'
-else
-  warning 'Swappy is unavailable; screenshots still save and copy without annotation'
-fi
 if jq -e '.[] | select(.name == "main")
-    | ((."modules-right" | index("custom/orbit")) != null)
+    | ((."modules-right" | index("custom/wifi")) != null)
+    and ((."modules-right" | index("custom/bluetooth")) != null)
+    and ((."modules-right" | index("custom/orbit")) == null)
     and ((."modules-right" | index("network")) == null)
     and ((."modules-right" | index("bluetooth")) == null)
-    and ."custom/orbit"."on-click" == "~/.config/hypr/scripts/orbit-popup wifi"
-    and ."custom/orbit"."on-click-middle" == "~/.config/hypr/scripts/orbit-popup vpn"
-    and ."custom/orbit"."on-click-right" == "~/.config/hypr/scripts/orbit-popup bluetooth"' \
+    and ."custom/wifi"."on-click" == "~/.config/hypr/scripts/orbit-popup wifi"
+    and ."custom/wifi"."on-click-middle" == "~/.config/hypr/scripts/orbit-popup vpn"
+    and ."custom/bluetooth"."on-click" == "~/.config/hypr/scripts/orbit-popup bluetooth"' \
     "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && [[ -x $HOME/.config/hypr/scripts/orbit-popup ]]; then
-  ok 'One unified Wi-Fi/Bluetooth/VPN control is permanently visible'
+    && jq -e '.[] | select(.name == "secondary")
+      | ((."modules-right" | index("custom/wifi#secondary")) != null)
+      and ((."modules-right" | index("custom/bluetooth#secondary")) != null)' \
+      "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
+    && [[ -x $HOME/.config/hypr/scripts/orbit-popup ]] \
+    && [[ -x $HOME/.config/hypr/scripts/connectivity-status ]]; then
+  ok 'Distinct Wi-Fi and Bluetooth controls are visible on both bars'
 else
-  warning 'Unified connectivity control is missing or duplicated'
+  warning 'Visible connectivity controls are missing or duplicated'
 fi
 if [[ ! -e $HOME/.local/bin/innu && ! -e $HOME/.config/innu ]] \
     && ! pgrep -x innu >/dev/null 2>&1; then
@@ -96,16 +99,19 @@ if ! pgrep -f '/usr/bin/blueman-(applet|tray)' >/dev/null 2>&1; then
 else
   warning 'A legacy Blueman process may duplicate Orbit'
 fi
-if [[ -x $HOME/.config/hypr/scripts/screenshot ]] \
-    && [[ -x $HOME/.local/bin/nocturne-capture-ui ]] \
-    && [[ -x $HOME/.local/bin/nocturne-freeze-frame ]] \
-    && [[ -r /usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0 ]] \
-    && python3 -c "import gi; gi.require_version('Gtk4LayerShell', '1.0'); from gi.repository import Gtk4LayerShell" 2>/dev/null \
-    && $HOME/.config/hypr/scripts/screenshot status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1 \
-    && $HOME/.config/hypr/scripts/screenshot diagnose >/dev/null 2>&1; then
-  ok 'Native screenshot, area selection, clipboard and recording stack responds'
+if [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
+    && [[ -x $HOME/.config/hypr/scripts/capture-status ]] \
+    && [[ -r $HOME/.config/hypr/hyprcapture.lua ]] \
+    && ! [[ -e $HOME/.local/bin/nocturne-capture-ui \
+      || -e $HOME/.local/bin/nocturne-freeze-frame \
+      || -e $HOME/.local/bin/hyprshot \
+      || -e $HOME/.config/hypr/scripts/screen-record ]] \
+    && rg -q 'clipboard = true' $HOME/.config/hypr/hyprcapture.lua \
+    && rg -q '\$XDG_PICTURES_DIR/Screenshots' $HOME/.config/hypr/hyprcapture.lua \
+    && $HOME/.config/hypr/scripts/capture-status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1; then
+  ok 'Unified HyprCapture screenshot/record flow saves and copies normally'
 else
-  bad 'Capture panel is not responding'
+  bad 'Unified capture integration is incomplete'
 fi
 if [[ -x $HOME/.local/bin/nocturne-calendar ]] \
     && jq -e '.[] | select(.name == "main")
@@ -118,10 +124,10 @@ else
 fi
 if [[ -r $HOME/.local/state/nocturne/lock-wallpaper ]] \
     && [[ -x $HOME/.config/hypr/scripts/lock-screen ]] \
-    && [[ -r $HOME/.config/gtklock/style.css ]] \
+    && [[ -r $HOME/.config/hypr/hyprlock.conf ]] \
     && rg -q 'lock-screen' "$HOME/.config/hypr/hypridle.conf" \
-    && [[ -r /etc/pam.d/gtklock ]]; then
-  ok 'Crash-resistant GTK lock screen and PAM authentication are wired'
+    && [[ -r /etc/pam.d/hyprlock ]]; then
+  ok 'Themed upstream Hyprlock and PAM authentication are wired'
 else
   bad 'Lock screen integration is incomplete'
 fi
@@ -139,6 +145,16 @@ fi
 brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'
 profile=$(powerprofilesctl get 2>/dev/null)
 [[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
+if [[ -x $HOME/.local/bin/nocturne-power-card ]] \
+    && [[ -x $HOME/.config/hypr/scripts/power-menu ]] \
+    && rg -q 'nocturne-power-card' "$HOME/.config/hypr/scripts/power-menu" \
+    && jq -e '.[] | select(.name == "main")
+      | ."custom/power-battery"."on-click" == "~/.config/hypr/scripts/power-menu"' \
+      "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
+  ok 'Compact battery, profile and session power card is wired'
+else
+  warning 'Power card integration is incomplete'
+fi
 binds=$(hyprctl binds -j 2>/dev/null || printf '[]')
 for action_key in XF86AudioMicMute XF86TouchpadToggle XF86WebCam XF86Tools; do
   jq -e --arg key "$action_key" '.[] | select(.key == $key)' <<<"$binds" >/dev/null \
@@ -180,7 +196,7 @@ kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect service respo
 fc-match 'Inter' | rg -qi 'Inter' && ok 'Inter UI font is installed' || warning 'Inter font fallback is in use'
 fc-match 'MesloLGS Nerd Font Mono' | rg -qi 'Meslo' && ok 'Nerd Font icons are installed' || bad 'Meslo Nerd Font is missing'
 
-for file in "$HOME/.config/gtklock/style.css" "$HOME/.config/waybar/config.jsonc" "$HOME/.config/swaync/config.json" "$HOME/.config/nocturne/locations.json"; do
+for file in "$HOME/.config/hypr/hyprland.lua" "$HOME/.config/hypr/hyprlock.conf" "$HOME/.config/waybar/config.jsonc" "$HOME/.config/swaync/config.json" "$HOME/.config/nocturne/locations.json"; do
   [[ -r $file ]] && ok "Readable config: ${file#$HOME/}" || bad "Missing config: ${file#$HOME/}"
 done
 

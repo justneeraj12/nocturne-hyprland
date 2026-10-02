@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -u
+
+runtime=${XDG_RUNTIME_DIR:-/tmp}
+socket="$runtime/hyprcapture/recording.sock"
+[[ -S $socket ]] || socket="/dev/shm/hyprcapture-$UID/recording.sock"
+[[ -S $socket ]] || socket="/tmp/hyprcapture-$UID/recording.sock"
+
+state=''
+if [[ -S $socket ]] && command -v socat >/dev/null 2>&1; then
+  state=$(timeout 1 socat - "UNIX-CONNECT:$socket" 2>/dev/null || true)
+fi
+
+if ! jq -e '.active == true or .phase == "finalizing"' >/dev/null 2>&1 <<<"$state"; then
+  printf '{"text":"","class":"inactive","tooltip":""}\n'
+  exit 0
+fi
+
+phase=$(jq -r '.phase // "recording"' <<<"$state")
+elapsed=$(jq -r '.elapsed // 0 | floor' <<<"$state")
+minutes=$((elapsed / 60))
+seconds=$((elapsed % 60))
+
+if [[ $phase == finalizing ]]; then
+  printf '{"text":"󰑋 SAVE","class":"finalizing","tooltip":"Finalizing recording"}\n'
+else
+  printf '{"text":"󰻂 %02d:%02d","class":"active","tooltip":"Screen recording · click to open controls"}\n' "$minutes" "$seconds"
+fi

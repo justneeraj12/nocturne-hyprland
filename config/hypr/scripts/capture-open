@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# HyprCapture registers its actions in Hyprland's Lua runtime. Keeping the IPC
+# expression here lets Waybar open the same native overlay as the Print key.
+hyprctl eval 'hl.plugin.hyprcapture.open()'

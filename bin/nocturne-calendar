@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import json
+import re
 import signal
 import subprocess
 from pathlib import Path
@@ -21,29 +22,50 @@ from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
 PID_FILE = RUNTIME / "nocturne-calendar.pid"
 
-CSS = b"""
+CSS_TEMPLATE = b"""
 * { font-family: Inter, sans-serif; font-size: 11px; }
 window { background: transparent; }
 .card {
-  background: rgba(6, 8, 9, 0.985);
-  color: #e1ebe7;
-  border: 1px solid #315345;
-  border-bottom: 2px solid #233d33;
+  background: alpha(@BASE@, 0.985);
+  color: @TEXT@;
+  border: 1px solid @ACCENT2@;
+  border-bottom: 2px solid @LINE@;
   padding: 13px;
 }
-.eyebrow { color: #55d6a9; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
-.date { color: #e6f4ee; font-size: 17px; font-weight: 800; }
-calendar { background: #090d0e; color: #dce8e3; border: 1px solid #16241f; padding: 7px; }
-calendar.header { color: #55d6a9; font-weight: 800; }
-calendar.button { color: #82958d; }
-calendar:selected { background: #55d6a9; color: #06100c; }
+.eyebrow { color: @ACCENT@; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.date { color: @TEXT@; font-size: 17px; font-weight: 800; }
+calendar { background: @SURFACE@; color: @TEXT@; border: 1px solid @LINE@; padding: 7px; }
+calendar.header { color: @ACCENT@; font-weight: 800; }
+calendar.button { color: @MUTED@; }
+calendar:selected { background: @ACCENT@; color: @BASE@; }
 button {
   min-height: 30px; padding: 2px 11px; border-radius: 0;
-  color: #bdcbc6; background: #0b1110; border: 1px solid #233b32;
+  color: @TEXT@; background: @SURFACE@; border: 1px solid @LINE@;
 }
-button:hover { color: #e6f4ee; background: #13241e; border-color: #55d6a9; }
-.primary { color: #07100c; background: #55d6a9; border-color: #82e7c4; font-weight: 800; }
+button:hover { color: @TEXT@; background: @OVERLAY@; border-color: @ACCENT@; }
+.primary { color: @BASE@; background: @ACCENT@; border-color: @ACCENT2@; font-weight: 800; }
 """
+
+
+def themed_css(template: bytes) -> bytes:
+    colors = {
+        "BASE": "07090a", "SURFACE": "0b0f10", "OVERLAY": "111719",
+        "LINE": "1b2925", "TEXT": "a7b8b1", "MUTED": "4d5d58",
+        "ACCENT": "5f8f76", "ACCENT2": "477463",
+    }
+    config = Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "nocturne"
+    for filename in ("palette.css", "accent.css"):
+        try:
+            data = (config / filename).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for name in colors:
+            match = re.search(rf"^@define-color {name.lower()} #([0-9a-fA-F]{{6}});", data, re.MULTILINE)
+            if match:
+                colors[name] = match.group(1)
+    for name, value in colors.items():
+        template = template.replace(f"@{name}@".encode(), f"#{value}".encode())
+    return template
 
 
 def stop_existing() -> bool:
@@ -70,7 +92,7 @@ class CalendarApp(Gtk.Application):
 
     def do_activate(self) -> None:
         provider = Gtk.CssProvider()
-        provider.load_from_data(CSS)
+        provider.load_from_data(themed_css(CSS_TEMPLATE))
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
