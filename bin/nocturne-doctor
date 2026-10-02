@@ -83,9 +83,15 @@ else
 fi
 if [[ -r $HOME/.local/state/nocturne/lock-wallpaper ]] \
     && [[ -x $HOME/.config/hypr/scripts/lock-status ]] \
+    && [[ -x $HOME/.config/hypr/scripts/lock-date ]] \
+    && [[ -x $HOME/.config/hypr/scripts/lock-weather ]] \
+    && [[ -x $HOME/.config/hypr/scripts/lock-world ]] \
+    && [[ -x $HOME/.config/hypr/scripts/lock-media ]] \
+    && [[ -x $HOME/.config/hypr/scripts/lock-notifications ]] \
     && rg -q 'path = ~/.local/state/nocturne/lock-wallpaper' "$HOME/.config/hypr/hyprlock.conf" \
+    && rg -q 'lock-world' "$HOME/.config/hypr/hyprlock.conf" \
     && [[ -r /etc/pam.d/hyprlock ]]; then
-  ok 'Lock screen wallpaper, status HUD and PAM authentication are wired'
+  ok 'Lock screen weather, world time, media, notifications and PAM authentication are wired'
 else
   bad 'Lock screen integration is incomplete'
 fi

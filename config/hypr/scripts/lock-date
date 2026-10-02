@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+date '+%A  ·  %d %B %Y' | tr '[:lower:]' '[:upper:]'

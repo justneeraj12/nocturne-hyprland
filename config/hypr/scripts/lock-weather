@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/locations.json
+cache=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne/weather.tsv
+label=$(jq -r '.local_weather // "Potsdam, NY"' "$config" 2>/dev/null || printf 'Potsdam, NY')
+
+temperature='--'
+code=''
+if [[ -s $cache ]]; then
+  temperature=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $2; exit}' "$cache")
+  code=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $3; exit}' "$cache")
+  [[ -n $temperature ]] || temperature='--'
+fi
+
+case "$code" in
+  0) icon='󰖙'; condition='CLEAR' ;;
+  1|2|3) icon='󰖕'; condition='CLOUD COVER' ;;
+  45|48) icon='󰖑'; condition='FOG' ;;
+  51|53|55|56|57) icon='󰖗'; condition='DRIZZLE' ;;
+  61|63|65|66|67|80|81|82) icon='󰖗'; condition='RAIN' ;;
+  71|73|75|77|85|86) icon='󰖘'; condition='SNOW' ;;
+  95|96|99) icon='󰖓'; condition='STORM' ;;
+  *) icon='󰖐'; condition='WEATHER SYNCING' ;;
+esac
+
+printf '%s  %s  ·  %s  ·  %s°C\n' "$icon" "${label^^}" "$condition" "$temperature"

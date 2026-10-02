@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+count=$(timeout 1 swaync-client --skip-wait --count 2>/dev/null || printf '0')
+dnd=$(timeout 1 swaync-client --skip-wait --get-dnd 2>/dev/null || printf 'false')
+[[ $count =~ ^[0-9]+$ ]] || count=0
+[[ $dnd == true ]] && mode='DND ON' || mode='DND OFF'
+
+if ((count == 0)); then
+  printf '󰂚  QUIET  ·  %s\n' "$mode"
+else
+  printf '󱅫  %s NOTIFICATIONS HELD  ·  %s\n' "$count" "$mode"
+fi

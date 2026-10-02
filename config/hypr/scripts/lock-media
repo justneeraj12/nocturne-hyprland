@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+field=${1:-title}
+
+escape_markup() {
+  sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
+mapfile -t players < <(timeout 1 playerctl -l 2>/dev/null || true)
+player=''
+fallback=''
+for candidate in "${players[@]}"; do
+  [[ -n $fallback ]] || fallback=$candidate
+  state=$(timeout 1 playerctl -p "$candidate" status 2>/dev/null || true)
+  if [[ $state == Playing ]]; then
+    player=$candidate
+    break
+  fi
+done
+[[ -n $player ]] || player=$fallback
+
+if [[ -z $player ]]; then
+  [[ $field == title ]] && printf 'Media idle\n' || printf 'NO ACTIVE PLAYER\n'
+  exit 0
+fi
+
+title=$(timeout 1 playerctl -p "$player" metadata title 2>/dev/null || true)
+artist=$(timeout 1 playerctl -p "$player" metadata artist 2>/dev/null || true)
+state=$(timeout 1 playerctl -p "$player" status 2>/dev/null || printf 'Idle')
+title=${title//$'\n'/ }
+artist=${artist//$'\n'/ }
+title=${title:0:52}
+artist=${artist:0:42}
+
+if [[ $field == title ]]; then
+  printf '%s\n' "${title:-Media idle}" | escape_markup
+else
+  printf '%s  ·  %s\n' "${artist:-${player%%.*}}" "${state^^}" | escape_markup
+fi

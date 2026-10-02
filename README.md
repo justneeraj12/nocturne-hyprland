@@ -118,9 +118,12 @@ control center, and middle opens the key guide. The full guide is in
   official web apps; Iotas synchronizes with Nextcloud, not Google.
   Keep and Drive launch in signed-in Brave app mode—no tab strip or fake sync
   bridge—and are also searchable from the app launcher.
-- Hyprlock uses a larger sharp authentication console over the active Nocturne
-  wallpaper, with a 12-hour `+`/`−` clock, session identity, battery/network/
-  power-profile status, visible password-dot feedback, and themed auth states.
+- Hyprlock uses an open editorial composition over the active Nocturne
+  wallpaper rather than an enclosing console: a large 12-hour `+`/`−` clock,
+  current Potsdam weather, live media, privacy-safe notification count,
+  battery/network/power status, and all seven saved world times and conditions.
+  Only the transparent password line remains interactive, with visible dot
+  feedback and themed authentication states.
   Masked shell prompts accept direct keyboard input while keeping menu-only
   cards protected from accidental custom commands.
 - Hyprland follows the start time, static durations, transitions, and full

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/locations.json
+cache=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne/weather.tsv
+
+clock_for() {
+  local zone=$1 clock marker
+  clock=$(TZ="$zone" date '+%I:%M')
+  clock=${clock#0}
+  [[ $(TZ="$zone" date '+%p') == AM ]] && marker='+' || marker='−'
+  printf '%s%s' "$clock" "$marker"
+}
+
+icon_for() {
+  case "${1:-}" in
+    0) printf '󰖙' ;;
+    1|2|3) printf '󰖕' ;;
+    45|48) printf '󰖑' ;;
+    51|53|55|56|57|61|63|65|66|67|80|81|82) printf '󰖗' ;;
+    71|73|75|77|85|86) printf '󰖘' ;;
+    95|96|99) printf '󰖓' ;;
+    *) printf '󰖐' ;;
+  esac
+}
+
+declare -A rows=(
+  ["Asia/Kolkata"]=''
+  ["America/New_York"]=''
+  ["Europe/Rome"]=''
+)
+
+while IFS=$'\t' read -r label timezone; do
+  temperature='--'
+  code=''
+  if [[ -s $cache ]]; then
+    temperature=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $2; exit}' "$cache")
+    code=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $3; exit}' "$cache")
+    [[ -n $temperature ]] || temperature='--'
+  fi
+  item="${label^^} $(clock_for "$timezone") $(icon_for "$code") ${temperature}°"
+  [[ -z ${rows[$timezone]:-} ]] || rows[$timezone]+='  ·  '
+  rows[$timezone]+="$item"
+done < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
+
+printf 'INDIA       %s\n' "${rows[Asia/Kolkata]:-UNAVAILABLE}"
+printf 'NEW YORK    %s\n' "${rows[America/New_York]:-UNAVAILABLE}"
+printf 'EUROPE      %s\n' "${rows[Europe/Rome]:-UNAVAILABLE}"
