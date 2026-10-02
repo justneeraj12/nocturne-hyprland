@@ -1,0 +1,98 @@
+* {
+  font-family: Inter, "MesloLGS Nerd Font Mono", sans-serif;
+  font-size: 11px;
+  border-radius: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+window,
+.background {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.orbit-panel {
+  background: rgba(6, 8, 9, 0.99);
+  color: #e1ebe7;
+  border: 1px solid #315345;
+  border-bottom: 2px solid #233d33;
+  border-radius: 0;
+  padding: 4px;
+}
+
+.orbit-header {
+  background: #090d0e;
+  border: none;
+  border-bottom: 1px solid #233b32;
+  border-radius: 0;
+  margin: -4px -4px 4px -4px;
+  padding: 5px;
+}
+
+.orbit-title { font-size: 11px; font-weight: 800; color: #e6f4ee; letter-spacing: 1px; }
+.orbit-status { color: #82958d; font-size: 10px; }
+
+.orbit-tab-bar {
+  background: #060809;
+  border: 1px solid #16241f;
+  border-radius: 0;
+  padding: 2px;
+}
+
+.orbit-tab,
+.orbit-button {
+  min-height: 24px;
+  color: #bdcbc6;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 0;
+  padding: 2px 9px;
+}
+
+.orbit-tab:hover,
+.orbit-button:hover {
+  color: #e6f4ee;
+  background: #111b18;
+  border-color: #315345;
+}
+
+.orbit-tab.active,
+.orbit-button.primary {
+  color: #06100c;
+  background: #55d6a9;
+  border-color: #82e7c4;
+  border-radius: 0;
+}
+
+.orbit-search-container,
+.orbit-search-entry,
+.orbit-network-row,
+.orbit-device-row,
+.orbit-saved-network-row,
+.orbit-vpn-dashboard,
+.orbit-details-overlay,
+.orbit-password-overlay,
+.orbit-error-overlay,
+.orbit-wired-overlay {
+  background: #090d0e;
+  color: #e1ebe7;
+  border: 1px solid #16241f;
+  border-radius: 0;
+}
+
+.orbit-network-row:hover,
+.orbit-device-row:hover,
+.orbit-saved-network-row:hover,
+.focused {
+  background: #111b18;
+  border-color: #315345;
+}
+
+.orbit-section-header,
+.orbit-ssid,
+.orbit-device-name { color: #e6f4ee; font-weight: 700; }
+.orbit-footer { background: #060809; border-top: 1px solid #233b32; }
+.orbit-button.destructive { color: #ff8c96; border-color: #613038; }
+.orbit-button.destructive:hover { color: #160507; background: #ff5f6d; }

@@ -63,24 +63,8 @@ clock_for() {
 }
 
 mapfile -t locations < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
-state=${XDG_RUNTIME_DIR:-/tmp}/nocturne-world-${UID}.index
-index=0
-[[ -r "$state" ]] && read -r index < "$state"
-[[ "$index" =~ ^[0-9]+$ ]] || index=0
 (( ${#locations[@]} > 0 )) || exit 0
-index=$((index % ${#locations[@]}))
-IFS=$'\t' read -r current_label current_timezone <<< "${locations[$index]}"
-printf '%s\n' "$(((index + 1) % ${#locations[@]}))" > "$state"
-
-current_temp='--'
-current_code=''
-if [[ -s "$cache" ]]; then
-  current_temp=$(awk -F '\t' -v wanted="$current_label" '$1 == wanted {print $2; exit}' "$cache")
-  current_code=$(awk -F '\t' -v wanted="$current_label" '$1 == wanted {print $3; exit}' "$cache")
-  [[ -n "$current_temp" ]] || current_temp='--'
-fi
-
-text="${current_label} $(clock_for "$current_timezone")  ·  $(weather_icon "$current_code") ${current_temp}°"
+text='󰖟 󰥔'
 tooltip='WEATHER + LOCAL TIME'
 while IFS=$'\t' read -r label timezone; do
   local_time="$(TZ="$timezone" date '+%a') $(clock_for "$timezone")"
@@ -93,6 +77,6 @@ while IFS=$'\t' read -r label timezone; do
   fi
   tooltip+=$(printf '\n%-15s %s  %s %s°' "$label" "$local_time" "$(weather_icon "$code")" "$temperature")
 done < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
-tooltip+=$'\n\nClick: Nocturne clock  ·  Right: refresh weather'
+tooltip+=$'\n\nClick: all cities  ·  Right: refresh weather'
 
 jq -cn --arg text "$text" --arg tooltip "$tooltip" '{text:$text,tooltip:$tooltip,class:"world"}'

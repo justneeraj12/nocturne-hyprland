@@ -32,7 +32,7 @@ config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne
 mkdir -p "$config"
 printf '@define-color accent #%s;\n@define-color accent2 #%s;\n@define-color nocturne_accent #%s;\n@define-color nocturne_accent2 #%s;\n' \
   "$accent" "$accent2" "$accent" "$accent2" > "$config/accent.css.tmp"
-printf '$active_border = rgba(%sff)\n' "$border" > "$config/accent.conf.tmp"
+printf 'general:col.active_border = rgba(%sff)\n' "$border" > "$config/accent.conf.tmp"
 mv "$config/accent.css.tmp" "$config/accent.css"
 mv "$config/accent.conf.tmp" "$config/accent.conf"
 DCONF_PROFILE="$HOME/.config/dconf/hyprland-profile" gsettings set org.gnome.desktop.interface accent-color "$gtk"

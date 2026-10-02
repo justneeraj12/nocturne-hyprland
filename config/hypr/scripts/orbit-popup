@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tab=${1:-wifi}
+
+if [[ $tab == --guard ]]; then
+  address=${2:-}
+  [[ -n $address ]] || exit 0
+  # Waybar's short-lived launcher process briefly restores the previous client
+  # when it exits. Refocus only after that handoff, then treat later focus
+  # changes as genuine outside clicks.
+  sleep 0.34
+  hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || exit 0
+  sleep 0.18
+  while hyprctl clients -j 2>/dev/null | jq -e --arg address "$address" \
+      'any(.[]; .address == $address)' >/dev/null 2>&1; do
+    active=$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // empty' 2>/dev/null || true)
+    if [[ -n $active && $active != "$address" ]]; then
+      orbit hide >/dev/null 2>&1 || true
+      exit 0
+    fi
+    sleep 0.08
+  done
+  exit 0
+fi
+
+# Make same-button clicks deterministic rather than asking Orbit to infer its
+# state during the close animation.
+if hyprctl clients -j 2>/dev/null | jq -e \
+    'any(.[]; .class == "com.orbit.app")' >/dev/null 2>&1; then
+  orbit hide >/dev/null 2>&1 || true
+  exit 0
+fi
+# Synchronize Orbit's internal state after a focus-guard close before asking it
+# to open a specific tab. This avoids a stale Toggle being interpreted as Hide.
+orbit hide >/dev/null 2>&1 || true
+sleep 0.16
+orbit toggle top-right --tab "$tab" >/dev/null
+
+# A hidden daemon has no mapped client. A shown panel maps as a regular
+# borderless window so Hyprland can dismiss it naturally on focus loss.
+address=''
+width=420
+for _ in {1..45}; do
+  row=$(hyprctl clients -j 2>/dev/null | jq -r '
+    first(.[] | select(.class == "com.orbit.app") | [.address, .size[0]] | @tsv) // empty
+  ' 2>/dev/null || true)
+  if [[ -n $row ]]; then
+    IFS=$'\t' read -r address width <<<"$row"
+    break
+  fi
+  sleep 0.02
+done
+[[ -n $address ]] || exit 0
+
+# GTK reports the client before its 120 ms reveal has reached the final size;
+# wait for that settle so the compositor cannot replace our placement with its
+# initial centered position a frame later.
+sleep 0.16
+row=$(hyprctl clients -j 2>/dev/null | jq -r '
+  first(.[] | select(.class == "com.orbit.app") | [.address, .size[0]] | @tsv) // empty
+' 2>/dev/null || true)
+[[ -n $row ]] || exit 0
+IFS=$'\t' read -r address width <<<"$row"
+
+cursor=$(hyprctl cursorpos -j 2>/dev/null || true)
+monitors=$(hyprctl monitors -j 2>/dev/null || true)
+px=$(jq -r '.x // empty' <<<"$cursor" 2>/dev/null || true)
+py=$(jq -r '.y // empty' <<<"$cursor" 2>/dev/null || true)
+if [[ $px =~ ^-?[0-9]+$ && $py =~ ^-?[0-9]+$ && $width =~ ^[0-9]+$ ]]; then
+  row=$(jq -r --argjson px "$px" --argjson py "$py" '
+    first(.[] | select($px >= .x and $px < (.x + .width)
+      and $py >= .y and $py < (.y + .height)) | [.x, .y, .width] | @tsv) // empty
+  ' <<<"$monitors" 2>/dev/null || true)
+  if [[ -n $row ]]; then
+    IFS=$'\t' read -r mx my mw <<<"$row"
+    x=$((px - width + 34))
+    min=$((mx + 8))
+    max=$((mx + mw - width - 8))
+    ((x < min)) && x=$min
+    ((x > max)) && x=$max
+    y=$((my + 34))
+    hyprctl dispatch movewindowpixel "exact $x $y,address:$address" >/dev/null 2>&1 || true
+  fi
+fi
+hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+nohup "$0" --guard "$address" >/dev/null 2>&1 &

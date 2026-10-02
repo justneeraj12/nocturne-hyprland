@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland gtklock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy wf-recorder)
+required=(Hyprland gtklock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy wf-recorder orbit)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -38,7 +38,7 @@ printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "
 
 mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/gtklock" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$CONFIG_HOME/swaync" "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
-  "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
+  "$CONFIG_HOME/nocturne" "$CONFIG_HOME/orbit" "$CONFIG_HOME/swappy" "$DATA_HOME/backgrounds" \
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screencasts" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
@@ -60,6 +60,8 @@ install -m 0644 "$ROOT_DIR/config/btop/btop.conf" "$CONFIG_HOME/btop/btop.conf"
 install -m 0644 "$ROOT_DIR/config/btop/nocturne.theme" "$CONFIG_HOME/btop/themes/nocturne.theme"
 install -m 0644 "$ROOT_DIR/config/tmux/tmux.conf" "$CONFIG_HOME/tmux/tmux.conf"
 cp -a -- "$ROOT_DIR/config/cava/." "$CONFIG_HOME/cava/"
+cp -a -- "$ROOT_DIR/config/swappy/." "$CONFIG_HOME/swappy/"
+cp -a -- "$ROOT_DIR/config/orbit/." "$CONFIG_HOME/orbit/"
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/swaync.service.d/only-hyprland.conf" \
   "$CONFIG_HOME/systemd/user/swaync.service.d/only-hyprland.conf"
@@ -100,6 +102,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wal
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-capture-ui" "$BIN_HOME/nocturne-capture-ui"
 install -m 0755 "$ROOT_DIR/bin/nocturne-freeze-frame" "$BIN_HOME/nocturne-freeze-frame"
+install -m 0755 "$ROOT_DIR/bin/nocturne-calendar" "$BIN_HOME/nocturne-calendar"
 if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/wallpaper.json" "$CONFIG_HOME/nocturne/wallpaper.json"
 fi
@@ -134,6 +137,8 @@ sed "s|@SCRIPT@|$BIN_HOME/nocturne-session-theme|g" \
   "$ROOT_DIR/assets/nocturne-gnome-theme-restore.desktop.in" \
   > "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
 chmod 0644 "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
+install -m 0644 "$ROOT_DIR/config/autostart/nm-applet.desktop" \
+  "$CONFIG_HOME/autostart/nm-applet.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && \
   update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true
 install -m 0644 "$ROOT_DIR/assets/nocturne-grid.png" "$DATA_HOME/backgrounds/nocturne-default.png"
@@ -147,9 +152,19 @@ if [[ ! -e "$CONFIG_HOME/hypr/nocturne-wallpaper.conf" ]]; then
 fi
 chmod +x "$CONFIG_HOME"/hypr/scripts/*
 
-# Wi-Fi has a dedicated always-visible Waybar module. Retire nm-applet's
-# inseparable tray icon so the far-right drawer contains background apps only.
+# Orbit owns one always-visible Wi-Fi + Bluetooth + VPN Waybar module. The per-user
+# XDG autostart override permanently masks Ubuntu's system nm-applet entry;
+# stopping the generated unit and Blueman applet fixes the current session too.
+systemctl --user stop 'app-nm\x2dapplet@autostart.service' >/dev/null 2>&1 || true
 pkill -x nm-applet 2>/dev/null || true
+pkill -x innu 2>/dev/null || true
+pkill -f '/usr/bin/blueman-applet' 2>/dev/null || true
+rm -f -- "$DATA_HOME/applications/innu.desktop" "$BIN_HOME/innu"
+rm -rf -- "$CONFIG_HOME/innu"
+if [[ ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
+  pkill -x orbit 2>/dev/null || true
+  hyprctl dispatch exec "$BIN_HOME/orbit daemon" >/dev/null 2>&1 || true
+fi
 
 # Use exactly one EasyEffects backend. The Flatpak copy created an autostart
 # entry that currently crashes during login; the distro build now runs as a
@@ -196,9 +211,9 @@ DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.preferences show-delete-permanently true
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.list-view default-zoom-level 'small'
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.gnome.nautilus.icon-view default-zoom-level 'small'
-# Keep Blueman's pairing/authentication agent, but suppress its StatusIcon in
-# Hyprland. Waybar owns the single visible Bluetooth button and opens the
-# compact Nocturne device menu; GNOME's separate dconf profile is untouched.
+# Orbit owns pairing and Bluetooth control in Hyprland. Keep every Blueman
+# status plugin disabled in this session profile so no legacy icon can return;
+# GNOME's separate dconf profile remains untouched.
 DCONF_PROFILE="$HYPR_DCONF_PROFILE" gsettings set org.blueman.general plugin-list \
   "['!StatusIcon', '!StatusNotifierItem', '!ShowConnected']"
 

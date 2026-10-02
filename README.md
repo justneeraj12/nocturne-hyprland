@@ -85,23 +85,31 @@ control center, and middle opens the key guide. The full guide is in
   it also records a display or selected area with a red bar indicator. Still
   images save to `~/Pictures/Screenshots` and copy to the clipboard, while
   recordings save to `~/Videos/Screencasts`. Opening capture freezes the
-  pre-panel frame, so transient menus and dropdowns remain in the result.
+  pre-panel frame, so transient menus and dropdowns remain in the result. The
+  optional EDIT toggle hands the saved image to Swappy for arrows, text, blur,
+  and markup without adding another idle screenshot daemon.
 - Caffeine toggle backed by Hypridle, with 10-minute lock and 15-minute screen
   sleep when Caffeine is off.
 - A 25/5 Pomodoro timer in the bar.
-- A minimal Omarchy-style bar with MPRIS, audio, network, Bluetooth, grouped
+- A minimal Omarchy-style bar with MPRIS, audio, connectivity, grouped
   system health, microphone-use, notification, clock, and native tray apps.
-  Wi-Fi and Bluetooth stay permanently visible with matching compact panels.
+  One permanently visible Orbit button opens a sharp, compact Wi-Fi, Bluetooth,
+  and VPN panel directly below the bar; clicking the button again closes it,
+  middle-click opens VPN, and right-click opens Bluetooth. The Nocturne build
+  removes Orbit's oversized logo, wired-network, and public-IP surfaces, while
+  Ubuntu's `nm-applet` and the
+  Blueman tray applet are persistently suppressed so duplicate icons cannot
+  return.
 - The compact audio card switches real PipeWire outputs, per-app volume, and
   physical microphones. Newly connected Bluetooth audio becomes the active
   output automatically while the laptop Digital Microphone stays preferred;
   choosing a headset mic temporarily enters HFP and switching back restores
   high-quality A2DP playback.
   Ordinary background-app icons live in a three-dot drawer at the far-right
-  edge, while the hidden Blueman agent continues handling pairing and
-  authentication without adding another icon. Audio, media, KDE Connect, and
-  power use compact click-to-toggle cards. A themed clock card
-  combines every saved world time, live weather, Pomodoro, and caffeine. The
+  edge. Audio, media, KDE Connect, and
+  power use compact click-to-toggle cards. The centered local date/time opens
+  a themed, interactive month calendar; a small globe+clock button opens every
+  saved world time and live weather entry. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
   outside GNOME. It provides a sidebar for appearance, wallpapers,
   connectivity, sound, desktop, hardware, power and shortcut help. The
@@ -191,10 +199,14 @@ The source configuration is under `config/hypr`, `config/waybar`,
 `config/swaync`, and `config/wofi`. Reapply it with:
 
 ```bash
+./scripts/install-orbit.sh
 ./apply-hyprland.sh
 ```
 
-The script checks for required programs, snapshots any existing Hypr-related
+The Orbit installer checks out an exact reviewed upstream commit, applies the
+small Nocturne connectivity patch, performs a locked Rust build, and
+places the result in `~/.local/bin`. The apply script checks for required programs,
+snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from
 leaking into GNOME. Hyprland's parser currently reports `config ok`.
 

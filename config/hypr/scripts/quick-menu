@@ -68,6 +68,9 @@ if [[ $old_pid =~ ^[0-9]+$ ]] && ((old_pid > 0)) && kill -0 "$old_pid" 2>/dev/nu
 fi
 
 monitor_args=()
+monitor_x=''
+monitor_y=''
+monitor_width=''
 if command -v hyprctl >/dev/null && command -v jq >/dev/null; then
   cursor_json=$(hyprctl cursorpos -j 2>/dev/null || true)
   monitors_json=$(hyprctl monitors -j 2>/dev/null || true)
@@ -76,9 +79,9 @@ if command -v hyprctl >/dev/null && command -v jq >/dev/null; then
   if [[ $cursor_x =~ ^-?[0-9]+$ && $cursor_y =~ ^-?[0-9]+$ ]]; then
     monitor_row=$(jq -r --argjson px "$cursor_x" --argjson py "$cursor_y" '
       .[] | select($px >= .x and $px < (.x + .width) and $py >= .y and $py < (.y + .height))
-      | [.name, .x, .width] | @tsv' <<<"$monitors_json" 2>/dev/null | head -n 1)
+      | [.name, .x, .y, .width] | @tsv' <<<"$monitors_json" 2>/dev/null | head -n 1)
     if [[ -n $monitor_row ]]; then
-      IFS=$'\t' read -r monitor_name monitor_x monitor_width <<<"$monitor_row"
+      IFS=$'\t' read -r monitor_name monitor_x monitor_y monitor_width <<<"$monitor_row"
       monitor_args=(--monitor "$monitor_name")
       if [[ $xoffset == auto ]]; then
         natural_x=$((monitor_x + monitor_width - width))
@@ -102,7 +105,7 @@ for menu_arg in "$@"; do
   # while Enter could never submit the password.
   [[ $menu_arg == --password ]] && custom_entry_args=()
 done
-wofi --dmenu --conf "$HOME/.config/wofi/quick-menu" \
+wofi --dmenu --normal-window --conf "$HOME/.config/wofi/quick-menu" \
   --style "$HOME/.config/wofi/quick-style.css" \
   --prompt "$prompt" "${custom_entry_args[@]}" --cache-file /dev/null \
   --location top_right --xoffset "$xoffset" --yoffset 0 \
@@ -113,8 +116,60 @@ opened=$(now_ms)
 write_state "$prompt" "$menu_pid" "$opened" 0
 flock -u 9
 
+# Layer-shell Wofi takes exclusive keyboard focus, which prevents an outside
+# click from ever reaching the application below it. A borderless normal
+# window behaves like a real popover: place it below the clicked bar item and
+# close it as soon as another application receives focus. Escape remains
+# Wofi's native cancel key.
+watch_popup() {
+  local address='' row='' actual_width='' desired_x='' desired_y=''
+  for _ in {1..50}; do
+    kill -0 "$menu_pid" 2>/dev/null || return 0
+    row=$(hyprctl clients -j 2>/dev/null | jq -r --argjson pid "$menu_pid" '
+      first(.[] | select(.pid == $pid) | [.address, .size[0]] | @tsv) // empty
+    ' 2>/dev/null || true)
+    if [[ -n $row ]]; then
+      IFS=$'\t' read -r address actual_width <<<"$row"
+      break
+    fi
+    sleep 0.02
+  done
+  [[ -n $address ]] || return 0
+
+  if [[ $monitor_x =~ ^-?[0-9]+$ && $monitor_y =~ ^-?[0-9]+$ \
+        && $monitor_width =~ ^[0-9]+$ && $cursor_x =~ ^-?[0-9]+$ \
+        && $actual_width =~ ^[0-9]+$ ]]; then
+    desired_x=$((cursor_x - actual_width + 34))
+    minimum_x=$((monitor_x + 8))
+    maximum_x=$((monitor_x + monitor_width - actual_width - 8))
+    ((desired_x < minimum_x)) && desired_x=$minimum_x
+    ((desired_x > maximum_x)) && desired_x=$maximum_x
+    desired_y=$((monitor_y + 34))
+    hyprctl dispatch movewindowpixel \
+      "exact $desired_x $desired_y,address:$address" >/dev/null 2>&1 || true
+  fi
+  # Let Waybar's launcher hand focus back first, then claim it once. Monitoring
+  # before that handoff mistakes normal startup for an outside click.
+  sleep 0.34
+  hyprctl dispatch focuswindow "address:$address" >/dev/null 2>&1 || true
+  sleep 0.18
+
+  while kill -0 "$menu_pid" 2>/dev/null; do
+    active=$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // empty' 2>/dev/null || true)
+    if [[ -n $active && $active != "$address" ]]; then
+      kill "$menu_pid" 2>/dev/null || true
+      return 0
+    fi
+    sleep 0.08
+  done
+}
+watch_popup &
+guard_pid=$!
+
 menu_status=0
 wait "$menu_pid" || menu_status=$?
+kill "$guard_pid" 2>/dev/null || true
+wait "$guard_pid" 2>/dev/null || true
 
 exec 9>"$lock_file"
 flock 9

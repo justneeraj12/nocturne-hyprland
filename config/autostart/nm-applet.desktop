@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=NetworkManager Applet (disabled by Nocturne)
+Hidden=true
+X-GNOME-Autostart-enabled=false
+NoDisplay=true
+

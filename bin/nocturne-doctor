@@ -45,17 +45,44 @@ monitor_count=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || pri
 nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
 [[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'
 bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller is available' || warning 'No Bluetooth controller is currently available'
-if ! pgrep -x nm-applet >/dev/null 2>&1; then
-  ok 'Legacy NetworkManager tray icon is retired'
+if ! pgrep -x nm-applet >/dev/null 2>&1 \
+    && [[ -r $HOME/.config/autostart/nm-applet.desktop ]] \
+    && rg -q '^Hidden=true$' "$HOME/.config/autostart/nm-applet.desktop"; then
+  ok 'Legacy NetworkManager tray icon is permanently retired'
 else
   warning 'nm-applet is still running and may duplicate the dedicated Wi-Fi control'
 fi
-pgrep -f '/usr/bin/blueman-applet' >/dev/null 2>&1 && ok 'Blueman pairing agent is running in the background' || warning 'Blueman pairing agent is not running'
-if jq -e '.[] | select(.name == "main")
-    | ((."modules-right" | index("network")) != null and (."modules-right" | index("bluetooth")) != null)' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
-  ok 'Wi-Fi and compact Bluetooth controls are permanently visible'
+if command -v orbit >/dev/null 2>&1 \
+    && orbit --version 2>/dev/null | rg -q '^orbit 2\.4\.13$' \
+    && pgrep -x orbit >/dev/null 2>&1 \
+    && [[ -r $HOME/.config/orbit/style.css ]]; then
+  ok 'Unified Nocturne Orbit Wi-Fi/Bluetooth/VPN panel is active'
 else
-  warning 'Connectivity controls may be missing from the visible bar'
+  bad 'Orbit connectivity panel is not fully active'
+fi
+if command -v swappy >/dev/null 2>&1; then
+  ok 'Optional Swappy screenshot annotation is available'
+else
+  warning 'Swappy is unavailable; screenshots still save and copy without annotation'
+fi
+if jq -e '.[] | select(.name == "main")
+    | ((."modules-right" | index("custom/orbit")) != null)
+    and ((."modules-right" | index("network")) == null)
+    and ((."modules-right" | index("bluetooth")) == null)
+    and ."custom/orbit"."on-click" == "~/.config/hypr/scripts/orbit-popup wifi"
+    and ."custom/orbit"."on-click-middle" == "~/.config/hypr/scripts/orbit-popup vpn"
+    and ."custom/orbit"."on-click-right" == "~/.config/hypr/scripts/orbit-popup bluetooth"' \
+    "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
+    && [[ -x $HOME/.config/hypr/scripts/orbit-popup ]]; then
+  ok 'One unified Wi-Fi/Bluetooth/VPN control is permanently visible'
+else
+  warning 'Unified connectivity control is missing or duplicated'
+fi
+if [[ ! -e $HOME/.local/bin/innu && ! -e $HOME/.config/innu ]] \
+    && ! pgrep -x innu >/dev/null 2>&1; then
+  ok 'Retired Innu connectivity UI is fully removed'
+else
+  warning 'The retired Innu UI still has live files or a running process'
 fi
 if jq -e '.[] | select(.name == "main")
     | ."modules-right"[-1] == "group/tray-expander"
@@ -64,22 +91,30 @@ if jq -e '.[] | select(.name == "main")
 else
   warning 'Background app tray drawer is missing or misplaced'
 fi
-plugins=$(DCONF_PROFILE="$HOME/.config/dconf/hyprland-profile" gsettings get org.blueman.general plugin-list 2>/dev/null || true)
-if [[ $plugins == *"!StatusIcon"* && $plugins == *"!StatusNotifierItem"* && $plugins == *"!ShowConnected"* ]] \
-    && ! pgrep -f '/usr/bin/blueman-tray' >/dev/null 2>&1; then
-  ok 'Duplicate Blueman status icon is fully disabled for Hyprland'
+if ! pgrep -f '/usr/bin/blueman-(applet|tray)' >/dev/null 2>&1; then
+  ok 'Legacy Blueman applet and duplicate status icon are retired'
 else
-  warning 'Blueman may expose a duplicate tray icon'
+  warning 'A legacy Blueman process may duplicate Orbit'
 fi
 if [[ -x $HOME/.config/hypr/scripts/screenshot ]] \
     && [[ -x $HOME/.local/bin/nocturne-capture-ui ]] \
     && [[ -x $HOME/.local/bin/nocturne-freeze-frame ]] \
     && [[ -r /usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0 ]] \
     && python3 -c "import gi; gi.require_version('Gtk4LayerShell', '1.0'); from gi.repository import Gtk4LayerShell" 2>/dev/null \
-    && $HOME/.config/hypr/scripts/screenshot status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1; then
-  ok 'Native screenshot and screen-recording overlay responds'
+    && $HOME/.config/hypr/scripts/screenshot status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1 \
+    && $HOME/.config/hypr/scripts/screenshot diagnose >/dev/null 2>&1; then
+  ok 'Native screenshot, area selection, clipboard and recording stack responds'
 else
   bad 'Capture panel is not responding'
+fi
+if [[ -x $HOME/.local/bin/nocturne-calendar ]] \
+    && jq -e '.[] | select(.name == "main")
+      | ((."modules-center" | index("custom/local-clock")) != null)
+      and ((."modules-center" | index("custom/world")) != null)' \
+      "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
+  ok 'Centered calendar clock and compact world-time control are wired'
+else
+  warning 'Calendar or centered world-time controls are incomplete'
 fi
 if [[ -r $HOME/.local/state/nocturne/lock-wallpaper ]] \
     && [[ -x $HOME/.config/hypr/scripts/lock-screen ]] \

@@ -1,0 +1,246 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index e148656..30e92c0 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1540,7 +1540,7 @@ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
+ 
+ [[package]]
+ name = "orbit"
+-version = "2.4.12"
++version = "2.4.13"
+ dependencies = [
+  "async-channel",
+  "clap",
+diff --git a/src/app/mod.rs b/src/app/mod.rs
+index f1c4998..011bd31 100644
+--- a/src/app/mod.rs
++++ b/src/app/mod.rs
+@@ -512,11 +512,9 @@ fn setup_events_receiver(
+                                     .build();
+                                 
+                                 if let Ok(client) = client_res {
+-                                    let providers = [
+-                                        "https://ifconfig.me/all.json",
+-                                        "https://api.ipify.org?format=json",
+-                                        "https://ipapi.co/json/"
+-                                    ];
++                                    // Nocturne uses Orbit only as a local Wi-Fi/Bluetooth
++                                    // panel. Never disclose the public IP during a panel open.
++                                    let providers: [&str; 0] = [];
+ 
+                                     for url in providers {
+                                         if let Ok(response) = client.get(url).send() {
+@@ -622,11 +620,8 @@ fn setup_events_receiver(
+                                             .build();
+                                         
+                                         if let Ok(client) = client_res {
+-                                            let providers = [
+-                                                "https://ifconfig.me/all.json",
+-                                                "https://api.ipify.org?format=json",
+-                                                "https://ipapi.co/json/"
+-                                            ];
++                                            // Nocturne keeps connectivity inspection local.
++                                            let providers: [&str; 0] = [];
+ 
+                                             for url in providers {
+                                                 log::info!("App: Trying IP provider (Toggle): {}", url);
+@@ -799,11 +794,7 @@ fn setup_ui_callbacks(
+             
+             if let Ok(client) = client_res {
+                 // Try multiple providers for redundancy
+-                let providers = [
+-                    "https://ifconfig.me/all.json",
+-                    "https://api.ipify.org?format=json",
+-                    "https://ipapi.co/json/"
+-                ];
++                let providers: [&str; 0] = [];
+ 
+                 for url in providers {
+                     log::info!("App: Trying IP provider (Manual Click): {}", url);
+diff --git a/src/ui/header.rs b/src/ui/header.rs
+index 9ae0fd5..6c0d6a5 100644
+--- a/src/ui/header.rs
++++ b/src/ui/header.rs
+@@ -1,12 +1,8 @@
+ use gtk4::prelude::*;
+ use gtk4::{self as gtk, Orientation};
+-use gtk4::gdk;
+-use gdk_pixbuf::PixbufLoader;
+ use std::cell::RefCell;
+ use std::rc::Rc;
+ 
+-const ORBIT_LOGO: &[u8] = include_bytes!("../../assets/OrbitLogo.png");
+-
+ #[derive(Clone)]
+ pub struct Header {
+     container: gtk::Box,
+@@ -33,25 +29,8 @@ impl Header {
+             .spacing(4)
+             .build();
+         
+-        let loader = PixbufLoader::new();
+-        loader.write(ORBIT_LOGO).expect("Failed to load embedded Orbit logo");
+-        loader.close().expect("Failed to close logo loader");
+-        let pixbuf = loader.pixbuf().expect("Failed to get logo pixbuf");
+-        let logo_texture = gdk::Texture::for_pixbuf(&pixbuf);
+-
+-        let orbit_icon = gtk::Image::builder()
+-            .paintable(&logo_texture)
+-            .pixel_size(64)
+-            .build();
+-
+-        let logo_container = gtk::Box::builder()
+-            .css_classes(["orbit-logo-container"])
+-            .valign(gtk::Align::Center)
+-            .build();
+-        logo_container.append(&orbit_icon);
+-        
+         let title = gtk::Label::builder()
+-            .label("Orbit")
++            .label("CONNECTIVITY")
+             .css_classes(["orbit-title"])
+             .hexpand(true)
+             .halign(gtk::Align::Start)
+@@ -83,7 +62,6 @@ impl Header {
+             .valign(gtk::Align::Center)
+             .build();
+         
+-        title_row.append(&logo_container);
+         title_row.append(&title);
+         title_row.append(&power_box);
+         title_row.append(&wired_button);
+@@ -177,7 +155,7 @@ impl Header {
+                 self.wifi_tab.add_css_class("active");
+                 self.power_box.set_visible(true);
+                 self.power_label.set_label("WiFi");
+-                self.wired_button.set_visible(true);
++                self.wired_button.set_visible(false);
+             }
+             "bluetooth" => {
+                 self.bluetooth_tab.add_css_class("active");
+@@ -194,4 +172,3 @@ impl Header {
+         }
+     }
+ }
+-
+diff --git a/src/ui/vpn_list.rs b/src/ui/vpn_list.rs
+index 3293924..ae5c466 100644
+--- a/src/ui/vpn_list.rs
++++ b/src/ui/vpn_list.rs
+@@ -212,6 +212,7 @@ impl VpnList {
+             .build();
+         
+-        scroll_content.append(&dashboard);
++        // Nocturne intentionally performs no public-IP lookup. Keep the VPN
++        // page focused on local profiles instead of a permanent Detecting UI.
+         scroll_content.append(&list_box);
+         scrolled.set_child(Some(&scroll_content));
+         container.append(&scrolled);
+diff --git a/src/ui/window.rs b/src/ui/window.rs
+index e9f4e1f..fbf2e95 100644
+--- a/src/ui/window.rs
++++ b/src/ui/window.rs
+@@ -1,6 +1,5 @@
+ use gtk4::{ApplicationWindow, Application, prelude::*, Overlay};
+ use gtk4::{self as gtk, Orientation};
+-use gtk4_layer_shell::{LayerShell, Layer, KeyboardMode, Edge};
+ use std::cell::{Cell, RefCell};
+ use std::rc::Rc;
+ 
+@@ -124,17 +123,13 @@ impl OrbitWindow {
+         println!("Loaded config: window_transition = '{}'", config.window_transition);
+         let window = ApplicationWindow::builder()
+             .application(app)
++            .title("NOCTURNE // CONNECTIVITY")
+-            .default_width(420)
++            .default_width(400)
+             .default_height(500)
+             .resizable(false)
+             .decorated(false)
+             .build();
+         
+-        window.init_layer_shell();
+-        window.set_namespace("orbit");
+-        window.set_layer(Layer::Overlay);
+-        window.set_keyboard_mode(KeyboardMode::None);
+-        window.set_exclusive_zone(0);
+-        window.set_default_size(420, 500);
++        window.set_default_size(400, 500);
+         
+         window.add_css_class("background");
+@@ -799,7 +794,6 @@ impl OrbitWindow {
+ 
+         self.window.set_visible(true);
+         self.window.present();
+-        self.window.set_keyboard_mode(KeyboardMode::OnDemand);
+ 
+         let rev = self.root_revealer.clone();
+         let anim = self.is_animating.clone();
+@@ -833,7 +827,6 @@ impl OrbitWindow {
+             std::time::Duration::from_millis(duration.into()),
+             move || {
+                 window.set_visible(false);
+-                window.set_keyboard_mode(KeyboardMode::None);
+                 anim.set(false);
+                 gtk::glib::ControlFlow::Break
+             },
+@@ -870,56 +863,9 @@ impl OrbitWindow {
+     }
+     
+     pub fn apply_position(&self) {
+-        let config = self.config.borrow();
+-        let pos = &config.position;
+-        
+-        self.window.set_margin(Edge::Top, config.margin_top);
+-        self.window.set_margin(Edge::Bottom, config.margin_bottom);
+-        self.window.set_margin(Edge::Left, config.margin_left);
+-        self.window.set_margin(Edge::Right, config.margin_right);
+-        
+-        self.window.set_anchor(Edge::Top, false);
+-        self.window.set_anchor(Edge::Bottom, false);
+-        self.window.set_anchor(Edge::Left, false);
+-        self.window.set_anchor(Edge::Right, false);
+-        
+-        match pos.as_str() {
+-            "top-left" => {
+-                self.window.set_anchor(Edge::Top, true);
+-                self.window.set_anchor(Edge::Left, true);
+-            }
+-            "top-center" => {
+-                self.window.set_anchor(Edge::Top, true);
+-            }
+-            "top-right" => {
+-                self.window.set_anchor(Edge::Top, true);
+-                self.window.set_anchor(Edge::Right, true);
+-            }
+-            "center-left" => {
+-                self.window.set_anchor(Edge::Left, true);
+-            }
+-            "center" => {
+-                // No anchors = centered
+-            }
+-            "center-right" => {
+-                self.window.set_anchor(Edge::Right, true);
+-            }
+-            "bottom-left" => {
+-                self.window.set_anchor(Edge::Bottom, true);
+-                self.window.set_anchor(Edge::Left, true);
+-            }
+-            "bottom-center" => {
+-                self.window.set_anchor(Edge::Bottom, true);
+-            }
+-            "bottom-right" => {
+-                self.window.set_anchor(Edge::Bottom, true);
+-                self.window.set_anchor(Edge::Right, true);
+-            }
+-            _ => {
+-                self.window.set_anchor(Edge::Top, true);
+-                self.window.set_anchor(Edge::Right, true);
+-            }
+-        }
++        // No-op in the Nocturne build. Hyprland positions this ordinary
++        // borderless popover beneath the Waybar button, allowing normal
++        // focus-loss dismissal instead of layer-shell keyboard capture.
+     }
+     
+     pub fn reload_config(&self) {

@@ -1,0 +1,15 @@
+[Default]
+save_dir=$HOME/Pictures/Screenshots
+save_filename_format=Screenshot-%Y-%m-%d_%H-%M-%S.png
+show_panel=true
+line_size=3
+text_size=18
+text_font=Inter
+paint_mode=arrow
+early_exit=false
+fill_shape=false
+auto_save=false
+custom_color=rgba(85,214,169,1)
+transparent=false
+transparency=25
+

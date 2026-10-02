@@ -1,0 +1,10 @@
+position = "top-right"
+margin_top = 34
+margin_bottom = 8
+margin_left = 8
+margin_right = 8
+window_transition = "slidedown"
+window_transition_duration = 120
+stack_transition = "crossfade"
+stack_transition_duration = 100
+

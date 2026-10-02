@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 
@@ -101,6 +102,8 @@ class CaptureApplication(Gtk.Application):
         self.window: Gtk.ApplicationWindow | None = None
         self.target_buttons: dict[str, Gtk.ToggleButton] = {}
         self.mode_buttons: dict[str, Gtk.ToggleButton] = {}
+        self.annotate = False
+        self.edit_button: Gtk.ToggleButton | None = None
 
     def do_activate(self) -> None:
         if self.window is not None:
@@ -202,6 +205,12 @@ class CaptureApplication(Gtk.Application):
         root.append(targets)
         root.append(self._divider())
 
+        self.edit_button = Gtk.ToggleButton(
+            label="󰏫  EDIT", tooltip_text="Annotate the result in Swappy"
+        )
+        self.edit_button.connect("toggled", self._set_annotate)
+        root.append(self.edit_button)
+
         self.shutter = Gtk.Button(label="CAPTURE")
         self.shutter.add_css_class("shutter")
         self.shutter.connect("clicked", self._submit)
@@ -236,6 +245,10 @@ class CaptureApplication(Gtk.Application):
         recording = mode == "record"
         self.target_buttons["all"].set_sensitive(not recording)
         self.target_buttons["window"].set_sensitive(not recording)
+        if self.edit_button is not None:
+            self.edit_button.set_sensitive(not recording)
+            if recording:
+                self.edit_button.set_active(False)
         if recording and self.target in {"all", "window"}:
             self.target_buttons["area"].set_active(True)
         self.shutter.set_label("RECORD" if recording else "CAPTURE")
@@ -248,8 +261,12 @@ class CaptureApplication(Gtk.Application):
         if button.get_active():
             self.target = target
 
+    def _set_annotate(self, button: Gtk.ToggleButton) -> None:
+        self.annotate = button.get_active()
+
     def _submit(self, _button: Gtk.Button | None = None) -> None:
-        self._finish(f"{self.mode}-{self.target}")
+        suffix = "-edit" if self.mode == "screenshot" and self.annotate else ""
+        self._finish(f"{self.mode}-{self.target}{suffix}")
 
     def _finish(self, action: str) -> None:
         print(action, flush=True)
@@ -279,6 +296,9 @@ class CaptureApplication(Gtk.Application):
             if button and button.get_sensitive():
                 button.set_active(True)
             return True
+        if not self.recording and keyval == Gdk.KEY_e and self.edit_button is not None:
+            self.edit_button.set_active(not self.edit_button.get_active())
+            return True
         return False
 
     def do_shutdown(self) -> None:
@@ -294,7 +314,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--monitor")
     parser.add_argument("--recording", action="store_true")
+    parser.add_argument("--diagnose", action="store_true")
     args = parser.parse_args()
+    if args.diagnose:
+        display = Gdk.Display.get_default()
+        supported = bool(display and Layer.is_supported())
+        print(json.dumps({"display": bool(display), "layer_shell": supported}))
+        return 0 if supported else 1
     return CaptureApplication(args.monitor, args.recording).run([])
 
 

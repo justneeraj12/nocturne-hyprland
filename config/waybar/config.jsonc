@@ -10,11 +10,11 @@
     "fixed-center": true,
     "expand-center": true,
     "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
-    "modules-center": ["custom/recording", "custom/world"],
+    "modules-center": ["custom/recording", "custom/local-clock", "custom/world"],
     "modules-right": [
       "custom/pomodoro", "mpris", "custom/caffeine", "custom/kdeconnect",
       "pulseaudio", "custom/mic", "custom/brightness", "custom/system",
-      "network", "bluetooth", "custom/notification", "custom/local-clock",
+      "custom/orbit", "custom/notification",
       "custom/power-battery", "group/tray-expander"
     ],
 
@@ -80,24 +80,13 @@
       "interval": 2,
       "on-click": "~/.config/hypr/scripts/caffeine toggle"
     },
-    "network": {
-      "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
-      "format-wifi": "{icon}", "format-ethernet": "󰈀", "format-disconnected": "󰤭",
-      "tooltip-format-wifi": "{essid} · {signalStrength}%\n{ipaddr}\n↓ {bandwidthDownBits}  ↑ {bandwidthUpBits}\nLeft: networks · Right: Wi-Fi on/off",
-      "tooltip-format-ethernet": "Ethernet · {ipaddr}\n↓ {bandwidthDownBits}  ↑ {bandwidthUpBits}",
-      "tooltip-format-disconnected": "Network disconnected\nLeft: networks · Right: Wi-Fi on/off",
-      "interval": 3,
-      "on-click": "~/.config/hypr/scripts/wifi-menu",
-      "on-click-right": "~/.config/hypr/scripts/wifi-menu toggle"
-    },
-    "bluetooth": {
-      "format": "", "format-off": "󰂲", "format-disabled": "󰂲",
-      "format-connected": "󰂱", "format-no-controller": "",
-      "tooltip-format": "Bluetooth · {status}\nLeft: devices · Right: on/off",
-      "tooltip-format-connected": "Bluetooth · {num_connections} connected\n{device_enumerate}\nLeft: devices · Right: on/off",
-      "tooltip-format-enumerate-connected": "{device_alias}",
-      "on-click": "~/.config/hypr/scripts/bluetooth-menu",
-      "on-click-right": "~/.config/hypr/scripts/bluetooth-menu toggle"
+    "custom/orbit": {
+      "format": "󱗿",
+      "tooltip": true,
+      "tooltip-format": "Wi-Fi + Bluetooth + VPN\nLeft: Wi-Fi · Middle: VPN · Right: Bluetooth",
+      "on-click": "~/.config/hypr/scripts/orbit-popup wifi",
+      "on-click-middle": "~/.config/hypr/scripts/orbit-popup vpn",
+      "on-click-right": "~/.config/hypr/scripts/orbit-popup bluetooth"
     },
     "custom/kdeconnect": {
       "exec": "~/.config/hypr/scripts/kdeconnect-status",
@@ -196,7 +185,7 @@
     },
     "custom/local-clock": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,
-      "on-click": "~/.config/hypr/scripts/clock-menu", "on-click-right": "~/.config/hypr/scripts/clock-menu refresh"
+      "on-click": "~/.local/bin/nocturne-calendar", "on-click-right": "~/.config/hypr/scripts/clock-menu"
     },
     "custom/power": {
       "format": "󰐥", "tooltip-format": "Power menu",
@@ -244,7 +233,7 @@
     },
     "custom/local-clock#secondary": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,
-      "on-click": "~/.config/hypr/scripts/clock-menu", "on-click-right": "~/.config/hypr/scripts/clock-menu refresh"
+      "on-click": "~/.local/bin/nocturne-calendar", "on-click-right": "~/.config/hypr/scripts/clock-menu"
     },
     "custom/brightness#secondary": {
       "exec": "~/.config/hypr/scripts/brightness status", "return-type": "json", "interval": 2,

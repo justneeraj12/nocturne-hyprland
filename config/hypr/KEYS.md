@@ -77,13 +77,12 @@ THE TOP BAR
   intentionally minimal so Wi-Fi and Bluetooth are not duplicated.
 
   Ubuntu logo             Left apps · right quick controls · middle guide
-  City/time/weather       Rotates every 10 seconds; click the world clock card
-  Local clock             + means AM · − means PM · click for clock card
+  Center date/time        + means AM · − means PM · click interactive calendar
+  Globe + clock           All saved world times/weather · right refreshes
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel
-  Wi-Fi                   Compact network card · right toggles radio
-  Bluetooth               Matching compact devices popup · right toggles radio
+  Connectivity            Wi-Fi + Bluetooth + VPN in one compact Orbit card
   Three dots              Reveal background app tray icons at far right
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
@@ -103,6 +102,7 @@ CAPTURE + SCREEN RECORDING
   Screen recording        Current display or a drag-selected area
   Red REC in bar          Left reopens capture card · right stops recording
   Screenshot destination  ~/Pictures/Screenshots and the clipboard
+  EDIT before capture     Open the saved result in Swappy for annotation
   Recording destination   ~/Videos/Screencasts
 
 MEDIA

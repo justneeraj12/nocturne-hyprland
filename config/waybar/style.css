@@ -58,9 +58,9 @@ window#waybar {
 
 #custom-world {
   color: @accent;
-  padding: 0 12px;
-  font-size: 10px;
-  letter-spacing: 0.3px;
+  min-width: 22px;
+  padding: 0 7px;
+  font-size: 12px;
 }
 
 #custom-pomodoro,
@@ -69,8 +69,7 @@ window#waybar {
 #custom-caffeine,
 #custom-kdeconnect,
 #custom-tray-toggle,
-#network,
-#bluetooth,
+#custom-orbit,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -91,8 +90,7 @@ window#waybar {
 
 #mpris,
 #custom-kdeconnect,
-#network,
-#bluetooth,
+#custom-orbit,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -125,12 +123,7 @@ window#waybar {
 #custom-kdeconnect { color: @muted; }
 #custom-kdeconnect.connected { color: @accent; }
 #custom-kdeconnect.disconnected { color: @muted; }
-#network { color: @text; }
-#network.disconnected { color: @muted; }
-#bluetooth { color: @text; }
-#bluetooth.off,
-#bluetooth.disabled { color: @muted; }
-#bluetooth.connected { color: @accent; }
+#custom-orbit { color: @accent; }
 #pulseaudio { color: @text; }
 #pulseaudio.muted { color: @muted; }
 #custom-mic { color: @muted; }
@@ -166,8 +159,7 @@ window#waybar {
 #custom-caffeine:hover,
 #custom-kdeconnect:hover,
 #custom-tray-toggle:hover,
-#network:hover,
-#bluetooth:hover,
+#custom-orbit:hover,
 #pulseaudio:hover,
 #custom-mic:hover,
 #custom-brightness:hover,
