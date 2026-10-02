@@ -1,6 +1,6 @@
--- The first config pass happens before hyprpm loads plugins. Returning here is
--- intentional: HyprCapture requests a reload from PLUGIN_INIT, at which point
--- its config keys and Lua actions exist.
+-- The first config pass can happen before the user-local plugin is loaded.
+-- Returning here is intentional: HyprCapture requests a reload from
+-- PLUGIN_INIT, at which point its config keys and Lua actions exist.
 if not hl.plugin.hyprcapture then return end
 
 hl.config({

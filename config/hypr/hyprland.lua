@@ -36,6 +36,7 @@ local snap = home .. "/.config/hypr/scripts/snap-window"
 local steam = home .. "/.config/hypr/scripts/steam-launch"
 local hardware = home .. "/.config/hypr/scripts/hardware-control"
 local scripts = home .. "/.config/hypr/scripts/"
+local capture_plugin = home .. "/.local/lib/nocturne-hyprcapture/libhyprcapture.so"
 
 hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@180", position = "0x0", scale = 1 })
 hl.monitor({ output = "eDP-1", mode = "1920x1080@144", position = "auto-right", scale = 1 })
@@ -58,6 +59,7 @@ hl.on("hyprland.start", function()
     local commands = {
         home .. "/.local/bin/nocturne-session-theme hypr",
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP GTK_THEME QT_QPA_PLATFORMTHEME DCONF_PROFILE",
+        "hyprctl plugin load " .. capture_plugin,
         "hyprpaper -c " .. config_home .. "/hypr/nocturne-wallpaper.conf",
         "systemctl --user start nocturne-wallpaper-cycle.service",
         "hypridle",
@@ -253,5 +255,6 @@ hl.layer_rule({ match = { namespace = "notifications" }, blur = true })
 hl.layer_rule({ match = { namespace = "wofi" }, blur = true })
 
 -- HyprCapture is isolated so an unavailable plugin cannot prevent the rest of
--- the desktop from loading. Hyprland retries it after hyprpm loads the plugin.
+-- the desktop from loading. Its pinned user-local plugin requests a reload
+-- after it is loaded during compositor startup.
 require("hyprcapture")

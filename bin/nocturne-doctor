@@ -20,6 +20,12 @@ done
 if ((${#missing[@]} == 0)); then ok 'Required desktop commands are installed'; else bad "Missing commands: ${missing[*]}"; fi
 
 if [[ $(hyprctl configerrors 2>/dev/null) == '' ]]; then ok 'Hyprland configuration has no parser errors'; else bad 'Hyprland reports configuration errors'; fi
+config_provider=$(hyprctl systeminfo 2>/dev/null | sed -n 's/^configProvider: //p' | head -n1)
+if [[ $config_provider == lua ]]; then
+  ok 'Hyprland is running the Nocturne Lua configuration provider'
+else
+  bad "Hyprland config provider is ${config_provider:-unknown}; log out and re-enter the uwsm-managed session"
+fi
 pgrep -x waybar >/dev/null 2>&1 && ok 'Waybar is running' || bad 'Waybar is not running'
 pgrep -x swaync >/dev/null 2>&1 && ok 'Notification center is running' || bad 'Notification center is not running'
 pgrep -x hypridle >/dev/null 2>&1 && ok 'Idle and lock manager is running' || bad 'Hypridle is not running'
@@ -112,6 +118,13 @@ if [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
   ok 'Unified HyprCapture screenshot/record flow saves and copies normally'
 else
   bad 'Unified capture integration is incomplete'
+fi
+if [[ -x $HOME/.local/bin/hyprcapture-ui ]] \
+    && [[ -r $HOME/.local/lib/nocturne-hyprcapture/libhyprcapture.so ]] \
+    && hyprctl plugin list 2>/dev/null | rg -qi 'HyprCapture'; then
+  ok 'Pinned HyprCapture compositor plugin and helper are loaded'
+else
+  bad 'HyprCapture compositor plugin or helper is unavailable'
 fi
 if [[ -x $HOME/.local/bin/nocturne-calendar ]] \
     && jq -e '.[] | select(.name == "main")

@@ -216,11 +216,13 @@ small Nocturne connectivity patch, performs a locked Rust build, and
 places the result in `~/.local/bin`. The apply script checks for required programs,
 snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from
-leaking into GNOME. HyprCapture is managed through `hyprpm` so its plugin is
-rebuilt against the exact compositor ABI instead of leaving a stale binary.
-Its installer uses a graphical administrator prompt and pins the reviewed
-HyprCapture revision; it must run from the new compositor session so the
-running ABI and installed headers agree.
+leaking into GNOME. HyprCapture is built from a pinned, reviewed upstream
+revision against the exact running compositor headers, patched for reliable
+grouped-recording shutdown, and installed under `~/.local`. Its installer uses
+the graphical administrator prompt only for missing build dependencies, runs
+the complete upstream test suite, and refuses mismatched runtime/header ABIs.
+The UWSM user-unit override passes `hyprland.lua` explicitly, so a generated
+legacy stub can never steal the next session after a package upgrade or reload.
 
 Before committing a desktop upgrade, run the source-level regression suite:
 

@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprlauncher hyprpwcenter waybar swaync wofi cliphist wl-copy orbit socat ffmpeg hyprpm)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprlauncher hyprpwcenter waybar swaync wofi cliphist wl-copy orbit socat ffmpeg)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -37,6 +37,7 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/gtklock" "$CONFIG_HOME/waybar" "$CONF
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screenrecords" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user/swaync.service.d" "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/dconf" "$CONFIG_HOME/autostart" \
+  "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d" \
   "$STATE_HOME/nocturne" "$BIN_HOME"
 if [[ ! -e "$STATE_HOME/nocturne/lock-wallpaper" && ! -L "$STATE_HOME/nocturne/lock-wallpaper" ]]; then
   ln -s "$DATA_HOME/backgrounds/nocturne-default.png" \
@@ -74,6 +75,9 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-orbit.service" \
   "$CONFIG_HOME/systemd/user/nocturne-orbit.service"
+install -m 0644 \
+  "$ROOT_DIR/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf" \
+  "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
 install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
@@ -248,6 +252,11 @@ systemctl --user mask --now \
   hypridle.service \
   hyprpaper.service \
   hyprpolkitagent.service >/dev/null 2>&1 || true
+
+# A running legacy-config session may recreate Hyprland's generated stub when
+# its provider reloads. Remove it best-effort; the UWSM override above also
+# passes the Lua entry point explicitly on every fresh compositor start.
+rm -f -- "$CONFIG_HOME/hypr/hyprland.conf"
 
 printf 'Hyprland configuration installed. Select “Hyprland (uwsm-managed)” at login.\n'
 printf 'Pre-existing Hypr-related configs, if any, were saved at:\n  %s\n' "$snapshot"

@@ -32,6 +32,11 @@ Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \
 grep -q 'config ok' "$temporary/hyprland-verify.log"
 printf '[ OK ] Hyprland Lua configuration\n'
 
+grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
+  "$root/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
+grep -Fq 'hyprcapture-supervisor' "$root/patches/hyprcapture-supervisor.patch"
+printf '[ OK ] explicit Lua startup + pinned capture patch\n'
+
 jq -e '
   .[] | select(.name == "main") |
   ((."modules-right" | map(select(. == "custom/wifi")) | length) == 1) and
