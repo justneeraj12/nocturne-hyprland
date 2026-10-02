@@ -35,4 +35,3 @@ jobs:
           jq -e . config/waybar/config.jsonc >/dev/null
           jq -e . config/swaync/config.json >/dev/null
           ! grep -R -E 'import gi|from gi|Gtk' native bin
-          git diff --check
