@@ -1,0 +1,851 @@
+#!/usr/bin/env python3
+"""Resident Nocturne Wi-Fi, Bluetooth, and VPN control panel."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import threading
+import time
+import uuid
+from pathlib import Path
+
+
+def split_escaped(line: str, delimiter: str = ":") -> list[str]:
+    """Split nmcli terse output without breaking escaped SSIDs."""
+    fields: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for character in line.rstrip("\n"):
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == delimiter:
+            fields.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    if escaped:
+        current.append("\\")
+    fields.append("".join(current))
+    return fields
+
+
+def signal_icon(strength: int) -> str:
+    if strength >= 80:
+        return "󰤨"
+    if strength >= 60:
+        return "󰤥"
+    if strength >= 40:
+        return "󰤢"
+    if strength >= 20:
+        return "󰤟"
+    return "󰤯"
+
+
+def parse_bluetooth_info(raw: str) -> dict[str, object]:
+    values: dict[str, object] = {}
+    for line in raw.splitlines():
+        if ":" not in line:
+            continue
+        key, value = (part.strip() for part in line.split(":", 1))
+        values[key.lower()] = value
+    battery = re.search(r"Battery Percentage:\s*(?:0x[0-9a-f]+\s*)?\((\d+)\)", raw, re.I)
+    return {
+        "name": str(values.get("alias") or values.get("name") or "Bluetooth device"),
+        "connected": str(values.get("connected", "no")).lower() == "yes",
+        "paired": str(values.get("paired", "no")).lower() == "yes",
+        "trusted": str(values.get("trusted", "no")).lower() == "yes",
+        "battery": int(battery.group(1)) if battery else None,
+    }
+
+
+def self_test() -> int:
+    assert split_escaped(r"*:Family\:Net:78:WPA2") == ["*", "Family:Net", "78", "WPA2"]
+    assert split_escaped(r":plain:10:--") == ["", "plain", "10", "--"]
+    assert signal_icon(91) == "󰤨" and signal_icon(5) == "󰤯"
+    parsed = parse_bluetooth_info("Alias: Buds\nConnected: yes\nPaired: yes\nBattery Percentage: 0x55 (85)\n")
+    assert parsed == {"name": "Buds", "connected": True, "paired": True, "trusted": False, "battery": 85}
+    print("NOCTURNE // connectivity model tests passed")
+    return 0
+
+
+if "--self-test" in sys.argv:
+    raise SystemExit(self_test())
+
+os.environ.setdefault("GDK_BACKEND", "wayland")
+
+import gi  # noqa: E402
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
+
+
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+
+CSS = b"""
+* { font-family: Inter, sans-serif; font-size: 11px; }
+window { background: transparent; }
+window.preparing { opacity: 0; }
+.card { background: alpha(@BASE@, .99); color: @TEXT@; border: 1px solid @ACCENT2@; border-bottom: 2px solid @ACCENT@; padding: 10px; }
+.header { background: @SURFACE@; border: 1px solid @LINE@; padding: 8px; }
+.glyph { color: @ACCENT@; font-family: "MesloLGS Nerd Font Mono"; font-size: 19px; min-width: 28px; }
+.title { color: @TEXT@; font-size: 13px; font-weight: 800; letter-spacing: 1px; }
+.subtitle { color: @MUTED@; font-size: 10px; }
+.metrics { color: @ACCENT@; font-family: "MesloLGS Nerd Font Mono"; font-size: 10px; }
+.section { color: @MUTED@; font-size: 9px; font-weight: 800; letter-spacing: 1px; margin-top: 5px; }
+.row { background: @SURFACE@; color: @TEXT@; border: 1px solid @LINE@; padding: 7px; }
+.row:hover { background: @OVERLAY@; border-color: @ACCENT2@; }
+.name { color: @TEXT@; font-weight: 700; }
+.detail { color: @MUTED@; font-size: 10px; }
+.active { color: @ACCENT@; }
+.error { color: #ff8c96; }
+button { min-height: 28px; padding: 2px 9px; color: @TEXT@; background: @SURFACE@; border: 1px solid @LINE@; border-radius: 0; }
+button:hover { background: @OVERLAY@; border-color: @ACCENT@; }
+button.primary { color: @BASE@; background: @ACCENT@; border-color: @ACCENT2@; font-weight: 800; }
+button.flat { background: transparent; border-color: transparent; padding: 2px 6px; }
+entry { min-height: 30px; color: @TEXT@; background: @BASE@; border: 1px solid @ACCENT2@; border-radius: 0; padding: 3px 8px; }
+switch { border-radius: 0; background: @BASE@; border: 1px solid @LINE@; }
+switch:checked { background: @ACCENT@; }
+switch slider { border-radius: 0; background: @TEXT@; }
+scrollbar slider { min-width: 5px; min-height: 22px; border-radius: 0; background: @ACCENT2@; }
+"""
+
+
+def themed_css(template: bytes) -> bytes:
+    colors = {
+        "BASE": "07090a", "SURFACE": "0b0f10", "OVERLAY": "111719",
+        "LINE": "1b2925", "TEXT": "c2cec9", "MUTED": "667771",
+        "ACCENT": "5f8f76", "ACCENT2": "477463",
+    }
+    for filename in ("palette.css", "accent.css"):
+        try:
+            data = (CONFIG_HOME / "nocturne" / filename).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for name in colors:
+            match = re.search(rf"^@define-color {name.lower()} #([0-9a-fA-F]{{6}});", data, re.MULTILINE)
+            if match:
+                colors[name] = match.group(1)
+    for name, value in colors.items():
+        template = template.replace(f"@{name}@".encode(), f"#{value}".encode())
+    return template
+
+
+def command(argv: list[str], *, input_text: str | None = None, timeout: int = 15) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(argv, input=input_text, capture_output=True, text=True, timeout=timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return subprocess.CompletedProcess(argv, 127, "", str(error))
+
+
+def wifi_snapshot() -> dict[str, object]:
+    radio = command(["nmcli", "-t", "-f", "WIFI", "general"]).stdout.strip() == "enabled"
+    devices = []
+    for line in command(["nmcli", "-t", "--escape", "yes", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device", "status"]).stdout.splitlines():
+        fields = split_escaped(line)
+        if len(fields) >= 4 and fields[1] == "wifi":
+            devices.append({"interface": fields[0], "state": fields[2], "connection": fields[3]})
+    saved: dict[str, str] = {}
+    for line in command(["nmcli", "-t", "--escape", "yes", "-f", "UUID,TYPE,NAME", "connection", "show"]).stdout.splitlines():
+        fields = split_escaped(line)
+        if len(fields) >= 3 and fields[1] in {"wifi", "802-11-wireless"}:
+            saved[fields[2]] = fields[0]
+    networks: dict[str, dict[str, object]] = {}
+    raw = command(["nmcli", "-t", "--escape", "yes", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "no"]).stdout
+    for line in raw.splitlines():
+        fields = split_escaped(line)
+        if len(fields) < 4 or not fields[1]:
+            continue
+        try:
+            strength = int(fields[2])
+        except ValueError:
+            strength = 0
+        entry = {
+            "ssid": fields[1], "active": fields[0] == "*", "signal": strength,
+            "security": fields[3], "known": fields[1] in saved,
+            "uuid": saved.get(fields[1], ""),
+        }
+        old = networks.get(fields[1])
+        if old is None or entry["active"] or strength > int(old["signal"]):
+            networks[fields[1]] = entry
+    ordered = sorted(networks.values(), key=lambda item: (not bool(item["active"]), -int(item["signal"]), str(item["ssid"]).lower()))
+    active_vpns = [item["name"] for item in vpn_snapshot() if bool(item["active"])]
+    return {"radio": radio, "devices": devices, "networks": ordered, "active_vpns": active_vpns}
+
+
+def vpn_snapshot() -> list[dict[str, object]]:
+    active = set()
+    for line in command(["nmcli", "-t", "--escape", "yes", "-f", "NAME,TYPE", "connection", "show", "--active"]).stdout.splitlines():
+        fields = split_escaped(line)
+        if len(fields) >= 2 and fields[1] in {"vpn", "wireguard"}:
+            active.add(fields[0])
+    profiles: list[dict[str, object]] = []
+    for line in command(["nmcli", "-t", "--escape", "yes", "-f", "NAME,TYPE", "connection", "show"]).stdout.splitlines():
+        fields = split_escaped(line)
+        if len(fields) >= 2 and fields[1] in {"vpn", "wireguard"}:
+            profiles.append({"name": fields[0], "type": fields[1], "active": fields[0] in active})
+    profiles.sort(key=lambda item: (not bool(item["active"]), str(item["name"]).lower()))
+    return profiles
+
+
+def bluetooth_snapshot() -> dict[str, object]:
+    controller = command(["bluetoothctl", "show"]).stdout
+    powered = bool(re.search(r"^\s*Powered:\s+yes", controller, re.MULTILINE | re.I))
+    discovering = bool(re.search(r"^\s*Discovering:\s+yes", controller, re.MULTILINE | re.I))
+    devices: list[dict[str, object]] = []
+    seen: set[str] = set()
+    for line in command(["bluetoothctl", "devices"]).stdout.splitlines():
+        match = re.match(r"Device\s+([0-9A-F:]{17})\s+(.+)", line, re.I)
+        if not match or match.group(1) in seen:
+            continue
+        address, fallback = match.groups()
+        seen.add(address)
+        info = parse_bluetooth_info(command(["bluetoothctl", "info", address], timeout=5).stdout)
+        info.update({"address": address, "name": info["name"] or fallback})
+        devices.append(info)
+    devices.sort(key=lambda item: (not bool(item["connected"]), not bool(item["paired"]), str(item["name"]).lower()))
+    return {"available": bool(controller.strip()), "powered": powered, "discovering": discovering, "devices": devices}
+
+
+class ConnectivityApp(Gtk.Application):
+    def __init__(self) -> None:
+        super().__init__(application_id="com.nocturne.Connectivity", flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        self.window: Gtk.ApplicationWindow | None = None
+        self.mode = "wifi"
+        self.refreshing = False
+        self.was_active = False
+        self.updating_switch = False
+        self.started_scan = False
+        self.placement_generation = 0
+        self.target_position: tuple[int, int] | None = None
+        self.hide_source = 0
+        self.focus_guard_until = 0.0
+        self.last_bytes: tuple[str, int, int, float] | None = None
+        self.last_ping = "--"
+        self.ping_running = False
+        self.next_ping_at = 0.0
+        self.password_ssid = ""
+        self.password_security = ""
+        self.snapshot: dict[str, object] = {}
+        self.title = Gtk.Label(xalign=0)
+        self.subtitle = Gtk.Label(xalign=0)
+        self.glyph = Gtk.Label()
+        self.radio_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.status = Gtk.Label(xalign=0, wrap=True)
+        self.metrics = Gtk.Label(xalign=0)
+        self.body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+
+    def do_startup(self) -> None:
+        Gtk.Application.do_startup(self)
+        provider = Gtk.CssProvider()
+        provider.load_from_data(themed_css(CSS))
+        Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        GLib.timeout_add_seconds(10, self._poll)
+        GLib.timeout_add_seconds(1, self._metrics_tick)
+
+    def do_activate(self) -> None:
+        if self.window is None:
+            self._create_window()
+
+    def do_command_line(self, command_line: Gio.ApplicationCommandLine) -> int:
+        arguments = [str(value) for value in command_line.get_arguments()][1:]
+        if not arguments:
+            arguments = ["toggle", "wifi"]
+        self.activate()
+        action = arguments[0]
+        mode = arguments[1] if len(arguments) > 1 else "wifi"
+        if action in {"hide", "close"}:
+            self.hide()
+        elif action in {"toggle", "show", "open"}:
+            self.toggle(mode, force=action != "toggle")
+        return 0
+
+    def _create_window(self) -> None:
+        window = Gtk.ApplicationWindow(application=self, title="Nocturne Connectivity")
+        window.set_decorated(False)
+        window.set_resizable(False)
+        window.add_css_class("preparing")
+        window.connect("notify::is-active", self._activity_changed)
+
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+        root.add_css_class("card")
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        header.add_css_class("header")
+        self.glyph.add_css_class("glyph")
+        header.append(self.glyph)
+        labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1, hexpand=True)
+        self.title.add_css_class("title")
+        self.subtitle.add_css_class("subtitle")
+        labels.append(self.title)
+        labels.append(self.subtitle)
+        header.append(labels)
+        self.radio_switch.connect("state-set", self._toggle_radio)
+        header.append(self.radio_switch)
+        refresh = Gtk.Button(label="󰑐")
+        refresh.add_css_class("flat")
+        refresh.set_tooltip_text("Refresh")
+        refresh.connect("clicked", lambda *_args: self.refresh(True))
+        header.append(refresh)
+        close = Gtk.Button(label="󰅖")
+        close.add_css_class("flat")
+        close.set_tooltip_text("Close")
+        close.connect("clicked", lambda *_args: self.hide())
+        header.append(close)
+        root.append(header)
+
+        self.status.add_css_class("subtitle")
+        root.append(self.status)
+        self.metrics.add_css_class("metrics")
+        root.append(self.metrics)
+        scroller = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        scroller.set_child(self.body)
+        root.append(scroller)
+
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", self._key_pressed)
+        window.add_controller(keys)
+        window.set_child(root)
+        self.window = window
+
+    def toggle(self, mode: str, *, force: bool = False) -> None:
+        mode = mode if mode in {"wifi", "bluetooth", "vpn"} else "wifi"
+        if self.window is None:
+            return
+        if self.window.get_visible() and self.mode == mode and not force:
+            self.hide()
+            return
+        if self.hide_source:
+            GLib.source_remove(self.hide_source)
+            self.hide_source = 0
+        switching = self.window.get_visible() and self.mode != mode
+        if switching and self.mode == "bluetooth":
+            self._stop_scan()
+        self.mode = mode
+        self.password_ssid = ""
+        self.was_active = False
+        self._set_heading()
+        self._clear_body("LOADING…")
+        self.window.add_css_class("preparing")
+        self.window.set_default_size(420, {"wifi": 510, "bluetooth": 470, "vpn": 360}[mode])
+        # Hyprland's window rule anchors the first frame. The worker below also
+        # computes a fallback after mapping without ever blocking GTK startup.
+        self.target_position = None
+        self.placement_generation += 1
+        generation = self.placement_generation
+        # A cold GTK process can take close to a second to become a Hyprland
+        # client. Keep it fully transparent until the compositor has placed it.
+        self.focus_guard_until = time.monotonic() + 2.0
+        self.last_bytes = None
+        self.next_ping_at = 0.0
+        self.window.present()
+        threading.Thread(
+            target=self._place_worker,
+            args=(generation, mode, self.target_position),
+            daemon=True,
+        ).start()
+        self.refresh(True)
+        if mode == "bluetooth":
+            self._begin_scan()
+
+    def hide(self) -> None:
+        if self.hide_source:
+            GLib.source_remove(self.hide_source)
+            self.hide_source = 0
+        if self.window is not None:
+            self.window.set_visible(False)
+        self.was_active = False
+        self.password_ssid = ""
+        self.placement_generation += 1
+        self._stop_scan()
+        GLib.idle_add(self.quit)
+
+    def _stop_scan(self) -> None:
+        if not self.started_scan:
+            return
+        self.started_scan = False
+        try:
+            subprocess.Popen(
+                ["bluetoothctl", "--timeout", "3", "scan", "off"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except OSError:
+            pass
+
+    def _set_heading(self) -> None:
+        headings = {
+            "wifi": ("󰤨", "WI-FI", "NetworkManager · nearby networks"),
+            "bluetooth": ("󰂯", "BLUETOOTH", "BlueZ · paired and nearby devices"),
+            "vpn": ("󰦝", "VPN", "NetworkManager · secure connections"),
+        }
+        glyph, title, subtitle = headings[self.mode]
+        self.glyph.set_text(glyph)
+        self.title.set_text(title)
+        self.subtitle.set_text(subtitle)
+        self.radio_switch.set_visible(self.mode != "vpn")
+
+    def _target_from_cursor(self) -> tuple[int, int] | None:
+        try:
+            monitors = json.loads(command(["hyprctl", "monitors", "-j"], timeout=2).stdout)
+            cursor = json.loads(command(["hyprctl", "cursorpos", "-j"], timeout=2).stdout)
+            px, py = int(cursor["x"]), int(cursor["y"])
+            monitor = next(
+                item for item in monitors
+                if item["x"] <= px < item["x"] + item["width"]
+                and item["y"] <= py < item["y"] + item["height"]
+            )
+            width = 420
+            x = max(
+                int(monitor["x"] + 8),
+                min(px - width + 28, int(monitor["x"] + monitor["width"] - width - 8)),
+            )
+            return x, int(monitor["y"] + 34)
+        except (ValueError, KeyError, StopIteration, TypeError):
+            return None
+
+    def _place_worker(
+        self,
+        generation: int,
+        mode: str,
+        target: tuple[int, int] | None,
+    ) -> None:
+        error = "window did not map"
+        for _attempt in range(80):
+            if generation != self.placement_generation:
+                return
+            try:
+                clients = json.loads(command(["hyprctl", "clients", "-j"], timeout=2).stdout)
+                client = next(item for item in clients if int(item.get("pid", -1)) == os.getpid())
+                width = 420
+                height = {"wifi": 510, "bluetooth": 470, "vpn": 360}[mode]
+                resolved_target = target or self._target_from_cursor()
+                x, y = resolved_target or (int(client["at"][0]), 34)
+                address = str(client["address"])
+                batch = "; ".join((
+                    f"dispatch setfloating address:{address}",
+                    f"dispatch resizewindowpixel exact {width} {height},address:{address}",
+                    f"dispatch movewindowpixel exact {x} {y},address:{address}",
+                    f"dispatch focuswindow address:{address}",
+                ))
+                result = command(["hyprctl", "--batch", batch], timeout=2)
+                if result.returncode != 0:
+                    error = result.stderr.strip() or result.stdout.strip() or "Hyprland rejected popup placement"
+                    time.sleep(0.035)
+                    continue
+                GLib.idle_add(self._placement_done, generation, address, "")
+                return
+            except (ValueError, KeyError, StopIteration, TypeError) as caught:
+                error = str(caught) or caught.__class__.__name__
+            time.sleep(0.035)
+        GLib.idle_add(self._placement_done, generation, "", error)
+
+    def _placement_done(self, generation: int, address: str, error: str) -> bool:
+        if generation != self.placement_generation or self.window is None:
+            return False
+        if error:
+            print(f"connectivity placement failed: {error}", file=sys.stderr, flush=True)
+        self.window.remove_css_class("preparing")
+        if address:
+            GLib.timeout_add(120, self._refocus, address)
+        return False
+
+    def _refocus(self, address: str) -> bool:
+        if self.window is not None and self.window.get_visible():
+            command(["hyprctl", "dispatch", "focuswindow", f"address:{address}"])
+        return False
+
+    def _activity_changed(self, window: Gtk.ApplicationWindow, _param: object) -> None:
+        if window.is_active():
+            if self.hide_source:
+                GLib.source_remove(self.hide_source)
+                self.hide_source = 0
+            self.was_active = True
+        elif self.was_active and window.get_visible():
+            if self.hide_source:
+                GLib.source_remove(self.hide_source)
+            delay = max(140, int((self.focus_guard_until - time.monotonic()) * 1000))
+            self.hide_source = GLib.timeout_add(delay, self._hide_after_focus_loss)
+
+    def _hide_after_focus_loss(self) -> bool:
+        self.hide_source = 0
+        if self.window is not None and self.window.get_visible() and not self.window.is_active():
+            self.hide()
+        return False
+
+    def _key_pressed(self, _controller: object, keyval: int, _keycode: int, _state: int) -> bool:
+        if keyval == Gdk.KEY_Escape:
+            self.hide()
+            return True
+        return False
+
+    def _poll(self) -> bool:
+        if self.window is not None and self.window.get_visible() and not self.password_ssid:
+            self.refresh(False)
+        return True
+
+    @staticmethod
+    def _rate(value: float) -> str:
+        if value >= 1048576:
+            return f"{value / 1048576:.1f}M"
+        if value >= 1024:
+            return f"{value / 1024:.0f}K"
+        return f"{value:.0f}B"
+
+    def _metrics_tick(self) -> bool:
+        if self.window is None or not self.window.get_visible() or self.mode != "wifi":
+            return True
+        devices = list(self.snapshot.get("devices", []))
+        interface = str(devices[0].get("interface", "")) if devices else ""
+        down = up = 0.0
+        now = time.monotonic()
+        try:
+            rx = int(Path(f"/sys/class/net/{interface}/statistics/rx_bytes").read_text().strip())
+            tx = int(Path(f"/sys/class/net/{interface}/statistics/tx_bytes").read_text().strip())
+            if self.last_bytes is not None and self.last_bytes[0] == interface:
+                elapsed = max(0.1, now - self.last_bytes[3])
+                down = max(0.0, (rx - self.last_bytes[1]) / elapsed)
+                up = max(0.0, (tx - self.last_bytes[2]) / elapsed)
+            self.last_bytes = (interface, rx, tx, now)
+        except (OSError, ValueError):
+            self.last_bytes = None
+        vpns = list(self.snapshot.get("active_vpns", []))
+        vpn_text = f"  VPN {len(vpns)}" if vpns else ""
+        self.metrics.set_text(
+            f"{interface or 'OFFLINE'}   {self.last_ping} ms   {self._rate(down)}/s   {self._rate(up)}/s{vpn_text}"
+        )
+        if now >= self.next_ping_at and not self.ping_running:
+            self.ping_running = True
+            self.next_ping_at = now + 10
+            threading.Thread(target=self._measure_ping, daemon=True).start()
+        return True
+
+    def _measure_ping(self) -> None:
+        result = command(["ping", "-n", "-c", "1", "-W", "1", "1.1.1.1"], timeout=2)
+        match = re.search(r"time[=<]([0-9.]+)\s*ms", result.stdout)
+        self.last_ping = f"{float(match.group(1)):.0f}" if match else "--"
+        self.ping_running = False
+
+    def refresh(self, rescan: bool = False) -> None:
+        if self.refreshing:
+            return
+        self.refreshing = True
+        mode = self.mode
+        self.status.set_text("SCANNING…" if rescan else "UPDATING…")
+
+        def worker() -> None:
+            if rescan and mode == "wifi":
+                command(["nmcli", "device", "wifi", "rescan"], timeout=12)
+            if mode == "wifi":
+                result: object = wifi_snapshot()
+            elif mode == "bluetooth":
+                result = bluetooth_snapshot()
+            else:
+                result = vpn_snapshot()
+            GLib.idle_add(self._refresh_done, mode, result)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _refresh_done(self, mode: str, result: object) -> bool:
+        self.refreshing = False
+        if mode != self.mode or self.window is None:
+            return False
+        self.snapshot = result if isinstance(result, dict) else {"profiles": result}
+        if mode == "wifi":
+            self._render_wifi(self.snapshot)
+        elif mode == "bluetooth":
+            self._render_bluetooth(self.snapshot)
+        else:
+            self._render_vpn(list(self.snapshot.get("profiles", [])))
+        return False
+
+    def _clear_body(self, message: str = "") -> None:
+        child = self.body.get_first_child()
+        while child is not None:
+            following = child.get_next_sibling()
+            self.body.remove(child)
+            child = following
+        if message:
+            label = Gtk.Label(label=message, xalign=0)
+            label.add_css_class("subtitle")
+            self.body.append(label)
+
+    def _section(self, text: str) -> None:
+        label = Gtk.Label(label=text, xalign=0)
+        label.add_css_class("section")
+        self.body.append(label)
+
+    def _row(self, icon: str, name: str, detail: str, button_text: str, callback, *, primary: bool = False) -> None:
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.add_css_class("row")
+        glyph = Gtk.Label(label=icon)
+        glyph.add_css_class("glyph")
+        row.append(glyph)
+        labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1, hexpand=True)
+        title = Gtk.Label(label=name, xalign=0, ellipsize=3)
+        title.add_css_class("name")
+        sub = Gtk.Label(label=detail, xalign=0, ellipsize=3)
+        sub.add_css_class("detail")
+        labels.append(title)
+        labels.append(sub)
+        row.append(labels)
+        button = Gtk.Button(label=button_text)
+        if primary:
+            button.add_css_class("primary")
+        button.connect("clicked", callback)
+        row.append(button)
+        self.body.append(row)
+
+    def _set_switch(self, active: bool) -> None:
+        self.updating_switch = True
+        self.radio_switch.set_active(active)
+        self.updating_switch = False
+
+    def _toggle_radio(self, _switch: Gtk.Switch, state: bool) -> bool:
+        if self.updating_switch:
+            return False
+        if self.mode == "wifi":
+            argv = ["nmcli", "radio", "wifi", "on" if state else "off"]
+        elif self.mode == "bluetooth":
+            argv = ["bluetoothctl", "power", "on" if state else "off"]
+        else:
+            return True
+        self._action(argv, "Updating radio…")
+        return True
+
+    def _render_wifi(self, snapshot: dict[str, object]) -> None:
+        self._clear_body()
+        radio = bool(snapshot.get("radio"))
+        self._set_switch(radio)
+        devices = list(snapshot.get("devices", []))
+        networks = list(snapshot.get("networks", []))
+        if not devices:
+            self.status.set_text("NO WI-FI ADAPTER")
+            self._section("NETWORK")
+            self._row("󰀂", "Ethernet / advanced networking", "Open NetworkManager connections", "OPEN", lambda *_: self._launch(["nm-connection-editor"]))
+            return
+        active = next((item for item in networks if item.get("active")), None)
+        self.status.set_text(f"CONNECTED · {active['ssid']}" if active else ("AVAILABLE" if radio else "RADIO OFF"))
+        if not radio:
+            self._section("WI-FI IS TURNED OFF")
+            return
+        self._section("NEARBY NETWORKS")
+        if not networks:
+            self._clear_body("No networks found · press refresh to scan")
+            return
+        for network in networks[:10]:
+            ssid = str(network["ssid"])
+            strength = int(network["signal"])
+            security = str(network["security"])
+            active = bool(network["active"])
+            detail = f"{strength}% · {'OPEN' if security in {'', '--'} else security}"
+            text = "DISCONNECT" if active else "CONNECT"
+            self._row(signal_icon(strength), ssid, detail, text, lambda _button, item=network: self._wifi_activate(item), primary=active)
+            if self.password_ssid == ssid:
+                self._password_row(ssid, security)
+        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        vpn = Gtk.Button(label="󰦝  VPN")
+        vpn.connect("clicked", lambda *_: self.toggle("vpn", force=True))
+        settings = Gtk.Button(label="ADVANCED")
+        settings.connect("clicked", lambda *_: self._launch(["nm-connection-editor"]))
+        footer.append(vpn)
+        footer.append(settings)
+        self.body.append(footer)
+
+    def _password_row(self, ssid: str, security: str) -> None:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        box.add_css_class("row")
+        label = Gtk.Label(label=f"PASSPHRASE // {ssid}", xalign=0)
+        label.add_css_class("section")
+        box.append(label)
+        entry = Gtk.PasswordEntry(show_peek_icon=True, hexpand=True)
+        entry.set_property("placeholder-text", "Network password")
+        entry.connect("activate", lambda field: self._wifi_submit(ssid, security, field.get_text()))
+        box.append(entry)
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, halign=Gtk.Align.END)
+        cancel = Gtk.Button(label="CANCEL")
+        cancel.connect("clicked", lambda *_: self._cancel_password())
+        connect_button = Gtk.Button(label="CONNECT")
+        connect_button.add_css_class("primary")
+        connect_button.connect("clicked", lambda *_: self._wifi_submit(ssid, security, entry.get_text()))
+        actions.append(cancel)
+        actions.append(connect_button)
+        box.append(actions)
+        self.body.append(box)
+        GLib.idle_add(entry.grab_focus)
+
+    def _cancel_password(self) -> None:
+        self.password_ssid = ""
+        self._render_wifi(self.snapshot)
+
+    def _wifi_activate(self, network: dict[str, object]) -> None:
+        ssid = str(network["ssid"])
+        if bool(network["active"]):
+            interface = str(list(self.snapshot.get("devices", [{}]))[0].get("interface", ""))
+            active = str(list(self.snapshot.get("devices", [{}]))[0].get("connection", ssid))
+            self._action(["nmcli", "connection", "down", "id", active] if active else ["nmcli", "device", "disconnect", interface], f"Disconnecting {ssid}…")
+            return
+        security = str(network["security"])
+        if bool(network["known"]):
+            self._action(["nmcli", "connection", "up", "uuid", str(network["uuid"])], f"Connecting to {ssid}…", fallback_password=(ssid, security))
+        elif security in {"", "--"}:
+            self._action(["nmcli", "device", "wifi", "connect", ssid], f"Connecting to {ssid}…")
+        elif any(token in security.upper() for token in ("802.1X", "EAP", "ENTERPRISE")):
+            self.status.set_text("ENTERPRISE NETWORK · use Advanced")
+            self._launch(["nm-connection-editor"])
+        else:
+            self.password_ssid = ssid
+            self.password_security = security
+            self._render_wifi(self.snapshot)
+
+    def _wifi_submit(self, ssid: str, security: str, password: str) -> None:
+        if len(password) < 8:
+            self.status.set_text("PASSWORD MUST BE AT LEAST 8 CHARACTERS")
+            self.status.add_css_class("error")
+            return
+        self.password_ssid = ""
+        self.status.remove_css_class("error")
+        self.status.set_text(f"CONNECTING TO {ssid}…")
+
+        def worker() -> None:
+            lookup = command(["nmcli", "-g", "UUID", "connection", "show", ssid]).stdout.splitlines()
+            connection_uuid = lookup[0].strip() if lookup else ""
+            if not connection_uuid:
+                connection_uuid = str(uuid.uuid4())
+                created = command([
+                    "nmcli", "connection", "add", "type", "wifi", "con-name", ssid,
+                    "ssid", ssid, "connection.uuid", connection_uuid, "wifi-sec.key-mgmt", "wpa-psk",
+                ])
+                if created.returncode != 0:
+                    GLib.idle_add(self._action_done, created, None)
+                    return
+            script = f"set wifi-sec.key-mgmt wpa-psk\nset wifi-sec.psk {password}\nsave\nquit\n"
+            edited = command(["nmcli", "connection", "edit", "uuid", connection_uuid], input_text=script)
+            result = edited if edited.returncode != 0 else command(["nmcli", "connection", "up", "uuid", connection_uuid], timeout=30)
+            GLib.idle_add(self._action_done, result, None)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _begin_scan(self) -> None:
+        if self.started_scan:
+            return
+        self.started_scan = True
+        threading.Thread(target=lambda: command(["bluetoothctl", "--timeout", "8", "scan", "on"], timeout=10), daemon=True).start()
+        GLib.timeout_add_seconds(2, lambda: (self.refresh(False), False)[1])
+
+    def do_shutdown(self) -> None:
+        if self.started_scan:
+            command(["bluetoothctl", "--timeout", "3", "scan", "off"], timeout=4)
+        Gtk.Application.do_shutdown(self)
+
+    def _render_bluetooth(self, snapshot: dict[str, object]) -> None:
+        self._clear_body()
+        available = bool(snapshot.get("available"))
+        powered = bool(snapshot.get("powered"))
+        self._set_switch(powered)
+        if not available:
+            self.status.set_text("NO BLUETOOTH CONTROLLER")
+            return
+        self.status.set_text("SCANNING" if bool(snapshot.get("discovering")) else ("RADIO ON" if powered else "RADIO OFF"))
+        if not powered:
+            self._section("BLUETOOTH IS TURNED OFF")
+            return
+        devices = list(snapshot.get("devices", []))
+        for heading, predicate in (
+            ("CONNECTED", lambda item: bool(item["connected"])),
+            ("PAIRED", lambda item: bool(item["paired"]) and not bool(item["connected"])),
+            ("AVAILABLE", lambda item: not bool(item["paired"]) and not bool(item["connected"])),
+        ):
+            group = [item for item in devices if predicate(item)]
+            if not group:
+                continue
+            self._section(heading)
+            for device in group[:8]:
+                connected = bool(device["connected"])
+                battery = device.get("battery")
+                detail = str(device["address"])
+                if battery is not None:
+                    detail = f"BATTERY {battery}% · {detail}"
+                action = "DISCONNECT" if connected else ("CONNECT" if bool(device["paired"]) else "PAIR")
+                self._row("󰂱" if connected else "󰂯", str(device["name"]), detail, action, lambda _button, item=device: self._bluetooth_activate(item), primary=connected)
+        if not devices:
+            self._clear_body("Scanning for devices…")
+
+    def _bluetooth_activate(self, device: dict[str, object]) -> None:
+        address = str(device["address"])
+        if bool(device["connected"]):
+            argv = ["bluetoothctl", "disconnect", address]
+            label = f"Disconnecting {device['name']}…"
+        elif bool(device["paired"]):
+            argv = ["bluetoothctl", "connect", address]
+            label = f"Connecting {device['name']}…"
+        else:
+            argv = ["bluetoothctl", "pair", address]
+            label = f"Pairing {device['name']}…"
+        self._action(argv, label)
+
+    def _render_vpn(self, profiles: list[dict[str, object]]) -> None:
+        self._clear_body()
+        self.status.set_text("SECURE CONNECTIONS")
+        self._section("NETWORKMANAGER VPN")
+        if not profiles:
+            self._clear_body("No VPN profiles configured")
+        for profile in profiles:
+            active = bool(profile["active"])
+            action = "DISCONNECT" if active else "CONNECT"
+            self._row("󰦝", str(profile["name"]), str(profile["type"]).upper(), action, lambda _button, item=profile: self._vpn_activate(item), primary=active)
+        settings = Gtk.Button(label="OPEN CONNECTION EDITOR")
+        settings.connect("clicked", lambda *_: self._launch(["nm-connection-editor"]))
+        self.body.append(settings)
+
+    def _vpn_activate(self, profile: dict[str, object]) -> None:
+        name = str(profile["name"])
+        argv = ["nmcli", "connection", "down" if bool(profile["active"]) else "up", "id", name]
+        self._action(argv, f"{'Disconnecting' if bool(profile['active']) else 'Connecting'} {name}…")
+
+    def _action(self, argv: list[str], label: str, fallback_password: tuple[str, str] | None = None) -> None:
+        self.status.remove_css_class("error")
+        self.status.set_text(label.upper())
+
+        def worker() -> None:
+            result = command(argv, timeout=30)
+            GLib.idle_add(self._action_done, result, fallback_password)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _action_done(self, result: subprocess.CompletedProcess[str], fallback_password: tuple[str, str] | None) -> bool:
+        if result.returncode != 0:
+            if fallback_password is not None:
+                self.password_ssid, self.password_security = fallback_password
+                self.status.set_text("PASSWORD REQUIRED OR SAVED PASSWORD FAILED")
+                self.status.add_css_class("error")
+                self.refresh(False)
+                return False
+            message = (result.stderr or result.stdout or "Action failed").strip().splitlines()[-1]
+            self.status.set_text(message[:100])
+            self.status.add_css_class("error")
+            command(["notify-send", "Nocturne connectivity", message])
+        else:
+            self.status.remove_css_class("error")
+            self.status.set_text("DONE")
+        GLib.timeout_add(450, lambda: (self.refresh(False), False)[1])
+        return False
+
+    def _launch(self, argv: list[str]) -> None:
+        try:
+            subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        except OSError:
+            pass
+        self.hide()
+
+
+if __name__ == "__main__":
+    raise SystemExit(ConnectivityApp().run(sys.argv))

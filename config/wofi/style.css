@@ -3,8 +3,8 @@
 
 * {
   font-family: "Inter", "MesloLGS Nerd Font Mono";
-  font-size: 12px;
-  font-weight: 550;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 window {
@@ -16,14 +16,14 @@ window {
   box-shadow: none;
 }
 
-#outer-box { padding: 10px; }
+#outer-box { padding: 7px; }
 
 #input {
-  margin: 0 0 9px;
-  padding: 12px 14px;
-  min-height: 26px;
+  margin: 0 0 6px;
+  padding: 8px 11px;
+  min-height: 23px;
   border: 1px solid @line;
-  border-left: 3px solid @accent;
+  border-left: 2px solid @accent;
   border-radius: 0;
   color: #e6ede9;
   background-color: @surface;
@@ -35,8 +35,8 @@ window {
 #inner-box { padding: 0; }
 
 #entry {
-  padding: 8px 11px;
-  margin: 1px 0;
+  padding: 6px 9px;
+  margin: 0;
   border-radius: 0;
   color: @text;
   border-left: 2px solid transparent;
@@ -51,7 +51,7 @@ window {
 
 #text { margin-left: 4px; }
 #text:selected { color: #edf3f0; }
-#img { margin-right: 12px; }
+#img { margin-right: 9px; }
 
 scrollbar slider {
   min-width: 3px;

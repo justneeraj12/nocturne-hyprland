@@ -12,10 +12,10 @@
     "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
     "modules-center": ["custom/recording", "custom/local-clock", "custom/world"],
     "modules-right": [
-      "custom/pomodoro", "mpris", "custom/caffeine", "custom/kdeconnect",
+      "custom/pomodoro", "mpris", "custom/caffeine", "group/tray-expander", "custom/kdeconnect",
       "pulseaudio", "custom/mic", "custom/brightness", "custom/system",
       "custom/wifi", "custom/bluetooth", "custom/notification",
-      "custom/power-battery", "group/tray-expander"
+      "custom/power-battery"
     ],
 
     "custom/logo": {
@@ -83,13 +83,13 @@
     "custom/wifi": {
       "exec": "~/.config/hypr/scripts/connectivity-status wifi",
       "return-type": "json", "interval": 4,
-      "on-click": "~/.config/hypr/scripts/orbit-popup wifi",
-      "on-click-middle": "~/.config/hypr/scripts/orbit-popup vpn"
+      "on-click": "~/.local/bin/nocturne-connectivity toggle wifi",
+      "on-click-middle": "~/.local/bin/nocturne-connectivity toggle vpn"
     },
     "custom/bluetooth": {
       "exec": "~/.config/hypr/scripts/connectivity-status bluetooth",
       "return-type": "json", "interval": 4,
-      "on-click": "~/.config/hypr/scripts/orbit-popup bluetooth"
+      "on-click": "~/.local/bin/nocturne-connectivity toggle bluetooth"
     },
     "custom/kdeconnect": {
       "exec": "~/.config/hypr/scripts/kdeconnect-status",
@@ -250,13 +250,13 @@
     "custom/wifi#secondary": {
       "exec": "~/.config/hypr/scripts/connectivity-status wifi",
       "return-type": "json", "interval": 4,
-      "on-click": "~/.config/hypr/scripts/orbit-popup wifi",
-      "on-click-middle": "~/.config/hypr/scripts/orbit-popup vpn"
+      "on-click": "~/.local/bin/nocturne-connectivity toggle wifi",
+      "on-click-middle": "~/.local/bin/nocturne-connectivity toggle vpn"
     },
     "custom/bluetooth#secondary": {
       "exec": "~/.config/hypr/scripts/connectivity-status bluetooth",
       "return-type": "json", "interval": 4,
-      "on-click": "~/.config/hypr/scripts/orbit-popup bluetooth"
+      "on-click": "~/.local/bin/nocturne-connectivity toggle bluetooth"
     },
     "custom/notification#secondary": {
       "tooltip-format": "Notification history", "format": "{icon}",

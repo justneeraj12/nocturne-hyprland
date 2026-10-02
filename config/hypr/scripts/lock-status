@@ -14,5 +14,6 @@ for capacity_file in /sys/class/power_supply/BAT*/capacity; do
   break
 done
 
-profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
+profile=$("$HOME/.config/hypr/scripts/power-profile" status 2>/dev/null | cut -f1 || printf 'unknown')
+[[ $profile == boost ]] && profile='super performance'
 printf '%s  ·  %s  ·  %s\n' "$network" "$battery" "${profile^^}"

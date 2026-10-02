@@ -12,7 +12,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────'
 
-required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper hyprlauncher hyprpwcenter waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus wl-copy socat ffmpeg hyprcapture-ui)
+required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper hyprpwcenter waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl gamemoded brightnessctl powerprofilesctl playerctl nautilus wl-copy socat ffmpeg hyprcapture-ui)
 missing=()
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
@@ -41,6 +41,8 @@ if jq -e '.count > 0' >/dev/null 2>&1 <<<"$wallpaper"; then ok 'Wallpaper collec
 if jq -e '.enabled == true and .mode == "day-cycle" and (.next_change_at | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
   next_phase=$(jq -r '.next_change_at' <<<"$wallpaper")
   ok "Authored wallpaper day cycle is active; next phase $next_phase"
+elif jq -e '.phase_kind == "static" and .display_active == true and (.mapped_monitors | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
+  ok 'Static wallpaper is intentionally active on every display'
 else
   warning 'Wallpaper day cycle is paused or has no authored schedule'
 fi
@@ -58,14 +60,12 @@ if ! pgrep -x nm-applet >/dev/null 2>&1 \
 else
   warning 'nm-applet is still running and may duplicate the dedicated Wi-Fi control'
 fi
-if command -v orbit >/dev/null 2>&1 \
-    && orbit --version 2>/dev/null | rg -q '^orbit 2\.4\.13$' \
-    && pgrep -x orbit >/dev/null 2>&1 \
-    && systemctl --user is-active --quiet nocturne-orbit.service \
-    && [[ -r $HOME/.config/orbit/style.css ]]; then
-  ok 'Unified Nocturne Orbit Wi-Fi/Bluetooth/VPN panel is active'
+if [[ -x $HOME/.local/bin/nocturne-connectivity ]] \
+    && ! systemctl --user is-active --quiet nocturne-connectivity.service \
+    && $HOME/.local/bin/nocturne-connectivity --self-test >/dev/null 2>&1; then
+  ok 'Zero-idle Nocturne Wi-Fi/Bluetooth/VPN panel passed its model tests'
 else
-  bad 'Orbit connectivity panel is not fully active'
+  bad 'Nocturne connectivity panel failed its zero-idle checks'
 fi
 if jq -e '.[] | select(.name == "main")
     | ((."modules-right" | index("custom/wifi")) != null)
@@ -73,15 +73,15 @@ if jq -e '.[] | select(.name == "main")
     and ((."modules-right" | index("custom/orbit")) == null)
     and ((."modules-right" | index("network")) == null)
     and ((."modules-right" | index("bluetooth")) == null)
-    and ."custom/wifi"."on-click" == "~/.config/hypr/scripts/orbit-popup wifi"
-    and ."custom/wifi"."on-click-middle" == "~/.config/hypr/scripts/orbit-popup vpn"
-    and ."custom/bluetooth"."on-click" == "~/.config/hypr/scripts/orbit-popup bluetooth"' \
+    and ."custom/wifi"."on-click" == "~/.local/bin/nocturne-connectivity toggle wifi"
+    and ."custom/wifi"."on-click-middle" == "~/.local/bin/nocturne-connectivity toggle vpn"
+    and ."custom/bluetooth"."on-click" == "~/.local/bin/nocturne-connectivity toggle bluetooth"' \
     "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
     && jq -e '.[] | select(.name == "secondary")
       | ((."modules-right" | index("custom/wifi#secondary")) != null)
       and ((."modules-right" | index("custom/bluetooth#secondary")) != null)' \
       "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && [[ -x $HOME/.config/hypr/scripts/orbit-popup ]] \
+    && [[ -x $HOME/.local/bin/nocturne-connectivity ]] \
     && [[ -x $HOME/.config/hypr/scripts/connectivity-status ]]; then
   ok 'Distinct Wi-Fi and Bluetooth controls are visible on both bars'
 else
@@ -94,16 +94,22 @@ else
   warning 'The retired Innu UI still has live files or a running process'
 fi
 if jq -e '.[] | select(.name == "main")
-    | ."modules-right"[-1] == "group/tray-expander"
+    | ((."modules-right" | index("group/tray-expander")) + 1 == (."modules-right" | index("custom/kdeconnect")))
     and ."group/tray-expander".modules == ["custom/tray-toggle", "tray"]' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
-  ok 'Background apps are in the far-right tray drawer'
+  ok 'Background-app drawer sits immediately left of KDE Connect'
 else
   warning 'Background app tray drawer is missing or misplaced'
 fi
 if ! pgrep -f '/usr/bin/blueman-(applet|tray)' >/dev/null 2>&1; then
   ok 'Legacy Blueman applet and duplicate status icon are retired'
 else
-  warning 'A legacy Blueman process may duplicate Orbit'
+  warning 'A legacy Blueman process may duplicate Nocturne connectivity'
+fi
+if [[ ! -e $HOME/.local/bin/orbit && ! -e $HOME/.config/orbit ]] \
+    && ! pgrep -x orbit >/dev/null 2>&1; then
+  ok 'Retired Orbit connectivity UI is fully removed'
+else
+  warning 'The retired Orbit UI still has live files or a running process'
 fi
 if [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
     && [[ -x $HOME/.config/hypr/scripts/capture-status ]] \
@@ -160,11 +166,14 @@ profile=$(powerprofilesctl get 2>/dev/null)
 [[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
 if [[ -x $HOME/.local/bin/nocturne-power-card ]] \
     && [[ -x $HOME/.config/hypr/scripts/power-menu ]] \
+    && [[ -x $HOME/.config/hypr/scripts/power-profile ]] \
+    && $HOME/.config/hypr/scripts/power-profile status >/dev/null 2>&1 \
+    && rg -q '"boost", "30"' "$HOME/.local/bin/nocturne-power-card" \
     && rg -q 'nocturne-power-card' "$HOME/.config/hypr/scripts/power-menu" \
     && jq -e '.[] | select(.name == "main")
       | ."custom/power-battery"."on-click" == "~/.config/hypr/scripts/power-menu"' \
       "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
-  ok 'Compact battery, profile and session power card is wired'
+  ok 'Compact power card and timed Super Performance boost are wired'
 else
   warning 'Power card integration is incomplete'
 fi

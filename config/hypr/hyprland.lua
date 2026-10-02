@@ -1,6 +1,6 @@
 -- Nocturne Hyprland — compact, keyboard-first and still mouse-friendly.
 -- Hyprland 0.56+ uses Lua natively. Keep interaction here and presentation in
--- Waybar/Orbit/Hyprlock so there is one owner for every surface.
+-- Waybar/Nocturne panels/Hyprlock so there is one owner for every surface.
 
 local home = os.getenv("HOME")
 local config_home = os.getenv("XDG_CONFIG_HOME") or (home .. "/.config")
@@ -65,8 +65,6 @@ hl.on("hyprland.start", function()
         "hypridle",
         "swaync",
         scripts .. "bar",
-        "hyprlauncher -d",
-        "systemctl --user start nocturne-orbit.service",
         hardware .. " touchpad init",
         "/usr/libexec/hyprpolkitagent",
         "wl-paste --type text --watch cliphist store",
@@ -158,6 +156,8 @@ hl.bind(mod .. " + X", run("kitty --class nox --title 'NØX // LOCAL OPERATOR' -
 hl.bind(mod .. " + D", run("code"))
 hl.bind(mod .. " + T", run(steam))
 hl.bind(mod .. " + N", run("swaync-client -t -sw"))
+hl.bind(mod .. " + CTRL + W", run(home .. "/.local/bin/nocturne-connectivity toggle wifi"))
+hl.bind(mod .. " + CTRL + B", run(home .. "/.local/bin/nocturne-connectivity toggle bluetooth"))
 hl.bind(mod .. " + SHIFT + V", run(clipboard))
 hl.bind(mod .. " + P", run(power))
 hl.bind(mod .. " + Escape", run(scripts .. "lock-screen"))
@@ -212,7 +212,7 @@ hl.bind("XF86KbdBrightnessUp", run(hardware .. " keyboard-light up"), { locked =
 hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { locked = true })
 hl.bind("XF86Tools", run(scripts .. "help"))
 
-local popup_class = "^(Wofi|com\\.nocturne\\.Calendar|com\\.nocturne\\.PowerCard|com\\.orbit\\.app|hyprpwcenter)$"
+local popup_class = "^(Wofi|com\\.nocturne\\.Calendar|com\\.nocturne\\.PowerCard|com\\.nocturne\\.Connectivity|nocturne-connectivity|hyprpwcenter)$"
 hl.window_rule({ match = { class = "^(org.gnome.NautilusPreviewer)$" }, float = true })
 hl.window_rule({
     match = { class = popup_class },
@@ -222,7 +222,7 @@ hl.window_rule({
     move = {"cursor_x-window_w+34", "34"},
     no_anim = true,
 })
-hl.window_rule({ match = { class = "^(com\\.orbit\\.app)$" }, pin = true })
+hl.window_rule({ match = { class = "^(com\\.nocturne\\.Connectivity|nocturne-connectivity)$" }, pin = true })
 hl.window_rule({
     match = { class = "^(hyprpwcenter)$" },
     size = {660, 520},

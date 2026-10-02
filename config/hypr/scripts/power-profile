@@ -1,13 +1,62 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+state_file="$state_home/super-performance.state"
+timer_unit=nocturne-super-performance.timer
+script_path=$(readlink -f -- "$0")
+
 label_for() {
   case $1 in
+    boost) printf 'Super performance' ;;
     performance) printf 'Performance' ;;
     balanced) printf 'Balanced' ;;
     power-saver) printf 'Power saver' ;;
     *) printf '%s' "$1" ;;
   esac
+}
+
+read_boost_state() {
+  BOOST_PREVIOUS=
+  BOOST_EXPIRES=0
+  BOOST_PID=0
+  [[ -r $state_file ]] || return 1
+  IFS=$'\t' read -r BOOST_PREVIOUS BOOST_EXPIRES BOOST_PID < "$state_file" || return 1
+  [[ $BOOST_PREVIOUS =~ ^(performance|balanced|power-saver)$ ]] || return 1
+  [[ $BOOST_EXPIRES =~ ^[0-9]+$ && $BOOST_PID =~ ^[0-9]+$ ]] || return 1
+}
+
+boost_active() {
+  local now
+  now=$(date +%s)
+  read_boost_state && ((BOOST_EXPIRES > now))
+}
+
+stop_gamemode_request() {
+  local pid=${1:-0}
+  if [[ $pid =~ ^[0-9]+$ ]] && ((pid > 1)) \
+      && kill -0 "$pid" 2>/dev/null \
+      && tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q 'gamemoded.*-r'; then
+    kill "$pid" 2>/dev/null || true
+    for _attempt in {1..20}; do
+      [[ $(gamemoded -s 2>/dev/null || true) == *inactive* ]] && break
+      sleep 0.1
+    done
+  fi
+}
+
+cancel_boost() {
+  local restore=${1:-no} previous= pid=0
+  if read_boost_state; then
+    previous=$BOOST_PREVIOUS
+    pid=$BOOST_PID
+  fi
+  stop_gamemode_request "$pid"
+  rm -f -- "$state_file"
+  systemctl --user stop "$timer_unit" >/dev/null 2>&1 || true
+  if [[ $restore == yes && $previous =~ ^(performance|balanced|power-saver)$ ]]; then
+    powerprofilesctl set "$previous" >/dev/null 2>&1 || true
+  fi
 }
 
 details() {
@@ -20,6 +69,7 @@ details() {
 set_profile() {
   local requested=$1 actual
   case $requested in performance|balanced|power-saver) ;; *) exit 2 ;; esac
+  cancel_boost no
   if ! powerprofilesctl set "$requested"; then
     notify-send -a Nocturne -u critical 'Power profile failed' "Could not activate $(label_for "$requested")."
     exit 1
@@ -32,11 +82,61 @@ set_profile() {
   notify-send -a Nocturne -u low "$(label_for "$actual") profile active" "$(details)"
 }
 
+start_boost() {
+  local minutes=${1:-30} previous request_pid=0 expires temp_state
+  [[ $minutes =~ ^[0-9]+$ ]] && ((minutes >= 5 && minutes <= 120)) || {
+    printf 'Boost duration must be 5–120 minutes.\n' >&2
+    exit 2
+  }
+  previous=$(powerprofilesctl get 2>/dev/null || printf balanced)
+  if boost_active; then
+    previous=$BOOST_PREVIOUS
+  fi
+  cancel_boost no
+  powerprofilesctl set performance
+
+  if command -v gamemoded >/dev/null 2>&1; then
+    gamemoded -r >/dev/null 2>&1 &
+    request_pid=$!
+  fi
+  expires=$(( $(date +%s) + minutes * 60 ))
+  mkdir -p -- "$state_home"
+  temp_state=$(mktemp "$state_home/.super-performance.XXXXXX")
+  printf '%s\t%s\t%s\n' "$previous" "$expires" "$request_pid" > "$temp_state"
+  mv -f -- "$temp_state" "$state_file"
+
+  systemd-run --user --quiet --collect \
+    --unit=nocturne-super-performance \
+    --on-active="${minutes}m" \
+    "$script_path" boost-stop
+  notify-send -a Nocturne -u normal 'Super performance active' \
+    "CPU turbo + GameMode for ${minutes} minutes · automatic rollback to $(label_for "$previous")."
+}
+
+stop_boost() {
+  local previous=balanced
+  if read_boost_state; then previous=$BOOST_PREVIOUS; fi
+  cancel_boost yes
+  notify-send -a Nocturne -u low 'Super performance ended' "Restored $(label_for "$previous")."
+}
+
+status() {
+  local profile remaining
+  if boost_active; then
+    remaining=$(( (BOOST_EXPIRES - $(date +%s) + 59) / 60 ))
+    printf 'boost\tCPU turbo + GameMode · %sm remaining · restores %s\n' \
+      "$remaining" "$(label_for "$BOOST_PREVIOUS")"
+    return
+  fi
+  if [[ -e $state_file ]]; then cancel_boost yes; fi
+  profile=$(powerprofilesctl get 2>/dev/null || printf unknown)
+  printf '%s\t%s\n' "$profile" "$(details)"
+}
+
 case ${1:-status} in
-  status)
-    profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
-    printf '%s\t%s\n' "$profile" "$(details)"
-    ;;
+  status) status ;;
   set) set_profile "${2:-}" ;;
-  *) printf 'Usage: %s status|set performance|balanced|power-saver\n' "$0" >&2; exit 2 ;;
+  boost) start_boost "${2:-30}" ;;
+  boost-stop) stop_boost ;;
+  *) printf 'Usage: %s status|set PROFILE|boost [5-120]|boost-stop\n' "$0" >&2; exit 2 ;;
 esac

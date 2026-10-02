@@ -40,23 +40,3 @@ printf '%s\n' \
   "rounding_large = 0" \
   "rounding_small = 0" > "$tmp"
 mv "$tmp" "$output"
-
-# Orbit reads a small TOML palette in addition to its GTK stylesheet. Keep it
-# generated from the same source so every shell popover follows theme/accent
-# changes instead of preserving an old hard-coded green.
-orbit_theme="$config_home/orbit/theme.toml"
-if [[ -d ${orbit_theme%/*} ]]; then
-  printf '%s\n' \
-    "accent_primary = \"#$accent\"" \
-    "accent_secondary = \"#$accent2\"" \
-    "accent_primary_foreground = \"#$base\"" \
-    "background = \"#$base\"" \
-    "foreground = \"#$text\"" \
-    'destructive = "#FF5F6D"' \
-    'opacity = 0.99' > "$orbit_theme.tmp"
-  mv "$orbit_theme.tmp" "$orbit_theme"
-fi
-
-if systemctl --user is-active --quiet nocturne-orbit.service 2>/dev/null; then
-  systemctl --user restart nocturne-orbit.service >/dev/null 2>&1 || true
-fi

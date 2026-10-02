@@ -89,10 +89,13 @@ control center, and middle opens the key guide. The full guide is in
 - A 25/5 Pomodoro timer in the bar.
 - A minimal Omarchy-style bar with MPRIS, audio, connectivity, grouped
   system health, microphone-use, notification, clock, and native tray apps.
-  Separate, permanently visible Wi-Fi and Bluetooth icons open the matching tab
-  in one sharp, compact connectivity card directly below the bar. Clicking the
-  active icon again closes it; middle-clicking Wi-Fi opens VPN. The Nocturne build
-  removes Orbit's oversized logo, wired-network, and public-IP surfaces, while
+  Separate, permanently visible Wi-Fi and Bluetooth icons open a zero-idle,
+  sharp connectivity card directly below the bar. Clicking the active icon
+  again closes it, clicking elsewhere dismisses it, Escape closes it, and
+  middle-clicking Wi-Fi opens VPN. Live interface, latency, link quality,
+  download/upload, and VPN metrics are sampled only while the card is open.
+  The native Nocturne panel replaces Orbit's
+  launcher/focus-guard chain and its oversized auxiliary surfaces, while
   Ubuntu's `nm-applet` and the
   Blueman tray applet are persistently suppressed so duplicate icons cannot
   return. Connectivity, calendar and power cards are initially compositor-
@@ -103,11 +106,14 @@ control center, and middle opens the key guide. The full guide is in
   output automatically while the laptop Digital Microphone stays preferred;
   choosing a headset mic temporarily enters HFP and switching back restores
   high-quality A2DP playback.
-  Ordinary background-app icons live in a three-dot drawer at the far-right
-  edge. Audio, media, KDE Connect, and
+  Ordinary background-app icons live in a three-dot drawer immediately left of
+  KDE Connect. Audio, media, KDE Connect, and
   power use compact click-to-toggle cards. The battery button opens one compact
-  GNOME-style card for Performance, Balanced and Saver modes plus session power
-  actions; restart and shutdown require a second confirming click. The centered local date/time opens
+  card for Super, Performance, Balanced and Saver modes plus session power
+  actions. Super is a timed 30-minute maximum-supported CPU turbo + GameMode
+  profile with automatic rollback; it deliberately avoids unsupported voltage
+  or GPU power-limit overclocking. Restart and shutdown require a second
+  confirming click. The centered local date/time opens
   a themed, interactive month calendar; a small globe+clock button opens every
   saved world time and live weather entry. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
@@ -167,10 +173,10 @@ control center, and middle opens the key guide. The full guide is in
   nvtop, and a live audio spectrum in one sharp grid.
 - App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
   Kitty.
-- The upstream Hyprlauncher daemon provides instant fuzzy app search, icons,
-  remembered launch frequency, Unicode, font, and calculator modes. It shares
-  the sharp Nocturne Hyprtoolkit theme with audio, system-info, permission, and
-  authentication surfaces.
+- `Super+Space` opens a zero-idle fuzzy Wofi launcher with icons and remembered
+  launch frequency. It is compact, uses the sharp Nocturne palette, closes on
+  `Escape` or focus loss, and a second `Super+Space` toggles it closed without
+  leaving a 200 MB launcher daemon behind.
 - Steam opens tiled, its utility dialogs float centered, and its launcher
   focuses an existing window instead of starting redundant client work. The
   hybrid-GPU path uses native NVIDIA PRIME while background shader compilation
@@ -200,7 +206,6 @@ The source configuration is under `config/hypr`, `config/waybar`,
 `config/swaync`, and `config/wofi`. Reapply it with:
 
 ```bash
-./scripts/install-orbit.sh
 ./apply-hyprland.sh
 ```
 
@@ -211,9 +216,10 @@ After a Hyprland package upgrade, log out and back into **Hyprland
 ./scripts/install-hyprcapture.sh
 ```
 
-The Orbit installer checks out an exact reviewed upstream commit, applies the
-small Nocturne connectivity patch, performs a locked Rust build, and
-places the result in `~/.local/bin`. The apply script checks for required programs,
+The Nocturne connectivity controller follows Omarchy's compact panel model
+while staying native to Ubuntu's NetworkManager and BlueZ. It has no idle
+process: the card owns its state while open and exits completely on dismiss. The
+apply script checks for required programs,
 snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from
 leaking into GNOME. HyprCapture is built from a pinned, reviewed upstream

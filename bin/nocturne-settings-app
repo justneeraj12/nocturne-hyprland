@@ -550,8 +550,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
     def connectivity_page(self) -> Gtk.Widget:
         scroll, box = self.page("Connectivity", "Fast themed cards for everyday use, with advanced tools one click away.")
         self.section(box, "Network")
-        self.action_row(box, "Wi-Fi", "Connect, disconnect, scan and manage VPNs in the bar card.", [("QUICK PANEL", [str(SCRIPT_HOME / "orbit-popup"), "wifi"], "primary"), ("ADVANCED", ["nm-connection-editor"], "")])
-        self.action_row(box, "Bluetooth", "Power, scan, pair, connect and disconnect devices.", [("QUICK PANEL", [str(SCRIPT_HOME / "orbit-popup"), "bluetooth"], "primary"), ("DEVICE MANAGER", ["blueman-manager"], "")])
+        self.action_row(box, "Wi-Fi", "Connect, disconnect, scan and manage VPNs in the compact bar card.", [("QUICK PANEL", [str(HOME / ".local/bin/nocturne-connectivity"), "toggle", "wifi"], "primary"), ("ADVANCED", ["nm-connection-editor"], "")])
+        self.action_row(box, "Bluetooth", "Power, scan, pair, connect and disconnect devices.", [("QUICK PANEL", [str(HOME / ".local/bin/nocturne-connectivity"), "toggle", "bluetooth"], "primary")])
         self.section(box, "Phone")
         self.action_row(box, "KDE Connect", "Clipboard, file transfer, battery, ringing and device status.", [("PHONE CARD", [str(SCRIPT_HOME / "kdeconnect-menu")], "primary"), ("DEVICE SETTINGS", [str(SCRIPT_HOME / "kdeconnect-settings")], "")])
         return scroll
@@ -660,7 +660,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.action_row(box, "Hyprland system", "Compositor, renderer, displays, portals, and session details.", [("OPEN", ["hyprsysteminfo"], "")])
         self.section(box, "Display + power")
         self.action_row(box, "Laptop brightness", "Use a themed preset or the hardware brightness keys.", [("CHOOSE LEVEL", [str(SCRIPT_HOME / "brightness"), "pick"], "")])
-        self.action_row(box, "Power profile", "Verified profile switching with on-screen CPU and MSI firmware status.", [("PERFORMANCE", [str(SCRIPT_HOME / "power-profile"), "set", "performance"], ""), ("BALANCED", [str(SCRIPT_HOME / "power-profile"), "set", "balanced"], "primary"), ("SAVER", [str(SCRIPT_HOME / "power-profile"), "set", "power-saver"], "")])
+        self.action_row(box, "Power profile", "Safe hardware-backed profiles plus a timed CPU turbo and GameMode boost.", [("SUPER 30M", [str(SCRIPT_HOME / "power-profile"), "boost", "30"], "primary"), ("PERFORMANCE", [str(SCRIPT_HOME / "power-profile"), "set", "performance"], ""), ("BALANCED", [str(SCRIPT_HOME / "power-profile"), "set", "balanced"], ""), ("SAVER", [str(SCRIPT_HOME / "power-profile"), "set", "power-saver"], "")])
         self.section(box, "Laptop action keys")
         self.action_row(box, "Microphone", "Hardware mic-mute key with PipeWire state feedback.", [("TOGGLE MIC", [str(SCRIPT_HOME / "hardware-control"), "microphone"], "")])
         self.action_row(box, "Touchpad", "Fn+F4 toggles the internal touchpad and shows its state.", [("TOGGLE", [str(SCRIPT_HOME / "hardware-control"), "touchpad", "toggle"], "primary")])
