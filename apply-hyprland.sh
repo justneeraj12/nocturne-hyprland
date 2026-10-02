@@ -6,14 +6,8 @@ CONFIG_HOME=${XDG_CONFIG_HOME:-"$HOME/.config"}
 DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
-BACKUP_LINK="$ROOT_DIR/backups/current-backup"
 
-[[ -d "$BACKUP_LINK" ]] || {
-  printf 'Refusing to apply: verified fallback backup is missing at %s\n' "$BACKUP_LINK" >&2
-  exit 1
-}
-
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist wl-copy nmcli bluetoothctl wpctl pactl gamemoded grim slurp wf-recorder)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist wl-copy nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp wf-recorder cmake ninja)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -22,8 +16,8 @@ if ((${#missing[@]})); then
   printf 'Missing Hyprland components: %s\n' "${missing[*]}" >&2
   exit 1
 fi
-python3 -c 'import gi; gi.require_version("Gtk4LayerShell", "1.0")' 2>/dev/null || {
-  printf 'Missing Python GTK4 Layer Shell bindings (gir1.2-gtk4layershell-1.0).\n' >&2
+[[ -d /usr/lib/x86_64-linux-gnu/qt6/qml/org/kde/layershell || -d /usr/lib/aarch64-linux-gnu/qt6/qml/org/kde/layershell ]] || {
+  printf 'Missing Qt 6 Layer Shell QML support (qml6-module-org-kde-layershell).\n' >&2
   exit 1
 }
 snapshot="$ROOT_DIR/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
@@ -99,15 +93,15 @@ install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/col
 install -m 0755 "$ROOT_DIR/bin/nocturne-session-theme" "$BIN_HOME/nocturne-session-theme"
 install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard"
 install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualizer"
-install -m 0755 "$ROOT_DIR/bin/nocturne-cyberdisc" "$BIN_HOME/nocturne-cyberdisc"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
-install -m 0755 "$ROOT_DIR/bin/nocturne-settings-app" "$BIN_HOME/nocturne-settings-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
-install -m 0755 "$ROOT_DIR/bin/nocturne-power-card" "$BIN_HOME/nocturne-power-card"
-install -m 0755 "$ROOT_DIR/bin/nocturne-panel" "$BIN_HOME/nocturne-panel"
-install -m 0755 "$ROOT_DIR/bin/nocturne-capture" "$BIN_HOME/nocturne-capture"
+install -m 0755 "$ROOT_DIR/bin/nocturne-capture-engine" "$BIN_HOME/nocturne-capture-engine"
+NOCTURNE_BIN_DIR="$BIN_HOME" "$ROOT_DIR/scripts/build-native.sh"
+rm -f -- "$BIN_HOME/nocturne-panel" "$BIN_HOME/nocturne-power-card" \
+  "$BIN_HOME/nocturne-capture" "$BIN_HOME/nocturne-settings-app" \
+  "$BIN_HOME/nocturne-cyberdisc"
 rm -f -- "$BIN_HOME/nocturne-connectivity" "$BIN_HOME/nocturne-calendar" \
   "$CONFIG_HOME/hypr/scripts/clock-menu"
 rm -f -- "$BIN_HOME/nocturne-capture-ui" "$BIN_HOME/nocturne-freeze-frame" \

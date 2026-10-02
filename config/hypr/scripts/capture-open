@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec "$HOME/.local/bin/nocturne-capture" toggle
+exec "$HOME/.local/bin/nocturne-native" capture

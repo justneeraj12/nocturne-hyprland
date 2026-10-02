@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  native-and-config:
+    runs-on: ubuntu-24.04
+    container: ubuntu:26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev \
+            qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
+            qml6-module-qtquick-window qml6-module-org-kde-layershell \
+            layer-shell-qt liblayershellqtinterface-dev \
+            python3 python3-pytest jq shellcheck file git
+      - name: Build native shell
+        run: |
+          cmake -S native -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/ci --parallel
+          ./build/ci/nocturne-native --self-test
+      - name: Static validation
+        run: |
+          shellcheck -S error install.sh apply-hyprland.sh scripts/build-native.sh bin/nocturne-settings bin/nocturne-visualizer
+          python3 -m py_compile bin/nocturne-capture-engine
+          jq -e . config/waybar/config.jsonc >/dev/null
+          jq -e . config/swaync/config.json >/dev/null
+          ! grep -R -E 'import gi|from gi|Gtk' native bin
+          git diff --check

@@ -41,7 +41,7 @@ adjust() {
 }
 
 pick() {
-  exec "$HOME/.local/bin/nocturne-panel" toggle brightness
+  exec "$HOME/.local/bin/nocturne-native" brightness
 }
 
 case ${1:-status} in

@@ -154,9 +154,9 @@ hl.bind(mod .. " + X", run("kitty --class nox --title 'NØX // LOCAL OPERATOR' -
 hl.bind(mod .. " + D", run("code"))
 hl.bind(mod .. " + T", run(steam))
 hl.bind(mod .. " + N", run("swaync-client -t -sw"))
-hl.bind(mod .. " + CTRL + W", run(home .. "/.local/bin/nocturne-panel toggle connectivity wifi"))
-hl.bind(mod .. " + CTRL + B", run(home .. "/.local/bin/nocturne-panel toggle connectivity bluetooth"))
-hl.bind(mod .. " + CTRL + A", run(home .. "/.local/bin/nocturne-panel toggle audio"))
+hl.bind(mod .. " + CTRL + W", run(home .. "/.local/bin/nocturne-native connectivity wifi"))
+hl.bind(mod .. " + CTRL + B", run(home .. "/.local/bin/nocturne-native connectivity bluetooth"))
+hl.bind(mod .. " + CTRL + A", run(home .. "/.local/bin/nocturne-native audio"))
 hl.bind(mod .. " + SHIFT + V", run(clipboard))
 hl.bind(mod .. " + P", run(power))
 hl.bind(mod .. " + Escape", run(scripts .. "lock-screen"))
@@ -210,7 +210,7 @@ hl.bind("XF86WebCam", run(hardware .. " camera"), { locked = true })
 hl.bind("XF86KbdBrightnessUp", run(hardware .. " keyboard-light up"), { locked = true })
 hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { locked = true })
 hl.bind("XF86Tools", run(scripts .. "help"))
-hl.bind("Print", run(home .. "/.local/bin/nocturne-capture toggle"))
+hl.bind("Print", run(home .. "/.local/bin/nocturne-native capture"))
 
 local popup_class = "^(Wofi|com\\.nocturne\\.PowerCard)$"
 hl.window_rule({ match = { class = "^(org.gnome.NautilusPreviewer)$" }, float = true })
@@ -222,7 +222,7 @@ hl.window_rule({
     move = {"cursor_x-window_w+34", "34"},
     no_anim = true,
 })
-hl.layer_rule({ match = { namespace = "nocturne-panel" }, blur = true, ignore_alpha = 0.2 })
+hl.layer_rule({ match = { namespace = "nocturne-native" }, blur = true, ignore_alpha = 0.2 })
 
 local tiled_apps = "^(NocturneVisualizer|com\\.nocturne\\.Visualizer|com\\.nocturne\\.Settings|NocturneDashboard|net\\.nokyan\\.Resources|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|org\\.gnome\\.Calculator|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph|org\\.kde\\.kdeconnect\\.app)$"
 hl.window_rule({ match = { class = tiled_apps }, tile = true })
@@ -249,4 +249,3 @@ hl.layer_rule({ match = { namespace = "waybar" }, blur = true, ignore_alpha = 0.
 hl.layer_rule({ match = { namespace = "swaync-control-center" }, blur = true })
 hl.layer_rule({ match = { namespace = "notifications" }, blur = true })
 hl.layer_rule({ match = { namespace = "wofi" }, blur = true })
-hl.layer_rule({ match = { namespace = "nocturne-capture" }, blur = true, ignore_alpha = 0.2 })

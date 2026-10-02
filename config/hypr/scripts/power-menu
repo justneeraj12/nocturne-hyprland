@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-exec "$HOME/.local/bin/nocturne-power-card"
+exec "$HOME/.local/bin/nocturne-native" power

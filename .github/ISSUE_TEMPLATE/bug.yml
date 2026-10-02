@@ -1,0 +1,30 @@
+name: Bug report
+description: Report reproducible Nocturne behavior
+title: "[bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach screenshots containing private applications, account names or tokens.
+  - type: input
+    id: version
+    attributes:
+      label: Hyprland and Qt versions
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Relevant nocturne-doctor output

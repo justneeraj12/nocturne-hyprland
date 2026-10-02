@@ -1,312 +1,186 @@
-# Nocturne — Hyprland desktop with a GNOME safety net
+# Nocturne Hyprland
 
-This machine now has two independent desktop sessions:
+Nocturne is a compact, keyboard-first Hyprland desktop for Ubuntu. It keeps
+standard Linux services—NetworkManager, BlueZ, PipeWire, WirePlumber and
+power-profiles-daemon—but replaces the custom desktop popovers with one
+Qt 6/Wayland layer-shell application.
 
-- **Hyprland (uwsm-managed):** keyboard-first Tokyo Night tiling, compact
-  Waybar, no compositor title bars, notification history, clipboard history,
-  Caffeine, Pomodoro, media controls, audio/network/Bluetooth controls,
-  resource tools, a native settings app, scheduled wallpapers, a session-local
-  sharp dark app/file-manager theme, and a matching terminal setup.
-- **Ubuntu / GNOME:** restored to the original MacTahoeCompact-Dark setup,
-  including its MacTahoe icons, left-side window controls, extensions, and
-  SolidForest wallpaper.
+The result is a sharp neo-hacker shell that still behaves like a familiar
+desktop: click an icon to open its card, click it again or click outside to
+close it, use the hardware keys normally, and launch ordinary applications as
+ordinary tiled windows.
 
-Steam, VS Code, ChatGPT, browsers, PipeWire audio, and the Intel/NVIDIA gaming
-stack were not replaced. They run as ordinary applications in either session.
+> Status: tested on Ubuntu with Hyprland 0.56+ and Qt 6.6+. The installer
+> creates a timestamped backup before touching an existing configuration.
 
-## NØX — Nocturne Agent
+## Highlights
 
-The repository now also contains `agent/`, a local-first desktop operator built
-for this exact Hyprland setup. Common requests such as opening an approved app,
-changing volume or brightness, moving to a workspace, controlling media, and
-checking system health are handled without loading a language model. Every
-action passes through a typed allowlist; raw shell, `sudo`, deletion, package
-management, and messaging are not exposed to inference.
+- A single on-demand `nocturne-native` binary for audio, brightness,
+  connectivity, power, calendar, world time, Pomodoro, capture and settings.
+- No GTK or GNOME dependency in Nocturne's own UI code.
+- Live PipeWire app-stream discovery, master volume and output routing.
+- A brightness slider that follows hardware-key changes while it is open.
+- Wi-Fi, Bluetooth and VPN controls backed by NetworkManager and BlueZ.
+- Screenshots and recordings for an area, window or display using
+  `grim`, `slurp` and `wf-recorder`.
+- Every screenshot is saved to `~/Pictures/Screenshots` and copied as a normal
+  `image/png` clipboard item.
+- Compact Waybar layout, SwayNC history, Cliphist, Caffeine, media controls,
+  world clocks/weather, power profiles and a deep-sleep setup helper.
+- Existing applications, Steam, browsers, VS Code and the user's GNOME session
+  remain independent of the Hyprland configuration.
 
-Its controller is activated by a private systemd user socket and exits after
-five idle minutes. Prompt text and file contents are not written to its usage
-database. Run `nox` or press `Super+X` for the full-screen terminal chat;
-results also arrive through the existing themed notification center. It can
-perform explicit read-only checks of processes, windows, services, downloads,
-network, audio, and power. Its Tool Forge can propose policy-validated routines
-from existing typed actions, but saves them disabled until the user explicitly
-enables one. There is no floating agent control panel. See `agent/README.md`
-for the architecture, tests, and install path.
-Unmatched requests enter a three-step bounded agent loop that can discover
-installed apps, chain typed actions, inspect compact results, recover from a
-failed step, and stop repeated calls. Six ephemeral action receipts support
-follow-ups without storing raw prompt text.
-Its editable local owner/system profile remembers explicit workflow, app,
-audio, aesthetic, and hardware preferences. Request-matched intent examples
-improve unfamiliar phrasing without waking or retraining the model for common
-personal commands such as `open my music player`.
-Installed-app requests are resolved from desktop entries and launched in
-separate UWSM graphical scopes, so they tile normally without inheriting the
-agent controller's read-only sandbox.
+## Screenshots
 
-## Start Hyprland
+Project screenshots are captured from an empty workspace and intentionally do
+not include browser windows, messages, personal files or terminal history.
 
-1. Log out of GNOME.
-2. Select your username on the login screen.
-3. Use the gear menu and choose **Hyprland (uwsm-managed)**.
-4. Sign in.
+![Live hardware-synchronized brightness card](docs/screenshots/brightness-live.png)
 
-The first shortcuts to remember are:
+## Architecture
 
 ```text
-Super + Space       apps
-Super + R           Nocturne Settings
-Super + Enter       terminal
-Super + /           complete key guide
-Super + Q           close a window
-Super + A           snap a floating window into the tiling layout
-Super + drag        move/resize with the mouse
-Super + P           lock, log out, suspend, reboot, or shut down
+Waybar clicks / hotkeys
+          │
+          ▼
+  nocturne-native (Qt Quick)
+          │  one local IPC owner; exits when closed
+          ├── PipeWire / WirePlumber       audio + per-app streams
+          ├── brightnessctl / logind       hardware backlight
+          ├── NetworkManager / BlueZ       Wi-Fi, VPN, Bluetooth
+          ├── power-profiles-daemon        power modes
+          └── grim / slurp / wf-recorder  capture engine
 ```
 
-The Ubuntu logo in the bar is also clickable: left opens apps, right opens the
-control center, and middle opens the key guide. The full guide is in
-`config/hypr/KEYS.md`.
+The layer-shell window is created at its final monitor and anchor before the
+first frame. A transparent Wayland backdrop supplies consistent outside-click
+dismissal; the visible card remains interactive. Invoking the same card twice
+uses local IPC and toggles the existing instance instead of spawning another
+process.
 
-## Included desktop features
+## Install
 
-- Dual-screen layout: LG UltraGear at 1920×1080/180 Hz on the left and laptop
-  panel at 1920×1080/144 Hz on the right.
-- Sharp Obsidian borders, small gaps, workspace animation, mouse support,
-  scratchpad, window groups, and three-finger workspace swipes.
-- Compact per-design tiling gaps (1–2 px inner, 2–4 px outer) keep the layout
-  dense without letting adjacent one-pixel borders visually merge.
-- SwayNotificationCenter for application-independent notification history and
-  do-not-disturb mode.
-- Cliphist clipboard picker plus a zero-idle, GNOME-style native screenshot
-  and recording surface. `Print` opens one bottom-centered toolbar for an area,
-  window, or display and can switch into recording without opening a second
-  tool. Screenshots save to `~/Pictures/Screenshots` and become the current
-  normal clipboard item; recordings save to `~/Videos/Screenrecords`. The
-  centered recording indicator exists only while capture is active.
-- Caffeine toggle backed by Hypridle, with 10-minute lock and 15-minute screen
-  sleep when Caffeine is off.
-- A full Pomodoro card with 25/5, 50/10, and 15/5 presets, cycle count,
-  auto-start, pause, reset, skip, transition notifications, and a live bar
-  timer.
-- A minimal Omarchy-style bar with MPRIS, audio, connectivity, grouped
-  system health, microphone-use, notification, clock, and native tray apps.
-  One compact Wi-Fi/Bluetooth/VPN control opens a sharp, segmented card
-  directly below the clicked icon. The zero-idle panel process also owns the
-  matching master-volume/per-app mixer and Pomodoro card. GTK4 Layer Shell
-  anchors every card before its first frame, eliminating the old floating-
-  window jump. Clicking the active icon again closes it; moving between the
-  icon and controls never dismisses the card, while a real outside click does.
-  Live interface, latency, link quality,
-  download/upload, and VPN metrics are sampled only while connectivity is
-  visible. The native Nocturne panel replaces Orbit's
-  launcher/focus-guard chain, `hyprpwcenter`, and their oversized auxiliary surfaces, while
-  Ubuntu's `nm-applet` and the
-  Blueman tray applet are persistently suppressed so duplicate icons cannot
-  return. The system backends remain NetworkManager, BlueZ, and PipeWire/
-  WirePlumber; only their shell-facing controls are themed.
-- The compact audio card switches real PipeWire outputs and exposes debounced,
-  reliable master and per-app volume sliders. Microphone state remains a
-  separate bar control. Newly connected Bluetooth audio becomes the active
-  output automatically while the laptop Digital Microphone stays preferred;
-  choosing a headset mic temporarily enters HFP and switching back restores
-  high-quality A2DP playback.
-  Ordinary background-app icons live in a three-dot drawer immediately left of
-  KDE Connect. Audio, media, KDE Connect, and
-  power use compact click-to-toggle cards. The battery button opens one compact
-  card for Super, Performance, Balanced and Saver modes plus session power
-  actions. Super is a timed 30-minute maximum-supported CPU turbo + GameMode
-  profile with automatic rollback; it deliberately avoids unsupported voltage
-  or GPU power-limit overclocking. Restart and shutdown require a second
-  confirming click. The centered local date/time, brightness control, and
-  globe+clock button now use the same zero-idle native anchored panel. The
-  calendar is a sharp custom month grid; the world card shows every saved city,
-  its 12-hour `+`/`−` time, and live weather without legacy popup menus. The
-  native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
-  outside GNOME. It provides a sidebar for appearance, wallpapers,
-  connectivity, sound, desktop, hardware, power and shortcut help. The
-  standard Settings launcher routes intelligently to Nocturne under Hyprland
-  and Ubuntu Settings under GNOME. Audio includes
-  per-app volume; KDE Connect uses a matching dark Qt6 theme. Detailed process
-  data lives in the resource dashboard.
-  A Hyprland-session watchdog restarts the bar after an unexpected crash
-  without allowing it to leak into the restored GNOME session.
-- **Settings → Accounts + apps** opens the real GNOME Online Accounts Google
-  login used by Ubuntu. Calendar uses that shared account; native GNOME
-  Calendar and Iotas inherit the Nocturne GTK palette. This installed provider
-  does not expose Drive or Keep to desktop apps, so those open through their
-  official web apps; Iotas synchronizes with Nextcloud, not Google.
-  Keep and Drive launch in signed-in Brave app mode—no tab strip or fake sync
-  bridge—and are also searchable from the app launcher.
-- The default lock path uses current upstream Hyprlock with an open,
-  typography-led Nocturne composition: active wallpaper, large 12-hour clock,
-  local weather, world times, media state, notification count, and a minimal
-  password line. GTKlock remains installed only as an emergency fallback.
-  Masked shell prompts accept direct keyboard input while keeping menu-only
-  cards protected from accidental custom commands.
-- Hyprland follows the start time, static durations, transitions, and full
-  local-day sequence authored inside any installed GNOME dynamic-wallpaper XML
-  pack. The previous SolidForest pack is available directly; its day image is
-  used from morning through afternoon and its night image after the encoded
-  evening transition. A large current-phase preview and clear Apply/Follow/Stop
-  controls live under **Settings → Appearance**. Choosing a static image with
-  `Super+W` pauses the day cycle, so the two modes never conflict.
-- **Settings → Appearance** presents static wallpapers as an Ubuntu-style
-  thumbnail library, keeps the active image visibly marked, and separates the
-  dynamic preview from its schedule details. Save new downloads in
-  `~/Pictures/Wallpapers`; the picker also includes the existing Nocturne
-  collection automatically.
-- Eight coordinated surface designs—Obsidian Grid, Carbon Compact, Midnight
-  Circuit, Phosphor Terminal, Crimson Relay, Copper Blue, Copper Deep Green,
-  and Copper Deep Gold—change shell/app surfaces and layout density without
-  changing workflow or shortcuts. Sixteen independent accent colors can be
-  mixed with any design. The Settings sidebar toggles between full labels and
-  a remembered compact icon-only rail.
-- `nocturne-doctor` performs a read-only check of the compositor, wallpaper on
-  every display, notification/idle services, network, Bluetooth, PipeWire,
-  brightness, power profiles, KDE Connect, fonts, and essential configuration.
-- Nautilus uses a session-only Nocturne GTK layer: compact sharp controls,
-  list view, dark sidebar/content and a matching selection accent. Entering
-  GNOME removes that layer and restores the saved MacTahoe stylesheet.
-- The tiled Nocturne visualizer includes Cyberdisc: a flat terminal frequency
-  ring around a rotating record with a pickup-fed waveform trace. Four additional
-  native instruments—Black ICE, Datafall, Ghostscope, and Netrunner—provide
-  distinct neo-hacker layouts. Ten more native decks—Razorwire, Mainframe,
-  Pulsegrid, Signal Tower, Gridlock, Zero Day, Deep Trace, Synth City, Kernel
-  Panic, and Void Scanner—cover mirrored traces, rack consoles, cell matrices,
-  sonar, skyline, and sparse scanner layouts. Five lighter Cava designs remain
-  available in a separate classics menu. The Nocturne dashboard combines btop,
-  nvtop, and a live audio spectrum in one sharp grid.
-- App shortcuts for ChatGPT, VS Code, Steam, browser, files, Iotas notes, and
-  Kitty.
-- `Super+Space` opens a zero-idle fuzzy Wofi launcher with icons and remembered
-  launch frequency. It is compact, uses the sharp Nocturne palette, closes on
-  `Escape` or focus loss, and a second `Super+Space` toggles it closed without
-  leaving a 200 MB launcher daemon behind.
-- Steam opens tiled, its utility dialogs float centered, and its launcher
-  focuses an existing window instead of starting redundant client work. The
-  hybrid-GPU path uses native NVIDIA PRIME while background shader compilation
-  stays paused so the desktop remains responsive.
-- Minimized windows live in a compact bar-attached shell card with app icons,
-  searchable title/app metadata, original-workspace restoration, and an
-  auto-hiding bar button. It never opens as a normal app or occupies a tile.
-  Left-click chooses one to restore; clicking again closes it; right-click
-  restores all.
-- Live weather and local times for BLR, Hoodi Circle, NRI Layout, Vizag, NYC,
-  Potsdam NY, and Milan. Weather refreshes every 15 minutes and retries partial
-  API responses.
-- Oh My Zsh + Powerlevel10k, Kitty, tmux, btop, Fastfetch, Cava, and the
-  Nocturne dashboard from the earlier terminal setup.
-- Explicit ACPI S3 (`deep`) suspend through systemd, including the NVIDIA
-  video-memory suspend/resume hooks required by the proprietary driver. Lid
-  close suspends on battery and AC power; docked lid close remains ignored.
-- Laptop action keys cover microphone mute, touchpad toggle, webcam privacy
-  feedback, keyboard-light levels when exposed by MSI EC, and the F7 tools key
-  opens the same guide as `Super+/`. Power-profile changes are verified and
-  report the actual Intel CPU policy plus MSI firmware mode instead of failing
-  silently.
-
-## Reapply or edit
-
-The source configuration is under `config/hypr`, `config/waybar`,
-`config/swaync`, and `config/wofi`. Reapply it with:
+Start with a working Hyprland session. Review the repository, then run:
 
 ```bash
-./apply-hyprland.sh
+git clone https://github.com/justneeraj12/nocturne-hyprland.git
+cd nocturne-hyprland
+./install.sh --install-packages
 ```
 
-The Nocturne panel follows Omarchy's compact shell model while staying
-native to Ubuntu's NetworkManager, BlueZ, PipeWire, and WirePlumber. One
-on-demand GTK4 Layer Shell process provides consistently anchored
-connectivity, audio, and focus cards without spawning heavyweight settings
-applications or consuming memory after dismissal. The
-apply script checks for required programs,
-snapshots any existing Hypr-related
-configuration, installs these files, and keeps the Hyprland-only services from
-leaking into GNOME. Capture uses the standard `grim`, `slurp`, `wf-recorder`,
-and `wl-copy` stack, so compositor upgrades cannot break a private plugin ABI.
-The UI exits completely when closed and the recorder is the only persistent
-process while REC is active.
-The UWSM user-unit override passes `hyprland.lua` explicitly, so a generated
-legacy stub can never steal the next session after a package upgrade or reload.
+If the dependencies are already installed:
 
-Before committing a desktop upgrade, run the source-level regression suite:
+```bash
+./install.sh
+```
+
+The installer:
+
+1. validates required programs;
+2. snapshots the current Hyprland-related configuration under `backups/`;
+3. builds the native Qt application in release mode;
+4. installs user files under `~/.config`, `~/.local/bin` and
+   `~/.local/share`; and
+5. reloads the live bar when run inside Hyprland.
+
+It does not delete personal files, browser data, Steam data, application
+profiles or the GNOME session. Run a source-only check with no live changes:
+
+```bash
+./install.sh --dry-run
+```
+
+### Supported dependency stack
+
+- Qt 6 Core, Gui, QML, Quick and Network
+- KDE LayerShellQt QML module
+- Hyprland, Waybar, SwayNC, Hyprpaper and Hyprlock
+- PipeWire/WirePlumber, NetworkManager, BlueZ
+- grim, slurp, wf-recorder and wl-clipboard
+- jq, brightnessctl, power-profiles-daemon, Kitty, Cava and btop
+
+Nocturne does not bundle or silently download binary dependencies.
+
+## Everyday controls
+
+```text
+Super + Space       application launcher
+Super + Enter       terminal
+Super + R           Nocturne Settings
+Super + /           complete key guide
+Super + Q           close focused window
+Super + M           minimize focused window
+Super + 1…9         switch workspace
+Super + Shift + 1…9 move window to workspace
+Super + drag        move/resize floating window
+Super + P           power and session card
+Print               screenshot / recording toolbar
+```
+
+Hardware volume and brightness keys continue to control the real system
+devices. The open native cards poll those authoritative values and update
+without being closed and reopened.
+
+## Capture behavior
+
+Press `Print`, choose Photo or Video, then choose Area, Window or Display.
+Selection happens after the toolbar closes so it never appears inside the
+result. Area capture passes only the geometry returned by `slurp` to `grim`;
+the selection border is not composited into the image.
+
+Recordings are saved under `~/Videos/Screenrecords`. While a recording is
+active, the Waybar REC indicator is visible and opens a Stop + Save action.
+
+## Development
+
+Build only the native shell:
+
+```bash
+./scripts/build-native.sh
+```
+
+Run the complete local validation:
 
 ```bash
 ./scripts/validate-nocturne.sh
 ```
 
-It validates shell/Python/JSON/Lua configuration, rejects duplicate
-connectivity owners, checks patch hygiene, and runs the complete local-agent
-test suite.
+The validation builds C++/QML from scratch, checks shell/Python/JSON/Lua,
+tests the capture model and local agent, rejects GTK imports in Nocturne's own
+UI, validates Waybar ownership, and runs patch-hygiene checks.
 
-Deep sleep is a one-time system-level setup because its policy lives under
-`/etc`. Apply it through the graphical administrator prompt with:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and
+[SECURITY.md](SECURITY.md) for private vulnerability reporting.
 
-```bash
-pkexec ./configure-deep-sleep.sh
-```
+## Recovery
 
-The installer refuses to force S3 on hardware that does not expose `deep`,
-enables the NVIDIA suspend/resume integration when required, and does not
-automatically suspend the live session. Save open work, then test from the
-Nocturne power card or by closing the lid.
+Every application creates `backups/pre-hyprland-<timestamp>`. Existing
+machine-local backups are ignored by Git because they may contain private
+desktop state.
 
-MSI keyboard-light, webcam and firmware performance controls use Ubuntu's
-signed in-kernel `msi_ec` driver. Enable it only when this firmware passes the
-driver's own compatibility check:
-
-```bash
-pkexec ./configure-msi-controls.sh
-```
-
-The installer makes no persistent change when the kernel rejects the firmware.
-
-To clear only generated crash reports, the APT download cache, and old journal
-history after a large debugging session, run:
-
-```bash
-pkexec ./cleanup-generated-caches.sh
-```
-
-This preserves personal files, application profiles, installed packages,
-Steam data, and current logs.
-
-## GitHub sync
-
-Machine-local backups are intentionally excluded from Git because they can
-contain private desktop state. To commit and push safe project files after an
-upgrade, run:
-
-```bash
-./sync-github.sh "Describe the upgrade"
-```
-
-The helper refuses to push staged content that resembles a credential.
-
-## GNOME recovery and backups
-
-The verified pre-change snapshot is:
-
-```text
-backups/pre-nocturne-20260929-223449
-```
-
-`backups/current-backup` points to it. Its dconf and home-configuration archive
-both pass the SHA-256 manifest. GNOME has already been restored from this
-snapshot. To restore only the original GNOME/macOS appearance again while
-keeping Hyprland and terminal tooling, run:
+To restore the original GNOME/macOS appearance without removing Hyprland:
 
 ```bash
 ./restore-gnome-macos.sh
 ```
 
-For a broader rollback of the captured user configuration, run:
+For the broader saved user configuration:
 
 ```bash
 ./restore-gnome-backup.sh backups/current-backup
 ```
 
-The broad restore requires typing `RESTORE`. Neither restore uninstalls added
-packages. After restoring GNOME settings, log out and back in so every Shell
-component reloads cleanly.
+The broad restore requires an explicit `RESTORE` confirmation.
+
+System-wide S3/deep-sleep policy is intentionally separate from the user
+theme. Review and apply it with:
+
+```bash
+pkexec ./configure-deep-sleep.sh
+```
+
+## License
+
+Nocturne is released under the [MIT License](LICENSE). Third-party programs
+retain their own licenses and are installed from the distribution rather than
+vendored here.

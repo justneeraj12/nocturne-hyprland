@@ -60,10 +60,10 @@ if ! pgrep -x nm-applet >/dev/null 2>&1 \
 else
   warning 'nm-applet is still running and may duplicate the dedicated Wi-Fi control'
 fi
-if [[ -x $HOME/.local/bin/nocturne-panel ]] \
+if [[ -x $HOME/.local/bin/nocturne-native ]] \
     && ! systemctl --user is-active --quiet nocturne-panel.service \
-    && $HOME/.local/bin/nocturne-panel --self-test >/dev/null 2>&1; then
-  ok 'Zero-idle anchored Nocturne panels passed their model tests'
+    && $HOME/.local/bin/nocturne-native --self-test >/dev/null 2>&1; then
+  ok 'Qt/Wayland native Nocturne shell passed its binary test'
 else
   bad 'Nocturne panels are unavailable or an obsolete idle service remains'
 fi
@@ -72,13 +72,13 @@ if jq -e '.[] | select(.name == "main")
     and ((."modules-right" | index("custom/orbit")) == null)
     and ((."modules-right" | index("network")) == null)
     and ((."modules-right" | index("bluetooth")) == null)
-    and ."custom/connectivity"."on-click" == "~/.local/bin/nocturne-panel toggle connectivity wifi"
-    and .pulseaudio."on-click" == "~/.local/bin/nocturne-panel toggle audio"' \
+    and ."custom/connectivity"."on-click" == "~/.local/bin/nocturne-native connectivity wifi"
+    and .pulseaudio."on-click" == "~/.local/bin/nocturne-native audio"' \
     "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
     && jq -e '.[] | select(.name == "secondary")
       | ((."modules-right" | map(select(. == "custom/connectivity#secondary")) | length) == 1)' \
       "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && [[ -x $HOME/.local/bin/nocturne-panel ]] \
+    && [[ -x $HOME/.local/bin/nocturne-native ]] \
     && [[ -x $HOME/.config/hypr/scripts/connectivity-status ]]; then
   ok 'One unified connectivity owner and one native audio panel are wired'
 else
@@ -108,7 +108,8 @@ if [[ ! -e $HOME/.local/bin/orbit && ! -e $HOME/.config/orbit ]] \
 else
   warning 'The retired Orbit UI still has live files or a running process'
 fi
-if [[ -x $HOME/.local/bin/nocturne-capture ]] \
+if [[ -x $HOME/.local/bin/nocturne-capture-engine ]] \
+    && [[ -x $HOME/.local/bin/nocturne-native ]] \
     && [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
     && [[ -x $HOME/.config/hypr/scripts/capture-status ]] \
     && ! [[ -e $HOME/.config/hypr/hyprcapture.lua \
@@ -124,14 +125,14 @@ if [[ -x $HOME/.local/bin/nocturne-capture ]] \
 else
   bad 'Native capture integration is incomplete or a legacy capture owner remains'
 fi
-if [[ -x $HOME/.local/bin/nocturne-panel ]] \
+if [[ -x $HOME/.local/bin/nocturne-native ]] \
     && [[ ! -e $HOME/.local/bin/nocturne-calendar ]] \
     && jq -e '.[] | select(.name == "main")
       | ((."modules-center" | index("custom/local-clock")) != null)
       and ((."modules-center" | index("custom/world")) != null)
-      and (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-panel toggle calendar")
-      and (."custom/world"."on-click" == "~/.local/bin/nocturne-panel toggle world")
-      and (."custom/brightness"."on-click" == "~/.local/bin/nocturne-panel toggle brightness")' \
+      and (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-native calendar")
+      and (."custom/world"."on-click" == "~/.local/bin/nocturne-native world")
+      and (."custom/brightness"."on-click" == "~/.local/bin/nocturne-native brightness")' \
       "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
   ok 'Native brightness, calendar, and world-time panels are wired'
 else
@@ -160,12 +161,12 @@ fi
 brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'
 profile=$(powerprofilesctl get 2>/dev/null)
 [[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
-if [[ -x $HOME/.local/bin/nocturne-power-card ]] \
+if [[ -x $HOME/.local/bin/nocturne-native ]] \
     && [[ -x $HOME/.config/hypr/scripts/power-menu ]] \
     && [[ -x $HOME/.config/hypr/scripts/power-profile ]] \
     && $HOME/.config/hypr/scripts/power-profile status >/dev/null 2>&1 \
-    && rg -q '"boost", "30"' "$HOME/.local/bin/nocturne-power-card" \
-    && rg -q 'nocturne-power-card' "$HOME/.config/hypr/scripts/power-menu" \
+    && rg -q 'start_boost.*\$\{2:-30\}' "$HOME/.config/hypr/scripts/power-profile" \
+    && rg -q 'nocturne-native.*power' "$HOME/.config/hypr/scripts/power-menu" \
     && jq -e '.[] | select(.name == "main")
       | ."custom/power-battery"."on-click" == "~/.config/hypr/scripts/power-menu"' \
       "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then

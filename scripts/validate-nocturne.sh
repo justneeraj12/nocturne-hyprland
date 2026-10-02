@@ -21,22 +21,18 @@ jq -e . "$root/config/waybar/config.jsonc" >/dev/null
 jq -e . "$root/config/swaync/config.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
-PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile \
-  "$root/bin/nocturne-panel" \
-  "$root/bin/nocturne-capture" \
-  "$root/bin/nocturne-power-card" \
-  "$root/bin/nocturne-settings-app"
-printf '[ OK ] Python surfaces\n'
+PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile "$root/bin/nocturne-capture-engine"
+"$root/bin/nocturne-capture-engine" --self-test >/dev/null
+printf '[ OK ] headless capture engine\n'
 
-"$root/bin/nocturne-panel" --self-test >/dev/null
-"$root/bin/nocturne-capture" --self-test >/dev/null
-grep -Fq 'elif panel == "brightness"' "$root/bin/nocturne-panel"
-grep -Fq 'elif panel == "calendar"' "$root/bin/nocturne-panel"
-grep -Fq 'elif panel == "world"' "$root/bin/nocturne-panel"
-! grep -Fq 'ESC OR CLICK OUTSIDE TO CLOSE' "$root/bin/nocturne-panel"
-! grep -Fq 'footer.append(self._button("󰍬  MIC"' "$root/bin/nocturne-panel"
-[[ ! -e $root/bin/nocturne-calendar && ! -e $root/config/hypr/scripts/clock-menu ]]
-printf '[ OK ] anchored panel model\n'
+cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
+cmake --build "$temporary/native" --parallel >/dev/null
+"$temporary/native/nocturne-native" --self-test >/dev/null
+! rg -q 'import gi|from gi|Gtk' "$root/native" "$root/bin"
+grep -Fq 'backend.audioStreams()' "$root/native/qml/pages/AudioPage.qml"
+grep -Fq 'interval: 200' "$root/native/qml/pages/BrightnessPage.qml"
+grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
+printf '[ OK ] Qt/Wayland native shell + live controls\n'
 
 Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \
   >"$temporary/hyprland-verify.log" 2>&1
@@ -45,7 +41,7 @@ printf '[ OK ] Hyprland Lua configuration\n'
 
 grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
   "$root/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
-grep -Fq 'nocturne-capture toggle' "$root/config/hypr/hyprland.lua"
+grep -Fq 'nocturne-native capture' "$root/config/hypr/hyprland.lua"
 ! grep -Fq 'HyprCapture' "$root/config/hypr/hyprland.lua"
 [[ ! -e $root/config/hypr/hyprcapture.lua ]]
 [[ ! -e $root/scripts/install-hyprcapture.sh ]]
@@ -56,11 +52,11 @@ jq -e '
   ((."modules-right" | map(select(. == "custom/connectivity")) | length) == 1) and
   ((."modules-right" | index("network")) == null) and
   ((."modules-right" | index("bluetooth")) == null) and
-  (."custom/connectivity"."on-click" == "~/.local/bin/nocturne-panel toggle connectivity wifi") and
-  (.pulseaudio."on-click" == "~/.local/bin/nocturne-panel toggle audio") and
-  (."custom/brightness"."on-click" == "~/.local/bin/nocturne-panel toggle brightness") and
-  (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-panel toggle calendar") and
-  (."custom/world"."on-click" == "~/.local/bin/nocturne-panel toggle world") and
+  (."custom/connectivity"."on-click" == "~/.local/bin/nocturne-native connectivity wifi") and
+  (.pulseaudio."on-click" == "~/.local/bin/nocturne-native audio") and
+  (."custom/brightness"."on-click" == "~/.local/bin/nocturne-native brightness") and
+  (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-native calendar") and
+  (."custom/world"."on-click" == "~/.local/bin/nocturne-native world") and
   ((."modules-right" | index("group/tray-expander")) + 1 == (."modules-right" | index("custom/kdeconnect")))
 ' "$root/config/waybar/config.jsonc" >/dev/null
 printf '[ OK ] unified panels + tray left of KDE Connect\n'
@@ -68,7 +64,7 @@ printf '[ OK ] unified panels + tray left of KDE Connect\n'
 grep -Fq 'wofi --show drun' "$root/config/hypr/scripts/launcher"
 ! grep -Fq 'hyprlauncher -d' "$root/config/hypr/hyprland.lua"
 grep -Fq 'boost) start_boost' "$root/config/hypr/scripts/power-profile"
-grep -Fq 'SUPER' "$root/bin/nocturne-power-card"
+grep -Fq 'label:"SUPER"' "$root/native/qml/pages/PowerPage.qml"
 printf '[ OK ] zero-idle launcher + timed Super Performance control\n'
 
 (

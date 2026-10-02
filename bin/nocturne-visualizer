@@ -8,66 +8,28 @@ mkdir -p "$state_home"
 
 if [[ ${1:-} == choose ]]; then
   choice=$(printf '%s\n' \
-    '󰐾  Cyberdisc · flat terminal frequency deck' \
-    '󰯂  Black ICE · angular intrusion core' \
-    '󰇚  Datafall · spectral memory waterfall' \
-    '󱎖  Ghostscope · phase intercept vectors' \
-    '󰌘  Netrunner · packet-grid analyzer' \
-    '󱇪  Razorwire · mirrored dual-edge trace' \
-    '󰢮  Mainframe · four-rack analyzer console' \
-    '󱐋  Pulsegrid · digital biosignal monitor' \
-    '󰞇  Signal Tower · vertical scanner array' \
-    '󰘨  Gridlock · spectral memory cells' \
-    '󰒓  Zero Day · exploit stack trace' \
-    '󰛳  Deep Trace · passive sonar intercept' \
-    '󰖨  Synth City · night-drive signal skyline' \
-    '󰚌  Kernel Panic · multi-core fault traces' \
-    '󰈈  Void Scanner · sparse contact array' \
-    '󰁔  Classic Cava designs…' | \
-    "$HOME/.config/hypr/scripts/quick-menu" VISUALIZER auto 430 610) || exit 0
+    '󰎈  Obsidian · muted green spectrum' \
+    '󰘨  Matrix · terminal green signal' \
+    '󰈸  Amber · warm retro analyzer' \
+    '󰖩  Ice · cyan-blue telemetry' \
+    '󰜎  Wave · purple flowing signal' | \
+    "$HOME/.config/hypr/scripts/quick-menu" VISUALIZER auto 400 230) || exit 0
   case "$choice" in
-    *Cyberdisc*) theme=cyberdisc ;;
-    *'Black ICE'*) theme=blackice ;;
-    *Datafall*) theme=datafall ;;
-    *Ghostscope*) theme=ghostscope ;;
-    *Netrunner*) theme=netrunner ;;
-    *Razorwire*) theme=razorwire ;;
-    *Mainframe*) theme=mainframe ;;
-    *Pulsegrid*) theme=pulsegrid ;;
-    *'Signal Tower'*) theme=signaltower ;;
-    *Gridlock*) theme=gridlock ;;
-    *'Zero Day'*) theme=zeroday ;;
-    *'Deep Trace'*) theme=deeptrace ;;
-    *'Synth City'*) theme=synthcity ;;
-    *'Kernel Panic'*) theme=kernelpanic ;;
-    *'Void Scanner'*) theme=voidscan ;;
-    *'Classic Cava'*)
-      classic=$(printf '%s\n' \
-        '󰎈  Obsidian · muted green spectrum' \
-        '󰘨  Matrix · terminal green signal' \
-        '󰈸  Amber · warm retro analyzer' \
-        '󰖩  Ice · cyan-blue telemetry' \
-        '󰜎  Wave · purple flowing signal' | \
-        "$HOME/.config/hypr/scripts/quick-menu" 'CAVA CLASSICS' auto 400 230) || exit 0
-      case "$classic" in
-        *Obsidian*) theme=obsidian ;;
-        *Matrix*) theme=matrix ;;
-        *Amber*) theme=amber ;;
-        *Ice*) theme=ice ;;
-        *Wave*) theme=wave ;;
-        *) exit 0 ;;
-      esac
-      ;;
+    *Obsidian*) theme=obsidian ;;
+    *Matrix*) theme=matrix ;;
+    *Amber*) theme=amber ;;
+    *Ice*) theme=ice ;;
+    *Wave*) theme=wave ;;
     *) exit 0 ;;
   esac
 else
   theme=${1:-}
-  [[ -n $theme ]] || theme=$(cat "$state_file" 2>/dev/null || printf 'cyberdisc')
+  [[ -n $theme ]] || theme=$(cat "$state_file" 2>/dev/null || printf 'obsidian')
 fi
 
 case "$theme" in
-  cyberdisc|blackice|datafall|ghostscope|netrunner|razorwire|mainframe|pulsegrid|signaltower|gridlock|zeroday|deeptrace|synthcity|kernelpanic|voidscan|obsidian|matrix|amber|ice|wave) ;;
-  *) theme=cyberdisc ;;
+  obsidian|matrix|amber|ice|wave) ;;
+  *) theme=obsidian ;;
 esac
 printf '%s\n' "$theme" > "$state_file"
 visualizer_config="$config_home/cava/themes/$theme.conf"
@@ -84,12 +46,6 @@ if command -v hyprctl >/dev/null; then
     fi
   fi
 fi
-
-case "$theme" in
-  cyberdisc|blackice|datafall|ghostscope|netrunner|razorwire|mainframe|pulsegrid|signaltower|gridlock|zeroday|deeptrace|synthcity|kernelpanic|voidscan)
-    exec "$HOME/.local/bin/nocturne-cyberdisc" "$theme"
-    ;;
-esac
 
 if [[ "${TERM:-}" == xterm-kitty ]]; then
   exec cava -p "$visualizer_config"

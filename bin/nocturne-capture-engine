@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""Headless screenshot and recorder engine for the Nocturne Qt shell."""
+
+from __future__ import annotations
+
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+HOME = Path.home()
+RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
+STATE = RUNTIME / "nocturne-capture.json"
+SOURCES = {"area", "window", "display"}
+
+
+def command(args: list[str], *, input_text: str | None = None, timeout: float = 15) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(args, input=input_text, capture_output=True, text=True, timeout=timeout, check=False)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return subprocess.CompletedProcess(args, 1, "", str(error))
+
+
+def json_command(args: list[str]) -> Any:
+    result = command(args)
+    if result.returncode:
+        return []
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+
+
+def user_directory(kind: str) -> Path:
+    result = command(["xdg-user-dir", kind.upper()])
+    base = Path(result.stdout.strip()) if result.returncode == 0 and result.stdout.strip() else HOME / kind.title()
+    directory = base / ("Screenshots" if kind == "pictures" else "Screenrecords")
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
+def output_path(recording: bool) -> Path:
+    stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S-%f")[:-3]
+    directory = user_directory("videos" if recording else "pictures")
+    return directory / f"{'Recording' if recording else 'Screenshot'}-{stamp}.{'mp4' if recording else 'png'}"
+
+
+def slurp(arguments: list[str], boxes: str | None = None) -> str:
+    result = command(
+        ["slurp", "-b", "07090acc", "-c", "5f8f76ff", "-s", "5f8f7633", "-B", "0b0f10ee", "-F", "monospace", "-w", "2", *arguments],
+        input_text=boxes,
+        timeout=300,
+    )
+    return result.stdout.strip() if result.returncode == 0 else ""
+
+
+def select_target(source: str) -> tuple[str, str] | None:
+    if source == "display":
+        output = slurp(["-o", "-f", "%o"])
+        return ("output", output) if output else None
+    if source == "window":
+        clients = json_command(["hyprctl", "clients", "-j"])
+        boxes: list[str] = []
+        for client in clients if isinstance(clients, list) else []:
+            position = client.get("at", [0, 0])
+            size = client.get("size", [0, 0])
+            if client.get("mapped", True) and not client.get("hidden", False) and int(size[0]) > 1 and int(size[1]) > 1:
+                label = str(client.get("title") or client.get("class") or "Window").replace("\n", " ")[:60]
+                boxes.append(f"{int(position[0])},{int(position[1])} {int(size[0])}x{int(size[1])} {label}")
+        geometry = slurp(["-r"], "\n".join(boxes) + "\n") if boxes else ""
+        return ("geometry", geometry) if geometry else None
+    geometry = slurp(["-d", "-x"])
+    return ("geometry", geometry) if geometry else None
+
+
+def notify(title: str, body: str) -> None:
+    command(["notify-send", "-a", "Nocturne Capture", title, body], timeout=4)
+
+
+def take_screenshot(source: str) -> int:
+    time.sleep(0.18)
+    target = select_target(source)
+    if target is None:
+        return 1
+    path = output_path(False)
+    kind, value = target
+    arguments = ["grim", "-t", "png", *( ["-o", value] if kind == "output" else ["-g", value] ), str(path)]
+    result = command(arguments, timeout=30)
+    if result.returncode or not path.is_file():
+        notify("Screenshot failed", result.stderr.strip() or "The selected target could not be captured")
+        return 1
+    try:
+        with path.open("rb") as image:
+            subprocess.run(["wl-copy", "--type", "image/png"], stdin=image, timeout=8, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+    notify("Screenshot captured", f"Saved {path.name} · copied to clipboard")
+    return 0
+
+
+def process_alive(pid: int) -> bool:
+    try:
+        fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()
+        return len(fields) > 2 and fields[2] != "Z"
+    except OSError:
+        return False
+
+
+def read_state() -> dict[str, Any] | None:
+    try:
+        state = json.loads(STATE.read_text(encoding="utf-8"))
+        pid = int(state["pid"])
+        if not process_alive(pid) or b"wf-recorder" not in Path(f"/proc/{pid}/cmdline").read_bytes():
+            raise ValueError
+        return state
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        STATE.unlink(missing_ok=True)
+        return None
+
+
+def start_recording(source: str) -> int:
+    time.sleep(0.18)
+    if read_state():
+        notify("Recording already active", "Click the red REC timer to stop and save")
+        return 1
+    target = select_target(source)
+    if target is None:
+        return 1
+    path = output_path(True)
+    kind, value = target
+    arguments = ["wf-recorder", "-r", "30", "-f", str(path), *( ["-o", value] if kind == "output" else ["-g", value] )]
+    try:
+        with (RUNTIME / "nocturne-capture.log").open("ab") as log:
+            process = subprocess.Popen(arguments, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    except OSError as error:
+        notify("Recording failed", str(error))
+        return 1
+    time.sleep(0.7)
+    if process.poll() is not None:
+        notify("Recording failed", "wf-recorder exited before the first frame")
+        return 1
+    STATE.write_text(json.dumps({"pid": process.pid, "started": int(time.time()), "path": str(path), "source": source}), encoding="utf-8")
+    notify("Recording started", "Click the red REC timer to stop and save")
+    return 0
+
+
+def stop_recording() -> int:
+    state = read_state()
+    if not state:
+        return 0
+    pid = int(state["pid"])
+    try:
+        os.killpg(pid, signal.SIGINT)
+        for _attempt in range(100):
+            if not process_alive(pid):
+                break
+            time.sleep(0.1)
+        else:
+            os.killpg(pid, signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        pass
+    STATE.unlink(missing_ok=True)
+    path = Path(str(state.get("path", "")))
+    if path.is_file() and path.stat().st_size > 0:
+        notify("Recording saved", path.name)
+        return 0
+    notify("Recording stopped", "No playable frames were written")
+    return 1
+
+
+def self_test() -> int:
+    assert SOURCES == {"area", "window", "display"}
+    assert output_path(False).parent.name == "Screenshots"
+    assert output_path(True).parent.name == "Screenrecords"
+    print("NOCTURNE // headless capture engine tests passed")
+    return 0
+
+
+def main(arguments: list[str]) -> int:
+    if arguments == ["--self-test"]:
+        return self_test()
+    action = arguments[0] if arguments else "status"
+    source = arguments[1] if len(arguments) > 1 else "area"
+    if source not in SOURCES:
+        print(f"unsupported source: {source}", file=sys.stderr)
+        return 2
+    if action == "shot":
+        return take_screenshot(source)
+    if action == "record":
+        return start_recording(source)
+    if action == "stop":
+        return stop_recording()
+    if action == "status":
+        state = read_state()
+        print(json.dumps(state or {}))
+        return 0
+    print("usage: nocturne-capture-engine {shot|record|stop|status} [area|window|display]", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv[1:]))
