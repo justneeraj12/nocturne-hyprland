@@ -150,6 +150,8 @@ sed "s|@SCRIPT@|$BIN_HOME/nocturne-session-theme|g" \
 chmod 0644 "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
 install -m 0644 "$ROOT_DIR/config/autostart/nm-applet.desktop" \
   "$CONFIG_HOME/autostart/nm-applet.desktop"
+install -m 0644 "$ROOT_DIR/config/autostart/blueman.desktop" \
+  "$CONFIG_HOME/autostart/blueman.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && \
   update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true
 install -m 0644 "$ROOT_DIR/assets/nocturne-grid.png" "$DATA_HOME/backgrounds/nocturne-default.png"
@@ -169,6 +171,7 @@ chmod +x "$CONFIG_HOME"/hypr/scripts/*
 # XDG autostart override permanently masks Ubuntu's system nm-applet entry;
 # stopping the generated unit and Blueman applet fixes the current session too.
 systemctl --user stop 'app-nm\x2dapplet@autostart.service' >/dev/null 2>&1 || true
+systemctl --user stop 'app-blueman@autostart.service' >/dev/null 2>&1 || true
 pkill -x nm-applet 2>/dev/null || true
 pkill -x innu 2>/dev/null || true
 pkill -f '/usr/bin/blueman-applet' 2>/dev/null || true
