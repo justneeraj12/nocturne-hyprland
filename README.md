@@ -78,8 +78,8 @@ control center, and middle opens the key guide. The full guide is in
   dense without letting adjacent one-pixel borders visually merge.
 - SwayNotificationCenter for application-independent notification history and
   do-not-disturb mode.
-- Cliphist clipboard picker plus upstream HyprCapture for one frozen,
-  GNOME-like screenshot and recording surface. `Print` selects an area,
+- Cliphist clipboard picker plus a zero-idle, GNOME-style native screenshot
+  and recording surface. `Print` opens one bottom-centered toolbar for an area,
   window, or display and can switch into recording without opening a second
   tool. Screenshots save to `~/Pictures/Screenshots` and become the current
   normal clipboard item; recordings save to `~/Videos/Screenrecords`. The
@@ -215,13 +215,6 @@ The source configuration is under `config/hypr`, `config/waybar`,
 ./apply-hyprland.sh
 ```
 
-After a Hyprland package upgrade, log out and back into **Hyprland
-(uwsm-managed)** once, then run:
-
-```bash
-./scripts/install-hyprcapture.sh
-```
-
 The Nocturne panel follows Omarchy's compact shell model while staying
 native to Ubuntu's NetworkManager, BlueZ, PipeWire, and WirePlumber. One
 on-demand GTK4 Layer Shell process provides consistently anchored
@@ -230,11 +223,10 @@ applications or consuming memory after dismissal. The
 apply script checks for required programs,
 snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from
-leaking into GNOME. HyprCapture is built from a pinned, reviewed upstream
-revision against the exact running compositor headers, patched for reliable
-grouped-recording shutdown, and installed under `~/.local`. Its installer uses
-the graphical administrator prompt only for missing build dependencies, runs
-the complete upstream test suite, and refuses mismatched runtime/header ABIs.
+leaking into GNOME. Capture uses the standard `grim`, `slurp`, `wf-recorder`,
+and `wl-copy` stack, so compositor upgrades cannot break a private plugin ABI.
+The UI exits completely when closed and the recorder is the only persistent
+process while REC is active.
 The UWSM user-unit override passes `hyprland.lua` explicitly, so a generated
 legacy stub can never steal the next session after a package upgrade or reload.
 

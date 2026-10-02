@@ -168,6 +168,9 @@ class NocturnePanel(Gtk.Application):
         self.previous_bytes: tuple[int, int, float] | None = None
         self._master_debounce = 0
         self._pending_master: int | None = None
+        self.master_slider: Gtk.Scale | None = None
+        self.master_label: Gtk.Label | None = None
+        self.master_syncing = False
         self._stream_debounce: dict[int, int] = {}
         self._pending_streams: dict[int, int] = {}
         self._brightness_debounce = 0
@@ -264,6 +267,8 @@ class NocturnePanel(Gtk.Application):
         GLib.timeout_add(450, self._arm_dismissal)
         if panel == "pomodoro":
             self.timer_ids.append(GLib.timeout_add_seconds(1, self._refresh_pomodoro))
+        elif panel == "audio":
+            self.timer_ids.append(GLib.timeout_add(400, self._sync_master_volume))
 
     def _anchor_at_pointer(self, window: Gtk.ApplicationWindow) -> None:
         cursor = json_command(["hyprctl", "cursorpos", "-j"])
@@ -298,6 +303,8 @@ class NocturnePanel(Gtk.Application):
         self._clear_timers()
         self.metric_label = None
         self.previous_bytes = None
+        self.master_slider = None
+        self.master_label = None
         if self.window:
             self.window.destroy()
             self.window = None
@@ -682,8 +689,10 @@ class NocturnePanel(Gtk.Application):
         sinks = json_command(["pactl", "-f", "json", "list", "sinks"])
         default_sink = command(["pactl", "get-default-sink"]).stdout.strip()
         sink = next((item for item in sinks if item.get("name") == default_sink), sinks[0] if sinks else {})
-        volume = self._pulse_volume(sink)
-        muted = bool(sink.get("mute", False))
+        volume, muted = self._default_sink_state()
+        if volume is None:
+            volume = self._pulse_volume(sink)
+            muted = bool(sink.get("mute", False))
         master_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         icon = self._icon_button(
             "audio-volume-muted-symbolic" if muted else "audio-volume-high-symbolic",
@@ -702,6 +711,8 @@ class NocturnePanel(Gtk.Application):
         slider.set_draw_value(False)
         slider.set_value(volume)
         slider.connect("value-changed", self._master_volume_changed, percent)
+        self.master_slider = slider
+        self.master_label = percent
         root.append(slider)
 
         root.append(self._label("OUTPUT DEVICE", "section"))
@@ -754,7 +765,31 @@ class NocturnePanel(Gtk.Application):
         values = [int(channel.get("value_percent", "0%").rstrip("%")) for channel in item.get("volume", {}).values()]
         return round(sum(values) / len(values)) if values else 0
 
+    @staticmethod
+    def _default_sink_state() -> tuple[int | None, bool]:
+        output = command(["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]).stdout.strip()
+        match = re.search(r"Volume:\s*([0-9]+(?:\.[0-9]+)?)", output)
+        if not match:
+            return None, False
+        return round(float(match.group(1)) * 100), "[MUTED]" in output
+
+    def _sync_master_volume(self) -> bool:
+        if not self.window or self.visible_panel != "audio":
+            return False
+        value, _muted = self._default_sink_state()
+        if value is None or self._pending_master is not None:
+            return True
+        if self.master_slider and round(self.master_slider.get_value()) != value:
+            self.master_syncing = True
+            self.master_slider.set_value(value)
+            self.master_syncing = False
+        if self.master_label:
+            self.master_label.set_text(f"{value}%")
+        return True
+
     def _master_volume_changed(self, scale: Gtk.Scale, label: Gtk.Label) -> None:
+        if self.master_syncing:
+            return
         value = round(scale.get_value())
         label.set_text(f"{value}%")
         self._pending_master = value
@@ -764,7 +799,7 @@ class NocturnePanel(Gtk.Application):
 
     def _set_master_volume(self) -> bool:
         if self._pending_master is not None:
-            command(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self._pending_master}%"])
+            command(["wpctl", "set-volume", "--limit", "1.5", "@DEFAULT_AUDIO_SINK@", f"{self._pending_master}%"])
         self._pending_master = None
         self._master_debounce = 0
         return False
@@ -838,7 +873,7 @@ class NocturnePanel(Gtk.Application):
             GLib.source_remove(self._master_debounce)
             self._master_debounce = 0
         if self._pending_master is not None:
-            command(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self._pending_master}%"])
+            command(["wpctl", "set-volume", "--limit", "1.5", "@DEFAULT_AUDIO_SINK@", f"{self._pending_master}%"])
             self._pending_master = None
         for source_id in self._stream_debounce.values():
             GLib.source_remove(source_id)

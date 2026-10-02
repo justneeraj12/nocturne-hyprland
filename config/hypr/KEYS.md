@@ -105,7 +105,7 @@ THE TOP BAR
   Different bar item      Replaces the open card instead of stacking another
 
 SCREENSHOT + SCREEN RECORDING
-  Print Screen            Open the frozen unified HyprCapture surface
+  Print Screen            Open the unified GNOME-style capture toolbar
   Capture modes           Drag area · click window · choose display
   Recording               Switch modes in the same bottom toolbar
   Screenshot destination  ~/Pictures/Screenshots + current clipboard item

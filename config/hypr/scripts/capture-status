@@ -2,27 +2,22 @@
 set -u
 
 runtime=${XDG_RUNTIME_DIR:-/tmp}
-socket="$runtime/hyprcapture/recording.sock"
-[[ -S $socket ]] || socket="/dev/shm/hyprcapture-$UID/recording.sock"
-[[ -S $socket ]] || socket="/tmp/hyprcapture-$UID/recording.sock"
-
-state=''
-if [[ -S $socket ]] && command -v socat >/dev/null 2>&1; then
-  state=$(timeout 1 socat - "UNIX-CONNECT:$socket" 2>/dev/null || true)
-fi
-
-if ! jq -e '.active == true or .phase == "finalizing"' >/dev/null 2>&1 <<<"$state"; then
+state_file="$runtime/nocturne-capture.json"
+if [[ ! -r $state_file ]]; then
   printf '{"text":"","class":"inactive","tooltip":""}\n'
   exit 0
 fi
-
-phase=$(jq -r '.phase // "recording"' <<<"$state")
-elapsed=$(jq -r '.elapsed // 0 | floor' <<<"$state")
+pid=$(jq -r '.pid // 0' "$state_file" 2>/dev/null)
+started=$(jq -r '.started // 0' "$state_file" 2>/dev/null)
+path=$(jq -r '.path // ""' "$state_file" 2>/dev/null)
+if [[ $pid == 0 || ! -r /proc/$pid/cmdline ]] || ! tr '\0' ' ' < "/proc/$pid/cmdline" | grep -Fq wf-recorder; then
+  rm -f -- "$state_file"
+  printf '{"text":"","class":"inactive","tooltip":""}\n'
+  exit 0
+fi
+elapsed=$(($(date +%s) - started))
+((elapsed < 0)) && elapsed=0
 minutes=$((elapsed / 60))
 seconds=$((elapsed % 60))
-
-if [[ $phase == finalizing ]]; then
-  printf '{"text":"󰑋 SAVE","class":"finalizing","tooltip":"Finalizing recording"}\n'
-else
-  printf '{"text":"󰻂 %02d:%02d","class":"active","tooltip":"Screen recording · click to open controls"}\n' "$minutes" "$seconds"
-fi
+printf 'REC %02d:%02d\t%s\n' "$minutes" "$seconds" "$path" | \
+  jq -R 'split("\t") | {text:.[0],class:"active",tooltip:("Recording · " + .[1] + " · click to stop")}'

@@ -12,7 +12,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────'
 
-required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper waybar swaync wofi kitty cliphist wpctl pactl nmcli bluetoothctl gamemoded brightnessctl powerprofilesctl playerctl nautilus wl-copy socat ffmpeg hyprcapture-ui)
+required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper waybar swaync wofi kitty cliphist wpctl pactl nmcli bluetoothctl gamemoded brightnessctl powerprofilesctl playerctl nautilus wl-copy grim slurp wf-recorder)
 missing=()
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
@@ -108,26 +108,21 @@ if [[ ! -e $HOME/.local/bin/orbit && ! -e $HOME/.config/orbit ]] \
 else
   warning 'The retired Orbit UI still has live files or a running process'
 fi
-if [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
+if [[ -x $HOME/.local/bin/nocturne-capture ]] \
+    && [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
     && [[ -x $HOME/.config/hypr/scripts/capture-status ]] \
-    && [[ -r $HOME/.config/hypr/hyprcapture.lua ]] \
-    && ! [[ -e $HOME/.local/bin/nocturne-capture-ui \
+    && ! [[ -e $HOME/.config/hypr/hyprcapture.lua \
+      || -e $HOME/.local/bin/hyprcapture-ui \
+      || -e $HOME/.local/lib/nocturne-hyprcapture \
+      || -e $HOME/.local/bin/nocturne-capture-ui \
       || -e $HOME/.local/bin/nocturne-freeze-frame \
       || -e $HOME/.local/bin/hyprshot \
       || -e $HOME/.config/hypr/scripts/screen-record ]] \
-    && rg -q 'clipboard = true' $HOME/.config/hypr/hyprcapture.lua \
-    && rg -q '\$XDG_PICTURES_DIR/Screenshots' $HOME/.config/hypr/hyprcapture.lua \
+    && ! hyprctl plugin list 2>/dev/null | rg -qi HyprCapture \
     && $HOME/.config/hypr/scripts/capture-status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1; then
-  ok 'Unified HyprCapture screenshot/record flow saves and copies normally'
+  ok 'Native screenshot/record flow owns capture without legacy plugins'
 else
-  bad 'Unified capture integration is incomplete'
-fi
-if [[ -x $HOME/.local/bin/hyprcapture-ui ]] \
-    && [[ -r $HOME/.local/lib/nocturne-hyprcapture/libhyprcapture.so ]] \
-    && hyprctl plugin list 2>/dev/null | rg -qi 'HyprCapture'; then
-  ok 'Pinned HyprCapture compositor plugin and helper are loaded'
-else
-  bad 'HyprCapture compositor plugin or helper is unavailable'
+  bad 'Native capture integration is incomplete or a legacy capture owner remains'
 fi
 if [[ -x $HOME/.local/bin/nocturne-panel ]] \
     && [[ ! -e $HOME/.local/bin/nocturne-calendar ]] \

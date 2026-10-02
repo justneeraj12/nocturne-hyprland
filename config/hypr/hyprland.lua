@@ -36,7 +36,6 @@ local snap = home .. "/.config/hypr/scripts/snap-window"
 local steam = home .. "/.config/hypr/scripts/steam-launch"
 local hardware = home .. "/.config/hypr/scripts/hardware-control"
 local scripts = home .. "/.config/hypr/scripts/"
-local capture_plugin = home .. "/.local/lib/nocturne-hyprcapture/libhyprcapture.so"
 
 hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@180", position = "0x0", scale = 1 })
 hl.monitor({ output = "eDP-1", mode = "1920x1080@144", position = "auto-right", scale = 1 })
@@ -59,7 +58,6 @@ hl.on("hyprland.start", function()
     local commands = {
         home .. "/.local/bin/nocturne-session-theme hypr",
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP GTK_THEME QT_QPA_PLATFORMTHEME DCONF_PROFILE",
-        "hyprctl plugin load " .. capture_plugin,
         "hyprpaper -c " .. config_home .. "/hypr/nocturne-wallpaper.conf",
         "systemctl --user start nocturne-wallpaper-cycle.service",
         "hypridle",
@@ -212,6 +210,7 @@ hl.bind("XF86WebCam", run(hardware .. " camera"), { locked = true })
 hl.bind("XF86KbdBrightnessUp", run(hardware .. " keyboard-light up"), { locked = true })
 hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { locked = true })
 hl.bind("XF86Tools", run(scripts .. "help"))
+hl.bind("Print", run(home .. "/.local/bin/nocturne-capture toggle"))
 
 local popup_class = "^(Wofi|com\\.nocturne\\.PowerCard)$"
 hl.window_rule({ match = { class = "^(org.gnome.NautilusPreviewer)$" }, float = true })
@@ -250,8 +249,4 @@ hl.layer_rule({ match = { namespace = "waybar" }, blur = true, ignore_alpha = 0.
 hl.layer_rule({ match = { namespace = "swaync-control-center" }, blur = true })
 hl.layer_rule({ match = { namespace = "notifications" }, blur = true })
 hl.layer_rule({ match = { namespace = "wofi" }, blur = true })
-
--- HyprCapture is isolated so an unavailable plugin cannot prevent the rest of
--- the desktop from loading. Its pinned user-local plugin requests a reload
--- after it is loaded during compositor startup.
-require("hyprcapture")
+hl.layer_rule({ match = { namespace = "nocturne-capture" }, blur = true, ignore_alpha = 0.2 })

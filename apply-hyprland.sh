@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist wl-copy nmcli bluetoothctl wpctl pactl gamemoded socat ffmpeg)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist wl-copy nmcli bluetoothctl wpctl pactl gamemoded grim slurp wf-recorder)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -107,12 +107,18 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wal
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-power-card" "$BIN_HOME/nocturne-power-card"
 install -m 0755 "$ROOT_DIR/bin/nocturne-panel" "$BIN_HOME/nocturne-panel"
+install -m 0755 "$ROOT_DIR/bin/nocturne-capture" "$BIN_HOME/nocturne-capture"
 rm -f -- "$BIN_HOME/nocturne-connectivity" "$BIN_HOME/nocturne-calendar" \
   "$CONFIG_HOME/hypr/scripts/clock-menu"
 rm -f -- "$BIN_HOME/nocturne-capture-ui" "$BIN_HOME/nocturne-freeze-frame" \
   "$CONFIG_HOME/hypr/scripts/screenshot" "$CONFIG_HOME/hypr/scripts/hyprshot-capture" \
   "$CONFIG_HOME/hypr/scripts/screen-record" "$CONFIG_HOME/hypr/scripts/audio-menu" \
   "$CONFIG_HOME/swappy/config" "$BIN_HOME/hyprshot"
+if hyprctl plugin list 2>/dev/null | grep -qi HyprCapture; then
+  hyprctl plugin unload "$HOME/.local/lib/nocturne-hyprcapture/libhyprcapture.so" >/dev/null 2>&1 || true
+fi
+rm -f -- "$BIN_HOME/hyprcapture-ui" "$CONFIG_HOME/hypr/hyprcapture.lua"
+rm -rf -- "$HOME/.local/lib/nocturne-hyprcapture"
 rmdir -- "$CONFIG_HOME/swappy" 2>/dev/null || true
 if [[ ! -e "$CONFIG_HOME/nocturne/wallpaper.json" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/wallpaper.json" "$CONFIG_HOME/nocturne/wallpaper.json"

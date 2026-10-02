@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-exec zenity --password \
-  --title='Nocturne · Administrator access' \
-  --text='Authenticate once to build the HyprCapture plugin for this Hyprland version.'

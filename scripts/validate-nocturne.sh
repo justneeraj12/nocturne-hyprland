@@ -23,11 +23,13 @@ printf '[ OK ] JSON configuration\n'
 
 PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile \
   "$root/bin/nocturne-panel" \
+  "$root/bin/nocturne-capture" \
   "$root/bin/nocturne-power-card" \
   "$root/bin/nocturne-settings-app"
 printf '[ OK ] Python surfaces\n'
 
 "$root/bin/nocturne-panel" --self-test >/dev/null
+"$root/bin/nocturne-capture" --self-test >/dev/null
 grep -Fq 'elif panel == "brightness"' "$root/bin/nocturne-panel"
 grep -Fq 'elif panel == "calendar"' "$root/bin/nocturne-panel"
 grep -Fq 'elif panel == "world"' "$root/bin/nocturne-panel"
@@ -43,8 +45,11 @@ printf '[ OK ] Hyprland Lua configuration\n'
 
 grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
   "$root/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
-grep -Fq 'hyprcapture-supervisor' "$root/patches/hyprcapture-supervisor.patch"
-printf '[ OK ] explicit Lua startup + pinned capture patch\n'
+grep -Fq 'nocturne-capture toggle' "$root/config/hypr/hyprland.lua"
+! grep -Fq 'HyprCapture' "$root/config/hypr/hyprland.lua"
+[[ ! -e $root/config/hypr/hyprcapture.lua ]]
+[[ ! -e $root/scripts/install-hyprcapture.sh ]]
+printf '[ OK ] explicit Lua startup + native capture owner\n'
 
 jq -e '
   .[] | select(.name == "main") |
