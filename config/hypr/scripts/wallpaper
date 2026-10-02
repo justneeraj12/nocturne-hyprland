@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-backgrounds=${XDG_DATA_HOME:-"$HOME/.local/share"}/backgrounds
-library=$HOME/Pictures/Wallpapers
-default=$backgrounds/nocturne-default.png
-mkdir -p "$library"
-
-choice=$(printf '%s\n' 'Wallpaper settings' 'Open wallpaper folder' 'Restore Obsidian wallpaper' | \
-  wofi --dmenu --prompt 'Wallpaper') || exit 0
-
-case "$choice" in
-  'Wallpaper settings') exec nocturne-settings appearance ;;
-  'Open wallpaper folder') exec nautilus --new-window "$library" ;;
-  'Restore Obsidian wallpaper')
-    nocturne-wallpaper-cycle disable
-    exec nocturne-wallpaper-cycle apply-file "$default"
-    ;;
-  *) exit 0 ;;
-esac
+exec nocturne-settings

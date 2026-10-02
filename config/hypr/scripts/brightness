@@ -46,8 +46,9 @@ pick() {
 
 case ${1:-status} in
   status) status ;;
+  value) read_percent ;;
   up|down) adjust "$1" ;;
   set) set_percent "${2:?brightness percentage required}" ;;
   pick) pick ;;
-  *) printf 'Usage: %s status|up|down|set PERCENT|pick\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s status|value|up|down|set PERCENT|pick\n' "$0" >&2; exit 2 ;;
 esac

@@ -8,7 +8,7 @@ BACKUP_DIR=$(realpath -- "$ROOT_DIR/backups/current-backup")
 (cd "$BACKUP_DIR" && sha256sum --check SHA256SUMS)
 
 # Restore the original GNOME/macOS dconf state without touching the new
-# Hyprland, Waybar, terminal, VS Code, or Zsh configuration.
+# Hyprland, terminal, VS Code, or Zsh configuration.
 dconf load / < "$BACKUP_DIR/dconf-full.ini"
 
 # GTK 4 had a real macOS-theme override in the snapshot. GTK 3 did not.
@@ -24,6 +24,15 @@ rm -f -- \
 if [[ -x "$HOME/.local/bin/nocturne-session-theme" ]]; then
   "$HOME/.local/bin/nocturne-session-theme" gnome
 fi
+
+# Native Hyprland deliberately masks these user backends. Re-enable their
+# activation paths before the next GNOME login; the restored session decides
+# which ones to start.
+systemctl --user unmask \
+  xdg-desktop-portal-gtk.service \
+  xdg-desktop-portal-gnome.service \
+  localsearch-3.service >/dev/null 2>&1 || true
+systemctl --user daemon-reload >/dev/null 2>&1 || true
 
 printf 'Original GNOME/macOS dconf and GTK appearance restored.\n'
 printf 'Hyprland and its independent configuration were left intact.\n'

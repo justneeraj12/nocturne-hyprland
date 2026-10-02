@@ -25,8 +25,10 @@ ordinary tiled windows.
   `grim`, `slurp` and `wf-recorder`.
 - Every screenshot is saved to `~/Pictures/Screenshots` and copied as a normal
   `image/png` clipboard item.
-- Compact Waybar layout, SwayNC history, Cliphist, Caffeine, media controls,
-  world clocks/weather, power profiles and a deep-sleep setup helper.
+- Native multi-monitor bar and application launcher, Mako history, Cliphist,
+  Caffeine, media controls, world clocks/weather, power profiles and deep sleep.
+- Lightweight Qt defaults for files, PDFs and calculation without installing a
+  complete KDE desktop environment.
 - Existing applications, Steam, browsers, VS Code and the user's GNOME session
   remain independent of the Hyprland configuration.
 
@@ -37,14 +39,18 @@ not include browser windows, messages, personal files or terminal history.
 
 ![Live hardware-synchronized brightness card](docs/screenshots/brightness-live.png)
 
+![Native Wi-Fi, Bluetooth and VPN card](docs/screenshots/native-connectivity.png)
+
 ## Architecture
 
 ```text
-Waybar clicks / hotkeys
+Native bar clicks / hotkeys
           │
           ▼
   nocturne-native (Qt Quick)
           │  one local IPC owner; exits when closed
+          ├── StatusNotifierWatcher        background application tray
+          ├── Mako                         notifications + history
           ├── PipeWire / WirePlumber       audio + per-app streams
           ├── brightnessctl / logind       hardware backlight
           ├── NetworkManager / BlueZ       Wi-Fi, VPN, Bluetooth
@@ -94,10 +100,12 @@ profiles or the GNOME session. Run a source-only check with no live changes:
 
 - Qt 6 Core, Gui, QML, Quick and Network
 - KDE LayerShellQt QML module
-- Hyprland, Waybar, SwayNC, Hyprpaper and Hyprlock
+- Hyprland, Hyprpaper, Hyprlock and Hypridle
+- Mako plus KDE and Hyprland XDG portal backends
 - PipeWire/WirePlumber, NetworkManager, BlueZ
 - grim, slurp, wf-recorder and wl-clipboard
 - jq, brightnessctl, power-profiles-daemon, Kitty, Cava and btop
+- PCManFM-Qt, qpdfview and Qalculate-Qt
 
 Nocturne does not bundle or silently download binary dependencies.
 
@@ -129,7 +137,7 @@ result. Area capture passes only the geometry returned by `slurp` to `grim`;
 the selection border is not composited into the image.
 
 Recordings are saved under `~/Videos/Screenrecords`. While a recording is
-active, the Waybar REC indicator is visible and opens a Stop + Save action.
+active, the native bar REC indicator is visible and opens a Stop + Save action.
 
 ## Development
 
@@ -147,7 +155,7 @@ Run the complete local validation:
 
 The validation builds C++/QML from scratch, checks shell/Python/JSON/Lua,
 tests the capture model and local agent, rejects GTK imports in Nocturne's own
-UI, validates Waybar ownership, and runs patch-hygiene checks.
+UI, validates native bar/tray/notification ownership, and runs patch-hygiene checks.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and
 [SECURITY.md](SECURITY.md) for private vulnerability reporting.

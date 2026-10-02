@@ -1,6 +1,6 @@
 -- Nocturne Hyprland — compact, keyboard-first and still mouse-friendly.
 -- Hyprland 0.56+ uses Lua natively. Keep interaction here and presentation in
--- Waybar/Nocturne panels/Hyprlock so there is one owner for every surface.
+-- the native Nocturne shell and Hyprlock so there is one owner per surface.
 
 local home = os.getenv("HOME")
 local config_home = os.getenv("XDG_CONFIG_HOME") or (home .. "/.config")
@@ -45,9 +45,8 @@ hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")
 hl.env("GDK_BACKEND", "wayland,x11")
 hl.env("GTK_THEME", "Adwaita-dark")
-hl.env("DCONF_PROFILE", config_home .. "/dconf/hyprland-profile")
 hl.env("QT_QPA_PLATFORM", "wayland;xcb")
-hl.env("QT_QPA_PLATFORMTHEME", "gtk3")
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 hl.env("SDL_VIDEODRIVER", "wayland,x11")
 hl.env("CLUTTER_BACKEND", "wayland")
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
@@ -56,12 +55,11 @@ hl.env("XDG_SESSION_DESKTOP", "Hyprland")
 
 hl.on("hyprland.start", function()
     local commands = {
-        home .. "/.local/bin/nocturne-session-theme hypr",
-        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP GTK_THEME QT_QPA_PLATFORMTHEME DCONF_PROFILE",
+        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME",
         "hyprpaper -c " .. config_home .. "/hypr/nocturne-wallpaper.conf",
         "systemctl --user start nocturne-wallpaper-cycle.service",
         "hypridle",
-        "swaync",
+        "mako",
         scripts .. "bar",
         hardware .. " touchpad init",
         "/usr/libexec/hyprpolkitagent",
@@ -147,13 +145,13 @@ hl.bind(mod .. " + slash", run(scripts .. "help"))
 hl.bind(mod .. " + R", run(control))
 hl.bind(mod .. " + SHIFT + R", run("resources"))
 hl.bind(mod .. " + W", run(wallpaper))
-hl.bind(mod .. " + E", run("nautilus --new-window"))
+hl.bind(mod .. " + E", run("pcmanfm-qt"))
 hl.bind(mod .. " + B", run("xdg-open https://www.google.com"))
 hl.bind(mod .. " + C", run("chatgpt"))
 hl.bind(mod .. " + X", run("kitty --class nox --title 'NØX // LOCAL OPERATOR' -e nox"))
 hl.bind(mod .. " + D", run("code"))
 hl.bind(mod .. " + T", run(steam))
-hl.bind(mod .. " + N", run("swaync-client -t -sw"))
+hl.bind(mod .. " + N", run(home .. "/.local/bin/nocturne-native notifications"))
 hl.bind(mod .. " + CTRL + W", run(home .. "/.local/bin/nocturne-native connectivity wifi"))
 hl.bind(mod .. " + CTRL + B", run(home .. "/.local/bin/nocturne-native connectivity bluetooth"))
 hl.bind(mod .. " + CTRL + A", run(home .. "/.local/bin/nocturne-native audio"))
@@ -171,7 +169,10 @@ hl.bind(mod .. " + A", run(snap))
 hl.bind(mod .. " + G", hl.dsp.group.toggle())
 hl.bind(mod .. " + S", hl.dsp.workspace.toggle_special("scratch"))
 hl.bind(mod .. " + SHIFT + S", hl.dsp.window.move({ workspace = "special:scratch" }))
-hl.bind("ALT + Tab", run("hyprctl dispatch cyclenext; hyprctl dispatch bringactivetotop"))
+hl.bind("ALT + Tab", function()
+    hl.dispatch(hl.dsp.window.cycle_next())
+    hl.dispatch(hl.dsp.window.bring_to_top())
+end)
 hl.bind(mod .. " + U", hl.dsp.layout("togglesplit"))
 hl.bind(mod .. " + minus", hl.dsp.layout("splitratio -0.1"))
 hl.bind(mod .. " + equal", hl.dsp.layout("splitratio 0.1"))
@@ -212,22 +213,12 @@ hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { lock
 hl.bind("XF86Tools", run(scripts .. "help"))
 hl.bind("Print", run(home .. "/.local/bin/nocturne-native capture"))
 
-local popup_class = "^(Wofi|com\\.nocturne\\.PowerCard)$"
-hl.window_rule({ match = { class = "^(org.gnome.NautilusPreviewer)$" }, float = true })
-hl.window_rule({
-    match = { class = popup_class },
-    float = true,
-    border_size = 0,
-    rounding = 0,
-    move = {"cursor_x-window_w+34", "34"},
-    no_anim = true,
-})
 hl.layer_rule({ match = { namespace = "nocturne-native" }, blur = true, ignore_alpha = 0.2 })
 
-local tiled_apps = "^(NocturneVisualizer|com\\.nocturne\\.Visualizer|com\\.nocturne\\.Settings|NocturneDashboard|net\\.nokyan\\.Resources|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|org\\.gnome\\.Calculator|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph|org\\.kde\\.kdeconnect\\.app)$"
+local tiled_apps = "^(NocturneVisualizer|com\\.nocturne\\.Visualizer|com\\.nocturne\\.Settings|NocturneDashboard|pcmanfm-qt|qpdfview|qalculate-qt|net\\.nokyan\\.Resources|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph|org\\.kde\\.kdeconnect\\.app)$"
 hl.window_rule({ match = { class = tiled_apps }, tile = true })
 
-local opaque_utilities = "^(com\\.nocturne\\.Settings|org\\.gnome\\..*|org\\.gtk\\..*|org\\.kde\\..*|net\\.nokyan\\.Resources|io\\.missioncenter\\.MissionCenter|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph)$"
+local opaque_utilities = "^(com\\.nocturne\\.Settings|pcmanfm-qt|qpdfview|qalculate-qt|org\\.kde\\..*|net\\.nokyan\\.Resources|io\\.missioncenter\\.MissionCenter|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph)$"
 hl.window_rule({ match = { class = opaque_utilities }, opacity = "1.0 override 1.0 override 1.0 override" })
 hl.window_rule({ match = { class = "^(NocturneDashboard)$" }, opacity = "0.98 override 0.98 override" })
 hl.window_rule({ match = { class = "^(NocturneVisualizer|com\\.nocturne\\.Visualizer)$" }, opacity = "0.99 override 0.99 override" })
@@ -242,10 +233,8 @@ hl.window_rule({
 })
 hl.window_rule({ match = { class = "^(steam_app_.*)$" }, immediate = true })
 
-local opaque_content = "^(firefox|Brave-browser|brave-browser|brave-.*|chromium|Google-chrome|google-chrome|mpv|vlc|org\\.gnome\\.Evince|org\\.gnome\\.Papers|libreoffice.*|steam|steam_app_.*)$"
+local opaque_content = "^(firefox|Brave-browser|brave-browser|brave-.*|chromium|Google-chrome|google-chrome|mpv|vlc|qpdfview|libreoffice.*|steam|steam_app_.*)$"
 hl.window_rule({ match = { class = opaque_content }, opacity = "1.0 override 1.0 override 1.0 override" })
 
-hl.layer_rule({ match = { namespace = "waybar" }, blur = true, ignore_alpha = 0.2 })
-hl.layer_rule({ match = { namespace = "swaync-control-center" }, blur = true })
-hl.layer_rule({ match = { namespace = "notifications" }, blur = true })
-hl.layer_rule({ match = { namespace = "wofi" }, blur = true })
+hl.layer_rule({ match = { namespace = "nocturne-bar" }, blur = true, ignore_alpha = 0.2 })
+hl.layer_rule({ match = { namespace = "mako" }, blur = true, ignore_alpha = 0.15 })

@@ -4,11 +4,7 @@ set -euo pipefail
 if [[ -n ${1:-} ]]; then
   choice=$1
 else
-  quick="$HOME/.config/hypr/scripts/quick-menu"
-  if "$quick" --toggle DESIGN; then exit 0; fi
-  choice=$(printf '%s\n' 'Obsidian Grid' 'Carbon Compact' 'Midnight Circuit' 'Phosphor Terminal' 'Crimson Relay' \
-    'Copper Blue' 'Copper Deep Green' 'Copper Deep Gold' | \
-    "$quick" DESIGN auto 360 360) || exit 0
+  exec nocturne-settings
 fi
 
 case "${choice,,}" in
@@ -86,5 +82,4 @@ mv "$config/theme.json.tmp" "$config/theme.json"
 "$HOME/.config/hypr/scripts/sync-hyprtoolkit-theme"
 
 hyprctl reload >/dev/null
-pkill -SIGUSR2 waybar 2>/dev/null || true
-notify-send -a Nocturne 'Desktop design changed' "$name · reopen GTK apps to refresh them"
+notify-send -a Nocturne 'Desktop design changed' "$name · native shell palette refreshed"

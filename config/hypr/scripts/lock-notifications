@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-count=$(timeout 1 swaync-client --skip-wait --count 2>/dev/null || printf '0')
-dnd=$(timeout 1 swaync-client --skip-wait --get-dnd 2>/dev/null || printf 'false')
+count=$(timeout 1 makoctl list 2>/dev/null | grep -c '^Notification ' || true)
+if timeout 1 makoctl mode 2>/dev/null | grep -qx 'do-not-disturb'; then dnd=true; else dnd=false; fi
 [[ $count =~ ^[0-9]+$ ]] || count=0
 [[ $dnd == true ]] && mode='DND ON' || mode='DND OFF'
 

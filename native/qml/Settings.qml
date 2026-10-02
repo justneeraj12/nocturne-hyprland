@@ -200,7 +200,7 @@ ApplicationWindow {
                     }
                     NocturneButton {
                         text: "OPEN FOLDER"
-                        onClicked: backend.start(["nautilus", "--new-window", backend.home + "/Pictures/Wallpapers"])
+                        onClicked: backend.start(["pcmanfm-qt", backend.home + "/Pictures/Wallpapers"])
                     }
                 }
                 SectionLabel { text: "DESIGN PRESET" }

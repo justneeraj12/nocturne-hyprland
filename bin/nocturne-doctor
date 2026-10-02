@@ -4,221 +4,104 @@ set -u
 pass=0
 warn=0
 fail=0
-
 ok() { printf '[ OK ] %s\n' "$1"; pass=$((pass + 1)); }
 warning() { printf '[WARN] %s\n' "$1"; warn=$((warn + 1)); }
 bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 
-printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
-printf '%s\n\n' '────────────────────────────────'
+printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
+printf '%s\n\n' '────────────────────────────────────────'
 
-required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper waybar swaync wofi kitty cliphist wpctl pactl nmcli bluetoothctl gamemoded brightnessctl powerprofilesctl playerctl nautilus wl-copy grim slurp wf-recorder)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl playerctl grim slurp wf-recorder pcmanfm-qt qpdfview qalculate-qt)
 missing=()
-for command_name in "${required[@]}"; do
-  command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
+for program in "${required[@]}"; do
+  command -v "$program" >/dev/null 2>&1 || missing+=("$program")
 done
-if ((${#missing[@]} == 0)); then ok 'Required desktop commands are installed'; else bad "Missing commands: ${missing[*]}"; fi
+if ((${#missing[@]} == 0)); then ok 'Native desktop commands are installed'; else bad "Missing commands: ${missing[*]}"; fi
 
-if [[ $(hyprctl configerrors 2>/dev/null) == '' ]]; then ok 'Hyprland configuration has no parser errors'; else bad 'Hyprland reports configuration errors'; fi
-config_provider=$(hyprctl systeminfo 2>/dev/null | sed -n 's/^configProvider: //p' | head -n1)
-if [[ $config_provider == lua ]]; then
-  ok 'Hyprland is running the Nocturne Lua configuration provider'
+[[ -x $HOME/.local/bin/nocturne-native ]] \
+  && "$HOME/.local/bin/nocturne-native" --self-test >/dev/null 2>&1 \
+  && ok 'Nocturne native binary passed its self-test' \
+  || bad 'Nocturne native binary is missing or failed its self-test'
+if [[ $(hyprctl configerrors 2>/dev/null) == '' ]]; then ok 'Hyprland has no configuration errors'; else bad 'Hyprland reports configuration errors'; fi
+provider=$(hyprctl systeminfo 2>/dev/null | sed -n 's/^configProvider: //p' | head -n1)
+[[ $provider == lua ]] && ok 'Hyprland uses the Nocturne Lua provider' || bad "Unexpected config provider: ${provider:-unknown}"
+pgrep -f '/nocturne-native bar($| )' >/dev/null 2>&1 && ok 'Native multi-monitor bar is running' || bad 'Native bar is not running'
+pgrep -x mako >/dev/null 2>&1 && ok 'Mako notification daemon is running' || bad 'Mako is not running'
+pgrep -x hypridle >/dev/null 2>&1 && ok 'Hypridle is running' || bad 'Hypridle is not running'
+
+notification_owner=$(busctl --user --no-pager --list 2>/dev/null | awk '$1 == "org.freedesktop.Notifications" {print $2}')
+[[ -n $notification_owner ]] && ok 'Notification D-Bus name has one owner' || bad 'Notification D-Bus name is unowned'
+tray_owner=$(busctl --user --no-pager --list 2>/dev/null | awk '$1 == "org.kde.StatusNotifierWatcher" {print $2}')
+[[ -n $tray_owner ]] && ok 'Native background-app watcher owns the tray' || bad 'StatusNotifier watcher is unowned'
+
+if systemctl --user is-active --quiet plasma-xdg-desktop-portal-kde.service \
+    && systemctl --user is-active --quiet xdg-desktop-portal-hyprland.service; then
+  ok 'Qt and Hyprland portal backends are active'
 else
-  bad "Hyprland config provider is ${config_provider:-unknown}; log out and re-enter the uwsm-managed session"
+  bad 'Required portal backends are not both active'
 fi
-pgrep -x waybar >/dev/null 2>&1 && ok 'Waybar is running' || bad 'Waybar is not running'
-pgrep -x swaync >/dev/null 2>&1 && ok 'Notification center is running' || bad 'Notification center is not running'
-pgrep -x hypridle >/dev/null 2>&1 && ok 'Idle and lock manager is running' || bad 'Hypridle is not running'
+if ! systemctl --user is-active --quiet xdg-desktop-portal-gtk.service \
+    && ! systemctl --user is-active --quiet xdg-desktop-portal-gnome.service; then
+  ok 'Legacy GTK/GNOME portal backends are inactive'
+else
+  warning 'A legacy portal backend is still active'
+fi
+
+for legacy in waybar swaync wofi nm-applet blueman-applet; do
+  if pgrep -x "$legacy" >/dev/null 2>&1; then warning "Legacy shell process is running: $legacy"; else ok "Legacy shell process is absent: $legacy"; fi
+done
+
+[[ $(xdg-mime query default inode/directory 2>/dev/null) == pcmanfm-qt.desktop ]] \
+  && ok 'PCManFM-Qt is the folder handler' || warning 'Folder handler is not PCManFM-Qt'
+[[ $(xdg-mime query default application/pdf 2>/dev/null) == qpdfview.desktop ]] \
+  && ok 'qpdfview is the PDF handler' || warning 'PDF handler is not qpdfview'
 
 wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null || true)
 if jq -e '.display_active == true and (.monitors | length) > 0 and ((.mapped_monitors | sort) == (.monitors | sort))' >/dev/null 2>&1 <<<"$wallpaper"; then
-  count=$(jq -r '.monitors | length' <<<"$wallpaper")
-  ok "Wallpaper engine is active on $count display(s)"
+  ok "Wallpaper engine covers $(jq -r '.monitors | length' <<<"$wallpaper") display(s)"
 else
-  bad 'Wallpaper engine is not active on detected displays'
+  warning 'Wallpaper engine does not currently cover every display'
 fi
-if jq -e '.count > 0' >/dev/null 2>&1 <<<"$wallpaper"; then ok 'Wallpaper collection contains readable images'; else bad 'Wallpaper collection has no readable images'; fi
-if jq -e '.enabled == true and .mode == "day-cycle" and (.next_change_at | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
-  next_phase=$(jq -r '.next_change_at' <<<"$wallpaper")
-  ok "Authored wallpaper day cycle is active; next phase $next_phase"
-elif jq -e '.phase_kind == "static" and .display_active == true and (.mapped_monitors | length) > 0' >/dev/null 2>&1 <<<"$wallpaper"; then
-  ok 'Static wallpaper is intentionally active on every display'
-else
-  warning 'Wallpaper day cycle is paused or has no authored schedule'
-fi
-
-monitor_count=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
-((monitor_count > 0)) && ok "Hyprland detects $monitor_count display(s)" || bad 'No active Hyprland display detected'
 
 nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
 [[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'
-bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller is available' || warning 'No Bluetooth controller is currently available'
-if ! pgrep -x nm-applet >/dev/null 2>&1 \
-    && [[ -r $HOME/.config/autostart/nm-applet.desktop ]] \
-    && rg -q '^Hidden=true$' "$HOME/.config/autostart/nm-applet.desktop"; then
-  ok 'Legacy NetworkManager tray icon is permanently retired'
+bluetoothctl show >/dev/null 2>&1 && ok 'Bluetooth controller responds' || warning 'No Bluetooth controller is available'
+wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'Default audio output responds' || bad 'Default audio output is unavailable'
+wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'Default microphone responds' || warning 'Default microphone is unavailable'
+systemctl --user is-active --quiet nocturne-audio-autoswitch.service \
+  && ok 'Bluetooth audio auto-routing is active' || warning 'Bluetooth audio auto-routing is inactive'
+brightnessctl -m >/dev/null 2>&1 && ok 'Hardware backlight responds' || warning 'No controllable backlight was found'
+profile=$(powerprofilesctl get 2>/dev/null || true)
+[[ -n $profile ]] && ok "Power profile: $profile" || warning 'Power profile service is unavailable'
+
+if [[ -r $HOME/.config/hypr/hyprlock.conf && -x $HOME/.config/hypr/scripts/lock-screen && -r /etc/pam.d/hyprlock ]]; then
+  ok 'Hyprlock and PAM authentication are wired'
 else
-  warning 'nm-applet is still running and may duplicate the dedicated Wi-Fi control'
+  bad 'Hyprlock integration is incomplete'
 fi
-if [[ -x $HOME/.local/bin/nocturne-native ]] \
-    && ! systemctl --user is-active --quiet nocturne-panel.service \
-    && $HOME/.local/bin/nocturne-native --self-test >/dev/null 2>&1; then
-  ok 'Qt/Wayland native Nocturne shell passed its binary test'
-else
-  bad 'Nocturne panels are unavailable or an obsolete idle service remains'
-fi
-if jq -e '.[] | select(.name == "main")
-    | ((."modules-right" | map(select(. == "custom/connectivity")) | length) == 1)
-    and ((."modules-right" | index("custom/orbit")) == null)
-    and ((."modules-right" | index("network")) == null)
-    and ((."modules-right" | index("bluetooth")) == null)
-    and ."custom/connectivity"."on-click" == "~/.local/bin/nocturne-native connectivity wifi"
-    and .pulseaudio."on-click" == "~/.local/bin/nocturne-native audio"' \
-    "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && jq -e '.[] | select(.name == "secondary")
-      | ((."modules-right" | map(select(. == "custom/connectivity#secondary")) | length) == 1)' \
-      "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && [[ -x $HOME/.local/bin/nocturne-native ]] \
-    && [[ -x $HOME/.config/hypr/scripts/connectivity-status ]]; then
-  ok 'One unified connectivity owner and one native audio panel are wired'
-else
-  warning 'Unified connectivity or audio controls are missing or duplicated'
-fi
-if [[ ! -e $HOME/.local/bin/innu && ! -e $HOME/.config/innu ]] \
-    && ! pgrep -x innu >/dev/null 2>&1; then
-  ok 'Retired Innu connectivity UI is fully removed'
-else
-  warning 'The retired Innu UI still has live files or a running process'
-fi
-if jq -e '.[] | select(.name == "main")
-    | ((."modules-right" | index("group/tray-expander")) + 1 == (."modules-right" | index("custom/kdeconnect")))
-    and ."group/tray-expander".modules == ["custom/tray-toggle", "tray"]' "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
-  ok 'Background-app drawer sits immediately left of KDE Connect'
-else
-  warning 'Background app tray drawer is missing or misplaced'
-fi
-if ! pgrep -f '/usr/bin/blueman-(applet|tray)' >/dev/null 2>&1; then
-  ok 'Legacy Blueman applet and duplicate status icon are retired'
-else
-  warning 'A legacy Blueman process may duplicate Nocturne connectivity'
-fi
-if [[ ! -e $HOME/.local/bin/orbit && ! -e $HOME/.config/orbit ]] \
-    && ! pgrep -x orbit >/dev/null 2>&1; then
-  ok 'Retired Orbit connectivity UI is fully removed'
-else
-  warning 'The retired Orbit UI still has live files or a running process'
-fi
+pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
+
 if [[ -x $HOME/.local/bin/nocturne-capture-engine ]] \
-    && [[ -x $HOME/.local/bin/nocturne-native ]] \
-    && [[ -x $HOME/.config/hypr/scripts/capture-open ]] \
-    && [[ -x $HOME/.config/hypr/scripts/capture-status ]] \
-    && ! [[ -e $HOME/.config/hypr/hyprcapture.lua \
-      || -e $HOME/.local/bin/hyprcapture-ui \
-      || -e $HOME/.local/lib/nocturne-hyprcapture \
-      || -e $HOME/.local/bin/nocturne-capture-ui \
-      || -e $HOME/.local/bin/nocturne-freeze-frame \
-      || -e $HOME/.local/bin/hyprshot \
-      || -e $HOME/.config/hypr/scripts/screen-record ]] \
-    && ! hyprctl plugin list 2>/dev/null | rg -qi HyprCapture \
-    && $HOME/.config/hypr/scripts/capture-status 2>/dev/null | jq -e 'has("text") and has("class")' >/dev/null 2>&1; then
-  ok 'Native screenshot/record flow owns capture without legacy plugins'
+    && "$HOME/.local/bin/nocturne-capture-engine" --self-test >/dev/null 2>&1 \
+    && [[ -x $HOME/.config/hypr/scripts/capture-status ]]; then
+  ok 'Screenshot and recording engine passed its self-test'
 else
-  bad 'Native capture integration is incomplete or a legacy capture owner remains'
-fi
-if [[ -x $HOME/.local/bin/nocturne-native ]] \
-    && [[ ! -e $HOME/.local/bin/nocturne-calendar ]] \
-    && jq -e '.[] | select(.name == "main")
-      | ((."modules-center" | index("custom/local-clock")) != null)
-      and ((."modules-center" | index("custom/world")) != null)
-      and (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-native calendar")
-      and (."custom/world"."on-click" == "~/.local/bin/nocturne-native world")
-      and (."custom/brightness"."on-click" == "~/.local/bin/nocturne-native brightness")' \
-      "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
-  ok 'Native brightness, calendar, and world-time panels are wired'
-else
-  warning 'Native brightness, calendar, or world-time controls are incomplete'
-fi
-if [[ -r $HOME/.local/state/nocturne/lock-wallpaper ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-screen ]] \
-    && [[ -r $HOME/.config/hypr/hyprlock.conf ]] \
-    && rg -q 'lock-screen' "$HOME/.config/hypr/hypridle.conf" \
-    && [[ -r /etc/pam.d/hyprlock ]]; then
-  ok 'Themed upstream Hyprlock and PAM authentication are wired'
-else
-  bad 'Lock screen integration is incomplete'
-fi
-pgrep -x hyprpolkitagent >/dev/null 2>&1 \
-  && ok 'Graphical administrator password agent is running' \
-  || bad 'Graphical administrator password agent is not running'
-wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'PipeWire default audio output responds' || bad 'Default audio output is unavailable'
-wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'PipeWire default microphone responds' || warning 'Default microphone is unavailable'
-if systemctl --user is-active --quiet nocturne-audio-autoswitch.service \
-    && [[ -x $HOME/.config/hypr/scripts/audio-route ]]; then
-  ok 'Bluetooth output switching and microphone routing service is active'
-else
-  warning 'Automatic Bluetooth audio routing is not active'
-fi
-brightnessctl -m >/dev/null 2>&1 && ok 'Laptop brightness control responds' || warning 'No controllable backlight was found'
-profile=$(powerprofilesctl get 2>/dev/null)
-[[ -n $profile ]] && ok "Power profile service: $profile" || warning 'Power profile service is unavailable'
-if [[ -x $HOME/.local/bin/nocturne-native ]] \
-    && [[ -x $HOME/.config/hypr/scripts/power-menu ]] \
-    && [[ -x $HOME/.config/hypr/scripts/power-profile ]] \
-    && $HOME/.config/hypr/scripts/power-profile status >/dev/null 2>&1 \
-    && rg -q 'start_boost.*\$\{2:-30\}' "$HOME/.config/hypr/scripts/power-profile" \
-    && rg -q 'nocturne-native.*power' "$HOME/.config/hypr/scripts/power-menu" \
-    && jq -e '.[] | select(.name == "main")
-      | ."custom/power-battery"."on-click" == "~/.config/hypr/scripts/power-menu"' \
-      "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1; then
-  ok 'Compact power card and timed Super Performance boost are wired'
-else
-  warning 'Power card integration is incomplete'
-fi
-binds=$(hyprctl binds -j 2>/dev/null || printf '[]')
-for action_key in XF86AudioMicMute XF86TouchpadToggle XF86WebCam XF86Tools; do
-  jq -e --arg key "$action_key" '.[] | select(.key == $key)' <<<"$binds" >/dev/null \
-    || warning "Hardware action key is not mapped: $action_key"
-done
-if [[ -d /sys/devices/platform/msi-ec ]]; then
-  ok 'MSI embedded-controller hardware features are exposed'
-else
-  warning 'MSI EC rejected this firmware; keyboard-light software control is unavailable'
+  bad 'Capture integration is incomplete'
 fi
 
-if [[ -r /sys/power/mem_sleep ]] && rg -q '\[deep\]' /sys/power/mem_sleep; then
-  ok 'Suspend policy is currently using ACPI S3 deep sleep'
-else
-  bad 'ACPI S3 deep sleep is not selected'
-fi
+pgrep -x easyeffects >/dev/null 2>&1 && ok 'EasyEffects is preserved and running' || warning 'EasyEffects is not running'
+kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect responds' || warning 'KDE Connect is unavailable'
+if [[ -r /sys/power/mem_sleep ]] && rg -q '\[deep\]' /sys/power/mem_sleep; then ok 'Suspend uses ACPI S3 deep sleep'; else warning 'Deep sleep is not currently selected'; fi
 
-if [[ -r /proc/driver/nvidia/params ]] && rg -q '^PreserveVideoMemoryAllocations: 1' /proc/driver/nvidia/params; then
-  nvidia_sleep_units=(
-    nvidia-suspend.service
-    nvidia-resume.service
-    nvidia-hibernate.service
-    nvidia-suspend-then-hibernate.service
-  )
-  nvidia_hooks_ready=true
-  for unit in "${nvidia_sleep_units[@]}"; do
-    systemctl is-enabled --quiet "$unit" 2>/dev/null || nvidia_hooks_ready=false
-  done
-  $nvidia_hooks_ready && ok 'NVIDIA video-memory sleep hooks are enabled' || bad 'NVIDIA sleep hooks are incomplete'
-fi
-
-if pgrep -x easyeffects >/dev/null 2>&1 && pactl list short sinks 2>/dev/null | rg -q 'easyeffects_sink'; then
-  ok 'EasyEffects service and PipeWire sink are active'
-else
-  warning 'EasyEffects processing is not active'
-fi
-
-kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect service responds' || warning 'KDE Connect service is not responding'
-fc-match 'Inter' | rg -qi 'Inter' && ok 'Inter UI font is installed' || warning 'Inter font fallback is in use'
-fc-match 'MesloLGS Nerd Font Mono' | rg -qi 'Meslo' && ok 'Nerd Font icons are installed' || bad 'Meslo Nerd Font is missing'
-
-for file in "$HOME/.config/hypr/hyprland.lua" "$HOME/.config/hypr/hyprlock.conf" "$HOME/.config/waybar/config.jsonc" "$HOME/.config/swaync/config.json" "$HOME/.config/nocturne/locations.json"; do
+for file in \
+  "$HOME/.config/hypr/hyprland.lua" \
+  "$HOME/.config/hypr/hyprlock.conf" \
+  "$HOME/.config/mako/config" \
+  "$HOME/.config/xdg-desktop-portal/hyprland-portals.conf" \
+  "$HOME/.config/nocturne/locations.json"; do
   [[ -r $file ]] && ok "Readable config: ${file#$HOME/}" || bad "Missing config: ${file#$HOME/}"
 done
 
-printf '\n────────────────────────────────\n'
+printf '\n────────────────────────────────────────\n'
 printf 'RESULT  %d passed · %d warnings · %d failed\n' "$pass" "$warn" "$fail"
 ((fail == 0))

@@ -28,9 +28,9 @@ if "$install_packages"; then
     build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev \
     qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
     qml6-module-qtquick-window qml6-module-org-kde-layershell \
-    layer-shell-qt liblayershellqtinterface-dev \
+    layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
     grim slurp wf-recorder wl-clipboard brightnessctl pipewire-bin pulseaudio-utils \
-    network-manager bluez jq kitty btop cava fastfetch playerctl gamemode \
+    network-manager bluez jq kitty btop cava fastfetch playerctl gamemode pcmanfm-qt qpdfview qalculate-qt \
     power-profiles-daemon fonts-inter fonts-jetbrains-mono
 fi
 

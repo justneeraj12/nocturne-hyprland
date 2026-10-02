@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=GTK User Directories Update (disabled by Nocturne)
+Hidden=true
+X-GNOME-Autostart-enabled=false
+NoDisplay=true

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=GNOME Disk Utility Notify (disabled by Nocturne)
+Hidden=true
+X-GNOME-Autostart-enabled=false
+NoDisplay=true

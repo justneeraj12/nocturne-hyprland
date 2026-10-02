@@ -3,6 +3,9 @@
 #include <QObject>
 #include <QScreen>
 #include <QVariant>
+#include <memory>
+
+class TrayWatcher;
 
 class Backend final : public QObject
 {
@@ -12,6 +15,7 @@ class Backend final : public QObject
     Q_PROPERTY(QString home READ home CONSTANT)
     Q_PROPERTY(QString runtime READ runtime CONSTANT)
     Q_PROPERTY(QScreen *targetScreen READ targetScreen NOTIFY targetScreenChanged)
+    Q_PROPERTY(QVariantList screens READ screens CONSTANT)
     Q_PROPERTY(QString baseColor READ baseColor NOTIFY paletteChanged)
     Q_PROPERTY(QString surfaceColor READ surfaceColor NOTIFY paletteChanged)
     Q_PROPERTY(QString overlayColor READ overlayColor NOTIFY paletteChanged)
@@ -23,12 +27,14 @@ class Backend final : public QObject
 
 public:
     explicit Backend(QString surface, QString page, QObject *parent = nullptr);
+    ~Backend() override;
 
     QString surface() const;
     QString page() const;
     QString home() const;
     QString runtime() const;
     QScreen *targetScreen() const;
+    QVariantList screens() const;
     QString baseColor() const;
     QString surfaceColor() const;
     QString overlayColor() const;
@@ -41,7 +47,14 @@ public:
     Q_INVOKABLE QString run(const QVariantList &arguments, int timeoutMs = 5000) const;
     Q_INVOKABLE QVariant json(const QVariantList &arguments, int timeoutMs = 5000) const;
     Q_INVOKABLE QVariantList audioStreams() const;
+    Q_INVOKABLE QVariantList applications(const QString &query = QString()) const;
+    Q_INVOKABLE QVariantList trayItems() const;
+    Q_INVOKABLE QVariantList notifications(const QString &collection = QStringLiteral("list")) const;
+    Q_INVOKABLE QVariantList clipboardItems(const QString &query = QString()) const;
     Q_INVOKABLE QVariantList wallpapers() const;
+    Q_INVOKABLE bool launchApplication(const QString &desktopFile) const;
+    Q_INVOKABLE bool activateTrayItem(const QString &reference, const QString &action = QStringLiteral("activate")) const;
+    Q_INVOKABLE bool copyClipboardItem(const QString &entry) const;
     Q_INVOKABLE bool start(const QVariantList &arguments) const;
     Q_INVOKABLE QString readText(const QString &path) const;
     Q_INVOKABLE QString readFirst(const QString &directory, const QString &fileName) const;
@@ -66,4 +79,6 @@ private:
     QString m_surface;
     QString m_page;
     QScreen *m_targetScreen = nullptr;
+    QVariantList m_applications;
+    std::unique_ptr<TrayWatcher> m_trayWatcher;
 };

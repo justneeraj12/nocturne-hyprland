@@ -17,8 +17,7 @@ done < <(
 )
 printf '[ OK ] shell scripts\n'
 
-jq -e . "$root/config/waybar/config.jsonc" >/dev/null
-jq -e . "$root/config/swaync/config.json" >/dev/null
+jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
 PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile "$root/bin/nocturne-capture-engine"
@@ -32,11 +31,17 @@ cmake --build "$temporary/native" --parallel >/dev/null
 grep -Fq 'backend.audioStreams()' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'interval: 200' "$root/native/qml/pages/BrightnessPage.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
+grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
+grep -Fq 'org.kde.StatusNotifierWatcher' "$root/native/src/traywatcher.h"
+grep -Fq 'backend.notifications("history")' "$root/native/qml/pages/NotificationsPage.qml"
 printf '[ OK ] Qt/Wayland native shell + live controls\n'
 
 Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \
   >"$temporary/hyprland-verify.log" 2>&1
 grep -q 'config ok' "$temporary/hyprland-verify.log"
+! rg -q 'hyprctl dispatch (workspace|focuswindow|closewindow|movetoworkspace|movetoworkspacesilent|togglefloating|dpms|cyclenext|bringactivetotop)' \
+  "$root/config" "$root/bin" "$root/native"
+grep -Fq 'hl.dsp.focus({ workspace' "$root/native/qml/BarWindow.qml"
 printf '[ OK ] Hyprland Lua configuration\n'
 
 grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
@@ -47,21 +52,18 @@ grep -Fq 'nocturne-native capture' "$root/config/hypr/hyprland.lua"
 [[ ! -e $root/scripts/install-hyprcapture.sh ]]
 printf '[ OK ] explicit Lua startup + native capture owner\n'
 
-jq -e '
-  .[] | select(.name == "main") |
-  ((."modules-right" | map(select(. == "custom/connectivity")) | length) == 1) and
-  ((."modules-right" | index("network")) == null) and
-  ((."modules-right" | index("bluetooth")) == null) and
-  (."custom/connectivity"."on-click" == "~/.local/bin/nocturne-native connectivity wifi") and
-  (.pulseaudio."on-click" == "~/.local/bin/nocturne-native audio") and
-  (."custom/brightness"."on-click" == "~/.local/bin/nocturne-native brightness") and
-  (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-native calendar") and
-  (."custom/world"."on-click" == "~/.local/bin/nocturne-native world") and
-  ((."modules-right" | index("group/tray-expander")) + 1 == (."modules-right" | index("custom/kdeconnect")))
-' "$root/config/waybar/config.jsonc" >/dev/null
-printf '[ OK ] unified panels + tray left of KDE Connect\n'
+grep -Fq 'nocturne-native" bar' "$root/config/hypr/scripts/bar"
+grep -Fq 'nativeCard("connectivity", "wifi")' "$root/native/qml/BarWindow.qml"
+grep -Fq 'nativeCard("background", "")' "$root/native/qml/BarWindow.qml"
+grep -Fq 'nativeCard("notifications", "")' "$root/native/qml/BarWindow.qml"
+grep -Fq '"mako"' "$root/config/hypr/hyprland.lua"
+grep -Fq 'default=kde' "$root/config/xdg-desktop-portal/hyprland-portals.conf"
+! grep -Fq 'swaync-client' "$root/config/hypr/hyprland.lua"
+printf '[ OK ] native bar, tray, notifications and Qt portal ownership\n'
 
-grep -Fq 'wofi --show drun' "$root/config/hypr/scripts/launcher"
+grep -Fq 'nocturne-native" launcher' "$root/config/hypr/scripts/launcher"
+grep -Fq 'backend.applications("")' "$root/native/qml/pages/LauncherPage.qml"
+! rg -q 'wofi --show drun' "$root/config/hypr/scripts/launcher"
 ! grep -Fq 'hyprlauncher -d' "$root/config/hypr/hyprland.lua"
 grep -Fq 'boost) start_boost' "$root/config/hypr/scripts/power-profile"
 grep -Fq 'label:"SUPER"' "$root/native/qml/pages/PowerPage.qml"

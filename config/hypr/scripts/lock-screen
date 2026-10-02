@@ -3,24 +3,7 @@ set -euo pipefail
 
 # Never start two ext-session-lock clients.
 pgrep -x hyprlock >/dev/null 2>&1 && exit 0
-pgrep -x gtklock >/dev/null 2>&1 && exit 0
 
 hyprlock_config=${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/hyprlock.conf
-if command -v hyprlock >/dev/null 2>&1 && [[ -r $hyprlock_config ]]; then
-  exec hyprlock --config "$hyprlock_config"
-fi
-
-# Emergency fallback only. The normal path is the themed upstream Hyprlock UI.
-style=${XDG_CONFIG_HOME:-"$HOME/.config"}/gtklock/style.css
-background=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/lock-wallpaper
-
-args=(
-  --gtk-theme Adwaita-dark
-  --style "$style"
-  --time-format '%I:%M %p'
-  --date-format '%A  //  %d %B %Y'
-  --follow-focus
-)
-[[ -r $background ]] && args+=(--background "$background")
-
-exec gtklock "${args[@]}"
+[[ -r $hyprlock_config ]] || { notify-send -u critical -a Nocturne 'Lock screen' 'Hyprlock configuration is missing.'; exit 1; }
+exec hyprlock --config "$hyprlock_config"

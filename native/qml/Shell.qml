@@ -13,13 +13,16 @@ ApplicationWindow {
     screen: backend.targetScreen
 
     readonly property bool bottomSurface: backend.surface === "capture"
-    readonly property int cardWidth: bottomSurface ? 502 : (backend.surface === "power" ? 390 : 410)
+    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized"
+    readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : (bottomSurface ? 502 : (backend.surface === "power" ? 390 : 410)))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     LayerShellQt.Window.scope: "nocturne-native"
     LayerShellQt.Window.layer: LayerShellQt.Window.LayerOverlay
     LayerShellQt.Window.exclusionZone: -1
-    LayerShellQt.Window.keyboardInteractivity: LayerShellQt.Window.KeyboardInteractivityOnDemand
+    LayerShellQt.Window.keyboardInteractivity: root.centerSurface
+        ? LayerShellQt.Window.KeyboardInteractivityExclusive
+        : LayerShellQt.Window.KeyboardInteractivityOnDemand
     LayerShellQt.Window.activateOnShow: true
     LayerShellQt.Window.screen: backend.targetScreen
     LayerShellQt.Window.anchors: LayerShellQt.Window.AnchorTop | LayerShellQt.Window.AnchorRight | LayerShellQt.Window.AnchorBottom | LayerShellQt.Window.AnchorLeft
@@ -33,8 +36,8 @@ ApplicationWindow {
         id: card
         width: root.cardWidth
         height: root.cardHeight
-        x: root.bottomSurface ? Math.round((root.width - width) / 2) : root.width - width - backend.rightMargin(width)
-        y: root.bottomSurface ? root.height - height - 28 : 33
+        x: root.bottomSurface || root.centerSurface ? Math.round((root.width - width) / 2) : root.width - width - backend.rightMargin(width)
+        y: root.bottomSurface ? root.height - height - 28 : (root.centerSurface ? Math.round((root.height - height) * 0.36) : 33)
 
         MouseArea { anchors.fill: parent }
         Loader {
@@ -42,6 +45,13 @@ ApplicationWindow {
             anchors.fill: parent
             sourceComponent: {
                 if (backend.surface === "capture") return capturePage
+                if (backend.surface === "launcher") return launcherPage
+                if (backend.surface === "background") return backgroundPage
+                if (backend.surface === "notifications") return notificationsPage
+                if (backend.surface === "clipboard") return clipboardPage
+                if (backend.surface === "minimized") return minimizedPage
+                if (backend.surface === "media") return mediaPage
+                if (backend.surface === "kdeconnect") return kdeConnectPage
                 if (backend.surface === "power") return powerPage
                 if (backend.surface === "brightness") return brightnessPage
                 if (backend.surface === "calendar") return calendarPage
@@ -61,6 +71,13 @@ ApplicationWindow {
     Component { id: pomodoroPage; PomodoroPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: capturePage; CapturePage {} }
+    Component { id: launcherPage; LauncherPage {} }
+    Component { id: backgroundPage; BackgroundPage {} }
+    Component { id: notificationsPage; NotificationsPage {} }
+    Component { id: clipboardPage; ClipboardPage {} }
+    Component { id: minimizedPage; MinimizedPage {} }
+    Component { id: mediaPage; MediaPage {} }
+    Component { id: kdeConnectPage; KdeConnectPage {} }
 
     Shortcut { sequence: "Escape"; onActivated: backend.close() }
     onClosing: backend.close()

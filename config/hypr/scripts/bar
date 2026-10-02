@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-set -u
+set -euo pipefail
 
 runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-exec 9>"$runtime_dir/nocturne-waybar.lock"
+exec 9>"$runtime_dir/nocturne-native-bar.lock"
 flock -n 9 || exit 0
 
-# Waybar is deliberately not a global user service because it must never leak
-# into the restored GNOME session. Keep it alive only while Hyprland owns the
-# session; an unexpected crash gets a calm restart instead of losing the shell.
+# One Qt process owns every monitor bar and the StatusNotifier watcher. Restart
+# only after a real crash; a normal Hyprland shutdown ends the loop naturally.
 while hyprctl monitors -j >/dev/null 2>&1; do
-  waybar -c "$HOME/.config/waybar/config.jsonc" -s "$HOME/.config/waybar/style.css"
-  sleep 2
+  "$HOME/.local/bin/nocturne-native" bar || true
+  sleep 1
 done

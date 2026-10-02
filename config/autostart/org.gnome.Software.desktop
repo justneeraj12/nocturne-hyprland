@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=GNOME Software (disabled by Nocturne)
+Hidden=true
+X-GNOME-Autostart-enabled=false
+NoDisplay=true

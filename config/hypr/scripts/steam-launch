@@ -21,7 +21,7 @@ main_address=$(hyprctl clients -j | jq -r '
 ')
 
 if [[ -n "$main_address" ]]; then
-  hyprctl dispatch focuswindow "address:$main_address" >/dev/null
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:$main_address\" })" >/dev/null
   exit 0
 fi
 

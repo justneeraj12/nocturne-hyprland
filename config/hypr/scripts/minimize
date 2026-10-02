@@ -33,7 +33,7 @@ hide_window() {
   awk -F '\t' -v wanted="$address" '$1 != wanted' "$state" > "$state.tmp"
   printf '%s\t%s\t%s\t%s\t\n' "$address" "$workspace" "$class" "$title" >> "$state.tmp"
   mv "$state.tmp" "$state"
-  hyprctl dispatch movetoworkspacesilent "special:minimized,address:${address}" >/dev/null
+  hyprctl dispatch "hl.dsp.window.move({ workspace = \"special:minimized\", window = \"address:${address}\" })" >/dev/null
 }
 
 list_windows() {
@@ -50,9 +50,9 @@ restore_window() {
   workspace=$(awk -F '\t' -v wanted="$address" '$1 == wanted {print $2; exit}' "$state")
   preview=$(awk -F '\t' -v wanted="$address" '$1 == wanted {print $5; exit}' "$state")
   [[ -n $workspace ]] || exit 0
-  hyprctl dispatch movetoworkspace "${workspace},address:${address}" >/dev/null
-  hyprctl dispatch workspace "$workspace" >/dev/null
-  hyprctl dispatch focuswindow "address:${address}" >/dev/null
+  hyprctl dispatch "hl.dsp.window.move({ workspace = \"${workspace}\", window = \"address:${address}\", follow = true })" >/dev/null
+  hyprctl dispatch "hl.dsp.focus({ workspace = \"${workspace}\" })" >/dev/null
+  hyprctl dispatch "hl.dsp.focus({ window = \"address:${address}\" })" >/dev/null
   awk -F '\t' -v wanted="$address" '$1 != wanted' "$state" > "$state.tmp"
   mv "$state.tmp" "$state"
   if [[ -n $preview && $preview == "$state_dir/"* ]]; then
@@ -70,46 +70,7 @@ restore_all() {
 }
 
 show_windows() {
-  local quick choice height label address workspace class title icon app short_address
-  quick="$HOME/.config/hypr/scripts/quick-menu"
-  if "$quick" --toggle MINIMIZED; then exit 0; fi
-  sync_state
-  [[ -s $state ]] || { notify-send -a Nocturne 'Minimized windows' 'Nothing is hidden.'; exit 0; }
-
-  declare -a entries=()
-  declare -A selected_address=()
-  while IFS=$'\t' read -r address workspace class title _preview; do
-    case "${class,,}" in
-      *firefox*) icon=''; app='Firefox' ;;
-      *chrom*|*brave*) icon=''; app='Browser' ;;
-      *kitty*|*terminal*) icon=''; app='Terminal' ;;
-      *code*|*vscodium*) icon='󰨞'; app='VS Code' ;;
-      *chatgpt*|*codex*) icon='󰭹'; app='ChatGPT' ;;
-      *steam*) icon=''; app='Steam' ;;
-      *nautilus*|*file*) icon='󰉋'; app='Files' ;;
-      *settings*) icon='󰒓'; app='Settings' ;;
-      *calendar*) icon='󰃭'; app='Calendar' ;;
-      *iotas*|*notes*) icon='󰠮'; app='Notes' ;;
-      *) icon='󰖯'; app='Application' ;;
-    esac
-    title=${title:0:72}
-    if [[ ${title,,} == *"${app,,}"* ]]; then
-      label="$icon  $title  ·  workspace $workspace"
-    else
-      label="$icon  $title  ·  $app  ·  workspace $workspace"
-    fi
-    if [[ -n ${selected_address["$label"]:-} ]]; then
-      short_address=${address#0x}
-      label="$label  ·  ${short_address: -5}"
-    fi
-    entries+=("$label")
-    selected_address["$label"]=$address
-  done < "$state"
-
-  height=$((96 + ${#entries[@]} * 43))
-  ((height > 430)) && height=430
-  choice=$(printf '%s\n' "${entries[@]}" | "$quick" MINIMIZED auto 620 "$height") || exit 0
-  [[ -n ${selected_address["$choice"]:-} ]] && restore_window "${selected_address["$choice"]}"
+  exec "$HOME/.local/bin/nocturne-native" minimized
 }
 
 status() {

@@ -1,0 +1,33 @@
+font=Inter 10
+background-color=#07090af2
+text-color=#a7b8b1ff
+border-color=#477463ff
+progress-color=over #5f8f76ff
+border-size=1
+border-radius=0
+width=390
+height=150
+margin=8
+padding=12
+anchor=top-right
+layer=overlay
+icons=1
+max-icon-size=46
+default-timeout=7000
+ignore-timeout=0
+max-visible=4
+sort=-time
+on-button-left=dismiss
+on-button-middle=invoke-default-action
+on-button-right=dismiss-all
+
+[urgency=low]
+border-color=#1b2925ff
+default-timeout=4000
+
+[urgency=critical]
+border-color=#c75c66ff
+default-timeout=0
+
+[mode=do-not-disturb]
+invisible=1

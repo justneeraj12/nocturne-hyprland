@@ -22,7 +22,11 @@ read -r -p 'Type RESTORE to continue: ' confirmation
 
 tar -xzf "$HOME_ARCHIVE" -C "$HOME"
 dconf load / < "$DCONF_DUMP"
+systemctl --user unmask \
+  xdg-desktop-portal-gtk.service \
+  xdg-desktop-portal-gnome.service \
+  localsearch-3.service >/dev/null 2>&1 || true
+systemctl --user daemon-reload >/dev/null 2>&1 || true
 
 printf '\nConfiguration restored. Log out and back in to fully reload GNOME Shell.\n'
 printf 'This script does not remove packages installed after the snapshot.\n'
-

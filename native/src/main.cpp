@@ -16,21 +16,22 @@ int main(int argc, char *argv[])
         return 0;
     }
     qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
-    QGuiApplication application(argc, argv);
-    application.setApplicationName("Nocturne Native");
-    application.setOrganizationName("Nocturne");
-
     const QString surface = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("audio");
     const QString page = argc > 2 ? QString::fromLocal8Bit(argv[2]) : QString();
     const bool settings = surface == QStringLiteral("settings");
-    application.setDesktopFileName(settings ? QStringLiteral("nocturne-settings") : QStringLiteral("nocturne-native"));
+    const bool bar = surface == QStringLiteral("bar");
+    QCoreApplication::setApplicationName(QStringLiteral("Nocturne Native"));
+    QCoreApplication::setOrganizationName(QStringLiteral("Nocturne"));
+    QGuiApplication::setDesktopFileName(settings ? QStringLiteral("nocturne-settings") : QStringLiteral("nocturne-native"));
+    QGuiApplication application(argc, argv);
     const QString socketName = QStringLiteral("nocturne-native-%1-%2")
-                                   .arg(settings ? QStringLiteral("settings") : QStringLiteral("shell"))
+                                   .arg(settings ? QStringLiteral("settings") : (bar ? QStringLiteral("bar") : QStringLiteral("shell")))
                                    .arg(getuid());
 
     QLocalSocket client;
     client.connectToServer(socketName);
     if (client.waitForConnected(120)) {
+        if (bar) return 0;
         client.write((surface + QLatin1Char('\t') + page + QLatin1Char('\n')).toUtf8());
         client.waitForBytesWritten(500);
         return 0;
@@ -58,7 +59,8 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
     const QUrl source(settings
                           ? QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Settings.qml")
-                          : QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Shell.qml"));
+                          : (bar ? QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Bar.qml")
+                                 : QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Shell.qml")));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &application, []() {
         QCoreApplication::exit(3);
     }, Qt::QueuedConnection);

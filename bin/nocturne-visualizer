@@ -38,10 +38,10 @@ if command -v hyprctl >/dev/null; then
   address=$(hyprctl clients -j 2>/dev/null | jq -r '.[] | select(.class == "NocturneVisualizer" or .class == "com.nocturne.Visualizer") | .address' | head -n 1)
   if [[ -n $address ]]; then
     if [[ ${1:-} == choose || -n ${1:-} ]]; then
-      hyprctl dispatch closewindow "address:$address" >/dev/null
+      hyprctl dispatch "hl.dsp.window.close({ window = \"address:$address\" })" >/dev/null
       sleep 0.2
     else
-      hyprctl dispatch focuswindow "address:$address" >/dev/null
+      hyprctl dispatch "hl.dsp.focus({ window = \"address:$address\" })" >/dev/null
       exit 0
     fi
   fi

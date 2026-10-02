@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Nocturne Shell
+Comment=Native controls for the Nocturne Hyprland desktop
+Exec=@LAUNCHER@ launcher
+Icon=preferences-system
+Terminal=false
+Categories=System;
+NoDisplay=true
+StartupNotify=false
+StartupWMClass=nocturne-native

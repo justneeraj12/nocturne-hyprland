@@ -4,29 +4,26 @@ set -euo pipefail
 if [[ -n ${1:-} ]]; then
   choice=$1
 else
-  quick="$HOME/.config/hypr/scripts/quick-menu"
-  if "$quick" --toggle ACCENT; then exit 0; fi
-  choice=$(printf '%s\n' Green Teal Cyan Ice Slate Blue Indigo Purple Magenta Pink Red Rose Orange Amber Yellow Lime | \
-    "$quick" ACCENT auto 300 480 --insensitive) || exit 0
+  exec nocturne-settings
 fi
 
 case "${choice,,}" in
-  green)   gtk=green;  accent=5f8f76; accent2=477463; border=365c4c ;;
-  teal)    gtk=teal;   accent=4f9b95; accent2=35736f; border=2f6561 ;;
-  cyan)    gtk=teal;   accent=4aa6a8; accent2=2f7b80; border=28686d ;;
-  ice)     gtk=blue;   accent=8ab7c9; accent2=5f899b; border=4d7485 ;;
-  slate)   gtk=slate;  accent=82919c; accent2=5f707c; border=4d5d68 ;;
-  blue)    gtk=blue;   accent=638fb8; accent2=456f98; border=365d80 ;;
-  indigo)  gtk=purple; accent=707fb8; accent2=505f94; border=424f7d ;;
-  purple)  gtk=purple; accent=9476ad; accent2=705589; border=5e466f ;;
-  magenta) gtk=pink;   accent=ad6f9d; accent2=875177; border=713f63 ;;
-  pink)    gtk=pink;   accent=c07f9a; accent2=965b76; border=7f4a62 ;;
-  red)     gtk=red;    accent=a96666; accent2=844b4b; border=703d3d ;;
-  rose)    gtk=red;    accent=b8737b; accent2=91535c; border=79434c ;;
-  orange)  gtk=orange; accent=b17a51; accent2=8c5b38; border=754a2e ;;
-  amber)   gtk=yellow; accent=b89355; accent2=906d36; border=795b2d ;;
-  yellow)  gtk=yellow; accent=a9965c; accent2=82713e; border=6e5f33 ;;
-  lime)    gtk=green;  accent=86a65d; accent2=627f3f; border=526c34 ;;
+  green)   accent=5f8f76; accent2=477463; border=365c4c ;;
+  teal)    accent=4f9b95; accent2=35736f; border=2f6561 ;;
+  cyan)    accent=4aa6a8; accent2=2f7b80; border=28686d ;;
+  ice)     accent=8ab7c9; accent2=5f899b; border=4d7485 ;;
+  slate)   accent=82919c; accent2=5f707c; border=4d5d68 ;;
+  blue)    accent=638fb8; accent2=456f98; border=365d80 ;;
+  indigo)  accent=707fb8; accent2=505f94; border=424f7d ;;
+  purple)  accent=9476ad; accent2=705589; border=5e466f ;;
+  magenta) accent=ad6f9d; accent2=875177; border=713f63 ;;
+  pink)    accent=c07f9a; accent2=965b76; border=7f4a62 ;;
+  red)     accent=a96666; accent2=844b4b; border=703d3d ;;
+  rose)    accent=b8737b; accent2=91535c; border=79434c ;;
+  orange)  accent=b17a51; accent2=8c5b38; border=754a2e ;;
+  amber)   accent=b89355; accent2=906d36; border=795b2d ;;
+  yellow)  accent=a9965c; accent2=82713e; border=6e5f33 ;;
+  lime)    accent=86a65d; accent2=627f3f; border=526c34 ;;
   *) exit 0 ;;
 esac
 
@@ -38,7 +35,5 @@ printf 'general:col.active_border = rgba(%sff)\n' "$border" > "$config/accent.co
 mv "$config/accent.css.tmp" "$config/accent.css"
 mv "$config/accent.conf.tmp" "$config/accent.conf"
 "$HOME/.config/hypr/scripts/sync-hyprtoolkit-theme"
-DCONF_PROFILE="$HOME/.config/dconf/hyprland-profile" gsettings set org.gnome.desktop.interface accent-color "$gtk"
 hyprctl reload >/dev/null
-pkill -SIGUSR2 waybar 2>/dev/null || true
 notify-send 'Accent changed' "$choice"

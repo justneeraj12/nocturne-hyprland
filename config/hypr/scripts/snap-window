@@ -10,7 +10,7 @@ if [[ -z "$address" ]]; then
 fi
 
 if [[ $(jq -r '.floating' <<<"$active") == true ]]; then
-  hyprctl dispatch togglefloating >/dev/null
+  hyprctl dispatch 'hl.dsp.window.float({ action = "toggle" })' >/dev/null
   notify-send -a Nocturne 'Window snapped' 'It is now part of the tiling layout.'
 else
   notify-send -a Nocturne 'Already snapped' 'Super + V makes it floating; Super + drag moves it.'

@@ -1,8 +1,11 @@
 #include "backend.h"
+#include "traywatcher.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
+#include <QDBusInterface>
+#include <QDBusReply>
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
@@ -12,6 +15,8 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
+#include <QSettings>
+#include <algorithm>
 #include <unistd.h>
 
 Backend::Backend(QString surface, QString page, QObject *parent)
@@ -20,7 +25,47 @@ Backend::Backend(QString surface, QString page, QObject *parent)
     , m_page(std::move(page))
 {
     updateTargetScreen();
+    if (m_surface == QStringLiteral("bar")) m_trayWatcher = std::make_unique<TrayWatcher>(this);
+
+    const QStringList roots = {
+        home() + QStringLiteral("/.local/share/applications"),
+        QStringLiteral("/usr/local/share/applications"),
+        QStringLiteral("/usr/share/applications")
+    };
+    QSet<QString> seen;
+    for (const auto &root : roots) {
+        QDir directory(root);
+        for (const auto &fileName : directory.entryList({QStringLiteral("*.desktop")}, QDir::Files, QDir::Name)) {
+            if (seen.contains(fileName)) continue;
+            seen.insert(fileName);
+            const auto path = directory.filePath(fileName);
+            QSettings desktop(path, QSettings::IniFormat);
+            desktop.beginGroup(QStringLiteral("Desktop Entry"));
+            if (desktop.value(QStringLiteral("Type")).toString() != QStringLiteral("Application")
+                || desktop.value(QStringLiteral("Hidden"), false).toBool()
+                || desktop.value(QStringLiteral("NoDisplay"), false).toBool()) {
+                continue;
+            }
+            const auto name = desktop.value(QStringLiteral("Name")).toString().trimmed();
+            const auto command = desktop.value(QStringLiteral("Exec")).toString().trimmed();
+            if (name.isEmpty() || command.isEmpty()) continue;
+            m_applications.push_back(QVariantMap{
+                {QStringLiteral("name"), name},
+                {QStringLiteral("generic"), desktop.value(QStringLiteral("GenericName")).toString()},
+                {QStringLiteral("icon"), desktop.value(QStringLiteral("Icon")).toString()},
+                {QStringLiteral("path"), path},
+                {QStringLiteral("search"), (name + QLatin1Char(' ') + desktop.value(QStringLiteral("GenericName")).toString()
+                    + QLatin1Char(' ') + desktop.value(QStringLiteral("Keywords")).toString()).toLower()}
+            });
+        }
+    }
+    std::sort(m_applications.begin(), m_applications.end(), [](const QVariant &left, const QVariant &right) {
+        return left.toMap().value(QStringLiteral("name")).toString().localeAwareCompare(
+                   right.toMap().value(QStringLiteral("name")).toString()) < 0;
+    });
 }
+
+Backend::~Backend() = default;
 
 QString Backend::surface() const { return m_surface; }
 QString Backend::page() const { return m_page; }
@@ -31,6 +76,12 @@ QString Backend::runtime() const
     return configured.isEmpty() ? QStringLiteral("/run/user/%1").arg(getuid()) : configured;
 }
 QScreen *Backend::targetScreen() const { return m_targetScreen; }
+QVariantList Backend::screens() const
+{
+    QVariantList result;
+    for (auto *screen : QGuiApplication::screens()) result.push_back(QVariant::fromValue(screen));
+    return result;
+}
 QString Backend::baseColor() const { return paletteValue("base", "#07090a"); }
 QString Backend::surfaceColor() const { return paletteValue("surface", "#0b0f10"); }
 QString Backend::overlayColor() const { return paletteValue("overlay", "#111719"); }
@@ -124,6 +175,173 @@ QVariantList Backend::audioStreams() const
         streams.push_back(stream);
     }
     return streams;
+}
+
+QVariantList Backend::applications(const QString &query) const
+{
+    const auto needle = query.simplified().toLower();
+    if (needle.isEmpty()) {
+        return m_applications.mid(0, 80);
+    }
+    struct Match { int score; QVariant value; };
+    QList<Match> matches;
+    for (const auto &application : m_applications) {
+        const auto object = application.toMap();
+        const auto name = object.value(QStringLiteral("name")).toString().toLower();
+        const auto search = object.value(QStringLiteral("search")).toString();
+        int score = -1;
+        if (name == needle) score = 1000;
+        else if (name.startsWith(needle)) score = 800 - name.size();
+        else if (name.contains(needle)) score = 600 - name.indexOf(needle);
+        else if (search.contains(needle)) score = 400 - search.indexOf(needle);
+        else {
+            int position = 0;
+            for (const auto character : needle) {
+                position = search.indexOf(character, position);
+                if (position < 0) break;
+                ++position;
+            }
+            if (position >= 0) score = 100 - position;
+        }
+        if (score >= 0) matches.push_back({score, application});
+    }
+    std::sort(matches.begin(), matches.end(), [](const Match &left, const Match &right) {
+        if (left.score != right.score) return left.score > right.score;
+        return left.value.toMap().value(QStringLiteral("name")).toString().localeAwareCompare(
+                   right.value.toMap().value(QStringLiteral("name")).toString()) < 0;
+    });
+    QVariantList result;
+    for (const auto &match : matches) {
+        result.push_back(match.value);
+        if (result.size() == 80) break;
+    }
+    return result;
+}
+
+QVariantList Backend::trayItems() const
+{
+    QDBusInterface watcher(QStringLiteral("org.kde.StatusNotifierWatcher"),
+        QStringLiteral("/StatusNotifierWatcher"), QStringLiteral("org.kde.StatusNotifierWatcher"),
+        QDBusConnection::sessionBus());
+    const auto references = watcher.property("RegisteredStatusNotifierItems").toStringList();
+    QVariantList result;
+    for (const auto &reference : references) {
+        const int slash = reference.indexOf(QLatin1Char('/'));
+        if (slash <= 0) continue;
+        const auto service = reference.left(slash);
+        const auto path = reference.mid(slash);
+        QDBusInterface item(service, path, QStringLiteral("org.kde.StatusNotifierItem"), QDBusConnection::sessionBus());
+        if (!item.isValid()) continue;
+        auto title = item.property("Title").toString();
+        if (title.isEmpty()) title = item.property("Id").toString();
+        if (title.isEmpty()) title = service;
+        result.push_back(QVariantMap{
+            {QStringLiteral("reference"), reference},
+            {QStringLiteral("title"), title},
+            {QStringLiteral("icon"), item.property("IconName").toString()},
+            {QStringLiteral("status"), item.property("Status").toString()}
+        });
+    }
+    return result;
+}
+
+QVariantList Backend::notifications(const QString &collection) const
+{
+    const auto command = collection == QStringLiteral("history") ? QStringLiteral("history") : QStringLiteral("list");
+    const auto lines = run({QStringLiteral("makoctl"), command}, 1600).split(QLatin1Char('\n'));
+    const QRegularExpression heading(QStringLiteral("^Notification\\s+(\\d+):\\s*(.*)$"));
+    QVariantList result;
+    QVariantMap current;
+    for (const auto &line : lines) {
+        const auto match = heading.match(line);
+        if (match.hasMatch()) {
+            if (!current.isEmpty()) result.push_back(current);
+            current = QVariantMap{
+                {QStringLiteral("id"), match.captured(1).toInt()},
+                {QStringLiteral("summary"), match.captured(2)},
+                {QStringLiteral("history"), command == QStringLiteral("history")}
+            };
+        } else if (line.trimmed().startsWith(QStringLiteral("App name:"))) {
+            current.insert(QStringLiteral("app"), line.section(QLatin1Char(':'), 1).trimmed());
+        } else if (line.trimmed().startsWith(QStringLiteral("Urgency:"))) {
+            current.insert(QStringLiteral("urgency"), line.section(QLatin1Char(':'), 1).trimmed());
+        }
+    }
+    if (!current.isEmpty()) result.push_back(current);
+    return result;
+}
+
+QVariantList Backend::clipboardItems(const QString &query) const
+{
+    const auto needle = query.simplified();
+    QVariantList result;
+    const auto lines = run({QStringLiteral("cliphist"), QStringLiteral("list")}, 1600).split(QLatin1Char('\n'));
+    for (const auto &entry : lines) {
+        if (entry.isEmpty() || (!needle.isEmpty() && !entry.contains(needle, Qt::CaseInsensitive))) continue;
+        auto preview = entry.section(QLatin1Char('\t'), 1);
+        if (preview.isEmpty()) preview = entry;
+        result.push_back(QVariantMap{{QStringLiteral("entry"), entry}, {QStringLiteral("preview"), preview}});
+        if (result.size() == 100) break;
+    }
+    return result;
+}
+
+bool Backend::copyClipboardItem(const QString &entry) const
+{
+    if (entry.isEmpty()) return false;
+    QProcess decode;
+    decode.start(QStringLiteral("cliphist"), {QStringLiteral("decode")});
+    if (!decode.waitForStarted(1000)) return false;
+    decode.write(entry.toUtf8());
+    decode.closeWriteChannel();
+    if (!decode.waitForFinished(2000) || decode.exitCode() != 0) return false;
+    QProcess copy;
+    copy.start(QStringLiteral("wl-copy"));
+    if (!copy.waitForStarted(1000)) return false;
+    copy.write(decode.readAllStandardOutput());
+    copy.closeWriteChannel();
+    const bool copied = copy.waitForFinished(2000) && copy.exitCode() == 0;
+    if (copied) QCoreApplication::quit();
+    return copied;
+}
+
+bool Backend::activateTrayItem(const QString &reference, const QString &action) const
+{
+    const int slash = reference.indexOf(QLatin1Char('/'));
+    if (slash <= 0) return false;
+    QDBusInterface item(reference.left(slash), reference.mid(slash),
+        QStringLiteral("org.kde.StatusNotifierItem"), QDBusConnection::sessionBus());
+    if (!item.isValid()) return false;
+    QString method = QStringLiteral("Activate");
+    if (action == QStringLiteral("context")) method = QStringLiteral("ContextMenu");
+    else if (action == QStringLiteral("secondary")) method = QStringLiteral("SecondaryActivate");
+    return item.call(method, 0, 0).type() != QDBusMessage::ErrorMessage;
+}
+
+bool Backend::launchApplication(const QString &desktopFile) const
+{
+    QSettings desktop(QDir::cleanPath(desktopFile), QSettings::IniFormat);
+    desktop.beginGroup(QStringLiteral("Desktop Entry"));
+    auto command = desktop.value(QStringLiteral("Exec")).toString();
+    if (command.isEmpty()) return false;
+    command.replace(QStringLiteral("%%"), QStringLiteral("%"));
+    command.remove(QRegularExpression(QStringLiteral("\\s*%[fFuUdDnNickvm]")));
+    auto arguments = QProcess::splitCommand(command);
+    if (arguments.isEmpty()) return false;
+    const auto program = arguments.takeFirst();
+    if (desktop.value(QStringLiteral("Terminal"), false).toBool()) {
+        arguments.prepend(program);
+        arguments.prepend(QStringLiteral("-e"));
+        arguments.prepend(QStringLiteral("kitty"));
+        const auto terminal = arguments.takeFirst();
+        const bool launched = QProcess::startDetached(terminal, arguments);
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
+    const auto workingDirectory = desktop.value(QStringLiteral("Path")).toString();
+    const bool launched = QProcess::startDetached(program, arguments, workingDirectory);
+    if (launched) QCoreApplication::quit();
+    return launched;
 }
 
 QVariantList Backend::wallpapers() const
