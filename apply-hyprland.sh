@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland hyprlock hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy wf-recorder)
+required=(Hyprland gtklock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist grim slurp wl-copy wf-recorder)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -29,14 +29,14 @@ fi
 
 snapshot="$ROOT_DIR/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
-for relative in hypr waybar wofi swaync kitty btop tmux qt6ct kdeglobals; do
+for relative in hypr gtklock waybar wofi swaync kitty btop tmux qt6ct kdeglobals; do
   if [[ -e "$CONFIG_HOME/$relative" ]]; then
     cp -a -- "$CONFIG_HOME/$relative" "$snapshot/$relative"
   fi
 done
 printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "$snapshot/README.txt"
 
-mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
+mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/gtklock" "$CONFIG_HOME/waybar" "$CONFIG_HOME/wofi" \
   "$CONFIG_HOME/swaync" "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screencasts" \
@@ -48,6 +48,7 @@ if [[ ! -e "$STATE_HOME/nocturne/lock-wallpaper" && ! -L "$STATE_HOME/nocturne/l
     "$STATE_HOME/nocturne/lock-wallpaper"
 fi
 cp -a -- "$ROOT_DIR/config/hypr/." "$CONFIG_HOME/hypr/"
+cp -a -- "$ROOT_DIR/config/gtklock/." "$CONFIG_HOME/gtklock/"
 cp -a -- "$ROOT_DIR/config/waybar/." "$CONFIG_HOME/waybar/"
 cp -a -- "$ROOT_DIR/config/wofi/." "$CONFIG_HOME/wofi/"
 cp -a -- "$ROOT_DIR/config/swaync/." "$CONFIG_HOME/swaync/"

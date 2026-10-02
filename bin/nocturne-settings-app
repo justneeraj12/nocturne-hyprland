@@ -649,7 +649,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.action_row(box, "Notification history", "Review missed alerts or toggle do-not-disturb.", [("OPEN", ["swaync-client", "-t", "-sw"], "")])
         self.action_row(box, "Clipboard history", "Search and paste previous text or image clipboard items.", [("OPEN", [str(SCRIPT_HOME / "clipboard")], "")])
         self.section(box, "Session")
-        self.action_row(box, "Lock screen", "Lock now with the Nocturne security console.", [("LOCK", ["hyprlock"], "")])
+        self.action_row(box, "Lock screen", "Lock now with the Nocturne security console.", [("LOCK", [str(HOME / ".config/hypr/scripts/lock-screen")], "")])
         return scroll
 
     def system_page(self) -> Gtk.Widget:

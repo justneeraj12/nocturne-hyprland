@@ -12,7 +12,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────'
 
-required=(Hyprland hyprctl hyprpaper waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus grim slurp wl-copy wf-recorder)
+required=(Hyprland hyprctl hyprland-dialog gtklock hyprpaper waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl brightnessctl powerprofilesctl playerctl nautilus grim slurp wl-copy wf-recorder)
 missing=()
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
@@ -82,16 +82,11 @@ else
   bad 'Capture panel is not responding'
 fi
 if [[ -r $HOME/.local/state/nocturne/lock-wallpaper ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-status ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-date ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-weather ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-world ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-media ]] \
-    && [[ -x $HOME/.config/hypr/scripts/lock-notifications ]] \
-    && rg -q 'path = ~/.local/state/nocturne/lock-wallpaper' "$HOME/.config/hypr/hyprlock.conf" \
-    && rg -q 'lock-world' "$HOME/.config/hypr/hyprlock.conf" \
-    && [[ -r /etc/pam.d/hyprlock ]]; then
-  ok 'Lock screen weather, world time, media, notifications and PAM authentication are wired'
+    && [[ -x $HOME/.config/hypr/scripts/lock-screen ]] \
+    && [[ -r $HOME/.config/gtklock/style.css ]] \
+    && rg -q 'lock-screen' "$HOME/.config/hypr/hypridle.conf" \
+    && [[ -r /etc/pam.d/gtklock ]]; then
+  ok 'Crash-resistant GTK lock screen and PAM authentication are wired'
 else
   bad 'Lock screen integration is incomplete'
 fi
@@ -150,7 +145,7 @@ kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect service respo
 fc-match 'Inter' | rg -qi 'Inter' && ok 'Inter UI font is installed' || warning 'Inter font fallback is in use'
 fc-match 'MesloLGS Nerd Font Mono' | rg -qi 'Meslo' && ok 'Nerd Font icons are installed' || bad 'Meslo Nerd Font is missing'
 
-for file in "$HOME/.config/waybar/config.jsonc" "$HOME/.config/swaync/config.json" "$HOME/.config/nocturne/locations.json"; do
+for file in "$HOME/.config/gtklock/style.css" "$HOME/.config/waybar/config.jsonc" "$HOME/.config/swaync/config.json" "$HOME/.config/nocturne/locations.json"; do
   [[ -r $file ]] && ok "Readable config: ${file#$HOME/}" || bad "Missing config: ${file#$HOME/}"
 done
 

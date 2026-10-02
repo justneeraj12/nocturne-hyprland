@@ -33,7 +33,7 @@ case "$choice" in
   *'Performance profile') exec "$HOME/.config/hypr/scripts/power-profile" set performance ;;
   *'Balanced profile') exec "$HOME/.config/hypr/scripts/power-profile" set balanced ;;
   *'Power saver profile') exec "$HOME/.config/hypr/scripts/power-profile" set power-saver ;;
-  *Lock*) exec hyprlock ;;
+  *Lock*) exec "$HOME/.config/hypr/scripts/lock-screen" ;;
   *Suspend) exec systemctl suspend ;;
   *out) exec uwsm stop ;;
   *Restart) exec systemctl reboot ;;

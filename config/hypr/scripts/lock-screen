@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Never start two ext-session-lock clients. A second client cannot recover a
+# compositor whose first client has already died after acquiring the lock.
+pgrep -x gtklock >/dev/null 2>&1 && exit 0
+
+style=${XDG_CONFIG_HOME:-"$HOME/.config"}/gtklock/style.css
+background=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/lock-wallpaper
+
+args=(
+  --gtk-theme Adwaita-dark
+  --style "$style"
+  --time-format '%I:%M %p'
+  --date-format '%A  //  %d %B %Y'
+  --follow-focus
+)
+[[ -r $background ]] && args+=(--background "$background")
+
+exec gtklock "${args[@]}"

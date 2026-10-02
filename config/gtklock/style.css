@@ -1,0 +1,111 @@
+/* Nocturne's lock screen deliberately uses only GTK's built-in widgets.
+ * Keeping the lock path free of polling scripts and custom GPU resources makes
+ * suspend/resume considerably less fragile than the previous Hyprlock HUD. */
+
+window {
+  background-color: #050809;
+  color: #e1ebe7;
+  font-family: "JetBrains Mono", monospace;
+}
+
+#window-box {
+  min-width: 680px;
+  margin: 0;
+  padding: 44px 58px 48px;
+  background-color: rgba(5, 8, 9, 0.94);
+  border: 1px solid #315345;
+  border-left: 6px solid #55d6a9;
+  border-radius: 0;
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.60);
+}
+
+#info-box,
+#time-box {
+  margin: 0;
+  padding: 0;
+}
+
+#clock-label {
+  color: #edf6f2;
+  font-family: "Inter Display SemiBold", "Inter", sans-serif;
+  font-size: 88px;
+  font-weight: 600;
+}
+
+#date-label {
+  margin: 2px 0 28px;
+  color: #85d6b4;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#body-grid {
+  margin-top: 4px;
+}
+
+#input-label {
+  margin-right: 12px;
+  color: #d0a15b;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+#input-field {
+  min-height: 48px;
+  padding: 0 14px;
+  color: #edf6f2;
+  caret-color: #55d6a9;
+  background-color: #080d0e;
+  border: 1px solid #315345;
+  border-radius: 0;
+  box-shadow: inset 4px 0 #55d6a9;
+  font-size: 15px;
+}
+
+#input-field:focus {
+  border-color: #55d6a9;
+  box-shadow: inset 4px 0 #55d6a9, 0 0 0 1px rgba(85, 214, 169, 0.26);
+}
+
+#input-field image {
+  color: #82958d;
+}
+
+#warning-label {
+  color: #d0a15b;
+  font-size: 10px;
+}
+
+#error-label,
+#message-box label.error {
+  color: #ff5f6d;
+  font-size: 10px;
+}
+
+#message-box {
+  margin-top: 8px;
+  color: #a4b7af;
+  font-size: 10px;
+}
+
+#unlock-button {
+  min-height: 44px;
+  margin-top: 10px;
+  padding: 0 18px;
+  color: #07100d;
+  background: #55d6a9;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#unlock-button:hover,
+#unlock-button:focus {
+  background: #78e2bd;
+}
+
+#unlock-button:active {
+  background: #3eb98f;
+}
