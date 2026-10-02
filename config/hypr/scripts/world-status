@@ -77,6 +77,6 @@ while IFS=$'\t' read -r label timezone; do
   fi
   tooltip+=$(printf '\n%-15s %s  %s %s°' "$label" "$local_time" "$(weather_icon "$code")" "$temperature")
 done < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
-tooltip+=$'\n\nClick: all cities  ·  Right: refresh weather'
+tooltip+=$'\n\nClick: world clocks + weather'
 
 jq -cn --arg text "$text" --arg tooltip "$tooltip" '{text:$text,tooltip:$tooltip,class:"world"}'

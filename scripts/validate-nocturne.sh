@@ -22,13 +22,18 @@ jq -e . "$root/config/swaync/config.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
 PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile \
-  "$root/bin/nocturne-calendar" \
   "$root/bin/nocturne-panel" \
   "$root/bin/nocturne-power-card" \
   "$root/bin/nocturne-settings-app"
 printf '[ OK ] Python surfaces\n'
 
 "$root/bin/nocturne-panel" --self-test >/dev/null
+grep -Fq 'elif panel == "brightness"' "$root/bin/nocturne-panel"
+grep -Fq 'elif panel == "calendar"' "$root/bin/nocturne-panel"
+grep -Fq 'elif panel == "world"' "$root/bin/nocturne-panel"
+! grep -Fq 'ESC OR CLICK OUTSIDE TO CLOSE' "$root/bin/nocturne-panel"
+! grep -Fq 'footer.append(self._button("󰍬  MIC"' "$root/bin/nocturne-panel"
+[[ ! -e $root/bin/nocturne-calendar && ! -e $root/config/hypr/scripts/clock-menu ]]
 printf '[ OK ] anchored panel model\n'
 
 Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \
@@ -48,6 +53,9 @@ jq -e '
   ((."modules-right" | index("bluetooth")) == null) and
   (."custom/connectivity"."on-click" == "~/.local/bin/nocturne-panel toggle connectivity wifi") and
   (.pulseaudio."on-click" == "~/.local/bin/nocturne-panel toggle audio") and
+  (."custom/brightness"."on-click" == "~/.local/bin/nocturne-panel toggle brightness") and
+  (."custom/local-clock"."on-click" == "~/.local/bin/nocturne-panel toggle calendar") and
+  (."custom/world"."on-click" == "~/.local/bin/nocturne-panel toggle world") and
   ((."modules-right" | index("group/tray-expander")) + 1 == (."modules-right" | index("custom/kdeconnect")))
 ' "$root/config/waybar/config.jsonc" >/dev/null
 printf '[ OK ] unified panels + tray left of KDE Connect\n'

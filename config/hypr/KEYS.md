@@ -28,7 +28,7 @@ QUICK PANELS
   Super + Ctrl + B        Bluetooth in the unified connectivity card
   Bar audio scroll        Change master volume
   Bar audio right-click   Mute/unmute master output
-  Any open card           Escape or click elsewhere to dismiss
+  Any open card           Stays open while used · outside click dismisses
 
 LAPTOP FUNCTION KEYS
   Mic mute                Toggle the PipeWire microphone + on-screen state
@@ -85,7 +85,7 @@ THE TOP BAR
 
   Ubuntu logo             Left apps · right quick controls · middle guide
   Center date/time        + means AM · − means PM · click interactive calendar
-  Globe + clock           All saved world times/weather · right refreshes
+  Globe + clock           All saved world times/weather in one native card
   Pomodoro                Left start/pause · middle skip · right reset
   Audio                   Left quick panel · middle visualizer · scroll volume
   Microphone              Red means in use · left mute · right audio panel

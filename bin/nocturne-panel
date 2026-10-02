@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import calendar as calendar_module
 import json
 import os
 import re
@@ -10,8 +11,10 @@ import subprocess
 import sys
 import threading
 from ctypes.util import find_library
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 os.environ["GDK_BACKEND"] = "wayland"
 
@@ -56,10 +59,13 @@ window { background: transparent; }
 .eyebrow { color: @ACCENT@; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
 .title { color: @TEXT@; font-size: 18px; font-weight: 800; }
 .timer { color: @TEXT@; font-family: "MesloLGS Nerd Font Mono"; font-size: 42px; font-weight: 800; }
+.clock { color: @TEXT@; font-family: "MesloLGS Nerd Font Mono"; font-size: 25px; font-weight: 800; }
+.month { color: @TEXT@; font-size: 16px; font-weight: 800; }
 .section { color: @MUTED@; font-size: 9px; font-weight: 800; letter-spacing: 1px; margin-top: 4px; }
 .subtle { color: @MUTED@; font-size: 10px; }
 .value { color: @TEXT@; font-family: "MesloLGS Nerd Font Mono"; font-weight: 700; }
 .active-text { color: @ACCENT@; font-weight: 700; }
+.glyph { font-family: "MesloLGS Nerd Font Mono"; font-size: 16px; }
 .danger-text { color: #ff8c96; }
 .surface { background: @SURFACE@; border: 1px solid @LINE@; padding: 8px; }
 .metrics { background: @SURFACE@; border-left: 2px solid @ACCENT@; padding: 7px 8px; }
@@ -69,6 +75,9 @@ button.active { color: @BASE@; background: @ACCENT@; border-color: @ACCENT2@; fo
 button.flat { background: transparent; border-color: transparent; padding: 2px 5px; }
 button.flat:hover { background: @OVERLAY@; border-color: @LINE@; }
 button.destructive { color: #ff8c96; border-color: #613038; }
+button.day { min-height: 31px; padding: 0; background: transparent; border-color: transparent; }
+button.day:hover { background: @OVERLAY@; border-color: @LINE@; }
+button.today { color: @BASE@; background: @ACCENT@; border-color: @ACCENT2@; font-weight: 800; }
 scale trough { min-height: 5px; background: @LINE@; border-radius: 0; }
 scale highlight { background: @ACCENT@; border-radius: 0; }
 scale slider { min-width: 13px; min-height: 13px; margin: -5px; background: @TEXT@; border: 1px solid @ACCENT2@; border-radius: 0; }
@@ -150,8 +159,10 @@ class NocturnePanel(Gtk.Application):
         self.visible_panel = ""
         self.visible_page = ""
         self.was_active = False
+        self.pointer_inside = False
+        self.dismiss_armed = False
         self.timer_ids: list[int] = []
-        self.audio_expanded = False
+        self.audio_expanded = True
         self.wifi_password_for = ""
         self.metric_label: Gtk.Label | None = None
         self.previous_bytes: tuple[int, int, float] | None = None
@@ -159,6 +170,12 @@ class NocturnePanel(Gtk.Application):
         self._pending_master: int | None = None
         self._stream_debounce: dict[int, int] = {}
         self._pending_streams: dict[int, int] = {}
+        self._brightness_debounce = 0
+        self._pending_brightness: int | None = None
+        today = date.today()
+        self.calendar_year = today.year
+        self.calendar_month = today.month
+        self.calendar_selected = today
         self._held = False
 
     def do_startup(self) -> None:
@@ -202,6 +219,8 @@ class NocturnePanel(Gtk.Application):
         self.visible_panel = panel
         self.visible_page = page
         self.was_active = False
+        self.pointer_inside = False
+        self.dismiss_armed = False
         window = Gtk.ApplicationWindow(application=self, title=f"Nocturne {panel.title()}")
         window.set_decorated(False)
         window.set_resizable(False)
@@ -220,6 +239,10 @@ class NocturnePanel(Gtk.Application):
         keys = Gtk.EventControllerKey()
         keys.connect("key-pressed", self._key_pressed)
         window.add_controller(keys)
+        motion = Gtk.EventControllerMotion()
+        motion.connect("enter", self._pointer_enter)
+        motion.connect("leave", self._pointer_leave)
+        window.add_controller(motion)
         self.window = window
         if panel == "connectivity":
             child = self._connectivity(page or "wifi")
@@ -227,11 +250,18 @@ class NocturnePanel(Gtk.Application):
             child = self._audio()
         elif panel == "pomodoro":
             child = self._pomodoro()
+        elif panel == "brightness":
+            child = self._brightness()
+        elif panel == "calendar":
+            child = self._calendar()
+        elif panel == "world":
+            child = self._world()
         else:
             self._close()
             return
         window.set_child(child)
         window.present()
+        GLib.timeout_add(450, self._arm_dismissal)
         if panel == "pomodoro":
             self.timer_ids.append(GLib.timeout_add_seconds(1, self._refresh_pomodoro))
 
@@ -264,6 +294,7 @@ class NocturnePanel(Gtk.Application):
 
     def _destroy_window(self) -> None:
         self._flush_audio_pending()
+        self._flush_brightness_pending()
         self._clear_timers()
         self.metric_label = None
         self.previous_bytes = None
@@ -294,8 +325,24 @@ class NocturnePanel(Gtk.Application):
     def _activity_changed(self, window: Gtk.ApplicationWindow, _param: object) -> None:
         if window.is_active():
             self.was_active = True
-        elif self.was_active:
-            GLib.idle_add(self._close)
+        elif self.dismiss_armed and not self.pointer_inside:
+            GLib.timeout_add(80, self._close_if_outside)
+
+    def _pointer_enter(self, *_args: object) -> None:
+        self.pointer_inside = True
+        self.dismiss_armed = True
+
+    def _pointer_leave(self, *_args: object) -> None:
+        self.pointer_inside = False
+
+    def _arm_dismissal(self) -> bool:
+        self.dismiss_armed = True
+        return False
+
+    def _close_if_outside(self) -> bool:
+        if self.window and not self.window.is_active() and not self.pointer_inside:
+            self._close()
+        return False
 
     def _key_pressed(self, _controller: object, keyval: int, _keycode: int, _state: int) -> bool:
         if keyval == Gdk.KEY_Escape:
@@ -314,8 +361,18 @@ class NocturnePanel(Gtk.Application):
     @staticmethod
     def _button(label: str, callback: Callable[..., Any], *args: Any, css: str = "") -> Gtk.Button:
         button = Gtk.Button(label=label)
-        if css:
-            button.add_css_class(css)
+        for css_class in css.split():
+            button.add_css_class(css_class)
+        button.connect("clicked", callback, *args)
+        return button
+
+    @staticmethod
+    def _icon_button(icon_name: str, callback: Callable[..., Any], *args: Any) -> Gtk.Button:
+        button = Gtk.Button()
+        button.add_css_class("flat")
+        image = Gtk.Image.new_from_icon_name(icon_name)
+        image.set_pixel_size(17)
+        button.set_child(image)
         button.connect("clicked", callback, *args)
         return button
 
@@ -339,6 +396,7 @@ class NocturnePanel(Gtk.Application):
         row.add_css_class("surface")
         if icon:
             glyph = self._label(icon, "active-text", 0.5)
+            glyph.add_css_class("glyph")
             glyph.set_size_request(22, -1)
             row.append(glyph)
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
@@ -377,7 +435,6 @@ class NocturnePanel(Gtk.Application):
             root.append(self._bluetooth_page())
         else:
             root.append(self._vpn_page())
-        root.append(self._label("ESC OR CLICK OUTSIDE TO CLOSE", "section"))
         return root
 
     def _switch_connectivity(self, _button: Gtk.Button, page: str) -> None:
@@ -628,7 +685,10 @@ class NocturnePanel(Gtk.Application):
         volume = self._pulse_volume(sink)
         muted = bool(sink.get("mute", False))
         master_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        icon = self._button("" if muted else "", self._mute_master, css="flat")
+        icon = self._icon_button(
+            "audio-volume-muted-symbolic" if muted else "audio-volume-high-symbolic",
+            self._mute_master,
+        )
         master_header.append(icon)
         name_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         name_box.set_hexpand(True)
@@ -673,8 +733,10 @@ class NocturnePanel(Gtk.Application):
         root.append(outputs)
 
         streams = json_command(["pactl", "-f", "json", "list", "sink-inputs"])
+        if not isinstance(streams, list):
+            streams = []
         expander = self._button(
-            f"{'▴' if self.audio_expanded else '▾'}  APP MIXER  ·  {len(streams)} ACTIVE",
+            f"{'▴' if self.audio_expanded else '▾'}  APP VOLUME  ·  {len(streams)} ACTIVE",
             self._toggle_audio_apps,
         )
         root.append(expander)
@@ -685,10 +747,6 @@ class NocturnePanel(Gtk.Application):
             if not streams:
                 listing.append(self._label("No applications are currently producing audio.", "subtle"))
             root.append(self._scroll(listing, 265))
-        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
-        footer.append(self._button("󰍬  MIC", self._launch, ["pavucontrol", "--tab=4"]))
-        footer.append(self._button("󰺢  EQUALIZER", self._launch, ["easyeffects"]))
-        root.append(footer)
         return root
 
     @staticmethod
@@ -742,7 +800,13 @@ class NocturnePanel(Gtk.Application):
         title = self._label(name[:34], "value")
         title.set_hexpand(True)
         header.append(title)
-        header.append(self._button("" if muted else "", self._mute_stream, index, css="flat"))
+        header.append(
+            self._icon_button(
+                "audio-volume-muted-symbolic" if muted else "audio-volume-high-symbolic",
+                self._mute_stream,
+                index,
+            )
+        )
         value_label = self._label(f"{volume}%", "subtle", 1)
         header.append(value_label)
         outer.append(header)
@@ -787,6 +851,214 @@ class NocturnePanel(Gtk.Application):
         command(["pactl", "set-sink-input-mute", str(index), "toggle"])
         if self.window:
             self.window.set_child(self._audio())
+
+    # Brightness -----------------------------------------------------------
+    def _brightness(self) -> Gtk.Widget:
+        root = self._card("DISPLAY // BRIGHTNESS")
+        result = command(["brightnessctl", "-m"])
+        match = re.search(r",(\d+)%,", result.stdout)
+        value = int(match.group(1)) if match else 50
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=9)
+        brightness_icon = Gtk.Image.new_from_icon_name("display-brightness-symbolic")
+        brightness_icon.set_pixel_size(19)
+        header.append(brightness_icon)
+        names = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        names.set_hexpand(True)
+        names.append(self._label("LAPTOP DISPLAY", "value"))
+        names.append(self._label("Intel backlight · native control", "subtle"))
+        header.append(names)
+        value_label = self._label(f"{value}%", "value", 1)
+        header.append(value_label)
+        root.append(header)
+
+        slider = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 5, 100, 1)
+        slider.set_draw_value(False)
+        slider.set_value(value)
+        slider.connect("value-changed", self._brightness_changed, value_label)
+        root.append(slider)
+
+        root.append(self._label("QUICK LEVELS", "section"))
+        presets = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        for label, percent in (("DIM", 20), ("LOW", 35), ("BAL", 55), ("BRIGHT", 75), ("MAX", 100)):
+            button = self._button(label, self._brightness_preset, percent)
+            if abs(value - percent) < 5:
+                button.add_css_class("active")
+            presets.append(button)
+        root.append(presets)
+        return root
+
+    def _brightness_changed(self, scale: Gtk.Scale, label: Gtk.Label) -> None:
+        value = round(scale.get_value())
+        label.set_text(f"{value}%")
+        self._pending_brightness = value
+        if self._brightness_debounce:
+            GLib.source_remove(self._brightness_debounce)
+        self._brightness_debounce = GLib.timeout_add(75, self._set_brightness)
+
+    def _set_brightness(self) -> bool:
+        if self._pending_brightness is not None:
+            command([str(SCRIPTS / "brightness"), "set", str(self._pending_brightness)])
+        self._pending_brightness = None
+        self._brightness_debounce = 0
+        return False
+
+    def _brightness_preset(self, _button: Gtk.Button, value: int) -> None:
+        self._pending_brightness = value
+        self._flush_brightness_pending()
+        if self.window:
+            self.window.set_child(self._brightness())
+
+    def _flush_brightness_pending(self) -> None:
+        if self._brightness_debounce:
+            GLib.source_remove(self._brightness_debounce)
+            self._brightness_debounce = 0
+        if self._pending_brightness is not None:
+            command([str(SCRIPTS / "brightness"), "set", str(self._pending_brightness)])
+            self._pending_brightness = None
+
+    # Calendar + world clocks ---------------------------------------------
+    def _calendar(self) -> Gtk.Widget:
+        root = self._card("TIME // CALENDAR")
+        now = datetime.now()
+        root.append(self._label(now.strftime("%I:%M %p").lstrip("0"), "clock", 0.5))
+        root.append(self._label(now.strftime("%A · %d %B %Y"), "subtle", 0.5))
+
+        navigation = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        navigation.append(self._button("‹", self._calendar_shift, -1, css="flat"))
+        month = self._label(
+            f"{calendar_module.month_name[self.calendar_month].upper()}  {self.calendar_year}",
+            "month",
+            0.5,
+        )
+        month.set_hexpand(True)
+        navigation.append(month)
+        navigation.append(self._button("›", self._calendar_shift, 1, css="flat"))
+        root.append(navigation)
+
+        grid = Gtk.Grid(column_spacing=3, row_spacing=3, column_homogeneous=True)
+        for column, weekday in enumerate(("MO", "TU", "WE", "TH", "FR", "SA", "SU")):
+            grid.attach(self._label(weekday, "section", 0.5), column, 0, 1, 1)
+        today = date.today()
+        for row, week in enumerate(calendar_module.monthcalendar(self.calendar_year, self.calendar_month), start=1):
+            for column, day in enumerate(week):
+                if day == 0:
+                    grid.attach(self._label(""), column, row, 1, 1)
+                    continue
+                button = self._button(str(day), self._calendar_select, day, css="day")
+                current = date(self.calendar_year, self.calendar_month, day)
+                if current == today:
+                    button.add_css_class("today")
+                elif current == self.calendar_selected:
+                    button.add_css_class("active")
+                grid.attach(button, column, row, 1, 1)
+        root.append(grid)
+        root.append(self._label(self.calendar_selected.strftime("%A · %d %B"), "value", 0.5))
+
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        actions.append(self._button("TODAY", self._calendar_today, css="active"))
+        actions.append(self._button("OPEN AGENDA", self._launch, ["gnome-calendar"]))
+        root.append(actions)
+        return root
+
+    def _calendar_shift(self, _button: Gtk.Button, offset: int) -> None:
+        month = self.calendar_month + offset
+        self.calendar_year += (month - 1) // 12
+        self.calendar_month = (month - 1) % 12 + 1
+        self.calendar_selected = date(self.calendar_year, self.calendar_month, 1)
+        if self.window:
+            self.window.set_child(self._calendar())
+
+    def _calendar_select(self, _button: Gtk.Button, day: int) -> None:
+        self.calendar_selected = date(self.calendar_year, self.calendar_month, day)
+        if self.window:
+            self.window.set_child(self._calendar())
+
+    def _calendar_today(self, _button: Gtk.Button) -> None:
+        today = date.today()
+        self.calendar_year, self.calendar_month = today.year, today.month
+        self.calendar_selected = today
+        if self.window:
+            self.window.set_child(self._calendar())
+
+    @staticmethod
+    def _weather_icon(code: str) -> str:
+        try:
+            number = int(float(code))
+        except ValueError:
+            return "󰖐"
+        if number == 0:
+            return "󰖙"
+        if number in {1, 2, 3}:
+            return "󰖕"
+        if number in {45, 48}:
+            return "󰖑"
+        if number in {71, 73, 75, 77, 85, 86}:
+            return "󰖘"
+        if number in {95, 96, 99}:
+            return "󰖓"
+        if number >= 51:
+            return "󰖗"
+        return "󰖐"
+
+    def _world(self) -> Gtk.Widget:
+        root = self._card("WORLD // FAMILY CLOCKS")
+        config_path = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "nocturne" / "locations.json"
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            config = {"weather_locations": [], "local_weather": ""}
+        cache_path = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "nocturne" / "weather.tsv"
+        weather: dict[str, tuple[str, str]] = {}
+        try:
+            for line in cache_path.read_text(encoding="utf-8").splitlines():
+                label, temperature, code = line.split("\t", 2)
+                weather[label] = (temperature, code)
+        except (OSError, ValueError):
+            pass
+
+        heading = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        heading.append(self._label("LIVE CITY STATUS", "section"))
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        heading.append(spacer)
+        heading.append(self._button("󰑓  REFRESH", self._refresh_weather, css="flat glyph"))
+        root.append(heading)
+
+        listing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        local_weather = str(config.get("local_weather", ""))
+        for location in config.get("weather_locations", []):
+            label = str(location.get("label", "CITY"))
+            timezone = str(location.get("timezone", "UTC"))
+            try:
+                local = datetime.now(ZoneInfo(timezone))
+            except Exception:
+                local = datetime.now(ZoneInfo("UTC"))
+            suffix = "+" if local.strftime("%p") == "AM" else "−"
+            local_time = f"{local.strftime('%a')}  {local.strftime('%I:%M').lstrip('0')}{suffix}"
+            temperature, code = weather.get(label, ("--", ""))
+            metric = self._label(f"{self._weather_icon(code)}  {temperature}°C", "active-text", 1)
+            metric.add_css_class("glyph")
+            row = self._row(label, f"{location.get('name', label)} · {local_time}", metric, "󰥔")
+            if label == local_weather:
+                row.add_css_class("metrics")
+            listing.append(row)
+        if not config.get("weather_locations"):
+            listing.append(self._label("No saved cities in locations.json", "subtle"))
+        root.append(self._scroll(listing, 420))
+        return root
+
+    def _refresh_weather(self, _button: Gtk.Button) -> None:
+        cache_path = Path(os.environ.get("XDG_CACHE_HOME", HOME / ".cache")) / "nocturne" / "weather.tsv"
+        try:
+            cache_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        self._run_async([str(SCRIPTS / "world-status")], self._refresh_world, timeout=15)
+
+    def _refresh_world(self) -> bool:
+        if self.window and self.visible_panel == "world":
+            self.window.set_child(self._world())
+        return False
 
     # Pomodoro -------------------------------------------------------------
     def _pomodoro(self) -> Gtk.Widget:

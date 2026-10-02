@@ -95,8 +95,9 @@ control center, and middle opens the key guide. The full guide is in
   directly below the clicked icon. The zero-idle panel process also owns the
   matching master-volume/per-app mixer and Pomodoro card. GTK4 Layer Shell
   anchors every card before its first frame, eliminating the old floating-
-  window jump. Clicking the active icon again closes it, clicking elsewhere
-  dismisses it, and Escape closes it. Live interface, latency, link quality,
+  window jump. Clicking the active icon again closes it; moving between the
+  icon and controls never dismisses the card, while a real outside click does.
+  Live interface, latency, link quality,
   download/upload, and VPN metrics are sampled only while connectivity is
   visible. The native Nocturne panel replaces Orbit's
   launcher/focus-guard chain, `hyprpwcenter`, and their oversized auxiliary surfaces, while
@@ -104,8 +105,9 @@ control center, and middle opens the key guide. The full guide is in
   Blueman tray applet are persistently suppressed so duplicate icons cannot
   return. The system backends remain NetworkManager, BlueZ, and PipeWire/
   WirePlumber; only their shell-facing controls are themed.
-- The compact audio card switches real PipeWire outputs, per-app volume, and
-  physical microphones. Newly connected Bluetooth audio becomes the active
+- The compact audio card switches real PipeWire outputs and exposes debounced,
+  reliable master and per-app volume sliders. Microphone state remains a
+  separate bar control. Newly connected Bluetooth audio becomes the active
   output automatically while the laptop Digital Microphone stays preferred;
   choosing a headset mic temporarily enters HFP and switching back restores
   high-quality A2DP playback.
@@ -116,9 +118,10 @@ control center, and middle opens the key guide. The full guide is in
   actions. Super is a timed 30-minute maximum-supported CPU turbo + GameMode
   profile with automatic rollback; it deliberately avoids unsupported voltage
   or GPU power-limit overclocking. Restart and shutdown require a second
-  confirming click. The centered local date/time opens
-  a themed, interactive month calendar; a small globe+clock button opens every
-  saved world time and live weather entry. The
+  confirming click. The centered local date/time, brightness control, and
+  globe+clock button now use the same zero-idle native anchored panel. The
+  calendar is a sharp custom month grid; the world card shows every saved city,
+  its 12-hour `+`/`−` time, and live weather without legacy popup menus. The
   native Nocturne Settings app replaces the main GNOME Settings shell, which cannot run
   outside GNOME. It provides a sidebar for appearance, wallpapers,
   connectivity, sound, desktop, hardware, power and shortcut help. The

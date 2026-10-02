@@ -37,7 +37,7 @@ case "$choice" in
   *Accent*) exec "$HOME/.config/hypr/scripts/accent" ;;
   *Wallpaper) exec "$HOME/.config/hypr/scripts/wallpaper" ;;
   *'GTK application'*) exec nwg-look ;;
-  *brightness) exec "$HOME/.config/hypr/scripts/brightness" pick ;;
+  *brightness) exec "$HOME/.local/bin/nocturne-panel" toggle brightness ;;
   *Wi-Fi*) exec "$HOME/.local/bin/nocturne-panel" toggle connectivity wifi ;;
   *Bluetooth*) exec "$HOME/.local/bin/nocturne-panel" toggle connectivity bluetooth ;;
   *VPN*) exec "$HOME/.local/bin/nocturne-panel" toggle connectivity vpn ;;
@@ -46,7 +46,7 @@ case "$choice" in
   *'Nocturne visualizer'*) exec "$HOME/.local/bin/nocturne-visualizer" ;;
   *'Visualizer theme'*) exec "$HOME/.local/bin/nocturne-visualizer" choose ;;
   *routing*) exec qpwgraph ;;
-  *'Clock and'*) exec "$HOME/.config/hypr/scripts/clock-menu" ;;
+  *'Clock and'*) exec "$HOME/.local/bin/nocturne-panel" toggle world ;;
   *Notifications) exec swaync-client -t -sw ;;
   *caffeine) exec "$HOME/.config/hypr/scripts/caffeine" toggle ;;
   *Pomodoro) exec "$HOME/.config/hypr/scripts/pomodoro" toggle ;;

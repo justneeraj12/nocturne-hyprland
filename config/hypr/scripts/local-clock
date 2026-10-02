@@ -4,6 +4,6 @@ set -euo pipefail
 clock=$(date '+%I:%M')
 clock=${clock#0}
 if [[ $(date '+%p') == AM ]]; then marker='+'; else marker='−'; fi
-printf -v tooltip '%s\n%s\n%s' "$(date '+%A, %d %B %Y')" '+ AM  ·  − PM' 'Click: calendar · Right: world clocks'
+printf -v tooltip '%s\n%s\n%s' "$(date '+%A, %d %B %Y')" '+ AM  ·  − PM' 'Click: calendar · Right: world clocks + weather'
 jq -cn --arg text "$(date '+%a %d %b')  ·  ${clock}${marker}" --arg tooltip "$tooltip" \
   '{text:$text,tooltip:$tooltip,class:"local-clock"}'

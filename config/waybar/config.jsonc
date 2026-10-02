@@ -50,8 +50,7 @@
       "return-type": "json",
       "interval": 10,
       "tooltip": true,
-      "on-click": "~/.config/hypr/scripts/clock-menu",
-      "on-click-right": "~/.config/hypr/scripts/clock-menu refresh"
+      "on-click": "~/.local/bin/nocturne-panel toggle world"
     },
     "custom/pomodoro": {
       "exec": "~/.config/hypr/scripts/pomodoro status",
@@ -124,7 +123,7 @@
       "exec": "~/.config/hypr/scripts/brightness status",
       "return-type": "json",
       "interval": 2,
-      "on-click": "~/.config/hypr/scripts/brightness pick",
+      "on-click": "~/.local/bin/nocturne-panel toggle brightness",
       "on-scroll-up": "~/.config/hypr/scripts/brightness up",
       "on-scroll-down": "~/.config/hypr/scripts/brightness down"
     },
@@ -181,7 +180,7 @@
     },
     "custom/local-clock": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,
-      "on-click": "~/.local/bin/nocturne-calendar", "on-click-right": "~/.config/hypr/scripts/clock-menu"
+      "on-click": "~/.local/bin/nocturne-panel toggle calendar", "on-click-right": "~/.local/bin/nocturne-panel toggle world"
     },
     "custom/power": {
       "format": "󰐥", "tooltip-format": "Power menu",
@@ -233,11 +232,11 @@
     },
     "custom/local-clock#secondary": {
       "exec": "~/.config/hypr/scripts/local-clock", "return-type": "json", "interval": 1,
-      "on-click": "~/.local/bin/nocturne-calendar", "on-click-right": "~/.config/hypr/scripts/clock-menu"
+      "on-click": "~/.local/bin/nocturne-panel toggle calendar", "on-click-right": "~/.local/bin/nocturne-panel toggle world"
     },
     "custom/brightness#secondary": {
       "exec": "~/.config/hypr/scripts/brightness status", "return-type": "json", "interval": 2,
-      "on-click": "~/.config/hypr/scripts/brightness pick",
+      "on-click": "~/.local/bin/nocturne-panel toggle brightness",
       "on-scroll-up": "~/.config/hypr/scripts/brightness up",
       "on-scroll-down": "~/.config/hypr/scripts/brightness down"
     },

@@ -213,7 +213,7 @@ hl.bind("XF86KbdBrightnessUp", run(hardware .. " keyboard-light up"), { locked =
 hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { locked = true })
 hl.bind("XF86Tools", run(scripts .. "help"))
 
-local popup_class = "^(Wofi|com\\.nocturne\\.Calendar|com\\.nocturne\\.PowerCard)$"
+local popup_class = "^(Wofi|com\\.nocturne\\.PowerCard)$"
 hl.window_rule({ match = { class = "^(org.gnome.NautilusPreviewer)$" }, float = true })
 hl.window_rule({
     match = { class = popup_class },
