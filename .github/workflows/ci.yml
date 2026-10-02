@@ -32,6 +32,10 @@ jobs:
         run: |
           shellcheck -S error install.sh apply-hyprland.sh scripts/build-native.sh bin/nocturne-settings bin/nocturne-visualizer
           python3 -m py_compile bin/nocturne-capture-engine
-          jq -e . config/waybar/config.jsonc >/dev/null
-          jq -e . config/swaync/config.json >/dev/null
+          jq -e . config/locations.json config/nocturne/theme.json >/dev/null
+          test -f config/mako/config
+          test -f config/xdg-desktop-portal/hyprland-portals.conf
+          test ! -d config/waybar
+          test ! -d config/wofi
+          test ! -d config/swaync
           ! grep -R -E 'import gi|from gi|Gtk' native bin
