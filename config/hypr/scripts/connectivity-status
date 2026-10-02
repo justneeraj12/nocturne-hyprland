@@ -2,6 +2,44 @@
 set -euo pipefail
 
 case ${1:-} in
+  combined)
+    wifi_state=$(nmcli -t -f WIFI general 2>/dev/null || printf disabled)
+    wifi_row=$(nmcli -t --escape yes -f IN-USE,SSID,SIGNAL device wifi list --rescan no 2>/dev/null | awk -F: '$1 == "*" {print; exit}')
+    wifi_icon='󰤭'
+    wifi_detail='Wi-Fi off'
+    class=off
+    if [[ $wifi_state == enabled ]]; then
+      wifi_icon='󰤯'
+      wifi_detail='Wi-Fi disconnected'
+      class=idle
+      if [[ -n $wifi_row ]]; then
+        signal=${wifi_row##*:}
+        ssid=${wifi_row#*:}; ssid=${ssid%:*}; ssid=${ssid//\\:/:}
+        if ((signal >= 75)); then wifi_icon='󰤨'; elif ((signal >= 50)); then wifi_icon='󰤥'; elif ((signal >= 25)); then wifi_icon='󰤢'; else wifi_icon='󰤟'; fi
+        wifi_detail="$ssid · ${signal}%"
+        class=connected
+      fi
+    fi
+    bluetooth_show=$(bluetoothctl show 2>/dev/null || true)
+    bluetooth_icon='󰂲'
+    bluetooth_detail='Bluetooth off'
+    if grep -q $'Powered: yes' <<<"$bluetooth_show"; then
+      bluetooth_icon='󰂯'
+      mapfile -t bluetooth_devices < <(bluetoothctl devices Connected 2>/dev/null | sed -E 's/^Device [0-9A-F:]+ //')
+      if ((${#bluetooth_devices[@]})); then
+        bluetooth_icon='󰂱'
+        bluetooth_detail=$(printf '%s\n' "${bluetooth_devices[@]}" | paste -sd, - | sed 's/,/, /g')
+      else
+        bluetooth_detail='Bluetooth on · no active device'
+      fi
+    fi
+    vpn_count=$(nmcli -t --escape no -f TYPE connection show --active 2>/dev/null | awk '$0 == "vpn" || $0 == "wireguard" {count++} END {print count + 0}')
+    vpn_icon='󰦝'
+    ((vpn_count)) && class=connected
+    printf -v tooltip 'CONNECTIVITY\n%s\n%s\nVPN · %s active\nClick: unified controls' "$wifi_detail" "$bluetooth_detail" "$vpn_count"
+    jq -cn --arg text "$wifi_icon $bluetooth_icon $vpn_icon" --arg class "$class" --arg tooltip "$tooltip" \
+      '{text:$text,class:$class,tooltip:$tooltip}'
+    ;;
   wifi)
     if [[ $(nmcli -t -f WIFI general 2>/dev/null) != enabled ]]; then
       jq -cn '{text:"󰤭",class:"off",tooltip:"Wi-Fi is off\nClick: open connectivity"}'
@@ -38,5 +76,5 @@ case ${1:-} in
       jq -cn '{text:"󰂯",class:"on",tooltip:"Bluetooth on · no connected devices\nClick: Bluetooth devices"}'
     fi
     ;;
-  *) printf 'Usage: %s wifi|bluetooth\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s combined|wifi|bluetooth\n' "$0" >&2; exit 2 ;;
 esac

@@ -1,0 +1,852 @@
+#!/usr/bin/env python3
+"""Anchored Nocturne control panels backed by the system's native services."""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import threading
+from ctypes.util import find_library
+from pathlib import Path
+from typing import Any, Callable
+
+os.environ["GDK_BACKEND"] = "wayland"
+
+# Ubuntu's GI loader can resolve libwayland before gtk4-layer-shell. Re-exec
+# once with the layer library preloaded so windows are layer surfaces from
+# their first frame instead of briefly mapping as ordinary floating windows.
+LAYER_LIBRARY = next(
+    (
+        candidate
+        for candidate in (
+            "/usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0",
+            "/usr/lib/aarch64-linux-gnu/libgtk4-layer-shell.so.0",
+            find_library("gtk4-layer-shell"),
+        )
+        if candidate and (os.path.exists(candidate) or "/" not in candidate)
+    ),
+    "",
+)
+if LAYER_LIBRARY and os.environ.get("NOCTURNE_LAYER_READY") != "1":
+    environment = os.environ.copy()
+    existing_preload = environment.get("LD_PRELOAD", "")
+    environment["LD_PRELOAD"] = ":".join(filter(None, (LAYER_LIBRARY, existing_preload)))
+    environment["NOCTURNE_LAYER_READY"] = "1"
+    os.execve(sys.executable, [sys.executable, *sys.argv], environment)
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gdk, Gio, GLib, Gtk, Gtk4LayerShell  # noqa: E402
+
+
+HOME = Path.home()
+SCRIPTS = HOME / ".config" / "hypr" / "scripts"
+PANEL_WIDTH = 410
+
+CSS = b"""
+* { font-family: Inter, sans-serif; font-size: 11px; }
+window { background: transparent; }
+.card { background: alpha(@BASE@, .99); color: @TEXT@; border: 1px solid @ACCENT2@; border-bottom: 2px solid @LINE@; padding: 10px; }
+.eyebrow { color: @ACCENT@; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.title { color: @TEXT@; font-size: 18px; font-weight: 800; }
+.timer { color: @TEXT@; font-family: "MesloLGS Nerd Font Mono"; font-size: 42px; font-weight: 800; }
+.section { color: @MUTED@; font-size: 9px; font-weight: 800; letter-spacing: 1px; margin-top: 4px; }
+.subtle { color: @MUTED@; font-size: 10px; }
+.value { color: @TEXT@; font-family: "MesloLGS Nerd Font Mono"; font-weight: 700; }
+.active-text { color: @ACCENT@; font-weight: 700; }
+.danger-text { color: #ff8c96; }
+.surface { background: @SURFACE@; border: 1px solid @LINE@; padding: 8px; }
+.metrics { background: @SURFACE@; border-left: 2px solid @ACCENT@; padding: 7px 8px; }
+button { min-height: 30px; padding: 2px 8px; color: @TEXT@; background: @SURFACE@; border: 1px solid @LINE@; border-radius: 0; }
+button:hover { color: @TEXT@; background: @OVERLAY@; border-color: @ACCENT@; }
+button.active { color: @BASE@; background: @ACCENT@; border-color: @ACCENT2@; font-weight: 800; }
+button.flat { background: transparent; border-color: transparent; padding: 2px 5px; }
+button.flat:hover { background: @OVERLAY@; border-color: @LINE@; }
+button.destructive { color: #ff8c96; border-color: #613038; }
+scale trough { min-height: 5px; background: @LINE@; border-radius: 0; }
+scale highlight { background: @ACCENT@; border-radius: 0; }
+scale slider { min-width: 13px; min-height: 13px; margin: -5px; background: @TEXT@; border: 1px solid @ACCENT2@; border-radius: 0; }
+switch { background: @LINE@; border: 1px solid @LINE@; border-radius: 0; padding: 2px; }
+switch:checked { background: @ACCENT@; }
+switch slider { min-width: 15px; min-height: 15px; background: @TEXT@; border-radius: 0; }
+entry { min-height: 30px; color: @TEXT@; background: @SURFACE@; border: 1px solid @LINE@; border-radius: 0; }
+progressbar trough { min-height: 4px; background: @LINE@; }
+progressbar progress { background: @ACCENT@; }
+scrollbar slider { min-width: 3px; background: @ACCENT2@; border-radius: 0; }
+separator { background: @LINE@; min-height: 1px; }
+"""
+
+
+def command(args: list[str], timeout: float = 5, check: bool = False) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=timeout, check=check)
+    except (OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError) as error:
+        return subprocess.CompletedProcess(args, 1, "", str(error))
+
+
+def json_command(args: list[str]) -> Any:
+    result = command(args)
+    if result.returncode:
+        return []
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return []
+
+
+def themed_css(template: bytes) -> bytes:
+    colors = {
+        "BASE": "07090a", "SURFACE": "0b0f10", "OVERLAY": "111719",
+        "LINE": "1b2925", "TEXT": "a7b8b1", "MUTED": "4d5d58",
+        "ACCENT": "5f8f76", "ACCENT2": "477463",
+    }
+    config = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config")) / "nocturne"
+    for filename in ("palette.css", "accent.css"):
+        try:
+            data = (config / filename).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        for name in colors:
+            match = re.search(rf"^@define-color {name.lower()} #([0-9a-fA-F]{{6}});", data, re.MULTILINE)
+            if match:
+                colors[name] = match.group(1)
+    for name, value in colors.items():
+        template = template.replace(f"@{name}@".encode(), f"#{value}".encode())
+    return template
+
+
+def split_nmcli(line: str) -> list[str]:
+    fields: list[str] = []
+    current: list[str] = []
+    escaped = False
+    for character in line:
+        if escaped:
+            current.append(character)
+            escaped = False
+        elif character == "\\":
+            escaped = True
+        elif character == ":":
+            fields.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+    fields.append("".join(current))
+    return fields
+
+
+class NocturnePanel(Gtk.Application):
+    def __init__(self) -> None:
+        super().__init__(
+            application_id="com.nocturne.Panel",
+            flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
+        )
+        self.window: Gtk.ApplicationWindow | None = None
+        self.visible_panel = ""
+        self.visible_page = ""
+        self.was_active = False
+        self.timer_ids: list[int] = []
+        self.audio_expanded = False
+        self.wifi_password_for = ""
+        self.metric_label: Gtk.Label | None = None
+        self.previous_bytes: tuple[int, int, float] | None = None
+        self._master_debounce = 0
+        self._pending_master: int | None = None
+        self._stream_debounce: dict[int, int] = {}
+        self._pending_streams: dict[int, int] = {}
+        self._held = False
+
+    def do_startup(self) -> None:
+        Gtk.Application.do_startup(self)
+        self.hold()
+        self._held = True
+        provider = Gtk.CssProvider()
+        provider.load_from_data(themed_css(CSS))
+        Gtk.StyleContext.add_provider_for_display(
+            Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+    def do_activate(self) -> None:
+        return
+
+    def do_command_line(self, command_line: Gio.ApplicationCommandLine) -> int:
+        arguments = command_line.get_arguments()[1:]
+        if not arguments or arguments == ["--daemon"]:
+            self._exit_if_idle()
+            return 0
+        GLib.idle_add(self._dispatch, arguments)
+        return 0
+
+    def _dispatch(self, arguments: list[str]) -> bool:
+        if arguments[0] == "close":
+            self._close()
+            return False
+        if arguments[0] != "toggle" or len(arguments) < 2:
+            return False
+        panel = arguments[1]
+        page = arguments[2] if len(arguments) > 2 else ""
+        if self.window and self.window.get_visible() and self.visible_panel == panel:
+            if not page or page == self.visible_page:
+                self._close()
+                return False
+        self._show(panel, page)
+        return False
+
+    def _show(self, panel: str, page: str = "") -> None:
+        self._destroy_window()
+        self.visible_panel = panel
+        self.visible_page = page
+        self.was_active = False
+        window = Gtk.ApplicationWindow(application=self, title=f"Nocturne {panel.title()}")
+        window.set_decorated(False)
+        window.set_resizable(False)
+        window.set_default_size(PANEL_WIDTH, -1)
+        Gtk4LayerShell.init_for_window(window)
+        Gtk4LayerShell.set_namespace(window, "nocturne-panel")
+        Gtk4LayerShell.set_layer(window, Gtk4LayerShell.Layer.OVERLAY)
+        Gtk4LayerShell.set_keyboard_mode(window, Gtk4LayerShell.KeyboardMode.ON_DEMAND)
+        Gtk4LayerShell.set_anchor(window, Gtk4LayerShell.Edge.TOP, True)
+        Gtk4LayerShell.set_anchor(window, Gtk4LayerShell.Edge.RIGHT, True)
+        Gtk4LayerShell.set_exclusive_zone(window, -1)
+        Gtk4LayerShell.set_margin(window, Gtk4LayerShell.Edge.TOP, 33)
+        self._anchor_at_pointer(window)
+        window.connect("notify::is-active", self._activity_changed)
+        window.connect("close-request", lambda *_args: self._close() or True)
+        keys = Gtk.EventControllerKey()
+        keys.connect("key-pressed", self._key_pressed)
+        window.add_controller(keys)
+        self.window = window
+        if panel == "connectivity":
+            child = self._connectivity(page or "wifi")
+        elif panel == "audio":
+            child = self._audio()
+        elif panel == "pomodoro":
+            child = self._pomodoro()
+        else:
+            self._close()
+            return
+        window.set_child(child)
+        window.present()
+        if panel == "pomodoro":
+            self.timer_ids.append(GLib.timeout_add_seconds(1, self._refresh_pomodoro))
+
+    def _anchor_at_pointer(self, window: Gtk.ApplicationWindow) -> None:
+        cursor = json_command(["hyprctl", "cursorpos", "-j"])
+        monitors = json_command(["hyprctl", "monitors", "-j"])
+        if not isinstance(cursor, dict) or not isinstance(monitors, list):
+            Gtk4LayerShell.set_margin(window, Gtk4LayerShell.Edge.RIGHT, 8)
+            return
+        cursor_x = int(cursor.get("x", 0))
+        cursor_y = int(cursor.get("y", 0))
+        selected = next((item for item in monitors if int(item.get("x", 0)) <= cursor_x < int(item.get("x", 0)) + int(item.get("width", 0)) and int(item.get("y", 0)) <= cursor_y < int(item.get("y", 0)) + int(item.get("height", 0))), None)
+        if not selected:
+            Gtk4LayerShell.set_margin(window, Gtk4LayerShell.Edge.RIGHT, 8)
+            return
+        connector = str(selected.get("name", ""))
+        display = Gdk.Display.get_default()
+        model = display.get_monitors()
+        for index in range(model.get_n_items()):
+            monitor = model.get_item(index)
+            if monitor and monitor.get_connector() == connector:
+                Gtk4LayerShell.set_monitor(window, monitor)
+                break
+        left = int(selected.get("x", 0))
+        width = int(selected.get("width", 0))
+        local_x = cursor_x - left
+        margin = width - local_x - PANEL_WIDTH // 2
+        margin = max(8, min(width - PANEL_WIDTH - 8, margin))
+        Gtk4LayerShell.set_margin(window, Gtk4LayerShell.Edge.RIGHT, margin)
+
+    def _destroy_window(self) -> None:
+        self._flush_audio_pending()
+        self._clear_timers()
+        self.metric_label = None
+        self.previous_bytes = None
+        if self.window:
+            self.window.destroy()
+            self.window = None
+
+    def _clear_timers(self) -> None:
+        for timer_id in self.timer_ids:
+            GLib.source_remove(timer_id)
+        self.timer_ids.clear()
+
+    def _close(self) -> bool:
+        self._destroy_window()
+        self.visible_panel = ""
+        self.visible_page = ""
+        GLib.idle_add(self._exit_if_idle)
+        return False
+
+    def _exit_if_idle(self) -> bool:
+        if self.window is None:
+            if self._held:
+                self.release()
+                self._held = False
+            self.quit()
+        return False
+
+    def _activity_changed(self, window: Gtk.ApplicationWindow, _param: object) -> None:
+        if window.is_active():
+            self.was_active = True
+        elif self.was_active:
+            GLib.idle_add(self._close)
+
+    def _key_pressed(self, _controller: object, keyval: int, _keycode: int, _state: int) -> bool:
+        if keyval == Gdk.KEY_Escape:
+            self._close()
+            return True
+        return False
+
+    @staticmethod
+    def _label(text: str, css: str = "", xalign: float = 0) -> Gtk.Label:
+        label = Gtk.Label(label=text, xalign=xalign)
+        label.set_wrap(True)
+        if css:
+            label.add_css_class(css)
+        return label
+
+    @staticmethod
+    def _button(label: str, callback: Callable[..., Any], *args: Any, css: str = "") -> Gtk.Button:
+        button = Gtk.Button(label=label)
+        if css:
+            button.add_css_class(css)
+        button.connect("clicked", callback, *args)
+        return button
+
+    def _card(self, title: str) -> Gtk.Box:
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        root.add_css_class("card")
+        root.append(self._label(title, "eyebrow"))
+        return root
+
+    @staticmethod
+    def _scroll(child: Gtk.Widget, height: int = 310) -> Gtk.ScrolledWindow:
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_max_content_height(height)
+        scroll.set_propagate_natural_height(True)
+        scroll.set_child(child)
+        return scroll
+
+    def _row(self, title: str, subtitle: str = "", trailing: Gtk.Widget | None = None, icon: str = "") -> Gtk.Box:
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.add_css_class("surface")
+        if icon:
+            glyph = self._label(icon, "active-text", 0.5)
+            glyph.set_size_request(22, -1)
+            row.append(glyph)
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        text.set_hexpand(True)
+        text.append(self._label(title, "value"))
+        if subtitle:
+            text.append(self._label(subtitle, "subtle"))
+        row.append(text)
+        if trailing:
+            row.append(trailing)
+        return row
+
+    def _run_async(self, args: list[str], after: Callable[[], Any] | None = None, timeout: float = 12) -> None:
+        def worker() -> None:
+            command(args, timeout=timeout)
+            if after:
+                GLib.idle_add(after)
+        threading.Thread(target=worker, daemon=True).start()
+
+    # Connectivity ---------------------------------------------------------
+    def _connectivity(self, page: str) -> Gtk.Widget:
+        if page not in {"wifi", "bluetooth", "vpn"}:
+            page = "wifi"
+        self.visible_page = page
+        root = self._card("CONNECTIVITY // CONTROL")
+        tabs = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        for key, label in (("wifi", "󰤨  WI-FI"), ("bluetooth", "󰂯  BT"), ("vpn", "󰦝  VPN")):
+            button = self._button(label, self._switch_connectivity, key)
+            if key == page:
+                button.add_css_class("active")
+            tabs.append(button)
+        root.append(tabs)
+        if page == "wifi":
+            root.append(self._wifi_page())
+        elif page == "bluetooth":
+            root.append(self._bluetooth_page())
+        else:
+            root.append(self._vpn_page())
+        root.append(self._label("ESC OR CLICK OUTSIDE TO CLOSE", "section"))
+        return root
+
+    def _switch_connectivity(self, _button: Gtk.Button, page: str) -> None:
+        if self.window:
+            self._clear_timers()
+            self.visible_page = page
+            self.window.set_child(self._connectivity(page))
+
+    def _wifi_page(self) -> Gtk.Widget:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+        enabled = command(["nmcli", "-t", "-f", "WIFI", "general"]).stdout.strip() == "enabled"
+        switch = Gtk.Switch(active=enabled, valign=Gtk.Align.CENTER)
+        switch.connect("state-set", self._toggle_wifi)
+        box.append(self._row("Wi-Fi radio", "NetworkManager", switch, "󰤨"))
+
+        active = ""
+        signal = ""
+        rows = command(["nmcli", "-t", "--escape", "yes", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "no"]).stdout.splitlines()
+        networks: list[tuple[str, str, str, bool]] = []
+        seen: set[str] = set()
+        for line in rows:
+            fields = split_nmcli(line)
+            if len(fields) < 4 or not fields[1] or fields[1] in seen:
+                continue
+            in_use, ssid, strength, security = fields[:4]
+            seen.add(ssid)
+            networks.append((ssid, strength, security, in_use == "*"))
+            if in_use == "*":
+                active, signal = ssid, strength
+        status = self._row(active or "Not connected", f"{signal}% signal" if active else "Select a network below", icon="󰤨" if active else "󰤭")
+        status.add_css_class("metrics")
+        box.append(status)
+        self.metric_label = self._label("PING --  ↓ --  ↑ --", "subtle")
+        box.append(self.metric_label)
+        self._update_metrics()
+        self.timer_ids.append(GLib.timeout_add_seconds(2, self._update_metrics))
+
+        heading = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        heading.append(self._label("AVAILABLE NETWORKS", "section"))
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        heading.append(spacer)
+        heading.append(self._button("󰑓", self._refresh_wifi, css="flat"))
+        box.append(heading)
+
+        listing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        for ssid, strength, security, in_use in sorted(networks, key=lambda item: (not item[3], -int(item[1] or 0)))[:12]:
+            icon = "󰤨" if int(strength or 0) >= 70 else "󰤥" if int(strength or 0) >= 45 else "󰤟"
+            suffix = "CONNECTED" if in_use else (security or "OPEN")
+            action = self._button("DISCONNECT" if in_use else "CONNECT", self._wifi_action, ssid, in_use)
+            if in_use:
+                action.add_css_class("active")
+            listing.append(self._row(ssid, f"{strength}%  ·  {suffix}", action, icon))
+        if not networks:
+            listing.append(self._label("No cached networks. Press refresh to scan.", "subtle"))
+        box.append(self._scroll(listing, 285))
+
+        if self.wifi_password_for:
+            password_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+            entry = Gtk.PasswordEntry()
+            entry.set_hexpand(True)
+            entry.set_placeholder_text(f"Password for {self.wifi_password_for}")
+            entry.connect("activate", self._submit_wifi_password)
+            password_row.append(entry)
+            password_row.append(self._button("JOIN", self._submit_wifi_password, entry))
+            box.append(password_row)
+        return box
+
+    def _toggle_wifi(self, _switch: Gtk.Switch, state: bool) -> bool:
+        self._run_async(["nmcli", "radio", "wifi", "on" if state else "off"], self._refresh_connectivity)
+        return False
+
+    def _refresh_wifi(self, _button: Gtk.Button) -> None:
+        self._run_async(["nmcli", "device", "wifi", "rescan"], self._refresh_connectivity)
+
+    def _wifi_action(self, _button: Gtk.Button, ssid: str, in_use: bool) -> None:
+        if in_use:
+            self._run_async(["nmcli", "connection", "down", "id", ssid], self._refresh_connectivity)
+            return
+        saved = command(["nmcli", "-t", "-f", "NAME", "connection", "show"]).stdout.splitlines()
+        if ssid in saved:
+            self._run_async(["nmcli", "connection", "up", "id", ssid], self._refresh_connectivity)
+        else:
+            self.wifi_password_for = ssid
+            self._refresh_connectivity()
+
+    def _submit_wifi_password(self, widget: Gtk.Widget, entry: Gtk.PasswordEntry | None = None) -> None:
+        password_entry = entry if entry else widget
+        password = password_entry.get_text() if isinstance(password_entry, Gtk.PasswordEntry) else ""
+        args = ["nmcli", "device", "wifi", "connect", self.wifi_password_for]
+        if password:
+            args.extend(["password", password])
+        self.wifi_password_for = ""
+        self._run_async(args, self._refresh_connectivity, timeout=25)
+
+    def _refresh_connectivity(self) -> bool:
+        if self.window and self.visible_panel == "connectivity":
+            self._clear_timers()
+            self.window.set_child(self._connectivity(self.visible_page))
+        return False
+
+    def _update_metrics(self) -> bool:
+        if not self.metric_label or self.visible_page != "wifi":
+            return False
+        devices = command(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device", "status"]).stdout.splitlines()
+        interface = next((split_nmcli(line)[0] for line in devices if len(split_nmcli(line)) >= 3 and split_nmcli(line)[1:] == ["wifi", "connected"]), "")
+        if not interface:
+            self.metric_label.set_text("OFFLINE")
+            return True
+        try:
+            rx = int(Path(f"/sys/class/net/{interface}/statistics/rx_bytes").read_text())
+            tx = int(Path(f"/sys/class/net/{interface}/statistics/tx_bytes").read_text())
+        except (OSError, ValueError):
+            return True
+        now = GLib.get_monotonic_time() / 1_000_000
+        down = up = 0.0
+        if self.previous_bytes:
+            old_rx, old_tx, old_time = self.previous_bytes
+            elapsed = max(0.1, now - old_time)
+            down = max(0, rx - old_rx) / elapsed
+            up = max(0, tx - old_tx) / elapsed
+        self.previous_bytes = (rx, tx, now)
+        self.metric_label.set_text(f"{interface}  ·  PING …  ·  ↓ {self._rate(down)}  ·  ↑ {self._rate(up)}")
+        threading.Thread(target=self._ping_metric, daemon=True).start()
+        return True
+
+    def _ping_metric(self) -> None:
+        result = command(["ping", "-n", "-c", "1", "-W", "1", "1.1.1.1"], timeout=2)
+        match = re.search(r"time[=<]([0-9.]+)", result.stdout)
+        latency = f"{match.group(1)}ms" if match else "--"
+        GLib.idle_add(self._set_ping, latency)
+
+    def _set_ping(self, latency: str) -> bool:
+        if self.metric_label:
+            text = self.metric_label.get_text()
+            self.metric_label.set_text(re.sub(r"PING [^·]+", f"PING {latency} ", text))
+        return False
+
+    @staticmethod
+    def _rate(value: float) -> str:
+        return f"{value / 1_048_576:.1f}M/s" if value >= 1_048_576 else f"{value / 1024:.0f}K/s"
+
+    def _bluetooth_page(self) -> Gtk.Widget:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+        show = command(["bluetoothctl", "show"]).stdout
+        powered = "Powered: yes" in show
+        switch = Gtk.Switch(active=powered, valign=Gtk.Align.CENTER)
+        switch.connect("state-set", self._toggle_bluetooth)
+        box.append(self._row("Bluetooth radio", "BlueZ", switch, "󰂯"))
+        connected_lines = command(["bluetoothctl", "devices", "Connected"]).stdout.splitlines()
+        connected = {line.split()[1] for line in connected_lines if line.startswith("Device ") and len(line.split()) >= 3}
+        paired_lines = command(["bluetoothctl", "devices", "Paired"]).stdout.splitlines()
+        paired = {line.split()[1] for line in paired_lines if line.startswith("Device ") and len(line.split()) >= 3}
+        device_lines = command(["bluetoothctl", "devices"]).stdout.splitlines()
+        devices: list[tuple[str, str]] = []
+        for line in device_lines:
+            parts = line.split(maxsplit=2)
+            if len(parts) == 3:
+                devices.append((parts[1], parts[2]))
+        if connected:
+            names = [name for mac, name in devices if mac in connected]
+            box.append(self._row(", ".join(names) or f"{len(connected)} device(s)", "ACTIVE OUTPUT AVAILABLE", icon="󰂱"))
+        else:
+            box.append(self._row("No active device", "Paired devices remain available", icon="󰂯"))
+        heading = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        heading.append(self._label("DEVICES", "section"))
+        spacer = Gtk.Box()
+        spacer.set_hexpand(True)
+        heading.append(spacer)
+        heading.append(self._button("SCAN", self._scan_bluetooth, css="flat"))
+        box.append(heading)
+        listing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        for mac, name in devices:
+            active = mac in connected
+            is_paired = mac in paired
+            action = self._button("DISCONNECT" if active else "CONNECT", self._bluetooth_action, mac, active, is_paired)
+            if active:
+                action.add_css_class("active")
+            battery = command(["bluetoothctl", "info", mac]).stdout
+            match = re.search(r"Battery Percentage:.*\((\d+)\)", battery)
+            detail = "CONNECTED" if active else ("PAIRED" if is_paired else "AVAILABLE")
+            if match:
+                detail += f"  ·  {match.group(1)}%"
+            listing.append(self._row(name, detail, action, "󰋋" if "head" in name.lower() or "buds" in name.lower() else "󰂯"))
+        if not devices:
+            listing.append(self._label("No devices cached. Press SCAN to discover nearby hardware.", "subtle"))
+        box.append(self._scroll(listing, 300))
+        box.append(self._button("ADVANCED PAIRING", self._launch, ["blueman-manager"]))
+        return box
+
+    def _toggle_bluetooth(self, _switch: Gtk.Switch, state: bool) -> bool:
+        self._run_async(["bluetoothctl", "power", "on" if state else "off"], self._refresh_connectivity)
+        return False
+
+    def _scan_bluetooth(self, _button: Gtk.Button) -> None:
+        self._run_async(["bluetoothctl", "--timeout", "5", "scan", "on"], self._refresh_connectivity, timeout=7)
+
+    def _bluetooth_action(self, _button: Gtk.Button, mac: str, active: bool, paired: bool) -> None:
+        def worker() -> None:
+            if active:
+                command(["bluetoothctl", "disconnect", mac], timeout=18)
+            else:
+                if not paired:
+                    command(["bluetoothctl", "pair", mac], timeout=35)
+                    command(["bluetoothctl", "trust", mac], timeout=8)
+                command(["bluetoothctl", "connect", mac], timeout=20)
+            GLib.idle_add(self._refresh_connectivity)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _vpn_page(self) -> Gtk.Widget:
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+        active_lines = command(["nmcli", "-t", "--escape", "yes", "-f", "NAME,TYPE", "connection", "show", "--active"]).stdout.splitlines()
+        active = {split_nmcli(line)[0] for line in active_lines if len(split_nmcli(line)) > 1 and split_nmcli(line)[1] in {"vpn", "wireguard"}}
+        all_lines = command(["nmcli", "-t", "--escape", "yes", "-f", "NAME,TYPE", "connection", "show"]).stdout.splitlines()
+        vpns = [(fields[0], fields[1]) for line in all_lines if len((fields := split_nmcli(line))) > 1 and fields[1] in {"vpn", "wireguard"}]
+        box.append(self._row(f"{len(active)} active tunnel(s)", "NetworkManager VPN profiles", icon="󰦝"))
+        box.append(self._label("VPN PROFILES", "section"))
+        listing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
+        for name, vpn_type in vpns:
+            enabled = name in active
+            action = self._button("DISCONNECT" if enabled else "CONNECT", self._vpn_action, name, enabled)
+            if enabled:
+                action.add_css_class("active")
+            listing.append(self._row(name, f"{vpn_type.upper()}  ·  {'ACTIVE' if enabled else 'OFF'}", action, "󰦝"))
+        if not vpns:
+            listing.append(self._label("No VPN profiles configured.", "subtle"))
+        box.append(self._scroll(listing, 280))
+        box.append(self._button("EDIT CONNECTIONS", self._launch, ["nm-connection-editor"]))
+        return box
+
+    def _vpn_action(self, _button: Gtk.Button, name: str, active: bool) -> None:
+        args = ["nmcli", "connection", "down" if active else "up", "id", name]
+        self._run_async(args, self._refresh_connectivity, timeout=25)
+
+    def _launch(self, _button: Gtk.Button, args: list[str]) -> None:
+        try:
+            subprocess.Popen(args, start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
+        self._close()
+
+    # Audio ----------------------------------------------------------------
+    def _audio(self) -> Gtk.Widget:
+        root = self._card("AUDIO // MIXER")
+        sinks = json_command(["pactl", "-f", "json", "list", "sinks"])
+        default_sink = command(["pactl", "get-default-sink"]).stdout.strip()
+        sink = next((item for item in sinks if item.get("name") == default_sink), sinks[0] if sinks else {})
+        volume = self._pulse_volume(sink)
+        muted = bool(sink.get("mute", False))
+        master_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        icon = self._button("" if muted else "", self._mute_master, css="flat")
+        master_header.append(icon)
+        name_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        name_box.set_hexpand(True)
+        name_box.append(self._label("MASTER", "value"))
+        name_box.append(self._label(str(sink.get("description", "Default output")), "subtle"))
+        master_header.append(name_box)
+        percent = self._label(f"{volume}%", "value", 1)
+        master_header.append(percent)
+        root.append(master_header)
+        slider = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 150, 1)
+        slider.set_draw_value(False)
+        slider.set_value(volume)
+        slider.connect("value-changed", self._master_volume_changed, percent)
+        root.append(slider)
+
+        root.append(self._label("OUTPUT DEVICE", "section"))
+        outputs = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        outputs.set_homogeneous(True)
+        visible_sinks = [item for item in sinks if not str(item.get("name", "")).endswith(".monitor") and item.get("name") != "easyeffects_sink"]
+        visible_sinks.sort(
+            key=lambda item: (
+                item.get("name") != default_sink,
+                "bluez" not in str(item.get("name", "")).lower(),
+                not any(word in str(item.get("description", "")).lower() for word in ("headphone", "headset", "speaker")),
+            )
+        )
+        for item in visible_sinks[:3]:
+            label = str(item.get("description", item.get("name", "OUTPUT")))
+            hdmi = re.search(r"HDMI\s*/\s*DisplayPort\s*(\d+)?", label, re.IGNORECASE)
+            if hdmi:
+                short = f"HDMI {hdmi.group(1) or ''}".strip()
+            elif "headphone" in label.lower():
+                short = "HEADPHONES"
+            elif "speaker" in label.lower():
+                short = "SPEAKERS"
+            else:
+                short = label[:18]
+            button = self._button(short or "OUTPUT", self._set_output, str(item.get("name", "")))
+            if item.get("name") == default_sink:
+                button.add_css_class("active")
+            outputs.append(button)
+        root.append(outputs)
+
+        streams = json_command(["pactl", "-f", "json", "list", "sink-inputs"])
+        expander = self._button(
+            f"{'▴' if self.audio_expanded else '▾'}  APP MIXER  ·  {len(streams)} ACTIVE",
+            self._toggle_audio_apps,
+        )
+        root.append(expander)
+        if self.audio_expanded:
+            listing = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
+            for stream in streams:
+                listing.append(self._stream_row(stream))
+            if not streams:
+                listing.append(self._label("No applications are currently producing audio.", "subtle"))
+            root.append(self._scroll(listing, 265))
+        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        footer.append(self._button("󰍬  MIC", self._launch, ["pavucontrol", "--tab=4"]))
+        footer.append(self._button("󰺢  EQUALIZER", self._launch, ["easyeffects"]))
+        root.append(footer)
+        return root
+
+    @staticmethod
+    def _pulse_volume(item: dict[str, Any]) -> int:
+        values = [int(channel.get("value_percent", "0%").rstrip("%")) for channel in item.get("volume", {}).values()]
+        return round(sum(values) / len(values)) if values else 0
+
+    def _master_volume_changed(self, scale: Gtk.Scale, label: Gtk.Label) -> None:
+        value = round(scale.get_value())
+        label.set_text(f"{value}%")
+        self._pending_master = value
+        if self._master_debounce:
+            GLib.source_remove(self._master_debounce)
+        self._master_debounce = GLib.timeout_add(80, self._set_master_volume)
+
+    def _set_master_volume(self) -> bool:
+        if self._pending_master is not None:
+            command(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self._pending_master}%"])
+        self._pending_master = None
+        self._master_debounce = 0
+        return False
+
+    def _mute_master(self, _button: Gtk.Button) -> None:
+        command(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"])
+        if self.window:
+            self.window.set_child(self._audio())
+
+    def _set_output(self, _button: Gtk.Button, sink: str) -> None:
+        command([str(SCRIPTS / "audio-route"), "set", sink, sink])
+        if self.window:
+            self.window.set_child(self._audio())
+
+    def _toggle_audio_apps(self, _button: Gtk.Button) -> None:
+        self.audio_expanded = not self.audio_expanded
+        if self.window:
+            self.window.set_child(self._audio())
+
+    def _stream_row(self, stream: dict[str, Any]) -> Gtk.Widget:
+        properties = stream.get("properties", {})
+        name = str(properties.get("application.name") or properties.get("media.name") or "Application")
+        icon_name = str(properties.get("application.icon_name") or "audio-x-generic-symbolic")
+        index = int(stream.get("index", 0))
+        volume = self._pulse_volume(stream)
+        muted = bool(stream.get("mute", False))
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)
+        outer.add_css_class("surface")
+        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+        image = Gtk.Image.new_from_icon_name(icon_name)
+        image.set_pixel_size(18)
+        header.append(image)
+        title = self._label(name[:34], "value")
+        title.set_hexpand(True)
+        header.append(title)
+        header.append(self._button("" if muted else "", self._mute_stream, index, css="flat"))
+        value_label = self._label(f"{volume}%", "subtle", 1)
+        header.append(value_label)
+        outer.append(header)
+        scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 150, 1)
+        scale.set_draw_value(False)
+        scale.set_value(volume)
+        scale.connect("value-changed", self._stream_volume_changed, index, value_label)
+        outer.append(scale)
+        return outer
+
+    def _stream_volume_changed(self, scale: Gtk.Scale, index: int, label: Gtk.Label) -> None:
+        value = round(scale.get_value())
+        label.set_text(f"{value}%")
+        self._pending_streams[index] = value
+        source_id = self._stream_debounce.get(index, 0)
+        if source_id:
+            GLib.source_remove(source_id)
+        self._stream_debounce[index] = GLib.timeout_add(80, self._set_stream_volume, index)
+
+    def _set_stream_volume(self, index: int) -> bool:
+        value = self._pending_streams.pop(index, None)
+        if value is not None:
+            command(["pactl", "set-sink-input-volume", str(index), f"{value}%"])
+        self._stream_debounce.pop(index, None)
+        return False
+
+    def _flush_audio_pending(self) -> None:
+        if self._master_debounce:
+            GLib.source_remove(self._master_debounce)
+            self._master_debounce = 0
+        if self._pending_master is not None:
+            command(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", f"{self._pending_master}%"])
+            self._pending_master = None
+        for source_id in self._stream_debounce.values():
+            GLib.source_remove(source_id)
+        self._stream_debounce.clear()
+        for index, value in self._pending_streams.items():
+            command(["pactl", "set-sink-input-volume", str(index), f"{value}%"])
+        self._pending_streams.clear()
+
+    def _mute_stream(self, _button: Gtk.Button, index: int) -> None:
+        command(["pactl", "set-sink-input-mute", str(index), "toggle"])
+        if self.window:
+            self.window.set_child(self._audio())
+
+    # Pomodoro -------------------------------------------------------------
+    def _pomodoro(self) -> Gtk.Widget:
+        root = self._card("FOCUS // POMODORO")
+        data = json_command([str(SCRIPTS / "pomodoro"), "inspect"])
+        if not isinstance(data, dict):
+            data = {"mode": "work", "running": False, "remaining": 1500, "total": 1500, "cycles": 0, "auto": False}
+        remaining = max(0, int(data.get("remaining", 0)))
+        total = max(1, int(data.get("total", 1)))
+        mode = str(data.get("mode", "work"))
+        running = bool(data.get("running", False))
+        root.append(self._label("FOCUS" if mode == "work" else "RECOVERY", "section", 0.5))
+        root.append(self._label(f"{remaining // 60:02d}:{remaining % 60:02d}", "timer", 0.5))
+        progress = Gtk.ProgressBar(fraction=max(0, min(1, 1 - remaining / total)))
+        root.append(progress)
+        root.append(self._label(f"CYCLE {int(data.get('cycles', 0)) + 1}  ·  {'RUNNING' if running else 'PAUSED'}", "subtle", 0.5))
+        controls = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        controls.append(self._button("PAUSE" if running else "START", self._pomodoro_action, "toggle", css="active" if running else ""))
+        controls.append(self._button("RESET", self._pomodoro_action, "reset"))
+        controls.append(self._button("SKIP", self._pomodoro_action, "skip"))
+        root.append(controls)
+        root.append(self._label("PRESETS", "section"))
+        presets = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5, homogeneous=True)
+        for label, work, rest in (("25 / 5", 25, 5), ("50 / 10", 50, 10), ("15 / 5", 15, 5)):
+            presets.append(self._button(label, self._pomodoro_preset, work, rest))
+        root.append(presets)
+        auto = Gtk.Switch(active=bool(data.get("auto", False)), valign=Gtk.Align.CENTER)
+        auto.connect("state-set", self._pomodoro_auto)
+        root.append(self._row("Auto-start next interval", "Continue focus/break cycles automatically", auto, "󰑓"))
+        root.append(self._label("NOTIFICATIONS FIRE AT EVERY TRANSITION", "section"))
+        return root
+
+    def _pomodoro_action(self, _button: Gtk.Button, action: str) -> None:
+        command([str(SCRIPTS / "pomodoro"), action])
+        self._refresh_pomodoro()
+
+    def _pomodoro_preset(self, _button: Gtk.Button, work: int, rest: int) -> None:
+        command([str(SCRIPTS / "pomodoro"), "preset", str(work), str(rest)])
+        self._refresh_pomodoro()
+
+    def _pomodoro_auto(self, _switch: Gtk.Switch, state: bool) -> bool:
+        command([str(SCRIPTS / "pomodoro"), "auto", "on" if state else "off"])
+        GLib.idle_add(self._refresh_pomodoro)
+        return False
+
+    def _refresh_pomodoro(self) -> bool:
+        if self.window and self.visible_panel == "pomodoro":
+            self.window.set_child(self._pomodoro())
+            return True
+        return False
+
+
+def self_test() -> int:
+    assert split_nmcli(r"*:Cafe\:Guest:71:WPA2") == ["*", "Cafe:Guest", "71", "WPA2"]
+    assert NocturnePanel._rate(2048) == "2K/s"
+    print("NOCTURNE // panel model tests passed")
+    return 0
+
+
+if __name__ == "__main__":
+    if sys.argv[1:] == ["--self-test"]:
+        raise SystemExit(self_test())
+    raise SystemExit(NocturnePanel().run(sys.argv))

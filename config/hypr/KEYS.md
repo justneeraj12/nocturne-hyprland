@@ -22,6 +22,14 @@ EVERYDAY APPS
   Super + Escape          Lock screen
   Super + P               Power / log out
 
+QUICK PANELS
+  Super + Ctrl + A        Master volume, outputs, and per-app mixer
+  Super + Ctrl + W        Wi-Fi in the unified connectivity card
+  Super + Ctrl + B        Bluetooth in the unified connectivity card
+  Bar audio scroll        Change master volume
+  Bar audio right-click   Mute/unmute master output
+  Any open card           Escape or click elsewhere to dismiss
+
 LAPTOP FUNCTION KEYS
   Mic mute                Toggle the PipeWire microphone + on-screen state
   Touchpad (Fn+F4)        Enable/disable the internal touchpad

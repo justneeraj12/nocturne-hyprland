@@ -38,9 +38,9 @@ case "$choice" in
   *Wallpaper) exec "$HOME/.config/hypr/scripts/wallpaper" ;;
   *'GTK application'*) exec nwg-look ;;
   *brightness) exec "$HOME/.config/hypr/scripts/brightness" pick ;;
-  *Wi-Fi*) exec "$HOME/.local/bin/nocturne-connectivity" toggle wifi ;;
-  *Bluetooth*) exec "$HOME/.local/bin/nocturne-connectivity" toggle bluetooth ;;
-  *VPN*) exec "$HOME/.local/bin/nocturne-connectivity" toggle vpn ;;
+  *Wi-Fi*) exec "$HOME/.local/bin/nocturne-panel" toggle connectivity wifi ;;
+  *Bluetooth*) exec "$HOME/.local/bin/nocturne-panel" toggle connectivity bluetooth ;;
+  *VPN*) exec "$HOME/.local/bin/nocturne-panel" toggle connectivity vpn ;;
   *KDE*) exec "$HOME/.config/hypr/scripts/kdeconnect-menu" ;;
   *'Audio outputs'*) exec "$HOME/.config/hypr/scripts/audio-panel" ;;
   *'Nocturne visualizer'*) exec "$HOME/.local/bin/nocturne-visualizer" ;;

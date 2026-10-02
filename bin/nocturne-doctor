@@ -12,7 +12,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────'
 
-required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper hyprpwcenter waybar swaync wofi kitty cliphist wpctl nmcli bluetoothctl gamemoded brightnessctl powerprofilesctl playerctl nautilus wl-copy socat ffmpeg hyprcapture-ui)
+required=(Hyprland hyprctl hyprland-dialog hyprlock hyprpaper waybar swaync wofi kitty cliphist wpctl pactl nmcli bluetoothctl gamemoded brightnessctl powerprofilesctl playerctl nautilus wl-copy socat ffmpeg hyprcapture-ui)
 missing=()
 for command_name in "${required[@]}"; do
   command -v "$command_name" >/dev/null 2>&1 || missing+=("$command_name")
@@ -60,32 +60,29 @@ if ! pgrep -x nm-applet >/dev/null 2>&1 \
 else
   warning 'nm-applet is still running and may duplicate the dedicated Wi-Fi control'
 fi
-if [[ -x $HOME/.local/bin/nocturne-connectivity ]] \
-    && ! systemctl --user is-active --quiet nocturne-connectivity.service \
-    && $HOME/.local/bin/nocturne-connectivity --self-test >/dev/null 2>&1; then
-  ok 'Zero-idle Nocturne Wi-Fi/Bluetooth/VPN panel passed its model tests'
+if [[ -x $HOME/.local/bin/nocturne-panel ]] \
+    && ! systemctl --user is-active --quiet nocturne-panel.service \
+    && $HOME/.local/bin/nocturne-panel --self-test >/dev/null 2>&1; then
+  ok 'Zero-idle anchored Nocturne panels passed their model tests'
 else
-  bad 'Nocturne connectivity panel failed its zero-idle checks'
+  bad 'Nocturne panels are unavailable or an obsolete idle service remains'
 fi
 if jq -e '.[] | select(.name == "main")
-    | ((."modules-right" | index("custom/wifi")) != null)
-    and ((."modules-right" | index("custom/bluetooth")) != null)
+    | ((."modules-right" | map(select(. == "custom/connectivity")) | length) == 1)
     and ((."modules-right" | index("custom/orbit")) == null)
     and ((."modules-right" | index("network")) == null)
     and ((."modules-right" | index("bluetooth")) == null)
-    and ."custom/wifi"."on-click" == "~/.local/bin/nocturne-connectivity toggle wifi"
-    and ."custom/wifi"."on-click-middle" == "~/.local/bin/nocturne-connectivity toggle vpn"
-    and ."custom/bluetooth"."on-click" == "~/.local/bin/nocturne-connectivity toggle bluetooth"' \
+    and ."custom/connectivity"."on-click" == "~/.local/bin/nocturne-panel toggle connectivity wifi"
+    and .pulseaudio."on-click" == "~/.local/bin/nocturne-panel toggle audio"' \
     "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
     && jq -e '.[] | select(.name == "secondary")
-      | ((."modules-right" | index("custom/wifi#secondary")) != null)
-      and ((."modules-right" | index("custom/bluetooth#secondary")) != null)' \
+      | ((."modules-right" | map(select(. == "custom/connectivity#secondary")) | length) == 1)' \
       "$HOME/.config/waybar/config.jsonc" >/dev/null 2>&1 \
-    && [[ -x $HOME/.local/bin/nocturne-connectivity ]] \
+    && [[ -x $HOME/.local/bin/nocturne-panel ]] \
     && [[ -x $HOME/.config/hypr/scripts/connectivity-status ]]; then
-  ok 'Distinct Wi-Fi and Bluetooth controls are visible on both bars'
+  ok 'One unified connectivity owner and one native audio panel are wired'
 else
-  warning 'Visible connectivity controls are missing or duplicated'
+  warning 'Unified connectivity or audio controls are missing or duplicated'
 fi
 if [[ ! -e $HOME/.local/bin/innu && ! -e $HOME/.config/innu ]] \
     && ! pgrep -x innu >/dev/null 2>&1; then

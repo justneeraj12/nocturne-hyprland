@@ -3,101 +3,133 @@ set -euo pipefail
 
 runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/nocturne-pomodoro-$UID
 state_file=$runtime_dir/state
+lock_file=$runtime_dir/lock
 mkdir -p "$runtime_dir"
+exec 9>"$lock_file"
+flock -x 9
 
-work_seconds=1500
-break_seconds=300
-
-reset_values() {
+defaults() {
+  work_seconds=1500
+  break_seconds=300
   mode=work
   running=0
   remaining=$work_seconds
   end=0
+  cycles=0
+  auto=0
 }
 
 load_state() {
-  reset_values
-  if [[ -s "$state_file" ]]; then
+  defaults
+  if [[ -s $state_file ]]; then
+    # The file is private runtime state written only by this script.
     source "$state_file"
   fi
+  [[ $work_seconds =~ ^[0-9]+$ ]] || work_seconds=1500
+  [[ $break_seconds =~ ^[0-9]+$ ]] || break_seconds=300
+  [[ $remaining =~ ^[0-9]+$ ]] || remaining=$work_seconds
+  [[ $end =~ ^[0-9]+$ ]] || end=0
+  [[ $cycles =~ ^[0-9]+$ ]] || cycles=0
+  [[ $running == 0 || $running == 1 ]] || running=0
+  [[ $auto == 0 || $auto == 1 ]] || auto=0
+  [[ $mode == work || $mode == break ]] || mode=work
 }
 
 save_state() {
-  printf 'mode=%q\nrunning=%q\nremaining=%q\nend=%q\n' \
-    "$mode" "$running" "$remaining" "$end" > "$state_file"
+  local temporary=$state_file.tmp
+  printf 'work_seconds=%q\nbreak_seconds=%q\nmode=%q\nrunning=%q\nremaining=%q\nend=%q\ncycles=%q\nauto=%q\n' \
+    "$work_seconds" "$break_seconds" "$mode" "$running" "$remaining" "$end" "$cycles" "$auto" > "$temporary"
+  mv -f -- "$temporary" "$state_file"
 }
 
 transition() {
-  if [[ "$mode" == work ]]; then
+  local now=${1:-$(date +%s)}
+  if [[ $mode == work ]]; then
     mode=break
     remaining=$break_seconds
-    notify-send 'Focus complete' 'Take a five-minute break.'
+    cycles=$((cycles + 1))
+    notify-send -a Nocturne 'Focus complete' 'Take a proper break.'
   else
     mode=work
     remaining=$work_seconds
-    notify-send 'Break complete' 'Ready for another focus block.'
+    notify-send -a Nocturne 'Break complete' 'Ready for the next focus block.'
   fi
-  running=0
-  end=0
+  running=$auto
+  if ((running)); then end=$((now + remaining)); else end=0; fi
   save_state
 }
 
-status() {
-  load_state
+sync_clock() {
+  local now
   now=$(date +%s)
   if ((running)); then
     remaining=$((end - now))
-    if ((remaining <= 0)); then
-      transition
-    fi
+    if ((remaining <= 0)); then transition "$now"; fi
   fi
+}
 
+emit_json() {
+  local total
+  [[ $mode == work ]] && total=$work_seconds || total=$break_seconds
+  jq -cn --arg mode "$mode" --argjson running "$running" \
+    --argjson remaining "$remaining" --argjson total "$total" \
+    --argjson cycles "$cycles" --argjson auto "$auto" \
+    --argjson work "$work_seconds" --argjson break "$break_seconds" \
+    '{mode:$mode,running:($running == 1),remaining:$remaining,total:$total,cycles:$cycles,auto:($auto == 1),work:$work,break:$break}'
+}
+
+status() {
+  local icon label class timer minutes seconds
+  load_state
+  sync_clock
   minutes=$((remaining / 60))
   seconds=$((remaining % 60))
   timer=$(printf '%02d:%02d' "$minutes" "$seconds")
-
-  if [[ "$mode" == break ]]; then
-    icon='󰅶'
-    label='Break'
-    class='break'
+  if [[ $mode == break ]]; then
+    icon='󰅶'; label='Recovery'; class=break
   elif ((running)); then
-    icon='󱎫'
-    label='Focus'
-    class='running'
+    icon='󱎫'; label='Focus'; class=running
   else
-    icon='󱫞'
-    label='Focus paused'
-    class='paused'
+    icon='󱫞'; label='Focus paused'; class=paused
   fi
-
-  jq -cn --arg text "$icon $timer" --arg tooltip "$label · left click start/pause · middle skip · right reset" --arg class "$class" \
-    '{text:$text,tooltip:$tooltip,class:$class}'
+  jq -cn --arg text "$icon $timer" \
+    --arg tooltip "$label · click for controls · middle start/pause · right reset" \
+    --arg class "$class" '{text:$text,tooltip:$tooltip,class:$class}'
 }
 
 case "${1:-status}" in
   status) status ;;
+  inspect) load_state; sync_clock; emit_json ;;
   toggle)
-    load_state
-    now=$(date +%s)
+    load_state; sync_clock; now=$(date +%s)
     if ((running)); then
-      remaining=$((end - now))
-      ((remaining < 1)) && remaining=1
-      running=0
-      end=0
+      remaining=$((end - now)); ((remaining < 1)) && remaining=1
+      running=0; end=0
     else
-      running=1
-      end=$((now + remaining))
+      running=1; end=$((now + remaining))
     fi
     save_state
     ;;
   reset)
-    reset_values
-    save_state
-    notify-send 'Pomodoro reset' 'Focus timer reset to 25 minutes.'
-    ;;
-  skip)
     load_state
-    transition
+    mode=work; running=0; remaining=$work_seconds; end=0; cycles=0
+    save_state
+    notify-send -a Nocturne 'Pomodoro reset' "Focus timer reset to $((work_seconds / 60)) minutes."
     ;;
-  *) exit 2 ;;
+  skip) load_state; transition ;;
+  preset)
+    [[ ${2:-} =~ ^[0-9]+$ && ${3:-} =~ ^[0-9]+$ ]] || exit 2
+    (($2 >= 1 && $2 <= 180 && $3 >= 1 && $3 <= 60)) || exit 2
+    load_state
+    work_seconds=$((${2} * 60)); break_seconds=$((${3} * 60))
+    mode=work; running=0; remaining=$work_seconds; end=0; cycles=0
+    save_state
+    ;;
+  auto)
+    [[ ${2:-} == on || ${2:-} == off ]] || exit 2
+    load_state
+    [[ $2 == on ]] && auto=1 || auto=0
+    save_state
+    ;;
+  *) printf 'Usage: %s {status|inspect|toggle|reset|skip|preset WORK BREAK|auto MODE}\n' "$0" >&2; exit 2 ;;
 esac

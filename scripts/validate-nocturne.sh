@@ -23,13 +23,13 @@ printf '[ OK ] JSON configuration\n'
 
 PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile \
   "$root/bin/nocturne-calendar" \
-  "$root/bin/nocturne-connectivity" \
+  "$root/bin/nocturne-panel" \
   "$root/bin/nocturne-power-card" \
   "$root/bin/nocturne-settings-app"
 printf '[ OK ] Python surfaces\n'
 
-"$root/bin/nocturne-connectivity" --self-test >/dev/null
-printf '[ OK ] connectivity model\n'
+"$root/bin/nocturne-panel" --self-test >/dev/null
+printf '[ OK ] anchored panel model\n'
 
 Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \
   >"$temporary/hyprland-verify.log" 2>&1
@@ -43,13 +43,14 @@ printf '[ OK ] explicit Lua startup + pinned capture patch\n'
 
 jq -e '
   .[] | select(.name == "main") |
-  ((."modules-right" | map(select(. == "custom/wifi")) | length) == 1) and
-  ((."modules-right" | map(select(. == "custom/bluetooth")) | length) == 1) and
+  ((."modules-right" | map(select(. == "custom/connectivity")) | length) == 1) and
   ((."modules-right" | index("network")) == null) and
   ((."modules-right" | index("bluetooth")) == null) and
+  (."custom/connectivity"."on-click" == "~/.local/bin/nocturne-panel toggle connectivity wifi") and
+  (.pulseaudio."on-click" == "~/.local/bin/nocturne-panel toggle audio") and
   ((."modules-right" | index("group/tray-expander")) + 1 == (."modules-right" | index("custom/kdeconnect")))
 ' "$root/config/waybar/config.jsonc" >/dev/null
-printf '[ OK ] one visible connectivity owner + tray left of KDE Connect\n'
+printf '[ OK ] unified panels + tray left of KDE Connect\n'
 
 grep -Fq 'wofi --show drun' "$root/config/hypr/scripts/launcher"
 ! grep -Fq 'hyprlauncher -d' "$root/config/hypr/hyprland.lua"

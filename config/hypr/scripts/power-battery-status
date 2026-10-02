@@ -6,7 +6,7 @@ profile_line=$("$HOME/.config/hypr/scripts/power-profile" status 2>/dev/null || 
 IFS=$'\t' read -r profile profile_detail <<< "$profile_line"
 [[ $profile == boost ]] && profile='super performance'
 if [[ -z $battery ]]; then
-  jq -cn --arg profile "$profile" --arg detail "$profile_detail" '{text:"󰚥",class:"ac",tooltip:("External power · " + $profile + "\n" + $detail + "\nClick: power and session controls")}'
+  jq -cn --arg profile "$profile" --arg detail "$profile_detail" '{text:"󰚥  <span foreground=\"#c75c66\">󰐥</span>",class:"ac",tooltip:("External power · " + $profile + "\n" + $detail + "\nClick: power and session controls")}'
   exit 0
 fi
 
@@ -29,6 +29,6 @@ else
 fi
 
 printf -v tooltip 'Battery %s%%  ·  %s\nPower profile: %s\n%s\nClick: session and power controls' "$capacity" "$status" "$profile" "$profile_detail"
-jq -cn --arg text "$icon ${capacity}%" --arg class "$class" \
+jq -cn --arg text "$icon ${capacity}%  <span foreground=\"#c75c66\">󰐥</span>" --arg class "$class" \
   --arg tooltip "$tooltip" \
   '{text:$text,class:$class,tooltip:$tooltip}'

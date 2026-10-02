@@ -86,21 +86,24 @@ control center, and middle opens the key guide. The full guide is in
   centered recording indicator exists only while capture is active.
 - Caffeine toggle backed by Hypridle, with 10-minute lock and 15-minute screen
   sleep when Caffeine is off.
-- A 25/5 Pomodoro timer in the bar.
+- A full Pomodoro card with 25/5, 50/10, and 15/5 presets, cycle count,
+  auto-start, pause, reset, skip, transition notifications, and a live bar
+  timer.
 - A minimal Omarchy-style bar with MPRIS, audio, connectivity, grouped
   system health, microphone-use, notification, clock, and native tray apps.
-  Separate, permanently visible Wi-Fi and Bluetooth icons open a zero-idle,
-  sharp connectivity card directly below the bar. Clicking the active icon
-  again closes it, clicking elsewhere dismisses it, Escape closes it, and
-  middle-clicking Wi-Fi opens VPN. Live interface, latency, link quality,
-  download/upload, and VPN metrics are sampled only while the card is open.
-  The native Nocturne panel replaces Orbit's
-  launcher/focus-guard chain and its oversized auxiliary surfaces, while
+  One compact Wi-Fi/Bluetooth/VPN control opens a sharp, segmented card
+  directly below the clicked icon. The zero-idle panel process also owns the
+  matching master-volume/per-app mixer and Pomodoro card. GTK4 Layer Shell
+  anchors every card before its first frame, eliminating the old floating-
+  window jump. Clicking the active icon again closes it, clicking elsewhere
+  dismisses it, and Escape closes it. Live interface, latency, link quality,
+  download/upload, and VPN metrics are sampled only while connectivity is
+  visible. The native Nocturne panel replaces Orbit's
+  launcher/focus-guard chain, `hyprpwcenter`, and their oversized auxiliary surfaces, while
   Ubuntu's `nm-applet` and the
   Blueman tray applet are persistently suppressed so duplicate icons cannot
-  return. Connectivity, calendar and power cards are initially compositor-
-  positioned below the clicked bar item with animation disabled, so they never
-  flash in the center before moving into place.
+  return. The system backends remain NetworkManager, BlueZ, and PipeWire/
+  WirePlumber; only their shell-facing controls are themed.
 - The compact audio card switches real PipeWire outputs, per-app volume, and
   physical microphones. Newly connected Bluetooth audio becomes the active
   output automatically while the laptop Digital Microphone stays preferred;
@@ -216,9 +219,11 @@ After a Hyprland package upgrade, log out and back into **Hyprland
 ./scripts/install-hyprcapture.sh
 ```
 
-The Nocturne connectivity controller follows Omarchy's compact panel model
-while staying native to Ubuntu's NetworkManager and BlueZ. It has no idle
-process: the card owns its state while open and exits completely on dismiss. The
+The Nocturne panel follows Omarchy's compact shell model while staying
+native to Ubuntu's NetworkManager, BlueZ, PipeWire, and WirePlumber. One
+on-demand GTK4 Layer Shell process provides consistently anchored
+connectivity, audio, and focus cards without spawning heavyweight settings
+applications or consuming memory after dismissal. The
 apply script checks for required programs,
 snapshots any existing Hypr-related
 configuration, installs these files, and keeps the Hyprland-only services from

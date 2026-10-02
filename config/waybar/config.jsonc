@@ -14,7 +14,7 @@
     "modules-right": [
       "custom/pomodoro", "mpris", "custom/caffeine", "group/tray-expander", "custom/kdeconnect",
       "pulseaudio", "custom/mic", "custom/brightness", "custom/system",
-      "custom/wifi", "custom/bluetooth", "custom/notification",
+      "custom/connectivity", "custom/notification",
       "custom/power-battery"
     ],
 
@@ -57,7 +57,7 @@
       "exec": "~/.config/hypr/scripts/pomodoro status",
       "return-type": "json",
       "interval": 1,
-      "on-click": "~/.config/hypr/scripts/pomodoro toggle",
+      "on-click": "~/.local/bin/nocturne-panel toggle pomodoro",
       "on-click-right": "~/.config/hypr/scripts/pomodoro reset",
       "on-click-middle": "~/.config/hypr/scripts/pomodoro skip"
     },
@@ -80,16 +80,10 @@
       "interval": 2,
       "on-click": "~/.config/hypr/scripts/caffeine toggle"
     },
-    "custom/wifi": {
-      "exec": "~/.config/hypr/scripts/connectivity-status wifi",
-      "return-type": "json", "interval": 4,
-      "on-click": "~/.local/bin/nocturne-connectivity toggle wifi",
-      "on-click-middle": "~/.local/bin/nocturne-connectivity toggle vpn"
-    },
-    "custom/bluetooth": {
-      "exec": "~/.config/hypr/scripts/connectivity-status bluetooth",
-      "return-type": "json", "interval": 4,
-      "on-click": "~/.local/bin/nocturne-connectivity toggle bluetooth"
+    "custom/connectivity": {
+      "exec": "~/.config/hypr/scripts/connectivity-status combined",
+      "return-type": "json", "interval": 3,
+      "on-click": "~/.local/bin/nocturne-panel toggle connectivity wifi"
     },
     "custom/kdeconnect": {
       "exec": "~/.config/hypr/scripts/kdeconnect-status",
@@ -116,7 +110,7 @@
       "format-icons": { "headphone": "", "headset": "", "default": ["", "", ""] },
       "tooltip-format": "Volume {volume}% · {desc}\nLeft: audio panel · Middle: visualizer · Right: mute",
       "scroll-step": 5,
-      "on-click": "~/.config/hypr/scripts/audio-panel",
+      "on-click": "~/.local/bin/nocturne-panel toggle audio",
       "on-click-middle": "~/.local/bin/nocturne-visualizer",
       "on-click-right": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"
     },
@@ -212,8 +206,8 @@
     "modules-left": ["custom/logo", "hyprland/workspaces", "custom/minimized"],
     "modules-center": ["custom/local-clock#secondary"],
     "modules-right": [
-      "custom/brightness#secondary", "custom/wifi#secondary",
-      "custom/bluetooth#secondary", "custom/notification#secondary",
+      "custom/brightness#secondary", "custom/connectivity#secondary",
+      "custom/notification#secondary",
       "custom/power-battery#secondary"
     ],
     "custom/logo": {
@@ -247,16 +241,10 @@
       "on-scroll-up": "~/.config/hypr/scripts/brightness up",
       "on-scroll-down": "~/.config/hypr/scripts/brightness down"
     },
-    "custom/wifi#secondary": {
-      "exec": "~/.config/hypr/scripts/connectivity-status wifi",
-      "return-type": "json", "interval": 4,
-      "on-click": "~/.local/bin/nocturne-connectivity toggle wifi",
-      "on-click-middle": "~/.local/bin/nocturne-connectivity toggle vpn"
-    },
-    "custom/bluetooth#secondary": {
-      "exec": "~/.config/hypr/scripts/connectivity-status bluetooth",
-      "return-type": "json", "interval": 4,
-      "on-click": "~/.local/bin/nocturne-connectivity toggle bluetooth"
+    "custom/connectivity#secondary": {
+      "exec": "~/.config/hypr/scripts/connectivity-status combined",
+      "return-type": "json", "interval": 3,
+      "on-click": "~/.local/bin/nocturne-panel toggle connectivity wifi"
     },
     "custom/notification#secondary": {
       "tooltip-format": "Notification history", "format": "{icon}",

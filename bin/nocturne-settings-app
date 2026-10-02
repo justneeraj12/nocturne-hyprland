@@ -550,8 +550,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
     def connectivity_page(self) -> Gtk.Widget:
         scroll, box = self.page("Connectivity", "Fast themed cards for everyday use, with advanced tools one click away.")
         self.section(box, "Network")
-        self.action_row(box, "Wi-Fi", "Connect, disconnect, scan and manage VPNs in the compact bar card.", [("QUICK PANEL", [str(HOME / ".local/bin/nocturne-connectivity"), "toggle", "wifi"], "primary"), ("ADVANCED", ["nm-connection-editor"], "")])
-        self.action_row(box, "Bluetooth", "Power, scan, pair, connect and disconnect devices.", [("QUICK PANEL", [str(HOME / ".local/bin/nocturne-connectivity"), "toggle", "bluetooth"], "primary")])
+        self.action_row(box, "Wi-Fi", "Connect, disconnect, scan and manage VPNs in the compact bar card.", [("QUICK PANEL", [str(HOME / ".local/bin/nocturne-panel"), "toggle", "connectivity", "wifi"], "primary"), ("ADVANCED", ["nm-connection-editor"], "")])
+        self.action_row(box, "Bluetooth", "Power, scan, pair, connect and disconnect devices.", [("QUICK PANEL", [str(HOME / ".local/bin/nocturne-panel"), "toggle", "connectivity", "bluetooth"], "primary")])
         self.section(box, "Phone")
         self.action_row(box, "KDE Connect", "Clipboard, file transfer, battery, ringing and device status.", [("PHONE CARD", [str(SCRIPT_HOME / "kdeconnect-menu")], "primary"), ("DEVICE SETTINGS", [str(SCRIPT_HOME / "kdeconnect-settings")], "")])
         return scroll

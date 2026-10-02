@@ -69,8 +69,7 @@ window#waybar {
 #custom-caffeine,
 #custom-kdeconnect,
 #custom-tray-toggle,
-#custom-wifi,
-#custom-bluetooth,
+#custom-connectivity,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -91,8 +90,7 @@ window#waybar {
 
 #mpris,
 #custom-kdeconnect,
-#custom-wifi,
-#custom-bluetooth,
+#custom-connectivity,
 #pulseaudio,
 #custom-mic,
 #custom-brightness,
@@ -106,7 +104,6 @@ window#waybar {
 #custom-minimized { color: @accent; padding: 0 6px; font-size: 11px; }
 #custom-minimized.empty { min-width: 0; margin: 0; padding: 0; font-size: 0; opacity: 0; }
 #custom-pomodoro.break { color: @green; }
-#custom-pomodoro.paused,
 #custom-caffeine.off {
   min-width: 0;
   margin: 0;
@@ -125,14 +122,10 @@ window#waybar {
 #custom-kdeconnect { color: @muted; }
 #custom-kdeconnect.connected { color: @accent; }
 #custom-kdeconnect.disconnected { color: @muted; }
-#custom-wifi,
-#custom-bluetooth { color: @text; padding-left: 6px; padding-right: 6px; }
-#custom-wifi.connected,
-#custom-bluetooth.connected { color: @accent; }
-#custom-wifi.disconnected,
-#custom-wifi.off,
-#custom-bluetooth.off,
-#custom-bluetooth.unavailable { color: @muted; }
+#custom-connectivity { color: @text; padding-left: 7px; padding-right: 7px; letter-spacing: 1px; }
+#custom-connectivity.connected { color: @accent; }
+#custom-connectivity.idle,
+#custom-connectivity.off { color: @muted; }
 #pulseaudio { color: @text; }
 #pulseaudio.muted { color: @muted; }
 #custom-mic { color: @muted; }
@@ -177,8 +170,7 @@ window#waybar {
 #custom-caffeine:hover,
 #custom-kdeconnect:hover,
 #custom-tray-toggle:hover,
-#custom-wifi:hover,
-#custom-bluetooth:hover,
+#custom-connectivity:hover,
 #pulseaudio:hover,
 #custom-mic:hover,
 #custom-brightness:hover,

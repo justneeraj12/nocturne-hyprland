@@ -13,7 +13,7 @@ BACKUP_LINK="$ROOT_DIR/backups/current-backup"
   exit 1
 }
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprpwcenter waybar swaync wofi cliphist wl-copy nmcli bluetoothctl gamemoded socat ffmpeg)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper waybar swaync wofi cliphist wl-copy nmcli bluetoothctl wpctl pactl gamemoded socat ffmpeg)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -22,6 +22,10 @@ if ((${#missing[@]})); then
   printf 'Missing Hyprland components: %s\n' "${missing[*]}" >&2
   exit 1
 fi
+python3 -c 'import gi; gi.require_version("Gtk4LayerShell", "1.0")' 2>/dev/null || {
+  printf 'Missing Python GTK4 Layer Shell bindings (gir1.2-gtk4layershell-1.0).\n' >&2
+  exit 1
+}
 snapshot="$ROOT_DIR/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
 for relative in hypr gtklock waybar wofi swaync kitty btop tmux qt6ct kdeglobals; do
@@ -103,7 +107,8 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wal
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-calendar" "$BIN_HOME/nocturne-calendar"
 install -m 0755 "$ROOT_DIR/bin/nocturne-power-card" "$BIN_HOME/nocturne-power-card"
-install -m 0755 "$ROOT_DIR/bin/nocturne-connectivity" "$BIN_HOME/nocturne-connectivity"
+install -m 0755 "$ROOT_DIR/bin/nocturne-panel" "$BIN_HOME/nocturne-panel"
+rm -f -- "$BIN_HOME/nocturne-connectivity"
 rm -f -- "$BIN_HOME/nocturne-capture-ui" "$BIN_HOME/nocturne-freeze-frame" \
   "$CONFIG_HOME/hypr/scripts/screenshot" "$CONFIG_HOME/hypr/scripts/hyprshot-capture" \
   "$CONFIG_HOME/hypr/scripts/screen-record" "$CONFIG_HOME/hypr/scripts/audio-menu" \
@@ -178,6 +183,8 @@ rm -f -- "$CONFIG_HOME/systemd/user/nocturne-connectivity.service"
 if [[ ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
   pkill -x orbit 2>/dev/null || true
   systemctl --user daemon-reload >/dev/null 2>&1 || true
+  systemctl --user disable --now nocturne-panel.service >/dev/null 2>&1 || true
+  rm -f -- "$CONFIG_HOME/systemd/user/nocturne-panel.service"
   # The existing session bar wrapper owns restart policy; stopping only Waybar
   # makes it reload the new modules without creating a second wrapper.
   pkill -x waybar 2>/dev/null || true
