@@ -40,7 +40,18 @@ Rectangle {
         }
         onWheel: function(wheel) { root.scrolled(wheel.angleDelta.y > 0 ? 1 : -1) }
     }
-    ToolTip.visible: mouse.containsMouse && root.tooltip !== ""
-    ToolTip.delay: 550
-    ToolTip.text: root.tooltip
+    // The bar itself is only 29 px tall.  An attached ToolTip is constrained to
+    // that window and Qt consequently places it over the button.  A window-backed
+    // popup can escape the bar bounds and sit beneath the control instead.
+    ToolTip {
+        id: tip
+        parent: root
+        x: Math.round((root.width - implicitWidth) / 2)
+        y: root.height + 4
+        visible: mouse.containsMouse && root.tooltip !== ""
+        delay: 750
+        timeout: 4000
+        text: root.tooltip
+        popupType: Popup.Window
+    }
 }
