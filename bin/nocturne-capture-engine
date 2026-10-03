@@ -103,15 +103,31 @@ def stop_picker(pid: int) -> None:
         pass
 
 
-def discard_freeze() -> None:
-    picker_pid = 0
+def overlay_alive(pid: int) -> bool:
     try:
-        picker_pid = int(json.loads(FREEZE_STATE.read_text(encoding="utf-8")).get("picker_pid", 0))
+        return pid > 0 and b"nocturne-native\x00freeze" in Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return False
+
+
+def stop_overlay(pid: int) -> None:
+    if not overlay_alive(pid):
+        return
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        pass
+
+
+def discard_freeze() -> None:
+    overlay_pid = 0
+    try:
+        overlay_pid = int(json.loads(FREEZE_STATE.read_text(encoding="utf-8")).get("overlay_pid", 0))
     except (OSError, ValueError, json.JSONDecodeError):
         pass
     FREEZE_STATE.unlink(missing_ok=True)
     FREEZE_IMAGE.unlink(missing_ok=True)
-    stop_picker(picker_pid)
+    stop_overlay(overlay_pid)
 
 
 def prepare_freeze() -> int:
@@ -150,15 +166,15 @@ def prepare_freeze() -> int:
         result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
     except OSError:
         result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
+    if picker is not None:
+        stop_picker(picker.pid)
     if result.returncode or not temporary.is_file() or temporary.stat().st_size == 0:
-        if picker is not None:
-            stop_picker(picker.pid)
         temporary.unlink(missing_ok=True)
         return 1
     temporary.replace(FREEZE_IMAGE)
     metadata = {
         "prepared": int(time.time()),
-        "picker_pid": picker.pid if picker is not None else 0,
+        "overlay_pid": 0,
         "bounds": {"x": left, "y": top, "width": right - left, "height": bottom - top},
         "monitors": [
             {
@@ -174,12 +190,29 @@ def prepare_freeze() -> int:
     state_temporary = RUNTIME / f"nocturne-capture-freeze-{os.getpid()}.json"
     state_temporary.write_text(json.dumps(metadata), encoding="utf-8")
     state_temporary.replace(FREEZE_STATE)
-    if picker is not None:
-        command([
-            "systemd-run", "--user", "--quiet", "--collect",
-            f"--unit=nocturne-capture-freeze-{picker.pid}", "--on-active=5m",
-            str(Path(sys.argv[0]).resolve()), "expire", str(picker.pid),
-        ], timeout=4)
+    try:
+        overlay = subprocess.Popen(
+            [str(HOME / ".local/bin/nocturne-native"), "freeze"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        time.sleep(0.15)
+        if overlay.poll() is not None:
+            raise OSError("passive freeze layer did not start")
+    except OSError:
+        discard_freeze()
+        return 1
+    metadata["overlay_pid"] = overlay.pid
+    state_temporary = RUNTIME / f"nocturne-capture-freeze-{os.getpid()}.json"
+    state_temporary.write_text(json.dumps(metadata), encoding="utf-8")
+    state_temporary.replace(FREEZE_STATE)
+    command([
+        "systemd-run", "--user", "--quiet", "--collect",
+        f"--unit=nocturne-capture-freeze-{overlay.pid}", "--on-active=5m",
+        str(Path(sys.argv[0]).resolve()), "expire", str(metadata["prepared"]),
+    ], timeout=4)
     return 0
 
 
@@ -200,13 +233,13 @@ def freeze_status() -> dict[str, Any]:
     freeze = read_freeze()
     if not freeze:
         return {"active": False}
-    pid = int(freeze.get("picker_pid", 0))
-    return {"active": picker_alive(pid), "picker_pid": pid, "prepared": freeze.get("prepared", 0)}
+    pid = int(freeze.get("overlay_pid", 0))
+    return {"active": overlay_alive(pid), "overlay_pid": pid, "prepared": freeze.get("prepared", 0)}
 
 
-def expire_freeze(expected_pid: int) -> int:
+def expire_freeze(expected_prepared: int) -> int:
     status = freeze_status()
-    if int(status.get("picker_pid", 0)) == expected_pid:
+    if int(status.get("prepared", 0)) == expected_prepared:
         discard_freeze()
     return 0
 

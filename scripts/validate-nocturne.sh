@@ -66,6 +66,8 @@ grep -Fq 'scripts/capture-open' "$root/config/hypr/hyprland.lua"
 grep -Fq '"prepare"' "$root/bin/nocturne-capture-engine"
 grep -Fq '"hyprpicker", "-r", "-z", "-q"' "$root/bin/nocturne-capture-engine"
 grep -Fq '"freeze-status"' "$root/bin/nocturne-capture-engine"
+grep -Fq 'WindowTransparentForInput' "$root/native/qml/Freeze.qml"
+grep -Fq 'nocturne-native"), "freeze"' "$root/bin/nocturne-capture-engine"
 grep -Fq 'function dismiss()' "$root/native/qml/Shell.qml"
 ! grep -Fq 'HyprCapture' "$root/config/hypr/hyprland.lua"
 [[ ! -e $root/config/hypr/hyprcapture.lua ]]

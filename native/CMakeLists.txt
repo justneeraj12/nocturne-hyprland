@@ -16,6 +16,7 @@ qt_add_qml_module(nocturne-native
     NO_IMPORT_SCAN
     QML_FILES
         qml/Shell.qml
+        qml/Freeze.qml
         qml/Bar.qml
         qml/BarWindow.qml
         qml/Settings.qml

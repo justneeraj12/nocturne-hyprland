@@ -63,12 +63,14 @@ int main(int argc, char *argv[])
     const QString page = argc > 2 ? QString::fromLocal8Bit(argv[2]) : QString();
     const bool settings = surface == QStringLiteral("settings");
     const bool bar = surface == QStringLiteral("bar");
+    const bool freeze = surface == QStringLiteral("freeze");
     QCoreApplication::setApplicationName(QStringLiteral("Nocturne Native"));
     QCoreApplication::setOrganizationName(QStringLiteral("Nocturne"));
     QGuiApplication::setDesktopFileName(settings ? QStringLiteral("nocturne-settings") : QStringLiteral("nocturne-native"));
     QGuiApplication application(argc, argv);
     const QString socketName = QStringLiteral("nocturne-native-%1-%2")
-                                   .arg(settings ? QStringLiteral("settings") : (bar ? QStringLiteral("bar") : QStringLiteral("shell")))
+                                   .arg(settings ? QStringLiteral("settings") : (bar ? QStringLiteral("bar")
+                                       : (freeze ? QStringLiteral("freeze") : QStringLiteral("shell"))))
                                    .arg(getuid());
 
     QLocalSocket client;
@@ -104,7 +106,8 @@ int main(int argc, char *argv[])
     const QUrl source(settings
                           ? QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Settings.qml")
                           : (bar ? QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Bar.qml")
-                                 : QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Shell.qml")));
+                                 : (freeze ? QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Freeze.qml")
+                                           : QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Shell.qml"))));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &application, []() {
         QCoreApplication::exit(3);
     }, Qt::QueuedConnection);

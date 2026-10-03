@@ -141,12 +141,12 @@ without being closed and reopened.
 
 Press `Print`, choose Photo or Video, then choose Area, Window or Display.
 Selection happens after the toolbar closes so it never appears inside the
-result. Pressing Print uses hyprpicker's compositor-rendered freeze and keeps it
-visibly active while the toolbar and selector run. Open menus therefore remain
-visible while choosing an area, window or display. The saved screenshot is
-cropped from a private copy of that same frame, so neither the toolbar nor the
-selection border is composited into the image. Cancelling releases the freeze,
-with a five-minute safety timeout in case the capture UI crashes.
+result. Pressing Print briefly uses hyprpicker to obtain the compositor frame,
+then replaces it with Nocturne's passive click-through image layer. Open menus
+remain visibly frozen, while the toolbar and selector above it receive input
+normally. The saved screenshot is cropped from that same private frame, so
+neither the toolbar nor the selection border is composited into the image.
+Cancelling releases the layer, with a five-minute safety timeout after crashes.
 
 Recordings are saved under `~/Videos/Screenrecords`. While a recording is
 active, the native bar REC indicator is visible and opens a Stop + Save action.
