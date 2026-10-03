@@ -294,10 +294,20 @@ systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
+  mako.service \
   waybar.service \
   hypridle.service \
   hyprpaper.service \
   hyprpolkitagent.service >/dev/null 2>&1 || true
+
+# Nocturne starts exactly one Mako process from the compositor so its lifetime
+# follows the Wayland session. Ubuntu may also enable mako.service and may leave
+# a failed generated unit behind after the retired GTK update notifier exits.
+# Neither failure represents a package-update failure; clear the stale state so
+# systemd desktop notifications do not report it again.
+systemctl --user reset-failed \
+  mako.service \
+  'app-update\x2dnotifier@autostart.service' >/dev/null 2>&1 || true
 
 # A running legacy-config session may recreate Hyprland's generated stub when
 # its provider reloads. Remove it best-effort; the UWSM override above also

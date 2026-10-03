@@ -81,6 +81,7 @@ for desktop in "${desktop_targets[@]}"; do
 done
 
 systemctl --user unmask \
+  mako.service \
   waybar.service \
   swaync.service \
   hypridle.service \
