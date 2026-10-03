@@ -64,6 +64,7 @@ grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
   "$root/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
 grep -Fq 'scripts/capture-open' "$root/config/hypr/hyprland.lua"
 grep -Fq '"prepare"' "$root/bin/nocturne-capture-engine"
+grep -Fq '"hyprpicker", "-r", "-z", "-q"' "$root/bin/nocturne-capture-engine"
 ! grep -Fq 'HyprCapture' "$root/config/hypr/hyprland.lua"
 [[ ! -e $root/config/hypr/hyprcapture.lua ]]
 [[ ! -e $root/scripts/install-hyprcapture.sh ]]

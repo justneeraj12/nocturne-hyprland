@@ -105,7 +105,34 @@ def prepare_freeze() -> int:
     bottom = max(int(monitor.get("y", 0)) + int(monitor.get("height", 0)) for monitor in usable)
     geometry = f"{left},{top} {right - left}x{bottom - top}"
     temporary = RUNTIME / f"nocturne-capture-freeze-{os.getpid()}.png"
-    result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
+    picker: subprocess.Popen[bytes] | None = None
+    try:
+        # hyprpicker renders Hyprland's last compositor frame as a layer. This
+        # is the crucial step for transient menus: grim alone can arrive one
+        # frame after a popup handles Print and unmaps itself.
+        picker = subprocess.Popen(
+            ["hyprpicker", "-r", "-z", "-q"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        time.sleep(0.2)
+        if picker.poll() is not None:
+            picker = None
+        result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
+    except OSError:
+        result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
+    finally:
+        if picker is not None:
+            try:
+                os.killpg(picker.pid, signal.SIGTERM)
+                picker.wait(timeout=2)
+            except (OSError, ProcessLookupError, subprocess.TimeoutExpired):
+                try:
+                    os.killpg(picker.pid, signal.SIGKILL)
+                except (OSError, ProcessLookupError):
+                    pass
     if result.returncode or not temporary.is_file() or temporary.stat().st_size == 0:
         temporary.unlink(missing_ok=True)
         return 1

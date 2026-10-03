@@ -105,7 +105,7 @@ profiles or the GNOME session. Run a source-only check with no live changes:
 - Hyprland, Hyprpaper, Hyprlock and Hypridle
 - Mako plus KDE and Hyprland XDG portal backends
 - PipeWire/WirePlumber, NetworkManager, BlueZ
-- grim, slurp, ImageMagick, wf-recorder and wl-clipboard
+- grim, slurp, hyprpicker, ImageMagick, wf-recorder and wl-clipboard
 - jq, brightnessctl, power-profiles-daemon, Kitty, Cava and btop
 - PCManFM-Qt, qpdfview and Qalculate-Qt
 
@@ -141,10 +141,11 @@ without being closed and reopened.
 
 Press `Print`, choose Photo or Video, then choose Area, Window or Display.
 Selection happens after the toolbar closes so it never appears inside the
-result. Pressing Print first freezes one private compositor frame, preserving
-open menus and dropdowns even when the toolbar later takes pointer focus. Area,
-window and display screenshots are cropped from that frame, so the selection
-border is never composited into the saved image.
+result. Pressing Print briefly uses hyprpicker's compositor-rendered freeze,
+then stores one private frame before the toolbar maps. This preserves open menus
+and dropdowns even when the toolbar later takes pointer focus. Area, window and
+display screenshots are cropped from that frame, so the selection border is
+never composited into the saved image.
 
 Recordings are saved under `~/Videos/Screenrecords`. While a recording is
 active, the native bar REC indicator is visible and opens a Stop + Save action.

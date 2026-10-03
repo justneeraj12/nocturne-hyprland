@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp wf-recorder magick cmake ninja)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp hyprpicker wf-recorder magick cmake ninja)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
