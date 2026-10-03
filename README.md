@@ -1,75 +1,77 @@
-# Nocturne Hyprland
+<p align="center">
+  <img src="docs/screenshots/hero.webp" alt="Nocturne appearance settings on Hyprland" width="100%">
+</p>
 
-Nocturne is a compact, keyboard-first Hyprland desktop for Ubuntu. It keeps
-standard Linux services—NetworkManager, BlueZ, PipeWire, WirePlumber and
-power-profiles-daemon—but replaces the custom desktop popovers with one
-Qt 6/Wayland layer-shell application.
+<h1 align="center">NOCTURNE</h1>
 
-The result is a sharp neo-hacker shell that still behaves like a familiar
-desktop: click an icon to open its card, click it again or click outside to
-close it, use the hardware keys normally, and launch ordinary applications as
-ordinary tiled windows.
+<p align="center">
+  A sharp, native control plane for Hyprland.<br>
+  Tiling speed, desktop-grade controls, zero shell-framework sprawl.
+</p>
 
-> Status: tested on Ubuntu with Hyprland 0.56+ and Qt 6.6+. The installer
-> creates a timestamped backup before touching an existing configuration.
+<p align="center">
+  <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
+  <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
+</p>
 
-## Highlights
+Nocturne turns a working Hyprland installation into a coherent desktop without
+turning it into a pile of unrelated widgets. Its bar, launcher, settings and
+quick controls are built with Qt Quick and Wayland layer shell; the real work
+stays with standard Linux services such as NetworkManager, BlueZ, PipeWire and
+power-profiles-daemon.
 
-- A single on-demand `nocturne-native` binary for audio, brightness,
-  connectivity, power, calendar, world time, Pomodoro and settings.
-- No GTK or GNOME dependency in Nocturne's own UI code.
-- Live PipeWire app-stream discovery, master volume and output routing.
-- A brightness slider that follows hardware-key changes while it is open.
-- Wi-Fi, Bluetooth and VPN controls backed by NetworkManager and BlueZ.
-- Stable upstream Hyprshot screenshots for an area, window or display.
-- Kooha provides the separate, upstream screen-recording interface.
-- Every screenshot is saved to `~/Pictures/Screenshots` and copied as a normal
-  `image/png` clipboard item.
-- Native multi-monitor bar and application launcher, Mako history, Cliphist,
-  Caffeine, media controls, world clocks/weather, power profiles and deep sleep.
-- A cached current-location weather row first, followed by the user-defined
-  family-city list.
-- Lightweight Qt defaults for files, PDFs and calculation without installing a
-  complete KDE desktop environment.
-- Existing applications, Steam, browsers, VS Code and the user's GNOME session
-  remain independent of the Hyprland configuration.
+It is designed for people who want a dark, compact rice and still expect
+brightness keys, Bluetooth audio, per-app volume, notifications, clipboard
+history, power modes, screenshots and screen recording to behave normally.
 
-## Screenshots
+> **Reference platform:** Ubuntu 26.04, Hyprland 0.56.2 and Qt 6.10. The source
+> requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
+> packaged dependency installer currently targets Ubuntu.
 
-Project screenshots are captured from an empty workspace and intentionally do
-not include browser windows, messages, personal files or terminal history.
+## Why this one?
 
-![Live hardware-synchronized brightness card](docs/screenshots/brightness-live.png)
+| Difference | What it means in practice |
+| --- | --- |
+| **One native shell** | A single Qt 6 binary owns the bar and on-demand cards—no Waybar + Eww + AGS stack to theme and debug separately. |
+| **Zero-idle popovers** | Audio, network, power and workflow cards exist only while visible, then exit cleanly. |
+| **Real system state** | Sliders and toggles read PipeWire, sysfs, NetworkManager, BlueZ and power-profiles-daemon instead of maintaining a second fake state. |
+| **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys stay authoritative, and ordinary apps tile normally. |
+| **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
+| **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
 
-![Native Wi-Fi, Bluetooth and VPN card](docs/screenshots/native-connectivity.png)
+## The desktop
 
-## Architecture
+<p align="center">
+  <img src="docs/screenshots/quick-controls.webp" alt="Nocturne launcher and quick controls" width="92%">
+</p>
 
-```text
-Native bar clicks / hotkeys
-          │
-          ▼
-  nocturne-native (Qt Quick)
-          │  one local IPC owner; exits when closed
-          ├── StatusNotifierWatcher        background application tray
-          ├── Mako                         notifications + history
-          ├── PipeWire / WirePlumber       audio + per-app streams
-          ├── brightnessctl / logind       hardware backlight
-          ├── NetworkManager / BlueZ       Wi-Fi, VPN, Bluetooth
-          ├── power-profiles-daemon        power modes
-          ├── Hyprshot / grim / slurp    screenshots
-          └── Kooha / XDG portal         screen recording
-```
+<details>
+<summary><strong>See the launcher at full size</strong></summary>
 
-The layer-shell window is created at its final monitor and anchor before the
-first frame. A transparent Wayland backdrop supplies consistent outside-click
-dismissal; the visible card remains interactive. Invoking the same card twice
-uses local IPC and toggles the existing instance instead of spawning another
-process.
+![Nocturne application launcher](docs/screenshots/launcher.webp)
+
+</details>
+
+The shell includes:
+
+- a multi-monitor bar with workspaces, media, weather, system state and tray;
+- Wi-Fi, Bluetooth and VPN control through NetworkManager and BlueZ;
+- master volume, output routing and live per-application PipeWire streams;
+- hardware-synchronized brightness and microphone state;
+- a native launcher, notification history, clipboard history and minimized apps;
+- calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
+- Hyprshot screenshots and Kooha screen recording;
+- dynamic day-cycle wallpapers, eight design presets and sixteen accents;
+- coordinated Kitty, tmux, btop and Cava defaults.
+
+More images are in the [showcase](docs/SHOWCASE.md).
 
 ## Install
 
-Start with a working Hyprland session. Review the repository, then run:
+Start from a working **Hyprland 0.56+ session** on Ubuntu. Nocturne configures
+the desktop around Hyprland; it does not install the compositor itself.
 
 ```bash
 git clone https://github.com/justneeraj12/nocturne-hyprland.git
@@ -77,134 +79,103 @@ cd nocturne-hyprland
 ./install.sh --install-packages
 ```
 
-If the dependencies are already installed:
+If the runtime and build dependencies are already installed:
 
 ```bash
 ./install.sh
 ```
 
-The installer:
+Then log out once and select **Hyprland (uwsm-managed)**. On later updates,
+pull and run `./install.sh` again. The installer is idempotent and creates a
+fresh pre-install snapshot every time.
 
-1. validates required programs;
-2. snapshots the current Hyprland-related configuration under `backups/`;
-3. builds the native Qt application in release mode;
-4. installs user files under `~/.config`, `~/.local/bin` and
-   `~/.local/share`; and
-5. reloads the live bar when run inside Hyprland.
-
-It does not delete personal files, browser data, Steam data, application
-profiles or the GNOME session. Run a source-only check with no live changes:
+Before changing the live session, you can build and validate the tree with:
 
 ```bash
 ./install.sh --dry-run
 ```
 
-### Supported dependency stack
+Read the complete [installation, update and rollback guide](docs/INSTALL.md)
+before installing on a machine with an existing custom rice.
 
-- Qt 6 Core, Gui, QML, Quick and Network
-- KDE LayerShellQt QML module
-- Hyprland, Hyprpaper, Hyprlock and Hypridle
-- Mako plus KDE and Hyprland XDG portal backends
-- PipeWire/WirePlumber, NetworkManager, BlueZ
-- Hyprshot 1.3.0, grim, slurp and wl-clipboard
-- Kooha from Flathub for screen recording
-- jq, brightnessctl, power-profiles-daemon, Kitty, Cava and btop
-- PCManFM-Qt, qpdfview and Qalculate-Qt
+## Essential controls
 
-Nocturne does not bundle or silently download binary dependencies.
+| Action | Shortcut |
+| --- | --- |
+| Launch an app | `Super + Space` |
+| Open terminal | `Super + Enter` |
+| Open Nocturne Settings | `Super + R` |
+| Show the full key guide | `Super + /` |
+| Close / minimize | `Super + Q` / `Super + M` |
+| Switch workspace | `Super + 1…9` |
+| Move window to workspace | `Super + Shift + 1…9` |
+| Power and session | `Super + P` |
+| Area / window / display screenshot | `Print` / `Shift + Print` / `Ctrl + Print` |
+| Screen recorder | `Super + Print` |
 
-The current-location weather row uses a coarse IP lookup from `ipwho.is`,
-caches only city/region, country, coordinates and timezone locally for six
-hours, and keeps the last good value while offline. Set
-`current_location.enabled` to `false` in `~/.config/nocturne/locations.json`
-to disable it; the remaining world-city list continues to work normally.
+The full reference is available inside the desktop and in
+[`config/hypr/KEYS.md`](config/hypr/KEYS.md).
 
-## Everyday controls
+## How it fits together
 
 ```text
-Super + Space       application launcher
-Super + Enter       terminal
-Super + R           Nocturne Settings
-Super + /           complete key guide
-Super + Q           close focused window
-Super + M           minimize focused window
-Super + 1…9         switch workspace
-Super + Shift + 1…9 move window to workspace
-Super + drag        move/resize floating window
-Super + P           power and session card
-Print               select an area to screenshot
-Shift + Print       select a window to screenshot
-Ctrl + Print        select a display to screenshot
-Super + Print       open the Kooha screen recorder
+bar clicks + hotkeys
+         │
+         ▼
+nocturne-native (Qt Quick + LayerShellQt)
+         │  one local IPC owner; cards exit when dismissed
+         ├── PipeWire / WirePlumber     audio + app streams
+         ├── NetworkManager / BlueZ     Wi-Fi + VPN + Bluetooth
+         ├── sysfs / brightnessctl      hardware backlight
+         ├── power-profiles-daemon      power policy
+         ├── Mako / Cliphist            notifications + clipboard
+         ├── Hyprshot                   screenshots
+         └── Kooha / XDG portal         screen recording
 ```
 
-Hardware volume and brightness keys continue to control the real system
-devices. The open native cards poll those authoritative values and update
-without being closed and reopened.
+Nocturne does not replace those services. It gives them one compact,
+consistent interface. See the [architecture notes](docs/ARCHITECTURE.md) for
+process ownership, performance choices and extension points.
 
-## Capture behavior
+## Personalize it
 
-Nocturne does not maintain a custom capture overlay or recording engine.
-`Print` runs the stable upstream Hyprshot region selector, `Shift + Print`
-selects a window and `Ctrl + Print` selects a display. Screenshots are saved
-under `~/Pictures/Screenshots` and copied to the standard Wayland clipboard.
-The installer pins and checksum-verifies Hyprshot 1.3.0.
+Open `Super + R` to change wallpapers, design presets and accents. Machine and
+city-specific values live in ordinary files rather than hard-coded QML:
 
-Screen recording is intentionally separate. `Super + Print` opens upstream
-Kooha, which owns area/display selection, desktop or microphone audio, video
-format, frame rate and save location through the standard Wayland portal.
+- `~/.config/nocturne/locations.json` — world clocks and weather;
+- `~/Pictures/Wallpapers` — static wallpaper library;
+- `~/.config/nocturne/theme.json` — active preset and shell density;
+- `~/.config/nocturne/accent.css` — current accent colors.
 
-## Development
+See [customization](docs/CUSTOMIZATION.md) for monitors, applications, themes,
+wallpapers and location privacy.
 
-Build only the native shell:
-
-```bash
-./scripts/build-native.sh
-```
-
-Run the complete local validation:
+## Reliability
 
 ```bash
+# source build, config verification and the local agent suite
 ./scripts/validate-nocturne.sh
+
+# read-only live desktop health check
+nocturne-doctor
 ```
 
-The validation builds C++/QML from scratch, checks shell/Python/JSON/Lua,
-checks the pinned Hyprshot wiring and local agent, rejects GTK imports in
-Nocturne's own UI, validates native bar/tray/notification ownership, and runs
-patch-hygiene checks.
+The local validator performs a clean Qt build and verifies the live Hyprland
+Lua provider. CI repeats the clean build, checks packaging and capture
+invariants, and rejects GTK imports in Nocturne's own native UI. Third-party
+applications keep their own toolkit and license.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and
-[SECURITY.md](SECURITY.md) for private vulnerability reporting.
+## Project
 
-## Recovery
+- [Install and rollback](docs/INSTALL.md)
+- [Showcase](docs/SHOWCASE.md)
+- [Customization](docs/CUSTOMIZATION.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Launch and community plan](docs/LAUNCH.md)
+- [Experimental NØX local agent](agent/README.md) — optional and not installed by default
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
-Every application creates `backups/pre-hyprland-<timestamp>`. Existing
-machine-local backups are ignored by Git because they may contain private
-desktop state.
-
-To restore the original GNOME/macOS appearance without removing Hyprland:
-
-```bash
-./restore-gnome-macos.sh
-```
-
-For the broader saved user configuration:
-
-```bash
-./restore-gnome-backup.sh backups/current-backup
-```
-
-The broad restore requires an explicit `RESTORE` confirmation.
-
-System-wide S3/deep-sleep policy is intentionally separate from the user
-theme. Review and apply it with:
-
-```bash
-pkexec ./configure-deep-sleep.sh
-```
-
-## License
-
-Nocturne is released under the [MIT License](LICENSE). Third-party programs
-retain their own licenses and are installed from the distribution rather than
-vendored here.
+Nocturne is MIT licensed. If the idea resonates, try it, open a focused issue,
+or share a screenshot of your own palette and hardware profile.

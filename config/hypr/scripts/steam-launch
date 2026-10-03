@@ -1,16 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+steam_command=()
+if command -v steam >/dev/null 2>&1; then
+  steam_command=("$(command -v steam)")
+elif [[ -x /usr/games/steam ]]; then
+  steam_command=(/usr/games/steam)
+elif flatpak info com.valvesoftware.Steam >/dev/null 2>&1; then
+  steam_command=(flatpak run com.valvesoftware.Steam)
+else
+  notify-send 'Steam is not installed' 'Install the native or Flatpak package first.'
+  exit 1
+fi
+
+steam_environment=(env -u DRI_PRIME SDL_VIDEODRIVER=wayland,x11)
+if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+  steam_environment+=(
+    __NV_PRIME_RENDER_OFFLOAD=1
+    __GLX_VENDOR_LIBRARY_NAME=nvidia
+    __VK_LAYER_NV_optimus=NVIDIA_only
+  )
+fi
+
 # Protocol links and game shortcuts still need to be forwarded to Steam. The
 # client is single-instance, so this hands the URL to the running process or
-# starts it with the same clean GPU environment when it is not running.
+# starts it with the same hardware-aware environment when it is not running.
 if (($#)); then
-  exec env -u DRI_PRIME \
-    SDL_VIDEODRIVER=wayland,x11 \
-    __NV_PRIME_RENDER_OFFLOAD=1 \
-    __GLX_VENDOR_LIBRARY_NAME=nvidia \
-    __VK_LAYER_NV_optimus=NVIDIA_only \
-    /usr/games/steam "$@"
+  exec "${steam_environment[@]}" "${steam_command[@]}" "$@"
 fi
 
 # Repeated shortcuts focus Steam instead of asking its slow launcher to start
@@ -25,12 +41,4 @@ if [[ -n "$main_address" ]]; then
   exit 0
 fi
 
-# This laptop has Intel + NVIDIA graphics. DRI_PRIME=1 sends Steam's Chromium
-# shell through Mesa/Zink and has produced GPU-process resets here. NVIDIA's
-# native PRIME variables keep both the client and games on the RTX path.
-exec env -u DRI_PRIME \
-  SDL_VIDEODRIVER=wayland,x11 \
-  __NV_PRIME_RENDER_OFFLOAD=1 \
-  __GLX_VENDOR_LIBRARY_NAME=nvidia \
-  __VK_LAYER_NV_optimus=NVIDIA_only \
-  /usr/games/steam "$@"
+exec "${steam_environment[@]}" "${steam_command[@]}" "$@"

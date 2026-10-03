@@ -72,7 +72,7 @@ ApplicationWindow {
                     }
                 }
                 Item { Layout.fillHeight: true }
-                SectionLabel { text: "NOCTURNE 2.0" }
+                SectionLabel { text: "NOCTURNE CORE" }
                 Text {
                     Layout.fillWidth: true
                     text: "Qt Quick · layer-shell\nNetworkManager · PipeWire\nBlueZ · power-profiles-daemon"

@@ -1,5 +1,10 @@
 # NØX — Nocturne Agent
 
+> **Experimental and optional.** NØX is not installed by the main Nocturne
+> installer. Review its separate installer, policy model and hardware cost
+> before enabling it. The default profile is intentionally generic; personal
+> preferences and hardware facts belong only in the ignored local profile.
+
 Nocturne Agent is a local-first desktop operator for the Nocturne Hyprland
 environment. Its control plane is deliberately independent from the language
 model: routine commands are resolved without inference, and model output can

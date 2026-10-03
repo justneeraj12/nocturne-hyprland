@@ -5,54 +5,22 @@
   },
   "clock_groups": [
     {
-      "label": "India",
-      "timezone": "Asia/Kolkata",
-      "locations": ["Bengaluru", "Hoodi Circle", "NRI Layout", "Visakhapatnam"]
-    },
-    {
-      "label": "New York",
+      "label": "Americas",
       "timezone": "America/New_York",
-      "locations": ["New York City"]
+      "locations": ["New York"]
     },
     {
-      "label": "Milan",
-      "timezone": "Europe/Rome",
-      "locations": ["Milan"]
+      "label": "Europe",
+      "timezone": "Europe/London",
+      "locations": ["London"]
+    },
+    {
+      "label": "Asia",
+      "timezone": "Asia/Tokyo",
+      "locations": ["Tokyo"]
     }
   ],
   "weather_locations": [
-    {
-      "label": "BLR",
-      "name": "Bengaluru",
-      "country": "India",
-      "latitude": 12.97679,
-      "longitude": 77.59008,
-      "timezone": "Asia/Kolkata"
-    },
-    {
-      "label": "Hoodi Circle",
-      "name": "Hoodi Circle, Bengaluru",
-      "country": "India",
-      "latitude": 12.99223,
-      "longitude": 77.71642,
-      "timezone": "Asia/Kolkata"
-    },
-    {
-      "label": "NRI Layout",
-      "name": "NRI Layout, Bengaluru",
-      "country": "India",
-      "latitude": 13.0316,
-      "longitude": 77.6801,
-      "timezone": "Asia/Kolkata"
-    },
-    {
-      "label": "Vizag",
-      "name": "Visakhapatnam",
-      "country": "India",
-      "latitude": 17.6868,
-      "longitude": 83.2185,
-      "timezone": "Asia/Kolkata"
-    },
     {
       "label": "NYC",
       "name": "New York City",
@@ -62,12 +30,20 @@
       "timezone": "America/New_York"
     },
     {
-      "label": "Milan",
-      "name": "Milan",
-      "country": "Italy",
-      "latitude": 45.4642,
-      "longitude": 9.19,
-      "timezone": "Europe/Rome"
+      "label": "London",
+      "name": "London",
+      "country": "United Kingdom",
+      "latitude": 51.5072,
+      "longitude": -0.1276,
+      "timezone": "Europe/London"
+    },
+    {
+      "label": "Tokyo",
+      "name": "Tokyo",
+      "country": "Japan",
+      "latitude": 35.6762,
+      "longitude": 139.6503,
+      "timezone": "Asia/Tokyo"
     }
   ]
 }

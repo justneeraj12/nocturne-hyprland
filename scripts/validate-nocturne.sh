@@ -18,7 +18,17 @@ done < <(
 printf '[ OK ] shell scripts\n'
 
 jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" >/dev/null
+jq -e . "$root/agent/config/profile.default.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
+
+grep -Fq 'docs/screenshots/hero.webp' "$root/README.md"
+grep -Fq '~/.local/state/nocturne/backups/' "$root/docs/INSTALL.md"
+grep -Fq 'original-preinstall-backup' "$root/apply-hyprland.sh"
+grep -Fq 'Type RESTORE to continue' "$root/uninstall.sh"
+[[ -s $root/docs/screenshots/hero.webp ]]
+[[ -s $root/docs/screenshots/quick-controls.webp ]]
+[[ -s $root/docs/screenshots/launcher.webp ]]
+printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
 cmake --build "$temporary/native" --parallel >/dev/null
@@ -28,6 +38,7 @@ grep -Fq 'backend.audioStreams()' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'interval: 200' "$root/native/qml/pages/BrightnessPage.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
+! grep -Fq 'targetScreen.name === "HDMI-A-1"' "$root/native/qml/BarWindow.qml"
 grep -Fq 'org.kde.StatusNotifierWatcher' "$root/native/src/traywatcher.h"
 grep -Fq 'backend.notifications("history")' "$root/native/qml/pages/NotificationsPage.qml"
 grep -Fq 'QQuickImageProvider' "$root/native/src/main.cpp"
@@ -43,8 +54,13 @@ grep -Fq 'displayHour = hours % 12' "$root/native/qml/BarWindow.qml"
 grep -Fq 'Layout.preferredWidth: 42' "$root/native/qml/pages/WorldPage.qml"
 grep -Fq 'current-location.json' "$root/native/qml/pages/WorldPage.qml"
 grep -Fq 'key: "@current"' "$root/config/hypr/scripts/current-location"
-! jq -e '.weather_locations[] | select(.label == "Potsdam, NY")' "$root/config/locations.json" >/dev/null
-! jq -e '.clock_groups[].locations[] | select(. == "Potsdam, NY")' "$root/config/locations.json" >/dev/null
+grep -Fq 'nocturne/monitors.lua' "$root/config/hypr/hyprland.lua"
+! rg -q 'hl.monitor\(\{ output = "(eDP|HDMI|DP)-' "$root/config/hypr/hyprland.lua"
+jq -e '[.weather_locations[].label] == ["NYC", "London", "Tokyo"]' \
+  "$root/config/locations.json" >/dev/null
+jq -e '.system.os == "Linux" and .defaults.browser == "Firefox" and
+  (.system.device | startswith("Configure "))' \
+  "$root/agent/config/profile.default.json" >/dev/null
 grep -Fq '{{mpris:length}}' "$root/native/qml/pages/MediaPage.qml"
 printf '[ OK ] Qt/Wayland native shell + live controls\n'
 

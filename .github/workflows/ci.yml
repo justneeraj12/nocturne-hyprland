@@ -30,7 +30,7 @@ jobs:
           ./build/ci/nocturne-native --self-test
       - name: Static validation
         run: |
-          shellcheck -S error install.sh apply-hyprland.sh scripts/build-native.sh \
+          shellcheck -S error install.sh uninstall.sh apply-hyprland.sh scripts/build-native.sh \
             scripts/install-hyprshot.sh scripts/install-kooha.sh bin/nocturne-doctor \
             bin/nocturne-settings bin/nocturne-visualizer
           jq -e . config/locations.json config/nocturne/theme.json >/dev/null
@@ -39,4 +39,6 @@ jobs:
           test ! -d config/waybar
           test ! -d config/wofi
           test ! -d config/swaync
+          test -s docs/screenshots/hero.webp
+          test -s docs/screenshots/quick-controls.webp
           ! grep -R -E 'import gi|from gi|Gtk' native bin

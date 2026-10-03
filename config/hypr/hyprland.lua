@@ -37,9 +37,17 @@ local steam = home .. "/.config/hypr/scripts/steam-launch"
 local hardware = home .. "/.config/hypr/scripts/hardware-control"
 local scripts = home .. "/.config/hypr/scripts/"
 
-hl.monitor({ output = "HDMI-A-1", mode = "1920x1080@180", position = "0x0", scale = 1 })
-hl.monitor({ output = "eDP-1", mode = "1920x1080@144", position = "auto-right", scale = 1 })
-hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+local monitor_config = config_home .. "/nocturne/monitors.lua"
+local monitor_file = io.open(monitor_config, "r")
+if monitor_file then
+    monitor_file:close()
+    local loaded = pcall(dofile, monitor_config)
+    if not loaded then
+        hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+    end
+else
+    hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })
+end
 
 hl.env("XCURSOR_SIZE", "24")
 hl.env("HYPRCURSOR_SIZE", "24")

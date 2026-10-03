@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp hyprshot cmake ninja)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp hyprshot cmake ninja xdg-mime)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -20,14 +20,54 @@ fi
   printf 'Missing Qt 6 Layer Shell QML support (qml6-module-org-kde-layershell).\n' >&2
   exit 1
 }
-snapshot="$ROOT_DIR/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$STATE_HOME/nocturne/backups"
+snapshot="$STATE_HOME/nocturne/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
-for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct kdeglobals; do
+for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava nocturne systemd autostart kdeglobals; do
   if [[ -e "$CONFIG_HOME/$relative" ]]; then
     cp -a -- "$CONFIG_HOME/$relative" "$snapshot/$relative"
   fi
 done
+mkdir -p "$snapshot/applications"
+desktop_targets=(
+  steam.desktop
+  org.kde.kdeconnect.app.desktop
+  org.gnome.Settings.desktop
+  nocturne-settings.desktop
+  nocturne-native.desktop
+  nocturne-visualizer.desktop
+  nocturne-google-keep.desktop
+  nocturne-google-drive.desktop
+)
+for desktop in "${desktop_targets[@]}"; do
+  if [[ -e "$DATA_HOME/applications/$desktop" ]]; then
+    cp -a -- "$DATA_HOME/applications/$desktop" "$snapshot/applications/$desktop"
+  fi
+done
+mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor)
+for binary in "${bin_targets[@]}"; do
+  if [[ -e "$BIN_HOME/$binary" ]]; then
+    cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
+  fi
+done
+for background in nocturne-default.png nocturne-grid.png; do
+  if [[ -e "$DATA_HOME/backgrounds/$background" ]]; then
+    cp -a -- "$DATA_HOME/backgrounds/$background" "$snapshot/backgrounds/$background"
+  fi
+done
+if [[ -e "$DATA_HOME/color-schemes/Nocturne.colors" ]]; then
+  cp -a -- "$DATA_HOME/color-schemes/Nocturne.colors" "$snapshot/color-schemes/Nocturne.colors"
+fi
+{
+  printf 'inode/directory\t%s\n' "$(xdg-mime query default inode/directory 2>/dev/null || true)"
+  printf 'application/pdf\t%s\n' "$(xdg-mime query default application/pdf 2>/dev/null || true)"
+} > "$snapshot/mime.tsv"
 printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "$snapshot/README.txt"
+printf '%s\n' "$snapshot" > "$STATE_HOME/nocturne/last-preinstall-backup"
+if [[ ! -s "$STATE_HOME/nocturne/original-preinstall-backup" ]]; then
+  printf '%s\n' "$snapshot" > "$STATE_HOME/nocturne/original-preinstall-backup"
+fi
 
 mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-portal" \
   "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
@@ -37,6 +77,29 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-porta
   "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/autostart" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d" \
   "$STATE_HOME/nocturne" "$BIN_HOME"
+if [[ ! -e "$CONFIG_HOME/nocturne/monitors.lua" ]]; then
+  monitor_lines=()
+  if command -v hyprctl >/dev/null 2>&1; then
+    mapfile -t monitor_lines < <(
+      hyprctl -j monitors 2>/dev/null \
+        | jq -r '.[] | [.name, .width, .height, .refreshRate, .x, .y, .scale] | @tsv' \
+        || true
+    )
+  fi
+  : > "$CONFIG_HOME/nocturne/monitors.lua"
+  for monitor_line in "${monitor_lines[@]}"; do
+    IFS=$'\t' read -r output width height refresh x y scale <<< "$monitor_line"
+    if [[ $output =~ ^[A-Za-z0-9_.-]+$ && $width =~ ^[0-9]+$ && $height =~ ^[0-9]+$ \
+      && $refresh =~ ^[0-9]+([.][0-9]+)?$ && $x =~ ^-?[0-9]+$ && $y =~ ^-?[0-9]+$ \
+      && $scale =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+      printf 'hl.monitor({ output = "%s", mode = "%sx%s@%s", position = "%sx%s", scale = %s })\n' \
+        "$output" "$width" "$height" "$refresh" "$x" "$y" "$scale" \
+        >> "$CONFIG_HOME/nocturne/monitors.lua"
+    fi
+  done
+  printf 'hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })\n' \
+    >> "$CONFIG_HOME/nocturne/monitors.lua"
+fi
 if [[ ! -e "$STATE_HOME/nocturne/lock-wallpaper" && ! -L "$STATE_HOME/nocturne/lock-wallpaper" ]]; then
   ln -s "$DATA_HOME/backgrounds/nocturne-default.png" \
     "$STATE_HOME/nocturne/lock-wallpaper"
@@ -68,7 +131,9 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
-install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
+if [[ ! -e "$CONFIG_HOME/nocturne/locations.json" ]]; then
+  install -m 0644 "$ROOT_DIR/config/locations.json" "$CONFIG_HOME/nocturne/locations.json"
+fi
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.css" "$CONFIG_HOME/nocturne/accent.css"
 install -m 0644 "$ROOT_DIR/config/nocturne/accent.conf" "$CONFIG_HOME/nocturne/accent.conf"
 if [[ ! -e "$CONFIG_HOME/nocturne/palette.css" ]]; then

@@ -9,6 +9,8 @@ usage() {
   printf '%s\n' \
     'Usage: ./install.sh [--install-packages] [--dry-run]' \
     '' \
+    'Apply Nocturne to an existing Hyprland 0.56+ installation.' \
+    '' \
     '  --install-packages  Install Ubuntu build/runtime dependencies with apt.' \
     '  --dry-run           Validate without changing the live configuration.'
 }
@@ -22,6 +24,17 @@ for argument in "$@"; do
   esac
 done
 
+if "$dry_run" && "$install_packages"; then
+  printf '%s\n' '--dry-run and --install-packages cannot be combined.' >&2
+  exit 2
+fi
+
+if "$dry_run"; then
+  "$root/scripts/validate-nocturne.sh"
+  printf 'Dry run complete; no packages or live configuration were changed.\n'
+  exit 0
+fi
+
 if "$install_packages"; then
   sudo apt-get update
   sudo apt-get install -y \
@@ -29,15 +42,9 @@ if "$install_packages"; then
     qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
     qml6-module-qtquick-window qml6-module-org-kde-layershell \
     layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
-    curl flatpak grim slurp wl-clipboard libnotify-bin brightnessctl pipewire-bin pulseaudio-utils \
+    curl flatpak grim slurp wl-clipboard cliphist libnotify-bin brightnessctl pipewire-bin pulseaudio-utils xdg-utils \
     network-manager bluez jq kitty btop cava fastfetch playerctl gamemode pcmanfm-qt qpdfview qalculate-qt \
     power-profiles-daemon fonts-inter fonts-jetbrains-mono
-fi
-
-if "$dry_run"; then
-  "$root/scripts/validate-nocturne.sh"
-  printf 'Dry run complete; no live configuration was changed.\n'
-  exit 0
 fi
 
 "$root/scripts/install-hyprshot.sh"

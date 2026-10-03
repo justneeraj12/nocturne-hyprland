@@ -8,7 +8,7 @@ ApplicationWindow {
     id: root
     required property var targetScreen
     required property var shell
-    readonly property bool fullBar: targetScreen.name === "HDMI-A-1" || targetScreen === Qt.application.primaryScreen
+    readonly property bool fullBar: targetScreen === Qt.application.primaryScreen || targetScreen.width >= 1600
     readonly property int activeWorkspace: {
         for (var i = 0; i < shell.monitors.length; ++i)
             if (shell.monitors[i].name === targetScreen.name) return shell.monitors[i].activeWorkspace.id
