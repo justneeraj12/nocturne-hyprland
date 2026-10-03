@@ -8,7 +8,16 @@ ApplicationWindow {
     id: root
     required property var targetScreen
     required property var shell
-    readonly property bool fullBar: targetScreen === Qt.application.primaryScreen || targetScreen.width >= 1600
+    // Use the actual layer-surface width. QScreen.width can briefly report a
+    // stale logical size while outputs are added, removed or rescaled.
+    readonly property real responsiveWidth: width > 0 ? width : targetScreen.width
+    readonly property int monitorCount: Math.max(1, backend.screens.length)
+    readonly property int density: responsiveWidth >= 2400 ? 3
+                                         : (responsiveWidth >= 1680 ? 2
+                                             : (responsiveWidth >= 1180 ? 1 : 0))
+    readonly property bool standardBar: density >= 1
+    readonly property bool fullBar: density >= 2
+    readonly property bool detailBar: density >= 3
     readonly property int activeWorkspace: {
         for (var i = 0; i < shell.monitors.length; ++i)
             if (shell.monitors[i].name === targetScreen.name) return shell.monitors[i].activeWorkspace.id
@@ -70,6 +79,7 @@ ApplicationWindow {
                 BarButton {
                     required property int index
                     text: String(index + 1)
+                    visible: root.standardBar || index < 3 || selected
                     tooltip: "Workspace " + String(index + 1)
                     selected: root.activeWorkspace === index + 1
                     onLeftClicked: root.run(["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + String(index + 1) + "\" })"])
@@ -89,17 +99,20 @@ ApplicationWindow {
         }
 
         Row {
+            id: center
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.verticalCenter: parent.verticalCenter
             spacing: 3
             BarButton {
-                text: Qt.formatDate(shell.now, "ddd dd MMM") + "  ·  " + root.clockText(shell.now)
+                text: root.standardBar
+                    ? Qt.formatDate(shell.now, "ddd dd MMM") + "  ·  " + root.clockText(shell.now)
+                    : root.clockText(shell.now)
                 tooltip: "Left: calendar · Right: world clocks"
                 onLeftClicked: root.nativeCard("calendar", "")
                 onRightClicked: root.nativeCard("world", "")
             }
             BarButton {
-                visible: root.fullBar
+                visible: root.standardBar
                 text: "󰖟"
                 tooltip: "World clocks and weather"
                 onLeftClicked: root.nativeCard("world", "")
@@ -113,7 +126,7 @@ ApplicationWindow {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 2
             BarButton {
-                visible: root.fullBar
+                visible: root.standardBar
                 text: shell.pomodoro.text || "󰔟"
                 tooltip: "Focus timer"
                 onLeftClicked: root.nativeCard("pomodoro", "")
@@ -121,15 +134,16 @@ ApplicationWindow {
             }
             BarButton {
                 visible: root.fullBar && shell.media.title !== ""
-                width: Math.min(190, implicitWidth)
-                text: (shell.media.status === "Playing" ? "󰎈 " : "󰏤 ") + shell.media.title.substring(0, 22)
+                width: Math.min(root.detailBar ? 190 : 132, implicitWidth)
+                text: (shell.media.status === "Playing" ? "󰎈 " : "󰏤 ")
+                    + shell.media.title.substring(0, root.detailBar ? 22 : 13)
                 tooltip: "Now playing · middle-click to pause"
                 onLeftClicked: root.nativeCard("media", "")
                 onMiddleClicked: root.mediaCommand("play-pause")
                 onRightClicked: root.mediaCommand("next")
             }
             BarButton {
-                visible: root.fullBar
+                visible: root.standardBar
                 text: shell.caffeine.text || "󰛊"
                 fontPixelSize: 12
                 tooltip: shell.caffeine.tooltip || "Caffeine mode"
@@ -154,8 +168,9 @@ ApplicationWindow {
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/kdeconnect-menu", "clipboard"])
             }
             BarButton {
-                visible: root.fullBar
-                text: (shell.volumeMuted ? "" : "") + " " + shell.volume + "%"
+                visible: root.standardBar
+                text: (shell.volumeMuted ? "" : "")
+                    + (root.fullBar ? " " + shell.volume + "%" : "")
                 fontPixelSize: 11
                 tooltip: "Master volume · scroll to adjust"
                 onLeftClicked: root.nativeCard("audio", "")
@@ -164,7 +179,7 @@ ApplicationWindow {
                 onScrolled: function(direction) { root.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", direction > 0 ? "5%+" : "5%-"]) }
             }
             BarButton {
-                visible: root.fullBar
+                visible: root.standardBar
                 text: shell.micMuted ? "󰍭" : "󰍬"
                 fontPixelSize: 12
                 selected: shell.micInUse
@@ -173,16 +188,18 @@ ApplicationWindow {
                 onLeftClicked: root.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
             }
             BarButton {
-                text: "󰃠 " + shell.brightness + "%"
+                text: "󰃠" + (root.standardBar ? " " + shell.brightness + "%" : "")
                 tooltip: "Display brightness · scroll to adjust"
                 onLeftClicked: root.nativeCard("brightness", "")
                 onScrolled: function(direction) { root.run([backend.home + "/.config/hypr/scripts/brightness", direction > 0 ? "up" : "down"]) }
             }
             BarButton {
                 visible: root.fullBar
-                text: shell.systemState.text || "󰍛"
+                text: root.detailBar ? (shell.systemState.text || "󰍛") : "󰍛"
                 fontPixelSize: 11
-                tooltip: shell.systemState.tooltip || "System resources"
+                tooltip: (shell.systemState.tooltip || "System resources")
+                    + "\nAdaptive bar · " + root.monitorCount + " display"
+                    + (root.monitorCount === 1 ? "" : "s")
                 onLeftClicked: root.run([backend.home + "/.local/bin/nocturne-dashboard"])
             }
             BarButton {

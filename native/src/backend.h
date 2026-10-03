@@ -15,7 +15,7 @@ class Backend final : public QObject
     Q_PROPERTY(QString home READ home CONSTANT)
     Q_PROPERTY(QString runtime READ runtime CONSTANT)
     Q_PROPERTY(QScreen *targetScreen READ targetScreen NOTIFY targetScreenChanged)
-    Q_PROPERTY(QVariantList screens READ screens CONSTANT)
+    Q_PROPERTY(QVariantList screens READ screens NOTIFY screensChanged)
     Q_PROPERTY(QString baseColor READ baseColor NOTIFY paletteChanged)
     Q_PROPERTY(QString surfaceColor READ surfaceColor NOTIFY paletteChanged)
     Q_PROPERTY(QString overlayColor READ overlayColor NOTIFY paletteChanged)
@@ -70,6 +70,7 @@ signals:
     void surfaceChanged();
     void pageChanged();
     void targetScreenChanged();
+    void screensChanged();
     void paletteChanged();
 
 private:

@@ -25,6 +25,12 @@ Backend::Backend(QString surface, QString page, QObject *parent)
     , m_page(std::move(page))
 {
     updateTargetScreen();
+    connect(qGuiApp, &QGuiApplication::screenAdded, this, [this](QScreen *) {
+        emit screensChanged();
+    });
+    connect(qGuiApp, &QGuiApplication::screenRemoved, this, [this](QScreen *) {
+        emit screensChanged();
+    });
     if (m_surface == QStringLiteral("bar")) m_trayWatcher = std::make_unique<TrayWatcher>(this);
 
     const QStringList roots = {
