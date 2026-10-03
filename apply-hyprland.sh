@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp hyprpicker wf-recorder magick cmake ninja)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper mako cliphist wl-copy notify-send jq nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl gamemoded grim slurp hyprshot cmake ninja)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -88,17 +88,17 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
 install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
-install -m 0755 "$ROOT_DIR/bin/nocturne-capture-engine" "$BIN_HOME/nocturne-capture-engine"
 NOCTURNE_BIN_DIR="$BIN_HOME" "$ROOT_DIR/scripts/build-native.sh"
 rm -f -- "$BIN_HOME/nocturne-panel" "$BIN_HOME/nocturne-power-card" \
   "$BIN_HOME/nocturne-capture" "$BIN_HOME/nocturne-settings-app" \
   "$BIN_HOME/nocturne-cyberdisc"
 rm -f -- "$BIN_HOME/nocturne-connectivity" "$BIN_HOME/nocturne-calendar" \
   "$CONFIG_HOME/hypr/scripts/clock-menu"
-rm -f -- "$BIN_HOME/nocturne-capture-ui" "$BIN_HOME/nocturne-freeze-frame" \
+rm -f -- "$BIN_HOME/nocturne-capture-engine" "$BIN_HOME/nocturne-capture-ui" "$BIN_HOME/nocturne-freeze-frame" \
+  "$CONFIG_HOME/hypr/scripts/capture-open" "$CONFIG_HOME/hypr/scripts/capture-status" \
   "$CONFIG_HOME/hypr/scripts/screenshot" "$CONFIG_HOME/hypr/scripts/hyprshot-capture" \
   "$CONFIG_HOME/hypr/scripts/screen-record" "$CONFIG_HOME/hypr/scripts/audio-menu" \
-  "$CONFIG_HOME/swappy/config" "$BIN_HOME/hyprshot"
+  "$CONFIG_HOME/swappy/config"
 if hyprctl plugin list 2>/dev/null | grep -qi HyprCapture; then
   hyprctl plugin unload "$HOME/.local/lib/nocturne-hyprcapture/libhyprcapture.so" >/dev/null 2>&1 || true
 fi

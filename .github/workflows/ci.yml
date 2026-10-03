@@ -30,8 +30,8 @@ jobs:
           ./build/ci/nocturne-native --self-test
       - name: Static validation
         run: |
-          shellcheck -S error install.sh apply-hyprland.sh scripts/build-native.sh bin/nocturne-settings bin/nocturne-visualizer
-          python3 -m py_compile bin/nocturne-capture-engine
+          shellcheck -S error install.sh apply-hyprland.sh scripts/build-native.sh \
+            scripts/install-hyprshot.sh bin/nocturne-doctor bin/nocturne-settings bin/nocturne-visualizer
           jq -e . config/locations.json config/nocturne/theme.json >/dev/null
           test -f config/mako/config
           test -f config/xdg-desktop-portal/hyprland-portals.conf

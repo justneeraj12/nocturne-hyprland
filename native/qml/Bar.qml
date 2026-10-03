@@ -7,7 +7,6 @@ Item {
     property date now: new Date()
     property var monitors: []
     property var minimized: ({})
-    property var recording: ({})
     property var pomodoro: ({})
     property var caffeine: ({})
     property var connectivity: ({})
@@ -39,7 +38,6 @@ Item {
         monitors = backend.json(["hyprctl", "monitors", "-j"], 1200) || []
     }
     function refreshActivity() {
-        recording = scriptJson("capture-status")
         pomodoro = scriptJson("pomodoro", ["status"])
     }
     function refreshMinimized() { minimized = scriptJson("minimize", ["status"]) }

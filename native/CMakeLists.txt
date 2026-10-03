@@ -16,7 +16,6 @@ qt_add_qml_module(nocturne-native
     NO_IMPORT_SCAN
     QML_FILES
         qml/Shell.qml
-        qml/Freeze.qml
         qml/Bar.qml
         qml/BarWindow.qml
         qml/Settings.qml
@@ -33,7 +32,6 @@ qt_add_qml_module(nocturne-native
         qml/pages/ConnectivityPage.qml
         qml/pages/PomodoroPage.qml
         qml/pages/PowerPage.qml
-        qml/pages/CapturePage.qml
         qml/pages/LauncherPage.qml
         qml/pages/BackgroundPage.qml
         qml/pages/NotificationsPage.qml

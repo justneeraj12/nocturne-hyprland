@@ -211,7 +211,11 @@ hl.bind("XF86WebCam", run(hardware .. " camera"), { locked = true })
 hl.bind("XF86KbdBrightnessUp", run(hardware .. " keyboard-light up"), { locked = true })
 hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { locked = true })
 hl.bind("XF86Tools", run(scripts .. "help"))
-hl.bind("Print", run(home .. "/.config/hypr/scripts/capture-open"))
+local screenshots = home .. "/Pictures/Screenshots"
+local hyprshot = home .. "/.local/bin/hyprshot -o " .. screenshots
+hl.bind("Print", run(hyprshot .. " -m region"))
+hl.bind("SHIFT + Print", run(hyprshot .. " -m window"))
+hl.bind("CTRL + Print", run(hyprshot .. " -m output"))
 
 hl.layer_rule({ match = { namespace = "nocturne-native" }, blur = true, ignore_alpha = 0.2 })
 

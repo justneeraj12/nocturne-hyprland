@@ -17,7 +17,9 @@ EVERYDAY APPS
   Super + T               Steam
   Super + N               Notification history
   Super + Shift + V       Clipboard history
-  Print Screen            One capture UI: area, window, display, or recording
+  Print Screen            Select an area to screenshot
+  Shift + Print Screen    Select a window to screenshot
+  Ctrl + Print Screen     Select a display to screenshot
   Super + W               Choose or restore a wallpaper
   Super + Escape          Lock screen
   Super + P               Power / log out
@@ -104,14 +106,12 @@ THE TOP BAR
   Every quick card        Click once to open · click the same item to close
   Different bar item      Replaces the open card instead of stacking another
 
-SCREENSHOT + SCREEN RECORDING
-  Print Screen            Open the unified GNOME-style capture toolbar
-  Capture modes           Drag area · click window · choose display
-  Recording               Switch modes in the same bottom toolbar
+SCREENSHOTS
+  Print Screen            Drag an area with upstream Hyprshot
+  Shift + Print Screen    Click a window
+  Ctrl + Print Screen     Choose a display
   Screenshot destination  ~/Pictures/Screenshots + current clipboard item
   Clipboard behavior      Paste normally; your next copy replaces it normally
-  REC in center bar       Hidden when idle · timer appears only while recording
-  Recording destination   ~/Videos/Screenrecords
 
 MEDIA
   Music title             Left full media card · middle play/pause

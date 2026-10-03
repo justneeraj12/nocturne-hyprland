@@ -12,16 +12,11 @@ ApplicationWindow {
     height: 1
     screen: backend.targetScreen
 
-    readonly property bool bottomSurface: backend.surface === "capture"
     readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized"
-    readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : (bottomSurface ? 502 : 410))
+    readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : 410)
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
-    function dismiss() {
-        if (root.bottomSurface)
-            backend.start([backend.home + "/.local/bin/nocturne-capture-engine", "discard"])
-        backend.close()
-    }
+    function dismiss() { backend.close() }
 
     LayerShellQt.Window.scope: "nocturne-native"
     LayerShellQt.Window.layer: LayerShellQt.Window.LayerOverlay
@@ -29,10 +24,7 @@ ApplicationWindow {
     LayerShellQt.Window.keyboardInteractivity: root.centerSurface
         ? LayerShellQt.Window.KeyboardInteractivityExclusive
         : LayerShellQt.Window.KeyboardInteractivityOnDemand
-    // Capture prepares a compositor frame before this surface maps. Avoid
-    // requesting keyboard focus here so transient application menus remain
-    // visible until the user actually interacts with the toolbar.
-    LayerShellQt.Window.activateOnShow: !root.bottomSurface
+    LayerShellQt.Window.activateOnShow: true
     LayerShellQt.Window.screen: backend.targetScreen
     LayerShellQt.Window.anchors: LayerShellQt.Window.AnchorTop | LayerShellQt.Window.AnchorRight | LayerShellQt.Window.AnchorBottom | LayerShellQt.Window.AnchorLeft
 
@@ -45,15 +37,14 @@ ApplicationWindow {
         id: card
         width: root.cardWidth
         height: root.cardHeight
-        x: root.bottomSurface || root.centerSurface ? Math.round((root.width - width) / 2) : root.width - width - backend.rightMargin(width)
-        y: root.bottomSurface ? root.height - height - 28 : (root.centerSurface ? Math.round((root.height - height) * 0.36) : 33)
+        x: root.centerSurface ? Math.round((root.width - width) / 2) : root.width - width - backend.rightMargin(width)
+        y: root.centerSurface ? Math.round((root.height - height) * 0.36) : 33
 
         MouseArea { anchors.fill: parent }
         Loader {
             id: contentLoader
             anchors.fill: parent
             sourceComponent: {
-                if (backend.surface === "capture") return capturePage
                 if (backend.surface === "launcher") return launcherPage
                 if (backend.surface === "background") return backgroundPage
                 if (backend.surface === "notifications") return notificationsPage
@@ -79,7 +70,6 @@ ApplicationWindow {
     Component { id: connectivityPage; ConnectivityPage { initialPage: backend.page || "wifi" } }
     Component { id: pomodoroPage; PomodoroPage {} }
     Component { id: powerPage; PowerPage {} }
-    Component { id: capturePage; CapturePage {} }
     Component { id: launcherPage; LauncherPage {} }
     Component { id: backgroundPage; BackgroundPage {} }
     Component { id: notificationsPage; NotificationsPage {} }

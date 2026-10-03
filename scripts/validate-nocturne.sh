@@ -20,10 +20,6 @@ printf '[ OK ] shell scripts\n'
 jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
-PYTHONPYCACHEPREFIX="$temporary/pycache" python3 -m py_compile "$root/bin/nocturne-capture-engine"
-"$root/bin/nocturne-capture-engine" --self-test >/dev/null
-printf '[ OK ] headless capture engine\n'
-
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
 cmake --build "$temporary/native" --parallel >/dev/null
 "$temporary/native/nocturne-native" --self-test >/dev/null
@@ -62,17 +58,18 @@ printf '[ OK ] Hyprland Lua configuration\n'
 
 grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
   "$root/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
-grep -Fq 'scripts/capture-open' "$root/config/hypr/hyprland.lua"
-grep -Fq '"prepare"' "$root/bin/nocturne-capture-engine"
-grep -Fq '"hyprpicker", "-r", "-z", "-q"' "$root/bin/nocturne-capture-engine"
-grep -Fq '"freeze-status"' "$root/bin/nocturne-capture-engine"
-grep -Fq 'WindowTransparentForInput' "$root/native/qml/Freeze.qml"
-grep -Fq 'nocturne-native"), "freeze"' "$root/bin/nocturne-capture-engine"
+grep -Fq '/.local/bin/hyprshot -o ' "$root/config/hypr/hyprland.lua"
+grep -Fq 'hl.bind("Print", run(hyprshot .. " -m region"))' "$root/config/hypr/hyprland.lua"
+grep -Fq 'hl.bind("SHIFT + Print", run(hyprshot .. " -m window"))' "$root/config/hypr/hyprland.lua"
+grep -Fq 'hl.bind("CTRL + Print", run(hyprshot .. " -m output"))' "$root/config/hypr/hyprland.lua"
+grep -Fq 'readonly version=1.3.0' "$root/scripts/install-hyprshot.sh"
+! rg -q 'nocturne-capture|CapturePage|Freeze.qml|wf-recorder|hyprpicker' \
+  "$root/native" "$root/bin" "$root/config/hypr"
 grep -Fq 'function dismiss()' "$root/native/qml/Shell.qml"
 ! grep -Fq 'HyprCapture' "$root/config/hypr/hyprland.lua"
 [[ ! -e $root/config/hypr/hyprcapture.lua ]]
 [[ ! -e $root/scripts/install-hyprcapture.sh ]]
-printf '[ OK ] explicit Lua startup + native capture owner\n'
+printf '[ OK ] explicit Lua startup + upstream Hyprshot owner\n'
 
 grep -Fq 'nocturne-native" bar' "$root/config/hypr/scripts/bar"
 grep -Fq 'nativeCard("connectivity", "wifi")' "$root/native/qml/BarWindow.qml"

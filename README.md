@@ -16,13 +16,12 @@ ordinary tiled windows.
 ## Highlights
 
 - A single on-demand `nocturne-native` binary for audio, brightness,
-  connectivity, power, calendar, world time, Pomodoro, capture and settings.
+  connectivity, power, calendar, world time, Pomodoro and settings.
 - No GTK or GNOME dependency in Nocturne's own UI code.
 - Live PipeWire app-stream discovery, master volume and output routing.
 - A brightness slider that follows hardware-key changes while it is open.
 - Wi-Fi, Bluetooth and VPN controls backed by NetworkManager and BlueZ.
-- Screenshots and recordings for an area, window or display using
-  `grim`, `slurp` and `wf-recorder`.
+- Stable upstream Hyprshot screenshots for an area, window or display.
 - Every screenshot is saved to `~/Pictures/Screenshots` and copied as a normal
   `image/png` clipboard item.
 - Native multi-monitor bar and application launcher, Mako history, Cliphist,
@@ -57,7 +56,7 @@ Native bar clicks / hotkeys
           ├── brightnessctl / logind       hardware backlight
           ├── NetworkManager / BlueZ       Wi-Fi, VPN, Bluetooth
           ├── power-profiles-daemon        power modes
-          └── grim / slurp / wf-recorder  capture engine
+          └── Hyprshot / grim / slurp    screenshots
 ```
 
 The layer-shell window is created at its final monitor and anchor before the
@@ -105,7 +104,7 @@ profiles or the GNOME session. Run a source-only check with no live changes:
 - Hyprland, Hyprpaper, Hyprlock and Hypridle
 - Mako plus KDE and Hyprland XDG portal backends
 - PipeWire/WirePlumber, NetworkManager, BlueZ
-- grim, slurp, hyprpicker, ImageMagick, wf-recorder and wl-clipboard
+- Hyprshot 1.3.0, grim, slurp and wl-clipboard
 - jq, brightnessctl, power-profiles-daemon, Kitty, Cava and btop
 - PCManFM-Qt, qpdfview and Qalculate-Qt
 
@@ -130,7 +129,9 @@ Super + 1…9         switch workspace
 Super + Shift + 1…9 move window to workspace
 Super + drag        move/resize floating window
 Super + P           power and session card
-Print               screenshot / recording toolbar
+Print               select an area to screenshot
+Shift + Print       select a window to screenshot
+Ctrl + Print        select a display to screenshot
 ```
 
 Hardware volume and brightness keys continue to control the real system
@@ -139,17 +140,11 @@ without being closed and reopened.
 
 ## Capture behavior
 
-Press `Print`, choose Photo or Video, then choose Area, Window or Display.
-Selection happens after the toolbar closes so it never appears inside the
-result. Pressing Print briefly uses hyprpicker to obtain the compositor frame,
-then replaces it with Nocturne's passive click-through image layer. Open menus
-remain visibly frozen, while the toolbar and selector above it receive input
-normally. The saved screenshot is cropped from that same private frame, so
-neither the toolbar nor the selection border is composited into the image.
-Cancelling releases the layer, with a five-minute safety timeout after crashes.
-
-Recordings are saved under `~/Videos/Screenrecords`. While a recording is
-active, the native bar REC indicator is visible and opens a Stop + Save action.
+Nocturne does not maintain a custom capture overlay or recording engine.
+`Print` runs the stable upstream Hyprshot region selector, `Shift + Print`
+selects a window and `Ctrl + Print` selects a display. Screenshots are saved
+under `~/Pictures/Screenshots` and copied to the standard Wayland clipboard.
+The installer pins and checksum-verifies Hyprshot 1.3.0.
 
 ## Development
 
@@ -166,8 +161,9 @@ Run the complete local validation:
 ```
 
 The validation builds C++/QML from scratch, checks shell/Python/JSON/Lua,
-tests the capture model and local agent, rejects GTK imports in Nocturne's own
-UI, validates native bar/tray/notification ownership, and runs patch-hygiene checks.
+checks the pinned Hyprshot wiring and local agent, rejects GTK imports in
+Nocturne's own UI, validates native bar/tray/notification ownership, and runs
+patch-hygiene checks.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution workflow and
 [SECURITY.md](SECURITY.md) for private vulnerability reporting.

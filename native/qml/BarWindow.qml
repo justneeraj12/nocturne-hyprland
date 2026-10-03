@@ -93,14 +93,6 @@ ApplicationWindow {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 3
             BarButton {
-                visible: shell.recording.text && shell.recording.text !== ""
-                text: shell.recording.text || "REC"
-                selected: true
-                selectedColor: "#9f3f46"
-                tooltip: "Screen recording · click for controls"
-                onLeftClicked: root.run([backend.home + "/.config/hypr/scripts/capture-open"])
-            }
-            BarButton {
                 text: Qt.formatDate(shell.now, "ddd dd MMM") + "  ·  " + root.clockText(shell.now)
                 tooltip: "Left: calendar · Right: world clocks"
                 onLeftClicked: root.nativeCard("calendar", "")

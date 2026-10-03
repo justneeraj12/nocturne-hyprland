@@ -11,7 +11,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────────────'
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl playerctl grim slurp wf-recorder pcmanfm-qt qpdfview qalculate-qt)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl playerctl grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -81,13 +81,11 @@ else
 fi
 pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
 
-if command -v magick >/dev/null 2>&1 && command -v hyprpicker >/dev/null 2>&1 \
-    && [[ -x $HOME/.local/bin/nocturne-capture-engine ]] \
-    && "$HOME/.local/bin/nocturne-capture-engine" --self-test >/dev/null 2>&1 \
-    && [[ -x $HOME/.config/hypr/scripts/capture-status ]]; then
-  ok 'Screenshot and recording engine passed its self-test'
+if [[ -x $HOME/.local/bin/hyprshot ]] \
+    && "$HOME/.local/bin/hyprshot" --help >/dev/null 2>&1; then
+  ok 'Upstream Hyprshot screenshot utility responds'
 else
-  bad 'Capture integration is incomplete'
+  bad 'Hyprshot is missing or does not respond'
 fi
 
 pgrep -x easyeffects >/dev/null 2>&1 && ok 'EasyEffects is preserved and running' || warning 'EasyEffects is not running'
