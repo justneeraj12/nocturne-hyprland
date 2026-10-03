@@ -44,7 +44,7 @@ if "$install_packages"; then
     layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
     curl flatpak grim slurp wl-clipboard cliphist libnotify-bin brightnessctl pipewire-bin pulseaudio-utils xdg-utils \
     network-manager bluez jq kitty btop cava fastfetch playerctl gamemode pcmanfm-qt qpdfview qalculate-qt \
-    power-profiles-daemon fonts-inter fonts-jetbrains-mono
+    power-profiles-daemon fwupd hyprsunset fonts-inter fonts-jetbrains-mono
 fi
 
 "$root/scripts/install-hyprshot.sh"

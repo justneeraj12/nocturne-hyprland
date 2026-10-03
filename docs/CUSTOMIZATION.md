@@ -15,6 +15,14 @@ That keeps the refresh rates, positions and scales already working in the
 current session. Edit this small file for a different permanent layout; a
 catch-all preferred-mode rule handles newly connected displays. Delete the
 file and run `./install.sh` from the desired live layout to detect it again.
+The native Displays card can extend, mirror, scale and rotate outputs live;
+choose **Save Layout** only after the arrangement looks correct.
+
+## Night Shift
+
+Brightness controls include manual warm presets and a timed Hyprsunset mode.
+The default schedule is neutral at 07:00, 4500 K at 19:00 and 3600 K at 22:30.
+Edit `~/.config/hypr/hyprsunset.conf` to change those times or temperatures.
 
 ## Wallpapers
 
@@ -72,6 +80,12 @@ The remaining manually configured cities continue working normally.
 The reference setup uses PCManFM-Qt for folders, qpdfview for PDFs and
 Qalculate-Qt for calculations. Change defaults with `xdg-mime` if you prefer
 other applications; the shell does not require those exact choices.
+
+## Portable preferences
+
+**Settings → Setup + Backup** exports theme state, accents, locations, wallpaper
+selection, saved monitor layout and Night Shift configuration. The archive does
+not include Wi-Fi secrets, passwords, browser profiles or wallpaper images.
 
 ## Keybindings
 

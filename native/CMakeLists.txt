@@ -39,6 +39,8 @@ qt_add_qml_module(nocturne-native
         qml/pages/MinimizedPage.qml
         qml/pages/MediaPage.qml
         qml/pages/KdeConnectPage.qml
+        qml/pages/MaintenancePage.qml
+        qml/pages/DisplayPage.qml
 )
 
 target_link_libraries(nocturne-native PRIVATE

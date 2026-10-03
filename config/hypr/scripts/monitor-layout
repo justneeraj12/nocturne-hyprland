@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+layout_file="$config_home/nocturne/monitors.lua"
+
+monitors() { hyprctl -j monitors; }
+
+monitor_json() {
+  local output=$1
+  monitors | jq -ce --arg output "$output" '.[] | select(.name == $output)'
+}
+
+validate_output() {
+  [[ $1 =~ ^[A-Za-z0-9_.-]+$ ]] || {
+    printf 'Invalid monitor output: %s\n' "$1" >&2
+    exit 2
+  }
+}
+
+apply_monitor() {
+  local output=$1 scale=${2:-} transform=${3:-}
+  validate_output "$output"
+  local data width height refresh x y current_scale current_transform rule
+  data=$(monitor_json "$output")
+  width=$(jq -r '.width' <<<"$data")
+  height=$(jq -r '.height' <<<"$data")
+  refresh=$(jq -r '.refreshRate' <<<"$data")
+  x=$(jq -r '.x' <<<"$data")
+  y=$(jq -r '.y' <<<"$data")
+  current_scale=$(jq -r '.scale' <<<"$data")
+  current_transform=$(jq -r '.transform // 0' <<<"$data")
+  [[ -n $scale ]] || scale=$current_scale
+  [[ -n $transform ]] || transform=$current_transform
+  [[ $scale =~ ^(1|1\.25|1\.5|2)$ ]] || { printf 'Unsupported scale.\n' >&2; exit 2; }
+  [[ $transform =~ ^[0-3]$ ]] || { printf 'Unsupported rotation.\n' >&2; exit 2; }
+  rule="$output,${width}x${height}@${refresh},${x}x${y},$scale,transform,$transform"
+  hyprctl keyword monitor "$rule" >/dev/null
+}
+
+save_layout() {
+  local temporary
+  mkdir -p "$(dirname "$layout_file")"
+  temporary=$(mktemp "${layout_file}.XXXXXX")
+  monitors | jq -r '.[] | [.name,.width,.height,.refreshRate,.x,.y,.scale,(.transform // 0)] | @tsv' |
+    while IFS=$'\t' read -r output width height refresh x y scale transform; do
+      validate_output "$output"
+      printf 'hl.monitor({ output = "%s", mode = "%sx%s@%s", position = "%sx%s", scale = %s, transform = %s })\n' \
+        "$output" "$width" "$height" "$refresh" "$x" "$y" "$scale" "$transform"
+    done > "$temporary"
+  printf 'hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })\n' >> "$temporary"
+  mv -- "$temporary" "$layout_file"
+  notify-send -a Nocturne 'Display layout saved' 'This arrangement will be restored at login.'
+}
+
+extend_layout() {
+  local x=0 data output width height refresh scale transform logical_width rule
+  while IFS= read -r data; do
+    output=$(jq -r '.name' <<<"$data"); validate_output "$output"
+    width=$(jq -r '.width' <<<"$data"); height=$(jq -r '.height' <<<"$data")
+    refresh=$(jq -r '.refreshRate' <<<"$data"); scale=$(jq -r '.scale' <<<"$data")
+    transform=$(jq -r '.transform // 0' <<<"$data")
+    rule="$output,${width}x${height}@${refresh},${x}x0,$scale,transform,$transform"
+    hyprctl keyword monitor "$rule" >/dev/null
+    logical_width=$(awk -v width="$width" -v scale="$scale" 'BEGIN {printf "%d", width / scale}')
+    x=$((x + logical_width))
+  done < <(monitors | jq -c 'sort_by(.id)[]')
+}
+
+mirror_layout() {
+  local target data output
+  target=$(monitors | jq -r 'sort_by(.focused | not, .id) | .[0].name')
+  validate_output "$target"
+  while IFS= read -r data; do
+    output=$(jq -r '.name' <<<"$data"); validate_output "$output"
+    [[ $output == "$target" ]] && continue
+    hyprctl keyword monitor "$output,preferred,auto,1,mirror,$target" >/dev/null
+  done < <(monitors | jq -c '.[]')
+}
+
+case ${1:-status} in
+  status) monitors ;;
+  scale) apply_monitor "${2:?output required}" "${3:?scale required}" ;;
+  rotate) apply_monitor "${2:?output required}" '' "${3:?rotation required}" ;;
+  extend) extend_layout ;;
+  mirror) mirror_layout ;;
+  save) save_layout ;;
+  *) printf 'Usage: %s status|scale OUTPUT SCALE|rotate OUTPUT 0..3|extend|mirror|save\n' "$0" >&2; exit 2 ;;
+esac

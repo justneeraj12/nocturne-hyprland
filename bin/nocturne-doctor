@@ -11,7 +11,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────────────'
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl playerctl grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")

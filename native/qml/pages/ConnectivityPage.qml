@@ -20,6 +20,10 @@ Rectangle {
     property bool bluetoothEnabled: false
     property bool bluetoothAvailable: true
     property bool vpnEnabled: false
+    property string connectivity: "unknown"
+    property bool metered: false
+    property string activeWifiDevice: ""
+    property string activeWifiProfile: ""
 
     onInitialPageChanged: {
         tab = initialPage
@@ -30,7 +34,11 @@ Rectangle {
     readonly property bool currentAvailable: tab !== "bluetooth" || bluetoothAvailable
     readonly property string currentName: tab === "wifi" ? "Wi-Fi" : (tab === "bluetooth" ? "Bluetooth" : "VPN")
     readonly property string currentDetail: {
-        if (tab === "wifi") return wifiEnabled ? "Wireless networking is enabled" : "Wireless networking is off"
+        if (tab === "wifi") {
+            if (!wifiEnabled) return "Wireless networking is off"
+            var state = connectivity === "full" ? "Internet online" : (connectivity === "portal" ? "Sign-in required" : (connectivity === "limited" ? "Limited internet" : "Connectivity unknown"))
+            return state + (activeWifiProfile ? " · " + activeWifiProfile : "")
+        }
         if (tab === "bluetooth") {
             if (!bluetoothAvailable) return "No Bluetooth adapter detected"
             return bluetoothEnabled ? "Nearby and paired devices are available" : "Bluetooth is off"
@@ -41,6 +49,15 @@ Rectangle {
 
     function refresh() {
         wifiEnabled = backend.run(["nmcli", "-t", "-f", "WIFI", "general"]) === "enabled"
+        connectivity = backend.run(["nmcli", "-t", "networking", "connectivity"]) || "unknown"
+        var connectedWifi = backend.run(["nmcli", "-t", "--escape", "no", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"]).split("\n").filter(function(line) {
+            return line.indexOf(":wifi:connected:") > 0
+        })[0] || ""
+        var wifiFields = connectedWifi.split(":")
+        activeWifiDevice = wifiFields[0] || ""
+        activeWifiProfile = wifiFields.slice(3).join(":") || ""
+        var meterState = activeWifiDevice ? backend.run(["nmcli", "-g", "GENERAL.METERED", "device", "show", activeWifiDevice]).toLowerCase() : ""
+        metered = meterState === "yes" || meterState.indexOf("guess yes") >= 0
 
         var bluetoothState = backend.run(["bluetoothctl", "show"])
         bluetoothAvailable = bluetoothState !== ""
@@ -82,6 +99,13 @@ Rectangle {
                 return {mac:mac, name:fields.slice(2).join(" "), active:connected.indexOf(mac) >= 0}
             }).sort(function(a, b) { return a.active ? -1 : (b.active ? 1 : a.name.localeCompare(b.name)) })
         }
+    }
+
+    function setMetered(enabled) {
+        if (!activeWifiProfile) return
+        metered = enabled
+        backend.start(["nmcli", "connection", "modify", "id", activeWifiProfile, "connection.metered", enabled ? "yes" : "no"])
+        delayed.restart()
     }
 
     function setCurrentEnabled(enabled) {
@@ -165,6 +189,36 @@ Rectangle {
                     checked: root.currentEnabled
                     available: root.currentAvailable && (root.tab !== "vpn" || root.vpn.length > 0)
                     onToggleRequested: function(enabled) { root.setCurrentEnabled(enabled) }
+                }
+            }
+        }
+
+        Rectangle {
+            visible: root.tab === "wifi" && root.wifiEnabled
+            Layout.fillWidth: true
+            implicitHeight: 44
+            color: backend.surfaceColor
+            border.color: root.connectivity === "portal" || root.connectivity === "limited" ? "#c7895c" : backend.lineColor
+            RowLayout {
+                anchors.fill: parent; anchors.margins: 7
+                Text {
+                    Layout.fillWidth: true
+                    text: "NETWORK  " + root.connectivity.toUpperCase()
+                    color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 9
+                }
+                Text { text: "METERED"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8 }
+                NocturneToggle {
+                    checked: root.metered
+                    available: root.activeWifiProfile !== ""
+                    onToggleRequested: function(enabled) { root.setMetered(enabled) }
+                }
+                NocturneButton {
+                    text: root.connectivity === "portal" ? "SIGN IN" : "CHECK"
+                    onClicked: {
+                        backend.run(["nmcli", "networking", "connectivity", "check"], 12000)
+                        if (root.connectivity === "portal") backend.start(["xdg-open", "http://neverssl.com"])
+                        delayed.restart()
+                    }
                 }
             }
         }

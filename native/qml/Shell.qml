@@ -13,7 +13,9 @@ ApplicationWindow {
     screen: backend.targetScreen
 
     readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized"
-    readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : 410)
+    readonly property int cardWidth: backend.surface === "launcher" ? 540
+        : (backend.surface === "display" ? 460
+            : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : 410))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     function dismiss() { backend.close() }
@@ -58,6 +60,8 @@ ApplicationWindow {
                 if (backend.surface === "world") return worldPage
                 if (backend.surface === "pomodoro") return pomodoroPage
                 if (backend.surface === "connectivity") return connectivityPage
+                if (backend.surface === "maintenance") return maintenancePage
+                if (backend.surface === "display") return displayPage
                 return audioPage
             }
         }
@@ -77,6 +81,8 @@ ApplicationWindow {
     Component { id: minimizedPage; MinimizedPage {} }
     Component { id: mediaPage; MediaPage {} }
     Component { id: kdeConnectPage; KdeConnectPage {} }
+    Component { id: maintenancePage; MaintenancePage {} }
+    Component { id: displayPage; DisplayPage {} }
 
     Shortcut { sequence: "Escape"; onActivated: root.dismiss() }
     onClosing: backend.close()

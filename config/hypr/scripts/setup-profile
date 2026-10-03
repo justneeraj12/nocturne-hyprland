@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_file="$config_home/nocturne/profile.json"
+
+status() {
+  local current=unconfigured recommended=desktop battery=false displays=0 bluetooth=false
+  [[ -s $state_file ]] && current=$(jq -r '.profile // "unconfigured"' "$state_file" 2>/dev/null || printf unconfigured)
+  compgen -G '/sys/class/power_supply/BAT*' >/dev/null && battery=true
+  bluetoothctl show >/dev/null 2>&1 && bluetooth=true
+  displays=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
+  [[ $battery == true ]] && recommended=laptop
+  jq -cn --arg current "$current" --arg recommended "$recommended" \
+    --argjson battery "$battery" --argjson bluetooth "$bluetooth" --argjson displays "$displays" \
+    '{current:$current,recommended:$recommended,battery:$battery,bluetooth:$bluetooth,displays:$displays}'
+}
+
+apply_profile() {
+  local profile=$1
+  case $profile in
+    minimal)
+      systemctl --user disable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+      "$config_home/hypr/scripts/night-light" off >/dev/null 2>&1 || true
+      ;;
+    desktop)
+      systemctl --user enable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service >/dev/null 2>&1 || true
+      systemctl --user disable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+      ;;
+    laptop)
+      systemctl --user enable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+      powerprofilesctl set balanced >/dev/null 2>&1 || true
+      ;;
+    *) printf 'Unknown profile: %s\n' "$profile" >&2; exit 2 ;;
+  esac
+  mkdir -p "$(dirname "$state_file")"
+  jq -cn --arg profile "$profile" --arg applied "$(date --iso-8601=seconds)" \
+    '{profile:$profile,applied:$applied}' > "$state_file"
+  notify-send -a Nocturne 'Setup profile applied' "$profile profile is active."
+}
+
+case ${1:-status} in
+  status) status ;;
+  apply) apply_profile "${2:?profile required}" ;;
+  *) printf 'Usage: %s status|apply minimal|desktop|laptop\n' "$0" >&2; exit 2 ;;
+esac

@@ -249,5 +249,9 @@ hl.window_rule({ match = { class = "^(steam_app_.*)$" }, immediate = true })
 local opaque_content = "^(firefox|Brave-browser|brave-browser|brave-.*|chromium|Google-chrome|google-chrome|mpv|vlc|qpdfview|libreoffice.*|steam|steam_app_.*)$"
 hl.window_rule({ match = { class = opaque_content }, opacity = "1.0 override 1.0 override 1.0 override" })
 
+-- ChatGPT's Linux wrapper runs through XWayland. Context menus are subsurfaces,
+-- so compositor blur otherwise bleeds around their rectangular bounds.
+hl.window_rule({ match = { class = "^(Chatgpt)$" }, no_blur = true, opacity = "1.0 override 1.0 override 1.0 override" })
+
 hl.layer_rule({ match = { namespace = "nocturne-bar" }, blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ match = { namespace = "mako" }, blur = true, ignore_alpha = 0.15 })

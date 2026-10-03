@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bin_home="$HOME/.local/bin"
+
+count_lines() {
+  awk 'NF {count++} END {print count + 0}'
+}
+
+status() {
+  local apt_count flatpak_count firmware_count failed_count
+  apt_count=$(apt list --upgradable 2>/dev/null | sed '1d' | count_lines)
+  flatpak_count=$(timeout 8 flatpak remote-ls --user --updates --columns=application 2>/dev/null | count_lines || printf 0)
+  firmware_count=$(timeout 8 fwupdmgr get-updates --json 2>/dev/null \
+    | jq '[(.Devices // .devices // [])[]? | .Releases // .releases // [] | length] | add // 0' 2>/dev/null || printf 0)
+  failed_count=$(systemctl --user --failed --no-legend 2>/dev/null | count_lines)
+  jq -cn --argjson apt "$apt_count" --argjson flatpak "$flatpak_count" \
+    --argjson firmware "$firmware_count" --argjson failed "$failed_count" \
+    '{apt:$apt,flatpak:$flatpak,firmware:$firmware,failed:$failed}'
+}
+
+open_terminal() {
+  local title=$1 command=$2
+  exec kitty --hold --class nocturne-maintenance --title "$title" -e bash -lc "$command"
+}
+
+case ${1:-status} in
+  status) status ;;
+  refresh) open_terminal 'Nocturne · Refresh updates' 'sudo apt-get update; flatpak update --user --appstream; fwupdmgr refresh --force; printf "\nMetadata refresh finished.\n"' ;;
+  packages) open_terminal 'Nocturne · System packages' 'sudo apt-get update && sudo apt-get upgrade; printf "\nSystem package task finished.\n"' ;;
+  flatpak) open_terminal 'Nocturne · Flatpak updates' 'flatpak update --user; printf "\nFlatpak task finished.\n"' ;;
+  firmware) open_terminal 'Nocturne · Firmware' 'fwupdmgr get-devices; fwupdmgr get-updates; printf "\nUse: sudo fwupdmgr update\n"' ;;
+  doctor) open_terminal 'Nocturne · System check' "'$bin_home/nocturne-doctor'; printf '\nRead-only check finished.\n'" ;;
+  *) printf 'Usage: %s status|refresh|packages|flatpak|firmware|doctor\n' "$0" >&2; exit 2 ;;
+esac

@@ -41,6 +41,11 @@ cmake --build "$temporary/native" --parallel >/dev/null
 ! rg -q 'import gi|from gi|Gtk' "$root/native" "$root/bin"
 grep -Fq 'backend.audioStreams()' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'interval: 200' "$root/native/qml/pages/BrightnessPage.qml"
+grep -Fq 'NIGHT SHIFT' "$root/native/qml/pages/BrightnessPage.qml"
+grep -Fq 'connection.metered' "$root/native/qml/pages/ConnectivityPage.qml"
+grep -Fq 'SYSTEM PACKAGES' "$root/native/qml/pages/MaintenancePage.qml"
+grep -Fq 'SAVE LAYOUT' "$root/native/qml/pages/DisplayPage.qml"
+grep -Fq 'SETUP + BACKUP' "$root/native/qml/Settings.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
 ! grep -Fq 'targetScreen.name === "HDMI-A-1"' "$root/native/qml/BarWindow.qml"
@@ -59,6 +64,8 @@ grep -Fq 'onInitialPageChanged' "$root/native/qml/pages/ConnectivityPage.qml"
 grep -Fq 'PanelHeader' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'PanelHeader' "$root/native/qml/pages/PowerPage.qml"
 grep -Fq 'displayHour = hours % 12' "$root/native/qml/BarWindow.qml"
+grep -Fq 'nativeCard("maintenance", "")' "$root/native/qml/BarWindow.qml"
+grep -Fq 'nativeCard("display", "")' "$root/native/qml/BarWindow.qml"
 grep -Fq 'Layout.preferredWidth: 42' "$root/native/qml/pages/WorldPage.qml"
 grep -Fq 'current-location.json' "$root/native/qml/pages/WorldPage.qml"
 grep -Fq 'key: "@current"' "$root/config/hypr/scripts/current-location"
@@ -78,6 +85,8 @@ grep -q 'config ok' "$temporary/hyprland-verify.log"
 ! rg -q 'hyprctl dispatch (workspace|focuswindow|closewindow|movetoworkspace|movetoworkspacesilent|togglefloating|dpms|cyclenext|bringactivetotop)' \
   "$root/config" "$root/bin" "$root/native"
 grep -Fq 'hl.dsp.focus({ workspace' "$root/native/qml/BarWindow.qml"
+grep -Fq 'class = "^(Chatgpt)$"' "$root/config/hypr/hyprland.lua"
+grep -Fq 'no_blur = true' "$root/config/hypr/hyprland.lua"
 printf '[ OK ] Hyprland Lua configuration\n'
 
 grep -Fq 'start-hyprland -- --config %h/.config/hypr/hyprland.lua' \
@@ -108,6 +117,15 @@ grep -Fq 'mako.service' "$root/uninstall.sh"
 grep -Fq 'default=kde' "$root/config/xdg-desktop-portal/hyprland-portals.conf"
 ! grep -Fq 'swaync-client' "$root/config/hypr/hyprland.lua"
 printf '[ OK ] native bar, tray, notifications and Qt portal ownership\n'
+
+grep -Fq 'profile {' "$root/config/hypr/hyprsunset.conf"
+grep -Fq 'hyprctl hyprsunset temperature' "$root/config/hypr/scripts/night-light"
+grep -Fq 'hyprctl keyword monitor' "$root/config/hypr/scripts/monitor-layout"
+grep -Fq 'fwupdmgr get-updates' "$root/config/hypr/scripts/system-maintenance"
+grep -Fq 'nocturne-portable-v1' "$root/bin/nocturne-portable"
+HOME="$temporary/portable-home" XDG_CONFIG_HOME="$temporary/portable-config" \
+  "$root/bin/nocturne-portable" status | jq -e '.exists == false' >/dev/null
+printf '[ OK ] night shift, display, maintenance and portable setup controls\n'
 
 grep -Fq 'nocturne-native" launcher' "$root/config/hypr/scripts/launcher"
 grep -Fq 'backend.applications("")' "$root/native/qml/pages/LauncherPage.qml"

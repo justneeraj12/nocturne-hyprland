@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+state_dir="$state_home/nocturne"
+state_file="$state_dir/night-light.json"
+mkdir -p "$state_dir"
+
+available() { command -v hyprsunset >/dev/null 2>&1; }
+running() { pgrep -x hyprsunset >/dev/null 2>&1; }
+
+save_state() {
+  local mode=$1 temperature=${2:-0}
+  jq -cn --arg mode "$mode" --argjson temperature "$temperature" \
+    '{mode:$mode,temperature:$temperature}' > "$state_file"
+}
+
+ensure_running() {
+  available || {
+    notify-send -a Nocturne 'Night Shift unavailable' 'Install hyprsunset to enable the native color-temperature filter.'
+    exit 1
+  }
+  systemctl --user enable --now hyprsunset.service >/dev/null
+  for _ in 1 2 3 4 5; do
+    running && return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+status() {
+  local mode=off temperature=0 profile=''
+  if [[ -s $state_file ]]; then
+    mode=$(jq -r '.mode // "off"' "$state_file" 2>/dev/null || printf off)
+    temperature=$(jq -r '.temperature // 0' "$state_file" 2>/dev/null || printf 0)
+  elif running; then
+    mode=auto
+  fi
+  if running; then profile=$(hyprctl hyprsunset profile 2>/dev/null | tr '\n' ' ' || true); fi
+  jq -cn \
+    --argjson available "$(available && printf true || printf false)" \
+    --argjson running "$(running && printf true || printf false)" \
+    --arg mode "$mode" --argjson temperature "$temperature" --arg profile "$profile" \
+    '{available:$available,running:$running,mode:$mode,temperature:$temperature,profile:$profile}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  auto)
+    ensure_running
+    hyprctl hyprsunset reset >/dev/null
+    save_state auto 0
+    notify-send -a Nocturne 'Night Shift' 'Automatic evening schedule enabled.'
+    ;;
+  off)
+    if running; then hyprctl hyprsunset identity >/dev/null 2>&1 || true; fi
+    systemctl --user disable --now hyprsunset.service >/dev/null 2>&1 || true
+    save_state off 0
+    notify-send -a Nocturne 'Night Shift' 'Color-temperature filter disabled.'
+    ;;
+  set)
+    temperature=${2:?temperature required}
+    [[ $temperature =~ ^[0-9]+$ ]] && ((temperature >= 2500 && temperature <= 6500)) || {
+      printf 'Temperature must be between 2500 and 6500 K.\n' >&2
+      exit 2
+    }
+    ensure_running
+    hyprctl hyprsunset temperature "$temperature" >/dev/null
+    save_state manual "$temperature"
+    ;;
+  *) printf 'Usage: %s status|auto|off|set TEMPERATURE\n' "$0" >&2; exit 2 ;;
+esac

@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+backup_root="$HOME/Documents/Nocturne-Backups"
+cleanup_dir=''
+cleanup() { [[ -z $cleanup_dir ]] || rm -rf -- "$cleanup_dir"; }
+trap cleanup EXIT
+
+latest_bundle() {
+  [[ -d $backup_root ]] || return 0
+  find "$backup_root" -maxdepth 1 -type f -name 'nocturne-config-*.tar.gz' -printf '%T@\t%p\n' 2>/dev/null \
+    | sort -nr | awk -F '\t' 'NR == 1 {print $2}'
+}
+
+export_bundle() {
+  local payload archive stamp
+  mkdir -p "$backup_root"
+  cleanup_dir=$(mktemp -d)
+  payload="$cleanup_dir/nocturne-portable"
+  mkdir -p "$payload/config/nocturne" "$payload/config/hypr"
+  if [[ -d $config_home/nocturne ]]; then cp -a -- "$config_home/nocturne/." "$payload/config/nocturne/"; fi
+  for file in monitors.lua hyprsunset.conf KEYS.md; do
+    [[ -e $config_home/hypr/$file ]] && cp -a -- "$config_home/hypr/$file" "$payload/config/hypr/$file"
+  done
+  jq -cn --arg format nocturne-portable-v1 --arg created "$(date --iso-8601=seconds)" \
+    '{format:$format,created:$created,contains:["theme","accents","locations","wallpaper state","monitor layout","night shift"]}' \
+    > "$payload/manifest.json"
+  stamp=$(date +%Y%m%d-%H%M%S)
+  archive="$backup_root/nocturne-config-$stamp.tar.gz"
+  tar -C "$cleanup_dir" -czf "$archive" nocturne-portable
+  notify-send -a Nocturne 'Portable backup created' "$archive"
+  printf '%s\n' "$archive"
+}
+
+restore_bundle() {
+  local archive=${1:-} payload entry
+  [[ -n $archive ]] || archive=$(latest_bundle)
+  [[ -f $archive ]] || { printf 'No portable backup was found.\n' >&2; exit 1; }
+  while IFS= read -r entry; do
+    [[ $entry != /* && $entry != *'../'* && $entry != '..' ]] || {
+      printf 'Unsafe archive entry: %s\n' "$entry" >&2
+      exit 1
+    }
+  done < <(tar -tzf "$archive")
+  cleanup_dir=$(mktemp -d)
+  tar -C "$cleanup_dir" -xzf "$archive"
+  payload="$cleanup_dir/nocturne-portable"
+  jq -e '.format == "nocturne-portable-v1"' "$payload/manifest.json" >/dev/null
+  mkdir -p "$config_home/nocturne" "$config_home/hypr"
+  [[ -d $payload/config/nocturne ]] && cp -a -- "$payload/config/nocturne/." "$config_home/nocturne/"
+  for file in monitors.lua hyprsunset.conf KEYS.md; do
+    [[ -e $payload/config/hypr/$file ]] && cp -a -- "$payload/config/hypr/$file" "$config_home/hypr/$file"
+  done
+  hyprctl reload >/dev/null 2>&1 || true
+  notify-send -a Nocturne 'Portable backup restored' 'Theme and workflow preferences are active.'
+}
+
+status() {
+  local latest=''
+  latest=$(latest_bundle)
+  jq -cn --arg latest "$latest" --argjson exists "$([[ -n $latest ]] && printf true || printf false)" \
+    '{latest:$latest,exists:$exists}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  export) export_bundle ;;
+  restore-latest) restore_bundle ;;
+  restore) restore_bundle "${2:?archive required}" ;;
+  *) printf 'Usage: %s status|export|restore-latest|restore ARCHIVE\n' "$0" >&2; exit 2 ;;
+esac

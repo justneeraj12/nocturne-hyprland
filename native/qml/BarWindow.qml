@@ -189,8 +189,9 @@ ApplicationWindow {
             }
             BarButton {
                 text: "󰃠" + (root.standardBar ? " " + shell.brightness + "%" : "")
-                tooltip: "Display brightness · scroll to adjust"
+                tooltip: "Display brightness · right-click for display layout"
                 onLeftClicked: root.nativeCard("brightness", "")
+                onRightClicked: root.nativeCard("display", "")
                 onScrolled: function(direction) { root.run([backend.home + "/.config/hypr/scripts/brightness", direction > 0 ? "up" : "down"]) }
             }
             BarButton {
@@ -201,6 +202,7 @@ ApplicationWindow {
                     + "\nAdaptive bar · " + root.monitorCount + " display"
                     + (root.monitorCount === 1 ? "" : "s")
                 onLeftClicked: root.run([backend.home + "/.local/bin/nocturne-dashboard"])
+                onRightClicked: root.nativeCard("maintenance", "")
             }
             BarButton {
                 text: shell.connectivity.text || "󰤨"

@@ -9,3 +9,7 @@
 - Added a reversible installer, read-only doctor, clean-build validation and CI.
 - Added native Wi-Fi, Bluetooth, VPN, power, calendar, launcher and workflow cards.
 - Added a public showcase, install guide, architecture notes and launch plan.
+- Added native Night Shift, display layout and system-maintenance cards.
+- Added captive-portal/metered-network state and hardware-aware setup profiles.
+- Added validated portable preference export and restore.
+- Removed compositor blur from ChatGPT XWayland context-menu subsurfaces.

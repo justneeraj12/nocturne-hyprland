@@ -25,7 +25,8 @@ cd nocturne-hyprland
 ```
 
 The command installs Ubuntu packages, checksum-verifies Hyprshot, installs
-Kooha from Flathub, builds the Qt shell in release mode and applies the config.
+Kooha from Flathub, installs Hyprsunset and fwupd support, builds the Qt shell
+in release mode and applies the config.
 
 Already have every dependency?
 
@@ -103,3 +104,12 @@ pkexec ./configure-msi-controls.sh
 
 They are deliberately excluded from the normal installer because firmware,
 sleep modes and embedded-controller behavior differ across machines.
+
+## First-run profile and portable backup
+
+Open **Nocturne Settings → Setup + Backup** after the first login. Hardware
+detection recommends a desktop or laptop profile; the choice changes only
+optional background services and never removes the core shell. The same page
+exports a portable preferences bundle under `~/Documents/Nocturne-Backups`.
+Bundles intentionally exclude passwords, network credentials, browser data and
+wallpaper files.

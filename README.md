@@ -65,6 +65,9 @@ The shell includes:
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
+- scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
+- apt, Flatpak, firmware and failed-service status in one maintenance card;
+- hardware-aware setup profiles plus portable preference export and restore;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 
 More images are in the [showcase](docs/SHOWCASE.md).

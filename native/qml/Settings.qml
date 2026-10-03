@@ -61,7 +61,7 @@ ApplicationWindow {
                 spacing: 5
                 SectionLabel { text: "CONTROL GROUPS" }
                 Repeater {
-                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "WORKFLOW", "POWER + SESSION", "ABOUT"]
+                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "WORKFLOW", "POWER + SESSION", "SETUP + BACKUP", "ABOUT"]
                     NocturneButton {
                         required property int index
                         required property string modelData
@@ -104,7 +104,8 @@ ApplicationWindow {
                 description: "Live PipeWire streams and the hardware backlight are sampled only while their card is open."
                 actions: [
                     {label:"OUTPUT + APP MIXER", detail:"Master volume, output routing and every currently playing app.", button:"OPEN", surface:"audio"},
-                    {label:"BRIGHTNESS", detail:"Live backlight state, hardware-key synchronization and presets.", button:"OPEN", surface:"brightness"}
+                    {label:"BRIGHTNESS + NIGHT SHIFT", detail:"Hardware-synced brightness plus scheduled native color temperature.", button:"OPEN", surface:"brightness"},
+                    {label:"DISPLAY LAYOUT", detail:"Scale, rotate, mirror, extend and persist every connected monitor.", button:"OPEN", surface:"display"}
                 ]
             }
             SettingsPage {
@@ -122,9 +123,11 @@ ApplicationWindow {
                 description: "Profiles are backed by power-profiles-daemon and the session actions are provided by systemd/UWSM."
                 actions: [
                     {label:"POWER MODE", detail:"Super, Performance, Balanced and Saver with verified state.", button:"OPEN", surface:"power"},
+                    {label:"SYSTEM MAINTENANCE", detail:"System packages, Flatpaks, firmware and failed-service health.", button:"OPEN", surface:"maintenance"},
                     {label:"LOCK", detail:"Lock now using the themed Hyprlock session.", button:"LOCK", command:"lock"}
                 ]
             }
+            SetupPage {}
             SettingsPage {
                 title: "ABOUT"
                 description: "Nocturne is an open Hyprland desktop layer built from standard, replaceable Linux services."
@@ -134,6 +137,103 @@ ApplicationWindow {
                 ]
             }
         }
+    }
+
+    component SetupPage: Rectangle {
+        id: setup
+        color: backend.baseColor
+        property var hardware: ({current:"unconfigured", recommended:"desktop", battery:false, bluetooth:false, displays:0})
+        property var backup: ({latest:"", exists:false})
+        property bool confirmRestore: false
+        readonly property string profileHelper: backend.home + "/.config/hypr/scripts/setup-profile"
+        readonly property string portable: backend.home + "/.local/bin/nocturne-portable"
+
+        function refresh() {
+            hardware = backend.json([profileHelper, "status"], 2500) || hardware
+            backup = backend.json([portable, "status"], 2500) || backup
+        }
+        function applyProfile(name) {
+            backend.start([profileHelper, "apply", name])
+            refreshDelay.restart()
+        }
+
+        ColumnLayout {
+            anchors.fill: parent; anchors.margins: 22; spacing: 10
+            Text { text: "SETUP + BACKUP"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true }
+            Text {
+                Layout.fillWidth: true
+                text: "Hardware-aware profiles and portable preferences. Profiles change only optional background services; the shell workflow stays intact."
+                wrapMode: Text.WordWrap; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 11
+            }
+            SectionLabel { text: "DETECTED HARDWARE" }
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: 60; color: backend.surfaceColor; border.color: backend.lineColor
+                RowLayout {
+                    anchors.fill: parent; anchors.margins: 9
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 2
+                        Text { text: setup.hardware.displays + " DISPLAY" + (setup.hardware.displays === 1 ? "" : "S") + "  ·  " + (setup.hardware.battery ? "BATTERY" : "DESKTOP") + "  ·  " + (setup.hardware.bluetooth ? "BLUETOOTH" : "NO BLUETOOTH"); color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 10 }
+                        Text { text: "Current: " + setup.hardware.current.toUpperCase() + "  ·  Recommended: " + setup.hardware.recommended.toUpperCase(); color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
+                    }
+                    NocturneButton { text: "RECHECK"; onClicked: setup.refresh() }
+                }
+            }
+            SectionLabel { text: "USAGE PROFILE" }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 5
+                Repeater {
+                    model: [
+                        {key:"minimal", label:"MINIMAL", detail:"Core shell only"},
+                        {key:"desktop", label:"DESKTOP", detail:"Visuals + EQ"},
+                        {key:"laptop", label:"LAPTOP", detail:"All hardware helpers"}
+                    ]
+                    NocturneButton {
+                        required property var modelData
+                        Layout.fillWidth: true; text: modelData.label
+                        selected: setup.hardware.current === modelData.key
+                        onClicked: setup.applyProfile(modelData.key)
+                        ToolTip.visible: hovered; ToolTip.text: modelData.detail
+                    }
+                }
+            }
+            SectionLabel { text: "PORTABLE CONFIGURATION" }
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: 66; color: backend.surfaceColor; border.color: backend.lineColor
+                RowLayout {
+                    anchors.fill: parent; anchors.margins: 9
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 2
+                        Text { text: setup.backup.exists ? "LATEST BACKUP READY" : "NO PORTABLE BACKUP YET"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 10 }
+                        Text { Layout.fillWidth: true; text: setup.backup.exists ? setup.backup.latest : "Saved under ~/Documents/Nocturne-Backups"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; elide: Text.ElideMiddle }
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 5
+                NocturneButton {
+                    Layout.fillWidth: true; text: "EXPORT CONFIG"; selected: true
+                    onClicked: { backend.run([setup.portable, "export"], 15000); setup.refresh() }
+                }
+                NocturneButton {
+                    Layout.fillWidth: true
+                    text: setup.confirmRestore ? "CONFIRM RESTORE" : "RESTORE LATEST"
+                    danger: setup.confirmRestore; enabled: setup.backup.exists
+                    onClicked: {
+                        if (!setup.confirmRestore) setup.confirmRestore = true
+                        else { backend.run([setup.portable, "restore-latest"], 15000); setup.confirmRestore = false; setup.refresh() }
+                    }
+                }
+                NocturneButton { text: "OPEN FOLDER"; onClicked: backend.start(["pcmanfm-qt", backend.home + "/Documents/Nocturne-Backups"]) }
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "Bundles contain Nocturne preferences and monitor layout—not passwords, Wi-Fi credentials, browser data or wallpapers."
+                color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; wrapMode: Text.WordWrap
+            }
+            Item { Layout.fillHeight: true }
+        }
+        Timer { id: refreshDelay; interval: 900; onTriggered: setup.refresh() }
+        Component.onCompleted: refresh()
     }
 
     component AppearancePage: Rectangle {
