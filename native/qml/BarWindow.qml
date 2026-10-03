@@ -48,6 +48,7 @@ ApplicationWindow {
             spacing: 2
             BarButton {
                 text: ""
+                tooltip: "Applications · right-click for settings"
                 onLeftClicked: root.run([backend.home + "/.config/hypr/scripts/launcher"])
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/control-center"])
                 onMiddleClicked: root.run([backend.home + "/.config/hypr/scripts/help"])
@@ -57,6 +58,7 @@ ApplicationWindow {
                 BarButton {
                     required property int index
                     text: String(index + 1)
+                    tooltip: "Workspace " + String(index + 1)
                     selected: root.activeWorkspace === index + 1
                     onLeftClicked: root.run(["hyprctl", "dispatch", "hl.dsp.focus({ workspace = \"" + String(index + 1) + "\" })"])
                     onScrolled: function(direction) {
@@ -68,6 +70,7 @@ ApplicationWindow {
             BarButton {
                 visible: shell.minimized.text && shell.minimized.text !== ""
                 text: shell.minimized.text || ""
+                tooltip: "Minimized windows"
                 onLeftClicked: root.nativeCard("minimized", "")
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/minimize", "restore-all"])
             }
@@ -82,6 +85,7 @@ ApplicationWindow {
                 text: shell.recording.text || "REC"
                 selected: true
                 selectedColor: "#9f3f46"
+                tooltip: "Screen recording · click for controls"
                 onLeftClicked: root.run([backend.home + "/.config/hypr/scripts/capture-open"])
             }
             BarButton {
@@ -93,6 +97,7 @@ ApplicationWindow {
             BarButton {
                 visible: root.fullBar
                 text: "󰖟"
+                tooltip: "World clocks and weather"
                 onLeftClicked: root.nativeCard("world", "")
             }
         }
@@ -102,10 +107,11 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.rightMargin: 5
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 1
+            spacing: 2
             BarButton {
                 visible: root.fullBar
                 text: shell.pomodoro.text || "󰔟"
+                tooltip: "Focus timer"
                 onLeftClicked: root.nativeCard("pomodoro", "")
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/pomodoro", "reset"])
             }
@@ -113,6 +119,7 @@ ApplicationWindow {
                 visible: root.fullBar && shell.media.title !== ""
                 width: Math.min(190, implicitWidth)
                 text: (shell.media.status === "Playing" ? "󰎈 " : "󰏤 ") + shell.media.title.substring(0, 22)
+                tooltip: "Now playing · middle-click to pause"
                 onLeftClicked: root.nativeCard("media", "")
                 onMiddleClicked: root.run(["playerctl", "play-pause"])
                 onRightClicked: root.run(["playerctl", "next"])
@@ -131,6 +138,7 @@ ApplicationWindow {
             BarButton {
                 visible: root.fullBar
                 text: "󰇙"
+                tooltip: "Background apps"
                 onLeftClicked: root.nativeCard("background", "")
             }
             BarButton {
@@ -182,6 +190,7 @@ ApplicationWindow {
             BarButton {
                 text: shell.dnd ? "󰂛" : (shell.notificationCount > 0 ? "󱅫 " + shell.notificationCount : "󰂚")
                 selected: shell.notificationCount > 0
+                tooltip: shell.dnd ? "Notifications · do not disturb on" : "Notifications"
                 onLeftClicked: root.nativeCard("notifications", "")
                 onRightClicked: root.run(["makoctl", "mode", "-t", "do-not-disturb"])
             }

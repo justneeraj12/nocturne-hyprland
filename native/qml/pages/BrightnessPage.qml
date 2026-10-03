@@ -30,14 +30,14 @@ Rectangle {
         y: 10
         width: parent.width - 20
         spacing: 8
-        SectionLabel { text: "DISPLAY // NATIVE BRIGHTNESS" }
+        PanelHeader { Layout.fillWidth: true; title: "Display"; subtitle: "Screen brightness" }
         RowLayout {
             Layout.fillWidth: true
             Text { text: "☼"; color: backend.textColor; font.pixelSize: 20 }
             ColumnLayout {
                 Layout.fillWidth: true; spacing: 0
-                Text { text: "LAPTOP DISPLAY"; color: backend.textColor; font.family: "Inter"; font.bold: true }
-                Text { text: "Hardware backlight · live state"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
+                Text { text: "BUILT-IN DISPLAY"; color: backend.textColor; font.family: "Inter"; font.bold: true }
+                Text { text: "Synced with brightness keys"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
             }
             Text { text: root.brightness + "%"; color: backend.textColor; font.family: "monospace"; font.bold: true }
         }

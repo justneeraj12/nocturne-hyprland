@@ -27,7 +27,7 @@ Rectangle {
         y: 10
         width: parent.width - 20
         spacing: 7
-        SectionLabel { text: "TIME // NATIVE CALENDAR" }
+        PanelHeader { Layout.fillWidth: true; title: "Calendar"; subtitle: "Local date and time" }
         Text {
             Layout.alignment: Qt.AlignHCenter
             text: Qt.formatTime(root.now, "h:mm AP")

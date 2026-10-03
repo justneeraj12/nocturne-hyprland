@@ -17,7 +17,7 @@ Rectangle {
         anchors.fill: parent; anchors.margins: 11; spacing: 7
         RowLayout {
             Layout.fillWidth: true
-            SectionLabel { Layout.fillWidth: true; text: "CLIPBOARD // LOCAL HISTORY" }
+            PanelHeader { Layout.fillWidth: true; title: "Clipboard"; subtitle: "Recent copied items" }
             NocturneButton { text: "CLEAR"; danger: true; onClicked: { backend.run(["cliphist", "wipe"]); root.refresh() } }
         }
         TextField {

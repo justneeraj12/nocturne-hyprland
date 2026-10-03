@@ -8,107 +8,217 @@ Rectangle {
     required property string initialPage
     implicitWidth: 410
     implicitHeight: panel.implicitHeight + 20
-    color: backend.baseColor; border.color: backend.accent2Color; border.width: 1
+    color: backend.baseColor
+    border.color: backend.accent2Color
+    border.width: 1
+
     property string tab: initialPage
     property var wifi: []
     property var bluetooth: []
     property var vpn: []
-    property string selectedSsid: ""
+    property bool wifiEnabled: false
+    property bool bluetoothEnabled: false
+    property bool bluetoothAvailable: true
+    property bool vpnEnabled: false
+
+    onInitialPageChanged: {
+        tab = initialPage
+        refresh()
+    }
+
+    readonly property bool currentEnabled: tab === "wifi" ? wifiEnabled : (tab === "bluetooth" ? bluetoothEnabled : vpnEnabled)
+    readonly property bool currentAvailable: tab !== "bluetooth" || bluetoothAvailable
+    readonly property string currentName: tab === "wifi" ? "Wi-Fi" : (tab === "bluetooth" ? "Bluetooth" : "VPN")
+    readonly property string currentDetail: {
+        if (tab === "wifi") return wifiEnabled ? "Wireless networking is enabled" : "Wireless networking is off"
+        if (tab === "bluetooth") {
+            if (!bluetoothAvailable) return "No Bluetooth adapter detected"
+            return bluetoothEnabled ? "Nearby and paired devices are available" : "Bluetooth is off"
+        }
+        var connected = vpn.filter(function(item) { return item.active }).map(function(item) { return item.name })
+        return connected.length > 0 ? connected.join(", ") + " connected" : "No secure tunnel connected"
+    }
 
     function refresh() {
+        wifiEnabled = backend.run(["nmcli", "-t", "-f", "WIFI", "general"]) === "enabled"
+
+        var bluetoothState = backend.run(["bluetoothctl", "show"])
+        bluetoothAvailable = bluetoothState !== ""
+        bluetoothEnabled = bluetoothState.indexOf("Powered: yes") >= 0
+
+        var activeConnections = backend.run(["nmcli", "-t", "--escape", "no", "-f", "NAME,TYPE", "connection", "show", "--active"])
+        var activeNames = activeConnections.split("\n").filter(function(line) {
+            return line.endsWith(":vpn") || line.endsWith(":wireguard")
+        }).map(function(line) { return line.substring(0, line.lastIndexOf(":")) })
+
+        var profiles = backend.run(["nmcli", "-t", "--escape", "no", "-f", "NAME,TYPE", "connection", "show"])
+        vpn = profiles.split("\n").map(function(line) {
+            var separator = line.lastIndexOf(":")
+            var name = separator >= 0 ? line.substring(0, separator) : line
+            var type = separator >= 0 ? line.substring(separator + 1) : ""
+            return {name:name, type:type, active:activeNames.indexOf(name) >= 0}
+        }).filter(function(item) { return item.name !== "" && (item.type === "vpn" || item.type === "wireguard") })
+        vpnEnabled = activeNames.length > 0
+
         if (tab === "wifi") {
+            if (!wifiEnabled) { wifi = []; return }
             var rows = backend.run(["nmcli", "-t", "--escape", "no", "-f", "IN-USE,SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "no"])
             var seen = {}
             wifi = rows.split("\n").filter(function(line) { return line.length > 0 }).map(function(line) {
-                var f = line.split(":"); return {active:f[0] === "*",ssid:f[1] || "",signal:parseInt(f[2] || "0"),security:f.slice(3).join(":") || "OPEN"}
-            }).filter(function(item) { if (!item.ssid || seen[item.ssid]) return false; seen[item.ssid] = true; return true }).sort(function(a,b) { return a.active ? -1 : (b.active ? 1 : b.signal-a.signal) })
+                var f = line.split(":")
+                return {active:f[0] === "*", ssid:f[1] || "", signal:parseInt(f[2] || "0"), security:f.slice(3).join(":") || "Open"}
+            }).filter(function(item) {
+                if (!item.ssid || seen[item.ssid]) return false
+                seen[item.ssid] = true
+                return true
+            }).sort(function(a, b) { return a.active ? -1 : (b.active ? 1 : b.signal - a.signal) })
         } else if (tab === "bluetooth") {
+            if (!bluetoothEnabled) { bluetooth = []; return }
             var devices = backend.run(["bluetoothctl", "devices"]).split("\n")
             var connected = backend.run(["bluetoothctl", "devices", "Connected"])
             bluetooth = devices.filter(function(line) { return line.indexOf("Device ") === 0 }).map(function(line) {
-                var fields = line.split(" "); var mac = fields[1]; return {mac:mac,name:fields.slice(2).join(" "),active:connected.indexOf(mac) >= 0}
-            })
-        } else {
-            var active = backend.run(["nmcli", "-t", "--escape", "no", "-f", "NAME,TYPE", "connection", "show", "--active"])
-            vpn = backend.run(["nmcli", "-t", "--escape", "no", "-f", "NAME,TYPE", "connection", "show"]).split("\n").map(function(line) {
-                var f=line.split(":"); return {name:f[0] || "",type:f[1] || "",active:active.indexOf((f[0] || "") + ":") >= 0}
-            }).filter(function(item) { return item.type === "vpn" || item.type === "wireguard" })
+                var fields = line.split(" ")
+                var mac = fields[1]
+                return {mac:mac, name:fields.slice(2).join(" "), active:connected.indexOf(mac) >= 0}
+            }).sort(function(a, b) { return a.active ? -1 : (b.active ? 1 : a.name.localeCompare(b.name)) })
         }
     }
 
+    function setCurrentEnabled(enabled) {
+        if (tab === "wifi") {
+            wifiEnabled = enabled
+            backend.start(["nmcli", "radio", "wifi", enabled ? "on" : "off"])
+        } else if (tab === "bluetooth") {
+            bluetoothEnabled = enabled
+            backend.start(["bluetoothctl", "power", enabled ? "on" : "off"])
+        } else if (enabled) {
+            var target = vpn.filter(function(item) { return !item.active })[0]
+            if (target) backend.start(["nmcli", "connection", "up", "id", target.name])
+        } else {
+            vpn.filter(function(item) { return item.active }).forEach(function(item) {
+                backend.start(["nmcli", "connection", "down", "id", item.name])
+            })
+        }
+        delayed.restart()
+    }
+
+    function toggleConnection(item) {
+        if (tab === "wifi") {
+            if (item.active) {
+                var row = backend.run(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device"]).split("\n").filter(function(value) {
+                    return value.indexOf(":wifi:connected") > 0
+                })[0]
+                if (row) backend.start(["nmcli", "device", "disconnect", row.split(":")[0]])
+            } else backend.start(["nmcli", "connection", "up", "id", item.ssid])
+        } else if (tab === "bluetooth") {
+            backend.start(["bluetoothctl", item.active ? "disconnect" : "connect", item.mac])
+        } else {
+            backend.start(["nmcli", "connection", item.active ? "down" : "up", "id", item.name])
+        }
+        delayed.restart()
+    }
+
     ColumnLayout {
-        id: panel; x: 10; y: 10; width: parent.width - 20; spacing: 7
-        SectionLabel { text: "CONNECTIVITY // NATIVE CONTROL" }
+        id: panel
+        x: 10
+        y: 10
+        width: parent.width - 20
+        spacing: 8
+
+        PanelHeader {
+            Layout.fillWidth: true
+            title: "Connections"
+            subtitle: "Wi-Fi · Bluetooth · VPN"
+        }
+
         RowLayout {
-            Layout.fillWidth: true; spacing: 5
+            Layout.fillWidth: true
+            spacing: 5
             Repeater {
-                model: [{key:"wifi",label:"WI-FI"},{key:"bluetooth",label:"BLUETOOTH"},{key:"vpn",label:"VPN"}]
+                model: [{key:"wifi", label:"WI-FI"}, {key:"bluetooth", label:"BLUETOOTH"}, {key:"vpn", label:"VPN"}]
                 NocturneButton {
                     required property var modelData
-                    Layout.fillWidth: true; text: modelData.label; selected: root.tab === modelData.key
+                    Layout.fillWidth: true
+                    text: modelData.label
+                    selected: root.tab === modelData.key
                     onClicked: { root.tab = modelData.key; root.refresh() }
                 }
             }
         }
-        RowLayout {
+
+        Rectangle {
             Layout.fillWidth: true
-            Text {
-                Layout.fillWidth: true
-                text: root.tab === "wifi" ? "NetworkManager radio" : (root.tab === "bluetooth" ? "BlueZ radio" : "NetworkManager tunnels")
-                color: backend.textColor; font.family: "Inter"; font.bold: true
-            }
-            NocturneButton {
-                visible: root.tab !== "vpn"
-                text: {
-                    if (root.tab === "wifi") return backend.run(["nmcli", "-t", "-f", "WIFI", "general"]) === "enabled" ? "ON" : "OFF"
-                    return backend.run(["bluetoothctl", "show"]).indexOf("Powered: yes") >= 0 ? "ON" : "OFF"
+            implicitHeight: 50
+            color: backend.surfaceColor
+            border.color: backend.lineColor
+            RowLayout {
+                anchors.fill: parent
+                anchors.margins: 8
+                spacing: 8
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 1
+                    Text { text: root.currentName; color: backend.textColor; font.family: "Inter"; font.bold: true; font.pixelSize: 11 }
+                    Text { Layout.fillWidth: true; text: root.currentDetail; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; elide: Text.ElideRight }
                 }
-                selected: text === "ON"
-                onClicked: {
-                    if (root.tab === "wifi") backend.run(["nmcli", "radio", "wifi", text === "ON" ? "off" : "on"])
-                    else backend.run(["bluetoothctl", "power", text === "ON" ? "off" : "on"])
-                    root.refresh()
-                }
-            }
-        }
-        SectionLabel { text: root.tab === "wifi" ? "AVAILABLE NETWORKS" : (root.tab === "bluetooth" ? "PAIRED + DISCOVERED" : "VPN PROFILES") }
-        Repeater {
-            model: root.tab === "wifi" ? root.wifi : (root.tab === "bluetooth" ? root.bluetooth : root.vpn)
-            delegate: Rectangle {
-                required property var modelData
-                Layout.fillWidth: true; implicitHeight: 48
-                color: backend.surfaceColor; border.color: modelData.active ? backend.accentColor : backend.lineColor
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 7
-                    ColumnLayout {
-                        Layout.fillWidth: true; spacing: 1
-                        Text { text: root.tab === "wifi" ? modelData.ssid : modelData.name; color: backend.textColor; font.family: "monospace"; font.bold: true }
-                        Text {
-                            text: modelData.active ? "CONNECTED" : (root.tab === "wifi" ? modelData.signal + "% · " + modelData.security : (root.tab === "bluetooth" ? modelData.mac : modelData.type.toUpperCase()))
-                            color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9
-                        }
-                    }
-                    NocturneButton {
-                        text: modelData.active ? "DISCONNECT" : "CONNECT"
-                        selected: modelData.active
-                        onClicked: {
-                            if (root.tab === "wifi") {
-                                if (modelData.active) backend.start(["nmcli", "device", "disconnect", backend.run(["nmcli", "-t", "-f", "DEVICE,TYPE,STATE", "device"]).split("\n").filter(function(x){return x.indexOf(":wifi:connected")>0})[0].split(":")[0]])
-                                else backend.start(["nmcli", "connection", "up", "id", modelData.ssid])
-                            } else if (root.tab === "bluetooth") backend.start(["bluetoothctl", modelData.active ? "disconnect" : "connect", modelData.mac])
-                            else backend.start(["nmcli", "connection", modelData.active ? "down" : "up", "id", modelData.name])
-                            delayed.restart()
-                        }
-                    }
+                NocturneToggle {
+                    checked: root.currentEnabled
+                    available: root.currentAvailable && (root.tab !== "vpn" || root.vpn.length > 0)
+                    onToggleRequested: function(enabled) { root.setCurrentEnabled(enabled) }
                 }
             }
         }
+
+        SectionLabel { text: root.tab === "wifi" ? "NETWORKS" : (root.tab === "bluetooth" ? "DEVICES" : "VPN PROFILES") }
+
+        Text {
+            visible: !root.currentEnabled || (root.tab === "vpn" && root.vpn.length === 0)
+            Layout.fillWidth: true
+            text: root.tab === "vpn" && root.vpn.length === 0 ? "No VPN profiles configured." : root.currentName + " is off."
+            color: backend.mutedColor
+            font.family: "Inter"
+            font.pixelSize: 10
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 5
+            Repeater {
+                model: root.tab === "wifi" ? root.wifi : (root.tab === "bluetooth" ? root.bluetooth : root.vpn)
+                delegate: Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    color: backend.surfaceColor
+                    border.color: modelData.active ? backend.accentColor : backend.lineColor
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 7
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+                            Text { Layout.fillWidth: true; text: root.tab === "wifi" ? modelData.ssid : modelData.name; color: backend.textColor; font.family: "monospace"; font.bold: true; elide: Text.ElideRight }
+                            Text {
+                                text: modelData.active ? "CONNECTED" : (root.tab === "wifi" ? modelData.signal + "% · " + modelData.security : (root.tab === "bluetooth" ? modelData.mac : modelData.type.toUpperCase()))
+                                color: backend.mutedColor
+                                font.family: "Inter"
+                                font.pixelSize: 9
+                            }
+                        }
+                        NocturneButton { text: modelData.active ? "DISCONNECT" : "CONNECT"; selected: modelData.active; onClicked: root.toggleConnection(modelData) }
+                    }
+                }
+            }
+        }
+
         NocturneButton {
-            visible: root.tab === "bluetooth"
-            Layout.fillWidth: true; text: "SCAN FOR DEVICES"
+            visible: root.tab === "bluetooth" && root.bluetoothEnabled
+            Layout.fillWidth: true
+            text: "SCAN FOR DEVICES"
             onClicked: { backend.start(["bluetoothctl", "--timeout", "5", "scan", "on"]); delayed.restart() }
         }
     }
+
     Timer { interval: 3000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
-    Timer { id: delayed; interval: 1800; onTriggered: root.refresh() }
+    Timer { id: delayed; interval: 1200; onTriggered: root.refresh() }
 }

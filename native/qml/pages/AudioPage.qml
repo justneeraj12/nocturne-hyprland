@@ -35,7 +35,7 @@ Rectangle {
         width: parent.width - 20
         spacing: 8
 
-        SectionLabel { text: "AUDIO // NATIVE MIXER" }
+        PanelHeader { Layout.fillWidth: true; title: "Sound"; subtitle: "Master output and app volumes" }
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -65,7 +65,7 @@ Rectangle {
             from: 0; to: 150; value: root.masterVolume
             onMoved: backend.run(["wpctl", "set-volume", "--limit", "1.5", "@DEFAULT_AUDIO_SINK@", Math.round(value) + "%"])
         }
-        SectionLabel { text: "OUTPUT DEVICE" }
+        SectionLabel { text: "OUTPUT" }
         RowLayout {
             Layout.fillWidth: true
             spacing: 5
@@ -91,7 +91,7 @@ Rectangle {
                 }
             }
         }
-        SectionLabel { text: "APP VOLUME · " + root.streams.length + " ACTIVE" }
+        SectionLabel { text: "APPLICATIONS · " + root.streams.length + " PLAYING" }
         Text {
             visible: root.streams.length === 0
             text: "No active audio streams · start playback to add an app"

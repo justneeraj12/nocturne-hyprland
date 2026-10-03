@@ -21,6 +21,8 @@ qt_add_qml_module(nocturne-native
         qml/Settings.qml
         qml/components/NocturneButton.qml
         qml/components/NocturneSlider.qml
+        qml/components/NocturneToggle.qml
+        qml/components/PanelHeader.qml
         qml/components/SectionLabel.qml
         qml/components/BarButton.qml
         qml/pages/AudioPage.qml

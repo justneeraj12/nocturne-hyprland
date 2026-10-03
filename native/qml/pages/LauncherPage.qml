@@ -28,7 +28,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            SectionLabel { Layout.fillWidth: true; text: "NOCTURNE // APPLICATION INDEX" }
+            PanelHeader { Layout.fillWidth: true; title: "Applications"; subtitle: "Search and launch" }
             Text {
                 text: root.results.length + " MATCHES"
                 color: backend.mutedColor

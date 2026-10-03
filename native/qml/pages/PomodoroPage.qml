@@ -16,7 +16,7 @@ Rectangle {
     function action(name) { backend.run([backend.home + "/.config/hypr/scripts/pomodoro", name]); refresh() }
     ColumnLayout {
         id: panel; x: 10; y: 10; width: parent.width - 20; spacing: 8
-        SectionLabel { text: "FOCUS // POMODORO" }
+        PanelHeader { Layout.fillWidth: true; title: "Focus timer"; subtitle: "Pomodoro session" }
         SectionLabel { Layout.alignment: Qt.AlignHCenter; text: root.state.mode === "work" ? "FOCUS" : "RECOVERY" }
         Text {
             Layout.alignment: Qt.AlignHCenter

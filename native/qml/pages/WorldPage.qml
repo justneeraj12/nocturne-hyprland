@@ -45,10 +45,10 @@ Rectangle {
         y: 10
         width: parent.width - 20
         spacing: 6
-        SectionLabel { text: "WORLD // FAMILY CLOCKS" }
+        PanelHeader { Layout.fillWidth: true; title: "World clock"; subtitle: "Family time and weather" }
         RowLayout {
             Layout.fillWidth: true
-            SectionLabel { Layout.fillWidth: true; text: "LIVE CITY STATUS" }
+            SectionLabel { Layout.fillWidth: true; text: "CITIES" }
             NocturneButton {
                 text: "REFRESH"
                 onClicked: {

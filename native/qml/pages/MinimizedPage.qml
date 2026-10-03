@@ -13,7 +13,7 @@ Rectangle {
         id: panel; x: 10; y: 10; width: parent.width - 20; spacing: 5
         RowLayout {
             Layout.fillWidth: true
-            SectionLabel { Layout.fillWidth: true; text: "MINIMIZED // WINDOWS" }
+            PanelHeader { Layout.fillWidth: true; title: "Minimized"; subtitle: "Hidden windows" }
             NocturneButton { text: "RESTORE ALL"; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/minimize", "restore-all"]); backend.close() } }
         }
         Text { visible: root.items.length === 0; text: "Nothing is minimized."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 10 }

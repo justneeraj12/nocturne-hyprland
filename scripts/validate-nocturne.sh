@@ -34,6 +34,10 @@ grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
 grep -Fq 'org.kde.StatusNotifierWatcher' "$root/native/src/traywatcher.h"
 grep -Fq 'backend.notifications("history")' "$root/native/qml/pages/NotificationsPage.qml"
+grep -Fq 'NocturneToggle' "$root/native/qml/pages/ConnectivityPage.qml"
+grep -Fq 'onInitialPageChanged' "$root/native/qml/pages/ConnectivityPage.qml"
+grep -Fq 'PanelHeader' "$root/native/qml/pages/AudioPage.qml"
+grep -Fq 'PanelHeader' "$root/native/qml/pages/PowerPage.qml"
 printf '[ OK ] Qt/Wayland native shell + live controls\n'
 
 Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \

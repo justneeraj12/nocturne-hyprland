@@ -30,11 +30,11 @@ Rectangle {
         spacing: 7
         RowLayout {
             Layout.fillWidth: true
-            SectionLabel { Layout.fillWidth: true; text: "NOTIFICATIONS // WAYLAND" }
-            NocturneButton {
-                text: root.dnd ? "DND ON" : "DND OFF"
-                selected: root.dnd
-                onClicked: {
+            PanelHeader { Layout.fillWidth: true; title: "Notifications"; subtitle: "Alerts and history" }
+            Text { text: "DND"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; font.bold: true }
+            NocturneToggle {
+                checked: root.dnd
+                onToggleRequested: function(enabled) {
                     backend.run(["makoctl", "mode", "-t", "do-not-disturb"], 1200)
                     root.refresh()
                 }

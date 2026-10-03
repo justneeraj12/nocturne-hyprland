@@ -20,7 +20,7 @@ Rectangle {
 
     ColumnLayout {
         id: panel; x: 10; y: 10; width: parent.width - 20; spacing: 7
-        SectionLabel { text: "PHONE // KDE CONNECT" }
+        PanelHeader { Layout.fillWidth: true; title: "Phone"; subtitle: "KDE Connect" }
         Text { Layout.fillWidth: true; text: root.deviceName; color: root.deviceId === "" ? backend.mutedColor : backend.textColor; font.family: "monospace"; font.pixelSize: 14; font.bold: true; horizontalAlignment: Text.AlignHCenter }
         Text { Layout.fillWidth: true; text: root.deviceId === "" ? "Unlock the phone and keep it on the same network." : "CONNECTED + REACHABLE"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; horizontalAlignment: Text.AlignHCenter }
         RowLayout {

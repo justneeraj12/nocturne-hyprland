@@ -20,7 +20,7 @@ Rectangle {
         spacing: 6
         RowLayout {
             Layout.fillWidth: true
-            SectionLabel { Layout.fillWidth: true; text: "BACKGROUND // STATUS ITEMS" }
+            PanelHeader { Layout.fillWidth: true; title: "Background apps"; subtitle: "Status and tray services" }
             Text { text: root.items.length + " ACTIVE"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 9 }
         }
         Text {

@@ -14,7 +14,7 @@ ApplicationWindow {
 
     readonly property bool bottomSurface: backend.surface === "capture"
     readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized"
-    readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : (bottomSurface ? 502 : (backend.surface === "power" ? 390 : 410)))
+    readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : (bottomSurface ? 502 : 410))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     LayerShellQt.Window.scope: "nocturne-native"

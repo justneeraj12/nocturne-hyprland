@@ -5,7 +5,7 @@ import "../components"
 
 Rectangle {
     id: root
-    implicitWidth: 390
+    implicitWidth: 410
     implicitHeight: panel.implicitHeight + 20
     color: backend.baseColor; border.color: backend.accent2Color; border.width: 1
     property string profile: "balanced"
@@ -26,14 +26,14 @@ Rectangle {
     }
     ColumnLayout {
         id: panel; x: 10; y: 10; width: parent.width - 20; spacing: 8
-        SectionLabel { text: "POWER // SESSION" }
+        PanelHeader { Layout.fillWidth: true; title: "Power"; subtitle: "Battery, performance and session" }
         Text { text: root.battery >= 0 ? root.battery + "%" : "AC POWER"; color: backend.textColor; font.family: "Inter"; font.pixelSize: 18; font.bold: true }
         Text { text: root.batteryState; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 10 }
         SectionLabel { text: "POWER MODE" }
         RowLayout {
             Layout.fillWidth: true; spacing: 5
             Repeater {
-                model: [{key:"boost",label:"SUPER"},{key:"performance",label:"PERF"},{key:"balanced",label:"BAL"},{key:"power-saver",label:"SAVER"}]
+                model: [{key:"boost",label:"SUPER"},{key:"performance",label:"PERFORMANCE"},{key:"balanced",label:"BALANCED"},{key:"power-saver",label:"SAVER"}]
                 NocturneButton {
                     required property var modelData
                     Layout.fillWidth: true; text: modelData.label; selected: root.profile === modelData.key
