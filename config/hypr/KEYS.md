@@ -20,6 +20,7 @@ EVERYDAY APPS
   Print Screen            Select an area to screenshot
   Shift + Print Screen    Select a window to screenshot
   Ctrl + Print Screen     Select a display to screenshot
+  Super + Print Screen    Open the Kooha screen recorder
   Super + W               Choose or restore a wallpaper
   Super + Escape          Lock screen
   Super + P               Power / log out
@@ -110,6 +111,7 @@ SCREENSHOTS
   Print Screen            Drag an area with upstream Hyprshot
   Shift + Print Screen    Click a window
   Ctrl + Print Screen     Choose a display
+  Super + Print Screen    Open Kooha for screen recording
   Screenshot destination  ~/Pictures/Screenshots + current clipboard item
   Clipboard behavior      Paste normally; your next copy replaces it normally
 

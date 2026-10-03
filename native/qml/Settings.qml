@@ -113,6 +113,7 @@ ApplicationWindow {
                 actions: [
                     {label:"FOCUS TIMER", detail:"Pomodoro presets, pause, skip and cycle progress.", button:"OPEN", surface:"pomodoro"},
                     {label:"SCREENSHOT", detail:"Select an area with the stable upstream Hyprshot utility.", button:"CAPTURE", command:"screenshot"},
+                    {label:"SCREEN RECORDER", detail:"Open Kooha for area or display recording with desktop and microphone audio.", button:"OPEN", command:"recorder"},
                     {label:"KEY GUIDE", detail:"Open the complete shortcut reference in a terminal.", button:"SHOW", command:"keys"}
                 ]
             }
@@ -274,6 +275,7 @@ ApplicationWindow {
                             onClicked: {
                                 if (modelData.surface) root.openSurface(modelData.surface, modelData.page || "")
                                 else if (modelData.command === "screenshot") backend.start([backend.home + "/.local/bin/hyprshot", "-m", "region", "-o", backend.home + "/Pictures/Screenshots"])
+                                else if (modelData.command === "recorder") backend.start(["flatpak", "run", "io.github.seadve.Kooha"])
                                 else if (modelData.command === "keys") backend.start([backend.home + "/.config/hypr/scripts/help"])
                                 else if (modelData.command === "lock") backend.start([backend.home + "/.config/hypr/scripts/lock-screen"])
                                 else if (modelData.command === "doctor") backend.start(["kitty", "--class", "nocturne-doctor", "-e", backend.home + "/.local/bin/nocturne-doctor"])

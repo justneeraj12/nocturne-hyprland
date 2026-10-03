@@ -22,6 +22,7 @@ ordinary tiled windows.
 - A brightness slider that follows hardware-key changes while it is open.
 - Wi-Fi, Bluetooth and VPN controls backed by NetworkManager and BlueZ.
 - Stable upstream Hyprshot screenshots for an area, window or display.
+- Kooha provides the separate, upstream screen-recording interface.
 - Every screenshot is saved to `~/Pictures/Screenshots` and copied as a normal
   `image/png` clipboard item.
 - Native multi-monitor bar and application launcher, Mako history, Cliphist,
@@ -56,7 +57,8 @@ Native bar clicks / hotkeys
           ├── brightnessctl / logind       hardware backlight
           ├── NetworkManager / BlueZ       Wi-Fi, VPN, Bluetooth
           ├── power-profiles-daemon        power modes
-          └── Hyprshot / grim / slurp    screenshots
+          ├── Hyprshot / grim / slurp    screenshots
+          └── Kooha / XDG portal         screen recording
 ```
 
 The layer-shell window is created at its final monitor and anchor before the
@@ -105,6 +107,7 @@ profiles or the GNOME session. Run a source-only check with no live changes:
 - Mako plus KDE and Hyprland XDG portal backends
 - PipeWire/WirePlumber, NetworkManager, BlueZ
 - Hyprshot 1.3.0, grim, slurp and wl-clipboard
+- Kooha from Flathub for screen recording
 - jq, brightnessctl, power-profiles-daemon, Kitty, Cava and btop
 - PCManFM-Qt, qpdfview and Qalculate-Qt
 
@@ -132,6 +135,7 @@ Super + P           power and session card
 Print               select an area to screenshot
 Shift + Print       select a window to screenshot
 Ctrl + Print        select a display to screenshot
+Super + Print       open the Kooha screen recorder
 ```
 
 Hardware volume and brightness keys continue to control the real system
@@ -145,6 +149,10 @@ Nocturne does not maintain a custom capture overlay or recording engine.
 selects a window and `Ctrl + Print` selects a display. Screenshots are saved
 under `~/Pictures/Screenshots` and copied to the standard Wayland clipboard.
 The installer pins and checksum-verifies Hyprshot 1.3.0.
+
+Screen recording is intentionally separate. `Super + Print` opens upstream
+Kooha, which owns area/display selection, desktop or microphone audio, video
+format, frame rate and save location through the standard Wayland portal.
 
 ## Development
 

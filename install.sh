@@ -29,7 +29,7 @@ if "$install_packages"; then
     qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
     qml6-module-qtquick-window qml6-module-org-kde-layershell \
     layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
-    curl grim slurp wl-clipboard libnotify-bin brightnessctl pipewire-bin pulseaudio-utils \
+    curl flatpak grim slurp wl-clipboard libnotify-bin brightnessctl pipewire-bin pulseaudio-utils \
     network-manager bluez jq kitty btop cava fastfetch playerctl gamemode pcmanfm-qt qpdfview qalculate-qt \
     power-profiles-daemon fonts-inter fonts-jetbrains-mono
 fi
@@ -41,4 +41,5 @@ if "$dry_run"; then
 fi
 
 "$root/scripts/install-hyprshot.sh"
+"$root/scripts/install-kooha.sh"
 "$root/apply-hyprland.sh"

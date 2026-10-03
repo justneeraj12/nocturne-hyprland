@@ -62,14 +62,16 @@ grep -Fq '/.local/bin/hyprshot -o ' "$root/config/hypr/hyprland.lua"
 grep -Fq 'hl.bind("Print", run(hyprshot .. " -m region"))' "$root/config/hypr/hyprland.lua"
 grep -Fq 'hl.bind("SHIFT + Print", run(hyprshot .. " -m window"))' "$root/config/hypr/hyprland.lua"
 grep -Fq 'hl.bind("CTRL + Print", run(hyprshot .. " -m output"))' "$root/config/hypr/hyprland.lua"
+grep -Fq 'flatpak run io.github.seadve.Kooha' "$root/config/hypr/hyprland.lua"
 grep -Fq 'readonly version=1.3.0' "$root/scripts/install-hyprshot.sh"
+grep -Fq 'io.github.seadve.Kooha' "$root/scripts/install-kooha.sh"
 ! rg -q 'nocturne-capture|CapturePage|Freeze.qml|wf-recorder|hyprpicker' \
   "$root/native" "$root/bin" "$root/config/hypr"
 grep -Fq 'function dismiss()' "$root/native/qml/Shell.qml"
 ! grep -Fq 'HyprCapture' "$root/config/hypr/hyprland.lua"
 [[ ! -e $root/config/hypr/hyprcapture.lua ]]
 [[ ! -e $root/scripts/install-hyprcapture.sh ]]
-printf '[ OK ] explicit Lua startup + upstream Hyprshot owner\n'
+printf '[ OK ] explicit Lua startup + upstream capture applications\n'
 
 grep -Fq 'nocturne-native" bar' "$root/config/hypr/scripts/bar"
 grep -Fq 'nativeCard("connectivity", "wifi")' "$root/native/qml/BarWindow.qml"

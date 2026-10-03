@@ -216,6 +216,7 @@ local hyprshot = home .. "/.local/bin/hyprshot -o " .. screenshots
 hl.bind("Print", run(hyprshot .. " -m region"))
 hl.bind("SHIFT + Print", run(hyprshot .. " -m window"))
 hl.bind("CTRL + Print", run(hyprshot .. " -m output"))
+hl.bind(mod .. " + Print", run("flatpak run io.github.seadve.Kooha"))
 
 hl.layer_rule({ match = { namespace = "nocturne-native" }, blur = true, ignore_alpha = 0.2 })
 

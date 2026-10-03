@@ -31,7 +31,8 @@ jobs:
       - name: Static validation
         run: |
           shellcheck -S error install.sh apply-hyprland.sh scripts/build-native.sh \
-            scripts/install-hyprshot.sh bin/nocturne-doctor bin/nocturne-settings bin/nocturne-visualizer
+            scripts/install-hyprshot.sh scripts/install-kooha.sh bin/nocturne-doctor \
+            bin/nocturne-settings bin/nocturne-visualizer
           jq -e . config/locations.json config/nocturne/theme.json >/dev/null
           test -f config/mako/config
           test -f config/xdg-desktop-portal/hyprland-portals.conf

@@ -87,6 +87,12 @@ if [[ -x $HOME/.local/bin/hyprshot ]] \
 else
   bad 'Hyprshot is missing or does not respond'
 fi
+if command -v flatpak >/dev/null 2>&1 \
+    && flatpak info --user io.github.seadve.Kooha >/dev/null 2>&1; then
+  ok 'Kooha screen recorder is installed'
+else
+  bad 'Kooha screen recorder is not installed for this user'
+fi
 
 pgrep -x easyeffects >/dev/null 2>&1 && ok 'EasyEffects is preserved and running' || warning 'EasyEffects is not running'
 kdeconnect-cli --list-available >/dev/null 2>&1 && ok 'KDE Connect responds' || warning 'KDE Connect is unavailable'
