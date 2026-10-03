@@ -2,7 +2,15 @@
 set -euo pipefail
 
 engine="$HOME/.local/bin/nocturne-capture-engine"
+native="$HOME/.local/bin/nocturne-native"
+if "$engine" freeze-status | jq -e '.active == true' >/dev/null 2>&1; then
+  if pgrep -f "^${native} capture$" >/dev/null 2>&1; then
+    "$native" capture
+  fi
+  "$engine" discard
+  exit 0
+fi
 if ! "$engine" status | jq -e '.pid' >/dev/null 2>&1; then
   "$engine" prepare || true
 fi
-exec "$HOME/.local/bin/nocturne-native" capture
+exec "$native" capture

@@ -17,6 +17,12 @@ ApplicationWindow {
     readonly property int cardWidth: backend.surface === "launcher" ? 540 : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : (bottomSurface ? 502 : 410))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
+    function dismiss() {
+        if (root.bottomSurface)
+            backend.start([backend.home + "/.local/bin/nocturne-capture-engine", "discard"])
+        backend.close()
+    }
+
     LayerShellQt.Window.scope: "nocturne-native"
     LayerShellQt.Window.layer: LayerShellQt.Window.LayerOverlay
     LayerShellQt.Window.exclusionZone: -1
@@ -32,7 +38,7 @@ ApplicationWindow {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: backend.close()
+        onClicked: root.dismiss()
     }
 
     Item {
@@ -82,6 +88,6 @@ ApplicationWindow {
     Component { id: mediaPage; MediaPage {} }
     Component { id: kdeConnectPage; KdeConnectPage {} }
 
-    Shortcut { sequence: "Escape"; onActivated: backend.close() }
+    Shortcut { sequence: "Escape"; onActivated: root.dismiss() }
     onClosing: backend.close()
 }

@@ -82,9 +82,36 @@ def select_target(source: str) -> tuple[str, str] | None:
     return ("geometry", geometry) if geometry else None
 
 
+def picker_alive(pid: int) -> bool:
+    try:
+        return pid > 0 and b"hyprpicker" in Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return False
+
+
+def stop_picker(pid: int) -> None:
+    if not picker_alive(pid):
+        return
+    try:
+        os.killpg(pid, signal.SIGTERM)
+        for _attempt in range(20):
+            if not picker_alive(pid):
+                return
+            time.sleep(0.05)
+        os.killpg(pid, signal.SIGKILL)
+    except (OSError, ProcessLookupError):
+        pass
+
+
 def discard_freeze() -> None:
+    picker_pid = 0
+    try:
+        picker_pid = int(json.loads(FREEZE_STATE.read_text(encoding="utf-8")).get("picker_pid", 0))
+    except (OSError, ValueError, json.JSONDecodeError):
+        pass
     FREEZE_STATE.unlink(missing_ok=True)
     FREEZE_IMAGE.unlink(missing_ok=True)
+    stop_picker(picker_pid)
 
 
 def prepare_freeze() -> int:
@@ -123,22 +150,15 @@ def prepare_freeze() -> int:
         result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
     except OSError:
         result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
-    finally:
-        if picker is not None:
-            try:
-                os.killpg(picker.pid, signal.SIGTERM)
-                picker.wait(timeout=2)
-            except (OSError, ProcessLookupError, subprocess.TimeoutExpired):
-                try:
-                    os.killpg(picker.pid, signal.SIGKILL)
-                except (OSError, ProcessLookupError):
-                    pass
     if result.returncode or not temporary.is_file() or temporary.stat().st_size == 0:
+        if picker is not None:
+            stop_picker(picker.pid)
         temporary.unlink(missing_ok=True)
         return 1
     temporary.replace(FREEZE_IMAGE)
     metadata = {
         "prepared": int(time.time()),
+        "picker_pid": picker.pid if picker is not None else 0,
         "bounds": {"x": left, "y": top, "width": right - left, "height": bottom - top},
         "monitors": [
             {
@@ -154,6 +174,12 @@ def prepare_freeze() -> int:
     state_temporary = RUNTIME / f"nocturne-capture-freeze-{os.getpid()}.json"
     state_temporary.write_text(json.dumps(metadata), encoding="utf-8")
     state_temporary.replace(FREEZE_STATE)
+    if picker is not None:
+        command([
+            "systemd-run", "--user", "--quiet", "--collect",
+            f"--unit=nocturne-capture-freeze-{picker.pid}", "--on-active=5m",
+            str(Path(sys.argv[0]).resolve()), "expire", str(picker.pid),
+        ], timeout=4)
     return 0
 
 
@@ -168,6 +194,21 @@ def read_freeze() -> dict[str, Any] | None:
     except (OSError, ValueError, KeyError, json.JSONDecodeError):
         discard_freeze()
         return None
+
+
+def freeze_status() -> dict[str, Any]:
+    freeze = read_freeze()
+    if not freeze:
+        return {"active": False}
+    pid = int(freeze.get("picker_pid", 0))
+    return {"active": picker_alive(pid), "picker_pid": pid, "prepared": freeze.get("prepared", 0)}
+
+
+def expire_freeze(expected_pid: int) -> int:
+    status = freeze_status()
+    if int(status.get("picker_pid", 0)) == expected_pid:
+        discard_freeze()
+    return 0
 
 
 def frozen_geometry(target: tuple[str, str], freeze: dict[str, Any]) -> str | None:
@@ -319,17 +360,22 @@ def main(arguments: list[str]) -> int:
     if arguments == ["--self-test"]:
         return self_test()
     action = arguments[0] if arguments else "status"
+    if action == "prepare":
+        return prepare_freeze()
+    if action == "discard":
+        discard_freeze()
+        return 0
+    if action == "freeze-status":
+        print(json.dumps(freeze_status()))
+        return 0
+    if action == "expire":
+        return expire_freeze(int(arguments[1]) if len(arguments) > 1 else 0)
     source = arguments[1] if len(arguments) > 1 else "area"
     if source not in SOURCES:
         print(f"unsupported source: {source}", file=sys.stderr)
         return 2
     if action == "shot":
         return take_screenshot(source)
-    if action == "prepare":
-        return prepare_freeze()
-    if action == "discard":
-        discard_freeze()
-        return 0
     if action == "record":
         return start_recording(source)
     if action == "stop":
@@ -338,7 +384,7 @@ def main(arguments: list[str]) -> int:
         state = read_state()
         print(json.dumps(state or {}))
         return 0
-    print("usage: nocturne-capture-engine {prepare|shot|record|stop|status|discard} [area|window|display]", file=sys.stderr)
+    print("usage: nocturne-capture-engine {prepare|shot|record|stop|status|discard|freeze-status} [area|window|display]", file=sys.stderr)
     return 2
 
 
