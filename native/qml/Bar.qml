@@ -9,7 +9,6 @@ Item {
     property var minimized: ({})
     property var recording: ({})
     property var pomodoro: ({})
-    property var world: ({})
     property var caffeine: ({})
     property var connectivity: ({})
     property var systemState: ({})
@@ -39,35 +38,43 @@ Item {
         monitors = backend.json(["hyprctl", "monitors", "-j"], 1200) || []
     }
     function refreshActivity() {
-        minimized = scriptJson("minimize", ["status"])
         recording = scriptJson("capture-status")
         pomodoro = scriptJson("pomodoro", ["status"])
     }
-    function refreshMedium() {
+    function refreshMinimized() { minimized = scriptJson("minimize", ["status"]) }
+    function refreshAudio() {
         var sink = parseVolume("@DEFAULT_AUDIO_SINK@")
         volume = sink.value; volumeMuted = sink.muted
         micMuted = parseVolume("@DEFAULT_AUDIO_SOURCE@").muted
-        brightness = parseInt(backend.run([backend.home + "/.config/hypr/scripts/brightness", "value"], 1000)) || 0
-        systemState = scriptJson("system-status")
-        caffeine = scriptJson("caffeine", ["status"])
+        var backlightNow = parseInt(backend.readFirst("/sys/class/backlight", "brightness")) || 0
+        var backlightMax = parseInt(backend.readFirst("/sys/class/backlight", "max_brightness")) || 1
+        brightness = Math.round(backlightNow * 100 / backlightMax)
         var raw = backend.run(["playerctl", "metadata", "--format", "{{status}}\\t{{title}}\\t{{artist}}"], 1000)
         var fields = raw.split("\\t")
         media = {status: fields[0] || "", title: fields[1] || "", artist: fields[2] || ""}
     }
-    function refreshSlow() {
+    function refreshConnectivity() {
         connectivity = scriptJson("connectivity-status", ["combined"])
-        world = scriptJson("world-status")
         kdeconnect = scriptJson("kdeconnect-status")
-        battery = scriptJson("power-battery-status")
+    }
+    function refreshNotifications() {
         notificationCount = backend.notifications("list").length
         dnd = backend.run(["makoctl", "mode"], 1000).split("\n").indexOf("do-not-disturb") >= 0
     }
+    function refreshCaffeine() { caffeine = scriptJson("caffeine", ["status"]) }
+    function refreshSystem() { systemState = scriptJson("system-status") }
+    function refreshPower() { battery = scriptJson("power-battery-status") }
 
     Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
-    Timer { interval: 1500; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
-    Timer { interval: 3000; running: true; repeat: true; onTriggered: root.refreshActivity() }
-    Timer { interval: 4000; running: true; repeat: true; onTriggered: root.refreshMedium() }
-    Timer { interval: 12000; running: true; repeat: true; onTriggered: root.refreshSlow() }
+    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refreshActivity() }
+    Timer { interval: 3000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
+    Timer { interval: 3000; running: true; repeat: true; onTriggered: root.refreshAudio() }
+    Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshNotifications() }
+    Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshMinimized() }
+    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshCaffeine() }
+    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshConnectivity() }
+    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshSystem() }
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshPower() }
 
     Instantiator {
         model: backend.screens
@@ -81,7 +88,12 @@ Item {
     Component.onCompleted: {
         refreshWorkspace()
         refreshActivity()
-        refreshMedium()
-        refreshSlow()
+        refreshMinimized()
+        refreshAudio()
+        refreshCaffeine()
+        refreshConnectivity()
+        refreshNotifications()
+        refreshSystem()
+        refreshPower()
     }
 }

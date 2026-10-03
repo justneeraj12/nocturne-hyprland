@@ -122,7 +122,10 @@ ApplicationWindow {
                 text: shell.caffeine.text || "󰛊"
                 tooltip: shell.caffeine.tooltip || "Caffeine mode"
                 selected: shell.caffeine.class === "active"
-                onLeftClicked: root.run([backend.home + "/.config/hypr/scripts/caffeine", "toggle"])
+                onLeftClicked: {
+                    backend.run([backend.home + "/.config/hypr/scripts/caffeine", "toggle"])
+                    shell.refreshCaffeine()
+                }
             }
             BarButton {
                 visible: root.fullBar
