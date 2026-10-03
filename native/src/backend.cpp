@@ -252,7 +252,11 @@ QVariantList Backend::trayItems() const
         QStringLiteral("/StatusNotifierWatcher"), QStringLiteral("org.kde.StatusNotifierWatcher"),
         QDBusConnection::sessionBus());
     const auto references = watcher.property("RegisteredStatusNotifierItems").toStringList();
-    QVariantList result;
+    QDBusInterface bus(QStringLiteral("org.freedesktop.DBus"), QStringLiteral("/org/freedesktop/DBus"),
+        QStringLiteral("org.freedesktop.DBus"), QDBusConnection::sessionBus());
+    struct Entry { int priority; QVariantMap data; };
+    QList<Entry> entries;
+    QVariantMap updateEntry;
     for (const auto &reference : references) {
         const int slash = reference.indexOf(QLatin1Char('/'));
         if (slash <= 0) continue;
@@ -260,15 +264,63 @@ QVariantList Backend::trayItems() const
         const auto path = reference.mid(slash);
         QDBusInterface item(service, path, QStringLiteral("org.kde.StatusNotifierItem"), QDBusConnection::sessionBus());
         if (!item.isValid()) continue;
+        const auto id = item.property("Id").toString();
         auto title = item.property("Title").toString();
-        if (title.isEmpty()) title = item.property("Id").toString();
+        auto icon = item.property("IconName").toString();
+        const auto identity = (id + QLatin1Char(' ') + path).toLower();
+
+        QString processName;
+        const QDBusReply<uint> processReply = bus.call(QStringLiteral("GetConnectionUnixProcessID"), service);
+        if (processReply.isValid()) {
+            processName = readText(QStringLiteral("/proc/%1/comm").arg(processReply.value())).trimmed().toLower();
+        }
+
+        const bool updater = identity.contains(QStringLiteral("software_update_available"))
+            || identity.contains(QStringLiteral("livepatch"))
+            || identity.contains(QStringLiteral("unattended_upgrade"));
+        if (updater) {
+            QVariantMap candidate{
+                {QStringLiteral("reference"), reference},
+                {QStringLiteral("title"), QStringLiteral("System Security")},
+                {QStringLiteral("icon"), QStringLiteral("livepatch_on")},
+                {QStringLiteral("status"), item.property("Status").toString()}
+            };
+            if (updateEntry.isEmpty() || identity.contains(QStringLiteral("livepatch"))) updateEntry = candidate;
+            continue;
+        }
+
+        int priority = 10;
+        if (processName.contains(QStringLiteral("chatgpt"))) {
+            title = QStringLiteral("ChatGPT");
+            icon = QStringLiteral("chatgpt");
+            priority = 1;
+        } else if (processName.contains(QStringLiteral("steam"))) {
+            title = QStringLiteral("Steam");
+            icon = QStringLiteral("steam");
+            priority = 2;
+        } else if (identity.startsWith(QStringLiteral("chrome_status_icon"))) {
+            if (title.isEmpty()) title = QStringLiteral("Chrome");
+            if (icon.isEmpty()) icon = QStringLiteral("google-chrome");
+        }
+        if (title.isEmpty()) title = id;
         if (title.isEmpty()) title = service;
-        result.push_back(QVariantMap{
+        entries.push_back({priority, QVariantMap{
             {QStringLiteral("reference"), reference},
             {QStringLiteral("title"), title},
-            {QStringLiteral("icon"), item.property("IconName").toString()},
+            {QStringLiteral("icon"), icon},
             {QStringLiteral("status"), item.property("Status").toString()}
-        });
+        }});
+    }
+    if (!updateEntry.isEmpty()) entries.push_back({0, updateEntry});
+    std::sort(entries.begin(), entries.end(), [](const Entry &left, const Entry &right) {
+        if (left.priority != right.priority) return left.priority < right.priority;
+        return left.data.value(QStringLiteral("title")).toString().localeAwareCompare(
+                   right.data.value(QStringLiteral("title")).toString()) < 0;
+    });
+    QVariantList result;
+    for (const auto &entry : entries) {
+        result.push_back(entry.data);
+        if (result.size() == 3) break;
     }
     return result;
 }
@@ -280,6 +332,7 @@ QVariantList Backend::notifications(const QString &collection) const
     const QRegularExpression heading(QStringLiteral("^Notification\\s+(\\d+):\\s*(.*)$"));
     QVariantList result;
     QVariantMap current;
+    bool readingActions = false;
     for (const auto &line : lines) {
         const auto match = heading.match(line);
         if (match.hasMatch()) {
@@ -289,13 +342,73 @@ QVariantList Backend::notifications(const QString &collection) const
                 {QStringLiteral("summary"), match.captured(2)},
                 {QStringLiteral("history"), command == QStringLiteral("history")}
             };
+            readingActions = false;
         } else if (line.trimmed().startsWith(QStringLiteral("App name:"))) {
             current.insert(QStringLiteral("app"), line.section(QLatin1Char(':'), 1).trimmed());
+        } else if (line.trimmed().startsWith(QStringLiteral("Desktop entry:"))) {
+            current.insert(QStringLiteral("desktop"), line.section(QLatin1Char(':'), 1).trimmed());
         } else if (line.trimmed().startsWith(QStringLiteral("Urgency:"))) {
             current.insert(QStringLiteral("urgency"), line.section(QLatin1Char(':'), 1).trimmed());
+        } else if (line.trimmed() == QStringLiteral("Actions:")) {
+            readingActions = true;
+        } else if (readingActions && line.startsWith(QStringLiteral("    ")) && line.contains(QLatin1Char(':'))) {
+            current.insert(QStringLiteral("hasAction"), true);
         }
     }
     if (!current.isEmpty()) result.push_back(current);
+
+    for (auto &value : result) {
+        auto notification = value.toMap();
+        const auto desktopId = notification.value(QStringLiteral("desktop")).toString();
+        const auto sourceApp = notification.value(QStringLiteral("app")).toString();
+        QString displayApp;
+        QString icon;
+
+        if (!desktopId.isEmpty()) {
+            auto fileName = desktopId;
+            if (!fileName.endsWith(QStringLiteral(".desktop"))) fileName += QStringLiteral(".desktop");
+            QString desktopPath;
+            for (const auto &root : {home() + QStringLiteral("/.local/share/applications"),
+                     QStringLiteral("/usr/local/share/applications"), QStringLiteral("/usr/share/applications")}) {
+                const auto candidate = QDir(root).filePath(fileName);
+                if (QFileInfo::exists(candidate)) { desktopPath = candidate; break; }
+            }
+            if (!desktopPath.isEmpty()) {
+                QSettings desktop(desktopPath, QSettings::IniFormat);
+                desktop.beginGroup(QStringLiteral("Desktop Entry"));
+                displayApp = desktop.value(QStringLiteral("Name")).toString();
+                icon = desktop.value(QStringLiteral("Icon")).toString();
+            }
+        }
+
+        if (displayApp.isEmpty() || icon.isEmpty()) {
+            for (const auto &applicationValue : m_applications) {
+                const auto application = applicationValue.toMap();
+                const bool nameMatches = application.value(QStringLiteral("name")).toString().compare(sourceApp, Qt::CaseInsensitive) == 0;
+                const bool desktopMatches = !desktopId.isEmpty()
+                    && QFileInfo(application.value(QStringLiteral("path")).toString()).completeBaseName().compare(desktopId, Qt::CaseInsensitive) == 0;
+                if (!nameMatches && !desktopMatches) continue;
+                if (displayApp.isEmpty()) displayApp = application.value(QStringLiteral("name")).toString();
+                if (icon.isEmpty()) icon = application.value(QStringLiteral("icon")).toString();
+                break;
+            }
+        }
+
+        if (desktopId.compare(QStringLiteral("steam"), Qt::CaseInsensitive) == 0) displayApp = QStringLiteral("Steam");
+        if (sourceApp.compare(QStringLiteral("notify-send"), Qt::CaseInsensitive) == 0) displayApp = QStringLiteral("System");
+        if (displayApp.isEmpty()) displayApp = sourceApp.isEmpty() ? QStringLiteral("System") : sourceApp;
+        if (icon.isEmpty()) {
+            const auto identity = (displayApp + QLatin1Char(' ') + sourceApp).toLower();
+            if (identity.contains(QStringLiteral("chatgpt"))) icon = QStringLiteral("chatgpt");
+            else if (identity.contains(QStringLiteral("steam"))) icon = QStringLiteral("steam");
+            else if (identity.contains(QStringLiteral("chrome")) || identity.contains(QStringLiteral("chromium"))) icon = QStringLiteral("google-chrome");
+            else if (identity.contains(QStringLiteral("capture")) || identity.contains(QStringLiteral("screenshot"))) icon = QStringLiteral("camera-photo-symbolic");
+            else if (displayApp == QStringLiteral("System")) icon = QStringLiteral("preferences-system-notifications");
+        }
+        notification.insert(QStringLiteral("displayApp"), displayApp);
+        notification.insert(QStringLiteral("icon"), icon);
+        value = notification;
+    }
     return result;
 }
 
@@ -343,7 +456,10 @@ bool Backend::activateTrayItem(const QString &reference, const QString &action) 
     QString method = QStringLiteral("Activate");
     if (action == QStringLiteral("context")) method = QStringLiteral("ContextMenu");
     else if (action == QStringLiteral("secondary")) method = QStringLiteral("SecondaryActivate");
-    return item.call(method, 0, 0).type() != QDBusMessage::ErrorMessage;
+    const auto cursor = json({"hyprctl", "cursorpos", "-j"}, 1000).toMap();
+    return item.call(method, cursor.value(QStringLiteral("x")).toInt(),
+               cursor.value(QStringLiteral("y")).toInt()).type()
+        != QDBusMessage::ErrorMessage;
 }
 
 bool Backend::launchApplication(const QString &desktopFile) const

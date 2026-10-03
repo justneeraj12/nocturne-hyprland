@@ -137,7 +137,8 @@ ApplicationWindow {
             }
             BarButton {
                 visible: root.fullBar
-                text: "󰇙"
+                text: "•••"
+                fontPixelSize: 11
                 tooltip: "Background apps"
                 onLeftClicked: root.nativeCard("background", "")
             }

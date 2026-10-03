@@ -1,13 +1,56 @@
 #include "backend.h"
 
 #include <QGuiApplication>
+#include <QDir>
+#include <QDirIterator>
+#include <QFileInfo>
+#include <QIcon>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickImageProvider>
 #include <QTimer>
+#include <QUrl>
 #include <iostream>
 #include <unistd.h>
+
+class ThemeIconProvider final : public QQuickImageProvider
+{
+public:
+    ThemeIconProvider()
+        : QQuickImageProvider(QQuickImageProvider::Image)
+    {
+    }
+
+    QImage requestImage(const QString &id, QSize *size, const QSize &requestedSize) override
+    {
+        const auto name = QUrl::fromPercentEncoding(id.toUtf8());
+        const QSize target = requestedSize.isValid() ? requestedSize : QSize(32, 32);
+        QIcon icon = QFileInfo::exists(name) ? QIcon(name) : QIcon::fromTheme(name);
+        if (icon.isNull() && !name.isEmpty()) {
+            const QStringList roots = {
+                QDir::homePath() + QStringLiteral("/.local/share/icons"),
+                QDir::homePath() + QStringLiteral("/.icons"),
+                QStringLiteral("/usr/local/share/icons"),
+                QStringLiteral("/usr/share/icons"),
+                QStringLiteral("/usr/share/pixmaps")
+            };
+            const QStringList names = {name + QStringLiteral(".svg"), name + QStringLiteral(".png"),
+                name + QStringLiteral(".xpm")};
+            for (const auto &root : roots) {
+                QDirIterator candidates(root, names, QDir::Files, QDirIterator::Subdirectories);
+                if (candidates.hasNext()) {
+                    icon = QIcon(candidates.next());
+                    break;
+                }
+            }
+        }
+        const auto image = icon.pixmap(target).toImage();
+        if (size) *size = image.size();
+        return image;
+    }
+};
 
 int main(int argc, char *argv[])
 {
@@ -56,6 +99,7 @@ int main(int argc, char *argv[])
     });
 
     QQmlApplicationEngine engine;
+    engine.addImageProvider(QStringLiteral("theme"), new ThemeIconProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
     const QUrl source(settings
                           ? QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/Settings.qml")
