@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/screenshots/hero.webp" alt="Nocturne appearance settings on Hyprland" width="100%">
+  <img src="docs/screenshots/noc-banner.webp" alt="NOC — Nocturne Operations Console" width="100%">
 </p>
 
-<h1 align="center">NOCTURNE</h1>
+<h1 align="center">NOC // NOCTURNE</h1>
 
 <p align="center">
   A sharp, native control plane for Hyprland.<br>
@@ -16,7 +16,8 @@
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
 
-Nocturne turns a working Hyprland installation into a coherent desktop without
+**NOC**—the **Nocturne Operations Console**—turns a working Hyprland
+installation into a coherent desktop without
 turning it into a pile of unrelated widgets. Its bar, launcher, settings and
 quick controls are built with Qt Quick and Wayland layer shell; the real work
 stays with standard Linux services such as NetworkManager, BlueZ, PipeWire and
@@ -64,9 +65,11 @@ The shell includes:
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
-- coordinated Kitty, tmux, btop and Cava defaults.
+- coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 
 More images are in the [showcase](docs/SHOWCASE.md).
+
+![Nocturne lock screen](docs/screenshots/lockscreen.webp)
 
 ## Install
 
@@ -169,6 +172,7 @@ applications keep their own toolkit and license.
 
 - [Install and rollback](docs/INSTALL.md)
 - [Showcase](docs/SHOWCASE.md)
+- [NOC identity](branding/README.md)
 - [Customization](docs/CUSTOMIZATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)

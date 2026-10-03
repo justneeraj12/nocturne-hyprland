@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="640" viewBox="0 0 1600 640" role="img" aria-labelledby="title description">
+  <title id="title">NOC — Nocturne Operations Console</title>
+  <desc id="description">A retro-futurist copper and phosphor teal banner for the Nocturne Hyprland desktop.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050708"/>
+      <stop offset="0.55" stop-color="#09110f"/>
+      <stop offset="1" stop-color="#040606"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0.75" y2="1">
+      <stop offset="0" stop-color="#fff4dc"/>
+      <stop offset="0.38" stop-color="#d9b086"/>
+      <stop offset="0.7" stop-color="#b96e47"/>
+      <stop offset="1" stop-color="#6d9578"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#6d9578" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#6d9578"/>
+      <stop offset="0.72" stop-color="#cb8d62"/>
+      <stop offset="1" stop-color="#cb8d62" stop-opacity="0"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#6d9578" stroke-width="1" opacity="0.09"/>
+      <circle cx="0" cy="0" r="1.5" fill="#cb8d62" opacity="0.22"/>
+    </pattern>
+    <pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">
+      <path d="M0 3.5H4" stroke="#e8ddca" stroke-width="0.5" opacity="0.045"/>
+    </pattern>
+    <filter id="soft-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1600" height="640" fill="url(#background)"/>
+  <rect width="1600" height="640" fill="url(#grid)"/>
+  <path d="M0 488L250 370H850L1095 488H1600V640H0Z" fill="#07100e" opacity="0.8"/>
+  <g opacity="0.19" stroke="#6d9578" fill="none">
+    <path d="M0 640L450 488M250 640L575 488M500 640L700 488M750 640L825 488M1000 640L950 488M1250 640L1075 488M1500 640L1200 488"/>
+    <path d="M0 610H1600M0 570H1600M0 530H1600M0 500H1600"/>
+  </g>
+
+  <g fill="none" stroke-linecap="square">
+    <rect x="26" y="26" width="1548" height="588" stroke="#cb8d62" opacity="0.48"/>
+    <rect x="34" y="34" width="1532" height="572" stroke="#6d9578" opacity="0.28"/>
+    <path d="M26 112H180M1420 112H1574M26 520H162M1438 520H1574" stroke="#fff0d4" stroke-width="3"/>
+    <path d="M180 112H690M910 112H1420" stroke="url(#rule)"/>
+  </g>
+
+  <g font-family="JetBrains Mono, DejaVu Sans Mono, monospace" letter-spacing="5">
+    <text x="78" y="82" fill="#6d9578" font-size="15" font-weight="700">NOC://00</text>
+    <text x="1286" y="82" fill="#cb8d62" font-size="15" font-weight="700">HYPRLAND / WAYLAND</text>
+  </g>
+
+  <g transform="translate(44 18) skewX(-7)" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="330" font-weight="800" letter-spacing="-38">
+    <text x="66" y="404" fill="#10211e" stroke="#10211e" stroke-width="16">NOC</text>
+    <text x="58" y="396" fill="#17312d" stroke="#17312d" stroke-width="15">NOC</text>
+    <text x="50" y="388" fill="#1e4941" stroke="#895437" stroke-width="13">NOC</text>
+    <text x="42" y="380" fill="#315f52" stroke="#a56745" stroke-width="11">NOC</text>
+    <text x="34" y="372" fill="url(#face)" stroke="#fff0d4" stroke-width="4" paint-order="stroke fill">NOC</text>
+    <text x="29" y="365" fill="none" stroke="#ffffff" stroke-opacity="0.33" stroke-width="2">NOC</text>
+  </g>
+
+  <g transform="translate(715 279)" fill="none" opacity="0.65">
+    <circle r="93" stroke="#cb8d62" stroke-width="2" stroke-dasharray="4 12"/>
+    <circle r="74" stroke="#6d9578"/>
+    <circle r="58" stroke="#fff0d4" stroke-width="2" stroke-dasharray="29 8"/>
+    <path d="M-114 0H114M0-114V114" stroke="#6d9578" opacity="0.45"/>
+    <circle r="5" fill="#fff0d4" filter="url(#soft-glow)"/>
+  </g>
+
+  <g transform="translate(958 176)" font-family="JetBrains Mono, DejaVu Sans Mono, monospace">
+    <path d="M0 0H510" stroke="url(#rule)" stroke-width="2"/>
+    <text y="64" fill="#fff0d4" font-size="48" font-weight="800" letter-spacing="9">NOCTURNE</text>
+    <text y="112" fill="#cb8d62" font-size="23" font-weight="700" letter-spacing="8">OPERATIONS CONSOLE</text>
+    <text y="174" fill="#6d9578" font-size="15" letter-spacing="3">A NATIVE CONTROL PLANE</text>
+    <text y="204" fill="#6d9578" font-size="15" letter-spacing="3">FOR HYPRLAND</text>
+    <g transform="translate(0 246)">
+      <rect width="510" height="82" fill="#08100f" stroke="#385c50"/>
+      <text x="22" y="31" fill="#cb8d62" font-size="13" letter-spacing="2">SYS//STATE</text>
+      <text x="22" y="58" fill="#fff0d4" font-size="14" letter-spacing="2">TILE  CONTROL  ROUTE  FOCUS</text>
+      <circle cx="474" cy="41" r="8" fill="#6d9578" filter="url(#soft-glow)"/>
+    </g>
+  </g>
+
+  <g font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" letter-spacing="2">
+    <text x="78" y="565" fill="#fff0d4">QT QUICK</text>
+    <text x="205" y="565" fill="#6d9578">//</text>
+    <text x="242" y="565" fill="#fff0d4">LAYER SHELL</text>
+    <text x="404" y="565" fill="#6d9578">//</text>
+    <text x="441" y="565" fill="#fff0d4">PIPEWIRE</text>
+    <text x="1325" y="565" fill="#cb8d62">BUILD 0.1.0</text>
+  </g>
+
+  <rect width="1600" height="640" fill="url(#scan)" pointer-events="none"/>
+</svg>

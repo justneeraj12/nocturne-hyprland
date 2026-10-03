@@ -23,7 +23,7 @@ fi
 mkdir -p "$STATE_HOME/nocturne/backups"
 snapshot="$STATE_HOME/nocturne/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
-for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava nocturne systemd autostart kdeglobals; do
+for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals; do
   if [[ -e "$CONFIG_HOME/$relative" ]]; then
     cp -a -- "$CONFIG_HOME/$relative" "$snapshot/$relative"
   fi
@@ -70,7 +70,7 @@ if [[ ! -s "$STATE_HOME/nocturne/original-preinstall-backup" ]]; then
 fi
 
 mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-portal" \
-  "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/qt6ct/colors" \
+  "$CONFIG_HOME/kitty" "$CONFIG_HOME/btop/themes" "$CONFIG_HOME/tmux" "$CONFIG_HOME/cava/themes" "$CONFIG_HOME/fastfetch" "$CONFIG_HOME/qt6ct/colors" \
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screenrecords" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
@@ -119,6 +119,8 @@ install -m 0644 "$ROOT_DIR/config/btop/btop.conf" "$CONFIG_HOME/btop/btop.conf"
 install -m 0644 "$ROOT_DIR/config/btop/nocturne.theme" "$CONFIG_HOME/btop/themes/nocturne.theme"
 install -m 0644 "$ROOT_DIR/config/tmux/tmux.conf" "$CONFIG_HOME/tmux/tmux.conf"
 cp -a -- "$ROOT_DIR/config/cava/." "$CONFIG_HOME/cava/"
+install -m 0644 "$ROOT_DIR/config/fastfetch/config.jsonc" "$CONFIG_HOME/fastfetch/config.jsonc"
+install -m 0644 "$ROOT_DIR/branding/noc-terminal.txt" "$CONFIG_HOME/fastfetch/noc.txt"
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-wallpaper-cycle.service" \
   "$CONFIG_HOME/systemd/user/nocturne-wallpaper-cycle.service"

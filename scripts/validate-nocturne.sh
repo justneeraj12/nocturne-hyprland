@@ -21,11 +21,16 @@ jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" >/dev/n
 jq -e . "$root/agent/config/profile.default.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
-grep -Fq 'docs/screenshots/hero.webp' "$root/README.md"
+grep -Fq 'docs/screenshots/noc-banner.webp' "$root/README.md"
 grep -Fq '~/.local/state/nocturne/backups/' "$root/docs/INSTALL.md"
 grep -Fq 'original-preinstall-backup' "$root/apply-hyprland.sh"
 grep -Fq 'Type RESTORE to continue' "$root/uninstall.sh"
+grep -Fq 'branding/noc-terminal.txt' "$root/apply-hyprland.sh"
+grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/hero.webp ]]
+[[ -s $root/docs/screenshots/noc-banner.webp ]]
+[[ -s $root/docs/screenshots/lockscreen.webp ]]
+[[ -s $root/docs/screenshots/terminal.webp ]]
 [[ -s $root/docs/screenshots/quick-controls.webp ]]
 [[ -s $root/docs/screenshots/launcher.webp ]]
 printf '[ OK ] public documentation + showcase assets\n'

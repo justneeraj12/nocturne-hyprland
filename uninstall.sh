@@ -46,7 +46,7 @@ systemctl --user disable --now \
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
 pkill -f '^.*/nocturne-(dashboard|visualizer)( |$)' 2>/dev/null || true
 
-config_items=(hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava nocturne systemd autostart kdeglobals)
+config_items=(hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals)
 for relative in "${config_items[@]}"; do
   current="$CONFIG_HOME/$relative"
   if [[ -e $current || -L $current ]]; then

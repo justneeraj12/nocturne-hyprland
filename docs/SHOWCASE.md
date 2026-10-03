@@ -1,8 +1,23 @@
 # Showcase
 
-Every image below was captured on an empty Hyprland workspace. Browser windows,
-messages, clipboard content, account names, Wi-Fi SSIDs and personal files are
-excluded.
+UI images below were captured on an empty Hyprland workspace or an isolated
+nested Hyprland session. Browser windows, messages, clipboard content, account
+names, Wi-Fi SSIDs and personal files are excluded. The NOC banner is the
+editable project artwork rather than a desktop screenshot.
+
+## NOC identity
+
+![NOC Nocturne Operations Console banner](screenshots/noc-banner.webp)
+
+`NOC` means **Nocturne Operations Console** and nods to the classic network
+operations center: one place to observe and control the live system.
+
+## Terminal identity
+
+![NOC Fastfetch terminal identity](screenshots/terminal.webp)
+
+The installer applies the compact mark to Fastfetch while keeping a plain-text
+asset that works over SSH and in terminals without image-protocol support.
 
 ## Appearance control
 
@@ -40,3 +55,12 @@ when dismissed.
 
 The screenshots use the Copper Deep Gold preset with the Emerald Silk
 wallpaper. The same workflow and shortcuts remain available with every preset.
+
+## Lock screen
+
+![Nocturne Hyprlock screen](screenshots/lockscreen.webp)
+
+![Nocturne lock authentication and media detail](screenshots/lockscreen-auth.webp)
+
+These were rendered by Hyprlock inside an isolated nested Hyprland session.
+Public demo values replace the owner's notifications, username and locations.

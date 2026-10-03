@@ -1,0 +1,41 @@
+# NOC identity
+
+![NOC monogram](noc-mark.webp)
+
+**NOC** expands to **Nocturne Operations Console**. It also deliberately nods
+to a network operations center: one compact place to observe and control a
+live system.
+
+The visual direction combines classic industrial control-room lettering,
+1970s science-fiction hardware graphics and Nocturne's sharp terminal UI. It
+avoids generic neon-city cyberpunk imagery so the project remains recognizable
+at repository-banner, application-icon and terminal sizes.
+
+## Assets
+
+- `noc-banner.svg` — editable 1600×640 master for GitHub and project pages;
+- `noc-mark.svg` — square monogram for avatars, releases and application art;
+- `noc-mark.webp` — ready-to-upload square project avatar;
+- `noc-terminal.txt` — uncolored terminal-safe companion mark.
+
+The ready-to-publish banner export lives at
+`docs/screenshots/noc-banner.webp`.
+
+```text
+ _   _  ___   ____
+| \ | |/ _ \ / ___|
+|  \| | | | | |
+| |\  | |_| | |___
+|_| \_|\___/ \____|
+```
+
+Palette:
+
+- void `#050708`
+- phosphor `#6d9578`
+- copper `#cb8d62`
+- warm face `#fff0d4`
+
+Keep the `NOC` face readable, preserve the diagonal extrusion and use
+`JetBrains Mono ExtraBold` where available. Do not stretch, round or add a
+glowing city backdrop to the mark.

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640" role="img" aria-labelledby="title description">
+  <title id="title">NOC monogram</title>
+  <desc id="description">A compact copper and phosphor teal Nocturne Operations Console mark.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#060808"/>
+      <stop offset="1" stop-color="#0b1512"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0.8" y2="1">
+      <stop stop-color="#fff0d4"/>
+      <stop offset="0.48" stop-color="#cb8d62"/>
+      <stop offset="1" stop-color="#6d9578"/>
+    </linearGradient>
+    <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <path d="M24 0H0V24" fill="none" stroke="#6d9578" opacity="0.11"/>
+    </pattern>
+  </defs>
+  <rect width="640" height="640" rx="28" fill="url(#bg)"/>
+  <rect x="18" y="18" width="604" height="604" rx="20" fill="url(#grid)" stroke="#cb8d62"/>
+  <g transform="translate(58 8) skewX(-7)" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="250" font-weight="800" letter-spacing="-40">
+    <text x="64" y="355" fill="#132824" stroke="#132824" stroke-width="14">NOC</text>
+    <text x="52" y="343" fill="#24483f" stroke="#8d5739" stroke-width="11">NOC</text>
+    <text x="40" y="331" fill="url(#face)" stroke="#fff0d4" stroke-width="3" paint-order="stroke fill">NOC</text>
+  </g>
+  <path d="M66 446H574" stroke="#6d9578"/>
+  <circle cx="66" cy="446" r="5" fill="#cb8d62"/>
+  <circle cx="574" cy="446" r="5" fill="#6d9578"/>
+  <text x="320" y="500" text-anchor="middle" fill="#fff0d4" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="20" font-weight="700" letter-spacing="6">NOCTURNE</text>
+  <text x="320" y="536" text-anchor="middle" fill="#6d9578" font-family="JetBrains Mono, DejaVu Sans Mono, monospace" font-size="12" letter-spacing="4">OPERATIONS CONSOLE</text>
+</svg>
