@@ -120,6 +120,7 @@ ApplicationWindow {
             BarButton {
                 visible: root.fullBar
                 text: shell.caffeine.text || "󰛊"
+                fontPixelSize: 12
                 tooltip: shell.caffeine.tooltip || "Caffeine mode"
                 selected: shell.caffeine.class === "active"
                 onLeftClicked: {
@@ -142,6 +143,7 @@ ApplicationWindow {
             BarButton {
                 visible: root.fullBar
                 text: (shell.volumeMuted ? "" : "") + " " + shell.volume + "%"
+                fontPixelSize: 11
                 tooltip: "Master volume · scroll to adjust"
                 onLeftClicked: root.nativeCard("audio", "")
                 onMiddleClicked: root.run([backend.home + "/.local/bin/nocturne-visualizer"])
@@ -151,7 +153,10 @@ ApplicationWindow {
             BarButton {
                 visible: root.fullBar
                 text: shell.micMuted ? "󰍭" : "󰍬"
-                selected: shell.micMuted
+                fontPixelSize: 12
+                selected: shell.micInUse
+                selectedColor: "#c75c66"
+                tooltip: shell.micInUse ? "Microphone in use" : (shell.micMuted ? "Microphone muted" : "Microphone ready")
                 onLeftClicked: root.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
             }
             BarButton {
@@ -163,6 +168,7 @@ ApplicationWindow {
             BarButton {
                 visible: root.fullBar
                 text: shell.systemState.text || "󰍛"
+                fontPixelSize: 11
                 tooltip: shell.systemState.tooltip || "System resources"
                 onLeftClicked: root.run([backend.home + "/.local/bin/nocturne-dashboard"])
             }
@@ -181,6 +187,7 @@ ApplicationWindow {
             }
             BarButton {
                 text: shell.battery.text || "󰁹"
+                fontPixelSize: 11
                 tooltip: shell.battery.tooltip || "Battery and power"
                 onLeftClicked: root.nativeCard("power", "")
             }

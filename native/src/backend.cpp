@@ -177,6 +177,34 @@ QVariantList Backend::audioStreams() const
     return streams;
 }
 
+bool Backend::microphoneInUse() const
+{
+    const auto document = QJsonDocument::fromJson(
+        run({"pactl", "-f", "json", "list", "source-outputs"}, 1500).toUtf8());
+    if (!document.isArray()) return false;
+
+    for (const auto &value : document.array()) {
+        const auto stream = value.toObject();
+        if (stream.value(QStringLiteral("corked")).toBool()) continue;
+
+        const auto properties = stream.value(QStringLiteral("properties")).toObject();
+        // Visualizers such as Cava capture a speaker sink monitor and therefore
+        // appear as source outputs even though the microphone is untouched.
+        if (properties.value(QStringLiteral("stream.capture.sink")).toString() == QStringLiteral("true")) {
+            continue;
+        }
+
+        const auto binary = properties.value(QStringLiteral("application.process.binary")).toString().toLower();
+        const auto application = properties.value(QStringLiteral("application.name")).toString().toLower();
+        if (binary.contains(QStringLiteral("cava")) || binary.contains(QStringLiteral("easyeffects"))
+            || application.contains(QStringLiteral("cava")) || application.contains(QStringLiteral("easyeffects"))) {
+            continue;
+        }
+        return true;
+    }
+    return false;
+}
+
 QVariantList Backend::applications(const QString &query) const
 {
     const auto needle = query.simplified().toLower();

@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE QString run(const QVariantList &arguments, int timeoutMs = 5000) const;
     Q_INVOKABLE QVariant json(const QVariantList &arguments, int timeoutMs = 5000) const;
     Q_INVOKABLE QVariantList audioStreams() const;
+    Q_INVOKABLE bool microphoneInUse() const;
     Q_INVOKABLE QVariantList applications(const QString &query = QString()) const;
     Q_INVOKABLE QVariantList trayItems() const;
     Q_INVOKABLE QVariantList notifications(const QString &collection = QStringLiteral("list")) const;

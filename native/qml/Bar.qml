@@ -18,6 +18,7 @@ Item {
     property int volume: 0
     property bool volumeMuted: false
     property bool micMuted: false
+    property bool micInUse: false
     property int brightness: 0
     property int notificationCount: 0
     property bool dnd: false
@@ -46,6 +47,7 @@ Item {
         var sink = parseVolume("@DEFAULT_AUDIO_SINK@")
         volume = sink.value; volumeMuted = sink.muted
         micMuted = parseVolume("@DEFAULT_AUDIO_SOURCE@").muted
+        micInUse = backend.microphoneInUse()
         var backlightNow = parseInt(backend.readFirst("/sys/class/backlight", "brightness")) || 0
         var backlightMax = parseInt(backend.readFirst("/sys/class/backlight", "max_brightness")) || 1
         brightness = Math.round(backlightNow * 100 / backlightMax)

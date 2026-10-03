@@ -7,6 +7,7 @@ Rectangle {
     property string tooltip: ""
     property bool selected: false
     property color selectedColor: backend.accentColor
+    property int fontPixelSize: 10
     signal leftClicked()
     signal middleClicked()
     signal rightClicked()
@@ -24,7 +25,7 @@ Rectangle {
         text: root.text
         color: root.selected ? backend.baseColor : backend.textColor
         font.family: "MesloLGS Nerd Font Mono"
-        font.pixelSize: 10
+        font.pixelSize: root.fontPixelSize
         font.bold: root.selected
     }
 
