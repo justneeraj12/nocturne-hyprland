@@ -27,16 +27,21 @@ Rectangle {
         weather = next
     }
     function localTime(timezone) {
-        return backend.run(["env", "TZ=" + timezone, "date", "+%a  %-I:%M%p"]).replace("AM", "+").replace("PM", "−")
+        return backend.run(["env", "TZ=" + timezone, "date", "+%a %-I:%M%p"]).replace("AM", "+").replace("PM", "−")
     }
     function icon(code) {
         var value = parseInt(code || "-1")
-        if (value === 0) return "SUN"
-        if (value >= 95) return "STORM"
-        if (value >= 71 && value <= 86) return "SNOW"
-        if (value >= 51) return "RAIN"
-        if (value >= 1) return "CLOUD"
-        return "--"
+        if (value === 0) return "󰖙"
+        if (value >= 1 && value <= 3) return "󰖕"
+        if (value === 45 || value === 48) return "󰖑"
+        if ((value >= 51 && value <= 67) || (value >= 80 && value <= 82)) return "󰖗"
+        if ((value >= 71 && value <= 77) || value === 85 || value === 86) return "󰖘"
+        if (value >= 95) return "󰖓"
+        return "󰖐"
+    }
+    function temperature(value) {
+        var number = parseFloat(value)
+        return isNaN(number) ? "--°" : Math.round(number) + "°"
     }
 
     ColumnLayout {
@@ -66,19 +71,35 @@ Rectangle {
                 color: backend.surfaceColor
                 border.color: "#3f3320"
                 RowLayout {
-                    anchors.fill: parent; anchors.margins: 7
+                    anchors.fill: parent; anchors.margins: 7; spacing: 7
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 1
                         Text { text: modelData.label; color: backend.textColor; font.family: "monospace"; font.bold: true }
                         Text {
-                            text: (modelData.name || modelData.label) + " · " + root.localTime(modelData.timezone)
+                            text: modelData.name || modelData.label
                             color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9
                         }
                     }
                     Text {
                         readonly property var data: root.weather[modelData.label] || {temperature:"--",code:""}
-                        text: root.icon(data.code) + "  " + data.temperature + "°C"
-                        color: backend.accentColor; font.family: "monospace"; font.bold: true
+                        Layout.preferredWidth: 82
+                        text: root.localTime(modelData.timezone)
+                        color: backend.textColor; font.family: "monospace"; font.pixelSize: 10; font.bold: true
+                        horizontalAlignment: Text.AlignRight
+                    }
+                    Text {
+                        readonly property var data: root.weather[modelData.label] || {temperature:"--",code:""}
+                        Layout.preferredWidth: 26
+                        text: root.icon(data.code)
+                        color: backend.accentColor; font.family: "MesloLGS Nerd Font Mono"; font.pixelSize: 18
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Text {
+                        readonly property var data: root.weather[modelData.label] || {temperature:"--",code:""}
+                        Layout.preferredWidth: 42
+                        text: root.temperature(data.temperature)
+                        color: backend.textColor; font.family: "monospace"; font.pixelSize: 11; font.bold: true
+                        horizontalAlignment: Text.AlignRight
                     }
                 }
             }

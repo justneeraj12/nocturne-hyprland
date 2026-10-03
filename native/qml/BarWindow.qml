@@ -21,6 +21,18 @@ ApplicationWindow {
     flags: Qt.FramelessWindowHint | Qt.Tool
 
     function run(args) { backend.start(args) }
+    function clockText(value) {
+        var hours = value.getHours()
+        var displayHour = hours % 12
+        if (displayHour === 0) displayHour = 12
+        return displayHour + ":" + String(value.getMinutes()).padStart(2, "0") + (hours < 12 ? "+" : "−")
+    }
+    function mediaCommand(action) {
+        var args = ["playerctl"]
+        if (shell.media.player) args = args.concat(["--player", shell.media.player])
+        args.push(action)
+        root.run(args)
+    }
     function nativeCard(surface, page) {
         var args = [backend.home + "/.local/bin/nocturne-native", surface]
         if (page) args.push(page)
@@ -89,7 +101,7 @@ ApplicationWindow {
                 onLeftClicked: root.run([backend.home + "/.config/hypr/scripts/capture-open"])
             }
             BarButton {
-                text: Qt.formatDate(shell.now, "ddd dd MMM") + "  ·  " + Qt.formatTime(shell.now, "h:mm") + (shell.now.getHours() < 12 ? "+" : "-")
+                text: Qt.formatDate(shell.now, "ddd dd MMM") + "  ·  " + root.clockText(shell.now)
                 tooltip: "Left: calendar · Right: world clocks"
                 onLeftClicked: root.nativeCard("calendar", "")
                 onRightClicked: root.nativeCard("world", "")
@@ -121,8 +133,8 @@ ApplicationWindow {
                 text: (shell.media.status === "Playing" ? "󰎈 " : "󰏤 ") + shell.media.title.substring(0, 22)
                 tooltip: "Now playing · middle-click to pause"
                 onLeftClicked: root.nativeCard("media", "")
-                onMiddleClicked: root.run(["playerctl", "play-pause"])
-                onRightClicked: root.run(["playerctl", "next"])
+                onMiddleClicked: root.mediaCommand("play-pause")
+                onRightClicked: root.mediaCommand("next")
             }
             BarButton {
                 visible: root.fullBar

@@ -20,6 +20,12 @@ Rectangle {
 
     function sameDay(a, b) { return a.toDateString() === b.toDateString() }
     function shiftMonth(offset) { shown = new Date(year, month + offset, 1); selected = shown }
+    function clockText(value) {
+        var hours = value.getHours()
+        var displayHour = hours % 12
+        if (displayHour === 0) displayHour = 12
+        return displayHour + ":" + String(value.getMinutes()).padStart(2, "0") + (hours < 12 ? "+" : "−")
+    }
 
     ColumnLayout {
         id: panel
@@ -30,7 +36,7 @@ Rectangle {
         PanelHeader { Layout.fillWidth: true; title: "Calendar"; subtitle: "Local date and time" }
         Text {
             Layout.alignment: Qt.AlignHCenter
-            text: Qt.formatTime(root.now, "h:mm AP")
+            text: root.clockText(root.now)
             color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true
         }
         Text {

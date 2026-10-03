@@ -51,9 +51,11 @@ Item {
         var backlightNow = parseInt(backend.readFirst("/sys/class/backlight", "brightness")) || 0
         var backlightMax = parseInt(backend.readFirst("/sys/class/backlight", "max_brightness")) || 1
         brightness = Math.round(backlightNow * 100 / backlightMax)
-        var raw = backend.run(["playerctl", "metadata", "--format", "{{status}}\\t{{title}}\\t{{artist}}"], 1000)
-        var fields = raw.split("\\t")
-        media = {status: fields[0] || "", title: fields[1] || "", artist: fields[2] || ""}
+        var raw = backend.run(["playerctl", "-a", "metadata", "--format", "{{playerName}}\\t{{status}}\\t{{title}}\\t{{artist}}"], 1000)
+        var rows = raw.split("\\n").filter(function(row) { return row !== "" })
+        var selected = rows.filter(function(row) { return row.split("\\t")[1] === "Playing" })[0] || rows[0] || ""
+        var fields = selected.split("\\t")
+        media = {player: fields[0] || "", status: fields[1] || "", title: fields[2] || "", artist: fields[3] || ""}
     }
     function refreshConnectivity() {
         connectivity = scriptJson("connectivity-status", ["combined"])

@@ -43,6 +43,9 @@ grep -Fq 'NocturneToggle' "$root/native/qml/pages/ConnectivityPage.qml"
 grep -Fq 'onInitialPageChanged' "$root/native/qml/pages/ConnectivityPage.qml"
 grep -Fq 'PanelHeader' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'PanelHeader' "$root/native/qml/pages/PowerPage.qml"
+grep -Fq 'displayHour = hours % 12' "$root/native/qml/BarWindow.qml"
+grep -Fq 'Layout.preferredWidth: 42' "$root/native/qml/pages/WorldPage.qml"
+grep -Fq '{{mpris:length}}' "$root/native/qml/pages/MediaPage.qml"
 printf '[ OK ] Qt/Wayland native shell + live controls\n'
 
 Hyprland --verify-config --config "$root/config/hypr/hyprland.lua" \
