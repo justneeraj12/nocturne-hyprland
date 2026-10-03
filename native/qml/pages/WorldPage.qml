@@ -16,7 +16,11 @@ Rectangle {
     function refresh() {
         try {
             var config = JSON.parse(backend.readText(backend.home + "/.config/nocturne/locations.json"))
-            locations = config.weather_locations || []
+            var configured = config.weather_locations || []
+            var currentText = backend.readText(backend.home + "/.cache/nocturne/current-location.json")
+            var current = currentText ? JSON.parse(currentText) : null
+            var currentEnabled = !config.current_location || config.current_location.enabled !== false
+            locations = currentEnabled && current && current.timezone ? [current].concat(configured) : configured
         } catch (error) { locations = [] }
         var cache = backend.readText(backend.home + "/.cache/nocturne/weather.tsv")
         var next = {}
@@ -57,7 +61,7 @@ Rectangle {
             NocturneButton {
                 text: "REFRESH"
                 onClicked: {
-                    backend.start([backend.home + "/.config/hypr/scripts/world-status"])
+                    backend.start([backend.home + "/.config/hypr/scripts/world-status", "--refresh-location"])
                     delayedRefresh.restart()
                 }
             }
@@ -76,26 +80,28 @@ Rectangle {
                         Layout.fillWidth: true; spacing: 1
                         Text { text: modelData.label; color: backend.textColor; font.family: "monospace"; font.bold: true }
                         Text {
-                            text: modelData.name || modelData.label
+                            text: modelData.current
+                                ? "CURRENT LOCATION" + (modelData.country ? " · " + modelData.country : "")
+                                : (modelData.name || modelData.label)
                             color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9
                         }
                     }
                     Text {
-                        readonly property var data: root.weather[modelData.label] || {temperature:"--",code:""}
+                        readonly property var data: root.weather[modelData.key || modelData.label] || {temperature:"--",code:""}
                         Layout.preferredWidth: 82
                         text: root.localTime(modelData.timezone)
                         color: backend.textColor; font.family: "monospace"; font.pixelSize: 10; font.bold: true
                         horizontalAlignment: Text.AlignRight
                     }
                     Text {
-                        readonly property var data: root.weather[modelData.label] || {temperature:"--",code:""}
+                        readonly property var data: root.weather[modelData.key || modelData.label] || {temperature:"--",code:""}
                         Layout.preferredWidth: 26
                         text: root.icon(data.code)
                         color: backend.accentColor; font.family: "MesloLGS Nerd Font Mono"; font.pixelSize: 18
                         horizontalAlignment: Text.AlignHCenter
                     }
                     Text {
-                        readonly property var data: root.weather[modelData.label] || {temperature:"--",code:""}
+                        readonly property var data: root.weather[modelData.key || modelData.label] || {temperature:"--",code:""}
                         Layout.preferredWidth: 42
                         text: root.temperature(data.temperature)
                         color: backend.textColor; font.family: "monospace"; font.pixelSize: 11; font.bold: true

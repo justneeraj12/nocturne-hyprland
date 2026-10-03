@@ -27,6 +27,8 @@ ordinary tiled windows.
   `image/png` clipboard item.
 - Native multi-monitor bar and application launcher, Mako history, Cliphist,
   Caffeine, media controls, world clocks/weather, power profiles and deep sleep.
+- A cached current-location weather row first, followed by the user-defined
+  family-city list.
 - Lightweight Qt defaults for files, PDFs and calculation without installing a
   complete KDE desktop environment.
 - Existing applications, Steam, browsers, VS Code and the user's GNOME session
@@ -108,6 +110,12 @@ profiles or the GNOME session. Run a source-only check with no live changes:
 - PCManFM-Qt, qpdfview and Qalculate-Qt
 
 Nocturne does not bundle or silently download binary dependencies.
+
+The current-location weather row uses a coarse IP lookup from `ipwho.is`,
+caches only city/region, country, coordinates and timezone locally for six
+hours, and keeps the last good value while offline. Set
+`current_location.enabled` to `false` in `~/.config/nocturne/locations.json`
+to disable it; the remaining world-city list continues to work normally.
 
 ## Everyday controls
 

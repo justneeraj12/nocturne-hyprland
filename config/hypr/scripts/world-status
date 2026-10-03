@@ -4,29 +4,77 @@ set -euo pipefail
 config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/locations.json
 cache_dir=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne
 cache=$cache_dir/weather.tsv
+location_cache=$cache_dir/current-location.json
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 mkdir -p "$cache_dir"
 
-refresh_weather() {
-  local temp_dir index
-  temp_dir=$(mktemp -d /tmp/nocturne-weather.XXXXXX)
-  index=0
-  while IFS=$'\t' read -r label latitude longitude; do
-    (
-      payload=$(curl --fail --silent --show-error --max-time 8 \
-        "https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto" 2>/dev/null) || exit 0
-      temperature=$(jq -r '.current.temperature_2m // empty' <<<"$payload")
-      code=$(jq -r '.current.weather_code // empty' <<<"$payload")
-      [[ -n "$temperature" ]] && printf '%s\t%s\t%s\n' "$label" "$temperature" "$code"
-    ) > "$temp_dir/$(printf '%02d' "$index")" &
-    index=$((index + 1))
-  done < <(jq -r '.weather_locations[] | [.label, .latitude, .longitude] | @tsv' "$config")
-  wait || true
+location_enabled=$(jq -r '.current_location.enabled // true' "$config" 2>/dev/null || printf true)
+location_args=()
+[[ ${1:-} == --refresh-location ]] && location_args+=(--refresh)
+"$script_dir/current-location" "${location_args[@]}" >/dev/null || true
 
-  if find "$temp_dir" -type f -size +0c -print -quit | grep -q .; then
+location_rows() {
+  if [[ $location_enabled == true && -s $location_cache ]]; then
+    jq -r --slurpfile current "$location_cache" '
+      ($current + .weather_locations)[]
+      | select((.latitude | type) == "number" and (.longitude | type) == "number")
+      | [(.key // .label), .latitude, .longitude] | @tsv
+    ' "$config"
+  else
+    jq -r '.weather_locations[] | [(.key // .label), .latitude, .longitude] | @tsv' "$config"
+  fi
+}
+
+display_rows() {
+  if [[ $location_enabled == true && -s $location_cache ]]; then
+    jq -r --slurpfile current "$location_cache" '
+      ($current + .weather_locations)[] | [(.key // .label), .label, .timezone] | @tsv
+    ' "$config"
+  else
+    jq -r '.weather_locations[] | [(.key // .label), .label, .timezone] | @tsv' "$config"
+  fi
+}
+
+# Preserve the last known weather during the schema migration. The old cache
+# used the city label as its key; the automatic row now has a stable key so it
+# can follow the machine without colliding with a saved family city.
+if [[ $location_enabled == true && -s $location_cache && -s $cache ]]; then
+  current_label=$(jq -r '.label // empty' "$location_cache")
+  if [[ -n $current_label ]] && ! awk -F '\t' '$1 == "@current" { found = 1 } END { exit !found }' "$cache"; then
+    cached_weather=$(awk -F '\t' -v wanted="$current_label" '$1 == wanted {print $2 "\t" $3; exit}' "$cache")
+    [[ -z $cached_weather ]] || printf '@current\t%s\n' "$cached_weather" >> "$cache"
+  fi
+fi
+
+refresh_weather() {
+  local temp_dir rows latitudes longitudes labels payload
+  temp_dir=$(mktemp -d /tmp/nocturne-weather.XXXXXX)
+  rows=$(location_rows)
+  latitudes=$(cut -f2 <<<"$rows" | paste -sd, -)
+  longitudes=$(cut -f3 <<<"$rows" | paste -sd, -)
+  labels=$(cut -f1 <<<"$rows" | jq -R . | jq -sc .)
+  payload=$(curl --fail --silent --show-error --max-time 12 \
+    "https://api.open-meteo.com/v1/forecast?latitude=${latitudes}&longitude=${longitudes}&current=temperature_2m,weather_code&timezone=auto" \
+    2>/dev/null || true)
+
+  jq -r --argjson labels "$labels" '
+    (if type == "array" then . else [.] end)
+    | to_entries[]
+    | select((.value.current.temperature_2m // null) != null)
+    | [$labels[.key], .value.current.temperature_2m, (.value.current.weather_code // "")]
+    | @tsv
+  ' <<<"$payload" > "$temp_dir/fresh" 2>/dev/null || true
+
+  if [[ -s $temp_dir/fresh ]]; then
+    location_rows | cut -f1 > "$temp_dir/allowed"
     {
       [[ -s "$cache" ]] && cat "$cache"
-      cat "$temp_dir"/*
-    } | awk -F '\t' 'NF >= 3 { rows[$1] = $0 } END { for (label in rows) print rows[label] }' > "$cache.new"
+      cat "$temp_dir/fresh"
+    } | awk -F '\t' '
+      NR == FNR { allowed[$1] = 1; next }
+      NF >= 3 && ($1 in allowed) { rows[$1] = $0 }
+      END { for (label in rows) print rows[label] }
+    ' "$temp_dir/allowed" - > "$cache.new"
     mv "$cache.new" "$cache"
   fi
   rm -rf -- "$temp_dir"
@@ -34,11 +82,16 @@ refresh_weather() {
 
 now=$(date +%s)
 modified=0
-expected=$(jq '.weather_locations | length' "$config")
+expected=$(location_rows | wc -l)
 actual=0
 [[ -f "$cache" ]] && modified=$(stat -c %Y "$cache")
-[[ -s "$cache" ]] && actual=$(wc -l < "$cache")
-if ((now - modified > 900 || actual < expected)); then
+location_modified=0
+[[ -f $location_cache ]] && location_modified=$(stat -c %Y "$location_cache")
+if [[ -s $cache ]]; then
+  actual=$(awk -F '\t' 'NR == FNR { allowed[$1] = 1; next } $1 in allowed { count++ } END { print count + 0 }' \
+    <(location_rows | cut -f1) "$cache")
+fi
+if ((now - modified > 900 || actual < expected || location_modified > modified)); then
   refresh_weather
 fi
 
@@ -62,21 +115,21 @@ clock_for() {
   printf '%s%s' "$clock" "$suffix"
 }
 
-mapfile -t locations < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
+mapfile -t locations < <(display_rows)
 (( ${#locations[@]} > 0 )) || exit 0
 text='󰖟 󰥔'
 tooltip='WEATHER + LOCAL TIME'
-while IFS=$'\t' read -r label timezone; do
+while IFS=$'\t' read -r key label timezone; do
   local_time="$(TZ="$timezone" date '+%a') $(clock_for "$timezone")"
   temperature='--'
   code=''
   if [[ -s "$cache" ]]; then
-    temperature=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $2; exit}' "$cache")
-    code=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $3; exit}' "$cache")
+    temperature=$(awk -F '\t' -v wanted="$key" '$1 == wanted {print $2; exit}' "$cache")
+    code=$(awk -F '\t' -v wanted="$key" '$1 == wanted {print $3; exit}' "$cache")
     [[ -n "$temperature" ]] || temperature='--'
   fi
   tooltip+=$(printf '\n%-15s %s  %s %s°' "$label" "$local_time" "$(weather_icon "$code")" "$temperature")
-done < <(jq -r '.weather_locations[] | [.label, .timezone] | @tsv' "$config")
+done < <(display_rows)
 tooltip+=$'\n\nClick: world clocks + weather'
 
 jq -cn --arg text "$text" --arg tooltip "$tooltip" '{text:$text,tooltip:$tooltip,class:"world"}'

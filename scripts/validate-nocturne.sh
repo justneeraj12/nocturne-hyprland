@@ -45,6 +45,10 @@ grep -Fq 'PanelHeader' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'PanelHeader' "$root/native/qml/pages/PowerPage.qml"
 grep -Fq 'displayHour = hours % 12' "$root/native/qml/BarWindow.qml"
 grep -Fq 'Layout.preferredWidth: 42' "$root/native/qml/pages/WorldPage.qml"
+grep -Fq 'current-location.json' "$root/native/qml/pages/WorldPage.qml"
+grep -Fq 'key: "@current"' "$root/config/hypr/scripts/current-location"
+! jq -e '.weather_locations[] | select(.label == "Potsdam, NY")' "$root/config/locations.json" >/dev/null
+! jq -e '.clock_groups[].locations[] | select(. == "Potsdam, NY")' "$root/config/locations.json" >/dev/null
 grep -Fq '{{mpris:length}}' "$root/native/qml/pages/MediaPage.qml"
 printf '[ OK ] Qt/Wayland native shell + live controls\n'
 

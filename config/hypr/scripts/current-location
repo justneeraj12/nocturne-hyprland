@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/locations.json
+cache_dir=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne
+cache=$cache_dir/current-location.json
+mkdir -p "$cache_dir"
+
+enabled=$(jq -r '.current_location.enabled // true' "$config" 2>/dev/null || printf true)
+[[ $enabled == true ]] || exit 0
+
+refresh_hours=$(jq -r '.current_location.refresh_hours // 6' "$config" 2>/dev/null || printf 6)
+[[ $refresh_hours =~ ^[0-9]+$ ]] || refresh_hours=6
+((refresh_hours > 0)) || refresh_hours=6
+
+now=$(date +%s)
+modified=0
+[[ -f $cache ]] && modified=$(stat -c %Y "$cache")
+force_refresh=false
+[[ ${1:-} == --refresh ]] && force_refresh=true
+
+if [[ $force_refresh == true ]] || ((now - modified >= refresh_hours * 3600)); then
+  response=$(curl --fail --silent --show-error --max-time 8 \
+    'https://ipwho.is/?fields=success,city,region_code,country,latitude,longitude,timezone' \
+    2>/dev/null || true)
+  if normalized=$(jq -ce '
+      select(.success == true)
+      | select((.latitude | type) == "number" and (.longitude | type) == "number")
+      | select((.timezone.id | type) == "string" and (.timezone.id | length) > 0)
+      | {
+          key: "@current",
+          label: ([.city, .region_code] | map(select(type == "string" and length > 0)) | join(", ")),
+          name: "Current location",
+          country: (.country // ""),
+          latitude: .latitude,
+          longitude: .longitude,
+          timezone: .timezone.id,
+          current: true
+        }
+      | select(.label | length > 0)
+    ' <<<"$response" 2>/dev/null); then
+    temporary=$(mktemp "$cache_dir/current-location.XXXXXX")
+    printf '%s\n' "$normalized" > "$temporary"
+    chmod 0600 "$temporary"
+    mv -f -- "$temporary" "$cache"
+  fi
+fi
+
+if [[ -s $cache ]] && jq -e '
+    .key == "@current"
+    and (.label | type == "string" and length > 0)
+    and (.timezone | type == "string" and length > 0)
+  ' "$cache" >/dev/null 2>&1; then
+  cat "$cache"
+  exit 0
+fi
+
+# An offline first launch can still show local time. Weather fills in after the
+# first successful coarse-location refresh; no city is guessed or hardcoded.
+timezone=$(timedatectl show --property=Timezone --value 2>/dev/null || true)
+[[ -n $timezone ]] || timezone=UTC
+jq -cn --arg timezone "$timezone" '{
+  key:"@current", label:"Current location", name:"Location unavailable",
+  country:"", latitude:null, longitude:null, timezone:$timezone, current:true
+}'

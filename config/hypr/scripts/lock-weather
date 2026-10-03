@@ -2,14 +2,25 @@
 set -euo pipefail
 
 config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/locations.json
-cache=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne/weather.tsv
-label=$(jq -r '.local_weather // "Potsdam, NY"' "$config" 2>/dev/null || printf 'Potsdam, NY')
+cache_dir=${XDG_CACHE_HOME:-"$HOME/.cache"}/nocturne
+cache=$cache_dir/weather.tsv
+location_cache=$cache_dir/current-location.json
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+"$script_dir/current-location" >/dev/null || true
+location_enabled=$(jq -r '.current_location.enabled // true' "$config" 2>/dev/null || printf true)
+if [[ $location_enabled == true && -s $location_cache ]]; then
+  label=$(jq -r '.label // "Current location"' "$location_cache" 2>/dev/null || printf 'Current location')
+  key='@current'
+else
+  label=$(jq -r '.weather_locations[0].label // "Local weather"' "$config" 2>/dev/null || printf 'Local weather')
+  key=$label
+fi
 
 temperature='--'
 code=''
 if [[ -s $cache ]]; then
-  temperature=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $2; exit}' "$cache")
-  code=$(awk -F '\t' -v wanted="$label" '$1 == wanted {print $3; exit}' "$cache")
+  temperature=$(awk -F '\t' -v wanted="$key" '$1 == wanted {print $2; exit}' "$cache")
+  code=$(awk -F '\t' -v wanted="$key" '$1 == wanted {print $3; exit}' "$cache")
   [[ -n $temperature ]] || temperature='--'
 fi
 
