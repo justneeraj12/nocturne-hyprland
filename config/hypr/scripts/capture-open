@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+engine="$HOME/.local/bin/nocturne-capture-engine"
+if ! "$engine" status | jq -e '.pid' >/dev/null 2>&1; then
+  "$engine" prepare || true
+fi
 exec "$HOME/.local/bin/nocturne-native" capture

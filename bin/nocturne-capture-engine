@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -16,7 +17,10 @@ from typing import Any
 HOME = Path.home()
 RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"))
 STATE = RUNTIME / "nocturne-capture.json"
+FREEZE_STATE = RUNTIME / "nocturne-capture-freeze.json"
+FREEZE_IMAGE = RUNTIME / "nocturne-capture-freeze.png"
 SOURCES = {"area", "window", "display"}
+GEOMETRY = re.compile(r"^(-?\d+),(-?\d+)\s+(\d+)x(\d+)$")
 
 
 def command(args: list[str], *, input_text: str | None = None, timeout: float = 15) -> subprocess.CompletedProcess[str]:
@@ -78,21 +82,121 @@ def select_target(source: str) -> tuple[str, str] | None:
     return ("geometry", geometry) if geometry else None
 
 
+def discard_freeze() -> None:
+    FREEZE_STATE.unlink(missing_ok=True)
+    FREEZE_IMAGE.unlink(missing_ok=True)
+
+
+def prepare_freeze() -> int:
+    """Capture the compositor before the toolbar can dismiss transient menus."""
+    discard_freeze()
+    monitors = json_command(["hyprctl", "monitors", "-j"])
+    if not isinstance(monitors, list) or not monitors:
+        return 1
+    usable = [
+        monitor for monitor in monitors
+        if int(monitor.get("width", 0)) > 0 and int(monitor.get("height", 0)) > 0
+    ]
+    if not usable:
+        return 1
+    left = min(int(monitor.get("x", 0)) for monitor in usable)
+    top = min(int(monitor.get("y", 0)) for monitor in usable)
+    right = max(int(monitor.get("x", 0)) + int(monitor.get("width", 0)) for monitor in usable)
+    bottom = max(int(monitor.get("y", 0)) + int(monitor.get("height", 0)) for monitor in usable)
+    geometry = f"{left},{top} {right - left}x{bottom - top}"
+    temporary = RUNTIME / f"nocturne-capture-freeze-{os.getpid()}.png"
+    result = command(["grim", "-s", "1", "-l", "1", "-t", "png", "-g", geometry, str(temporary)], timeout=20)
+    if result.returncode or not temporary.is_file() or temporary.stat().st_size == 0:
+        temporary.unlink(missing_ok=True)
+        return 1
+    temporary.replace(FREEZE_IMAGE)
+    metadata = {
+        "prepared": int(time.time()),
+        "bounds": {"x": left, "y": top, "width": right - left, "height": bottom - top},
+        "monitors": [
+            {
+                "name": str(monitor.get("name", "")),
+                "x": int(monitor.get("x", 0)),
+                "y": int(monitor.get("y", 0)),
+                "width": int(monitor.get("width", 0)),
+                "height": int(monitor.get("height", 0)),
+            }
+            for monitor in usable
+        ],
+    }
+    state_temporary = RUNTIME / f"nocturne-capture-freeze-{os.getpid()}.json"
+    state_temporary.write_text(json.dumps(metadata), encoding="utf-8")
+    state_temporary.replace(FREEZE_STATE)
+    return 0
+
+
+def read_freeze() -> dict[str, Any] | None:
+    try:
+        state = json.loads(FREEZE_STATE.read_text(encoding="utf-8"))
+        if int(time.time()) - int(state["prepared"]) > 300:
+            raise ValueError
+        if not FREEZE_IMAGE.is_file() or FREEZE_IMAGE.stat().st_size == 0:
+            raise ValueError
+        return state
+    except (OSError, ValueError, KeyError, json.JSONDecodeError):
+        discard_freeze()
+        return None
+
+
+def frozen_geometry(target: tuple[str, str], freeze: dict[str, Any]) -> str | None:
+    kind, value = target
+    if kind == "geometry":
+        return value
+    for monitor in freeze.get("monitors", []):
+        if monitor.get("name") == value:
+            return f'{monitor["x"]},{monitor["y"]} {monitor["width"]}x{monitor["height"]}'
+    return None
+
+
+def crop_freeze(geometry: str, freeze: dict[str, Any], path: Path) -> bool:
+    match = GEOMETRY.fullmatch(geometry)
+    if not match:
+        return False
+    x, y, width, height = (int(value) for value in match.groups())
+    bounds = freeze.get("bounds", {})
+    left = max(x, int(bounds.get("x", 0)))
+    top = max(y, int(bounds.get("y", 0)))
+    right = min(x + width, int(bounds.get("x", 0)) + int(bounds.get("width", 0)))
+    bottom = min(y + height, int(bounds.get("y", 0)) + int(bounds.get("height", 0)))
+    if right <= left or bottom <= top:
+        return False
+    crop = f'{right - left}x{bottom - top}+{left - int(bounds.get("x", 0))}+{top - int(bounds.get("y", 0))}'
+    result = command(["magick", str(FREEZE_IMAGE), "-crop", crop, "+repage", str(path)], timeout=30)
+    return result.returncode == 0 and path.is_file() and path.stat().st_size > 0
+
+
 def notify(title: str, body: str) -> None:
     command(["notify-send", "-a", "Nocturne Capture", title, body], timeout=4)
 
 
 def take_screenshot(source: str) -> int:
+    freeze = read_freeze()
     time.sleep(0.18)
     target = select_target(source)
     if target is None:
+        discard_freeze()
         return 1
     path = output_path(False)
     kind, value = target
-    arguments = ["grim", "-t", "png", *( ["-o", value] if kind == "output" else ["-g", value] ), str(path)]
-    result = command(arguments, timeout=30)
-    if result.returncode or not path.is_file():
-        notify("Screenshot failed", result.stderr.strip() or "The selected target could not be captured")
+    captured = False
+    error = "The selected target could not be captured"
+    if freeze:
+        geometry = frozen_geometry(target, freeze)
+        captured = bool(geometry and crop_freeze(geometry, freeze, path))
+        error = "The frozen desktop frame could not be cropped"
+    else:
+        arguments = ["grim", "-t", "png", *( ["-o", value] if kind == "output" else ["-g", value] ), str(path)]
+        result = command(arguments, timeout=30)
+        captured = result.returncode == 0 and path.is_file()
+        error = result.stderr.strip() or error
+    discard_freeze()
+    if not captured:
+        notify("Screenshot failed", error)
         return 1
     try:
         with path.open("rb") as image:
@@ -124,6 +228,7 @@ def read_state() -> dict[str, Any] | None:
 
 
 def start_recording(source: str) -> int:
+    discard_freeze()
     time.sleep(0.18)
     if read_state():
         notify("Recording already active", "Click the red REC timer to stop and save")
@@ -177,6 +282,8 @@ def self_test() -> int:
     assert SOURCES == {"area", "window", "display"}
     assert output_path(False).parent.name == "Screenshots"
     assert output_path(True).parent.name == "Screenrecords"
+    assert GEOMETRY.fullmatch("-1920,0 1920x1080")
+    assert not GEOMETRY.fullmatch("not geometry")
     print("NOCTURNE // headless capture engine tests passed")
     return 0
 
@@ -191,6 +298,11 @@ def main(arguments: list[str]) -> int:
         return 2
     if action == "shot":
         return take_screenshot(source)
+    if action == "prepare":
+        return prepare_freeze()
+    if action == "discard":
+        discard_freeze()
+        return 0
     if action == "record":
         return start_recording(source)
     if action == "stop":
@@ -199,7 +311,7 @@ def main(arguments: list[str]) -> int:
         state = read_state()
         print(json.dumps(state or {}))
         return 0
-    print("usage: nocturne-capture-engine {shot|record|stop|status} [area|window|display]", file=sys.stderr)
+    print("usage: nocturne-capture-engine {prepare|shot|record|stop|status|discard} [area|window|display]", file=sys.stderr)
     return 2
 
 

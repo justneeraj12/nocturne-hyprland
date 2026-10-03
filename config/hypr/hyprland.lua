@@ -211,7 +211,7 @@ hl.bind("XF86WebCam", run(hardware .. " camera"), { locked = true })
 hl.bind("XF86KbdBrightnessUp", run(hardware .. " keyboard-light up"), { locked = true })
 hl.bind("XF86KbdBrightnessDown", run(hardware .. " keyboard-light down"), { locked = true })
 hl.bind("XF86Tools", run(scripts .. "help"))
-hl.bind("Print", run(home .. "/.local/bin/nocturne-native capture"))
+hl.bind("Print", run(home .. "/.config/hypr/scripts/capture-open"))
 
 hl.layer_rule({ match = { namespace = "nocturne-native" }, blur = true, ignore_alpha = 0.2 })
 

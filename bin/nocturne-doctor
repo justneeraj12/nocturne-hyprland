@@ -81,7 +81,8 @@ else
 fi
 pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
 
-if [[ -x $HOME/.local/bin/nocturne-capture-engine ]] \
+if command -v magick >/dev/null 2>&1 \
+    && [[ -x $HOME/.local/bin/nocturne-capture-engine ]] \
     && "$HOME/.local/bin/nocturne-capture-engine" --self-test >/dev/null 2>&1 \
     && [[ -x $HOME/.config/hypr/scripts/capture-status ]]; then
   ok 'Screenshot and recording engine passed its self-test'

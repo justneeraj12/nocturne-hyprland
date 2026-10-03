@@ -23,7 +23,10 @@ ApplicationWindow {
     LayerShellQt.Window.keyboardInteractivity: root.centerSurface
         ? LayerShellQt.Window.KeyboardInteractivityExclusive
         : LayerShellQt.Window.KeyboardInteractivityOnDemand
-    LayerShellQt.Window.activateOnShow: true
+    // Capture prepares a compositor frame before this surface maps. Avoid
+    // requesting keyboard focus here so transient application menus remain
+    // visible until the user actually interacts with the toolbar.
+    LayerShellQt.Window.activateOnShow: !root.bottomSurface
     LayerShellQt.Window.screen: backend.targetScreen
     LayerShellQt.Window.anchors: LayerShellQt.Window.AnchorTop | LayerShellQt.Window.AnchorRight | LayerShellQt.Window.AnchorBottom | LayerShellQt.Window.AnchorLeft
 
