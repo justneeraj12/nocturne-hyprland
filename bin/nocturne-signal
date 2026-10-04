@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+preference_file="$config_home/nocturne/signal-backend"
+flatpak_profile="$HOME/.var/app/org.signal.Signal/config/Signal/config.json"
+backend=auto
+[[ -s $preference_file ]] && backend=$(tr -d '[:space:]' < "$preference_file")
+
+flatpak_available() {
+  command -v flatpak >/dev/null 2>&1 \
+    && flatpak info org.signal.Signal >/dev/null 2>&1
+}
+
+native_available() {
+  [[ -x /opt/Signal/signal-desktop ]] || command -v signal-desktop >/dev/null 2>&1
+}
+
+launch_flatpak() {
+  exec flatpak run org.signal.Signal "$@"
+}
+
+launch_native() {
+  local executable=/opt/Signal/signal-desktop
+  [[ -x $executable ]] || executable=$(command -v signal-desktop)
+  # Electron cannot infer a secure safeStorage provider from "Hyprland".
+  # Reuse the already unlocked Secret Service instead of the unsafe basic store.
+  exec "$executable" --password-store=gnome-libsecret "$@"
+}
+
+case $backend in
+  flatpak)
+    flatpak_available || { notify-send -a Nocturne 'Signal unavailable' 'The selected Flatpak installation is missing.'; exit 1; }
+    launch_flatpak "$@"
+    ;;
+  native)
+    native_available || { notify-send -a Nocturne 'Signal unavailable' 'The selected native installation is missing.'; exit 1; }
+    launch_native "$@"
+    ;;
+  auto)
+    # Prefer an existing Flatpak profile so switching launchers never strands a
+    # linked message history. Otherwise prefer Signal's official native build.
+    if [[ -s $flatpak_profile ]] && flatpak_available; then
+      launch_flatpak "$@"
+    elif native_available; then
+      launch_native "$@"
+    elif flatpak_available; then
+      launch_flatpak "$@"
+    else
+      notify-send -a Nocturne 'Signal is not installed' 'Install Signal Desktop, then launch it again.'
+      exit 1
+    fi
+    ;;
+  *)
+    printf 'Invalid Signal backend in %s: %s\n' "$preference_file" "$backend" >&2
+    exit 2
+    ;;
+esac

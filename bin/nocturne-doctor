@@ -34,6 +34,16 @@ notification_owner=$(busctl --user --no-pager --list 2>/dev/null | awk '$1 == "o
 tray_owner=$(busctl --user --no-pager --list 2>/dev/null | awk '$1 == "org.kde.StatusNotifierWatcher" {print $2}')
 [[ -n $tray_owner ]] && ok 'Native background-app watcher owns the tray' || bad 'StatusNotifier watcher is unowned'
 
+if [[ -x /opt/Signal/signal-desktop ]] || flatpak info org.signal.Signal >/dev/null 2>&1; then
+  secret_owner=$(busctl --user --no-pager --list 2>/dev/null | awk '$1 == "org.freedesktop.secrets" {print $2}')
+  signal_exec=$(sed -n 's/^Exec=//p' "$HOME/.local/share/applications/signal-desktop.desktop" 2>/dev/null | head -n1)
+  if [[ -n $secret_owner && -x $HOME/.local/bin/nocturne-signal && $signal_exec == *nocturne-signal* ]]; then
+    ok 'Signal uses the preserved profile and unlocked Secret Service route'
+  else
+    bad 'Signal profile/keyring routing is incomplete'
+  fi
+fi
+
 if systemctl --user is-active --quiet plasma-xdg-desktop-portal-kde.service \
     && systemctl --user is-active --quiet xdg-desktop-portal-hyprland.service; then
   ok 'Qt and Hyprland portal backends are active'

@@ -1,0 +1,14 @@
+[Desktop Entry]
+Name=Signal
+GenericName=Secure Messenger
+Comment=Open the existing Signal profile with the correct Hyprland keyring backend
+Exec=@LAUNCHER@ %U
+Terminal=false
+Type=Application
+Icon=signal-desktop
+StartupWMClass=signal
+MimeType=x-scheme-handler/sgnl;x-scheme-handler/signalcaptcha;
+Categories=Network;InstantMessaging;Chat;
+Keywords=signal;message;chat;private;secure;
+StartupNotify=true
+X-GNOME-UsesNotifications=true

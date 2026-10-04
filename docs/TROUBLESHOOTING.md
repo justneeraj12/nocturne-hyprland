@@ -81,6 +81,24 @@ Nocturne keeps the desktop on the integrated GPU and offloads Steam and its
 child games. If the GPU exists but its driver is unavailable, Steam is blocked
 instead of silently launching games on Intel.
 
+## Signal asks for GNOME or reports an unreadable database
+
+Electron chooses its encrypted-storage backend from the desktop name. Hyprland
+is not a password-store name, so launching the native package directly can make
+a healthy Signal database look unreadable. Nocturne's Signal launcher forces
+the unlocked GNOME Secret Service for the native package. If a linked Flatpak
+profile already exists, it is preserved and opened instead of silently starting
+a separate empty profile.
+
+Choose a backend explicitly only when needed:
+
+```bash
+printf 'native\n' > ~/.config/nocturne/signal-backend
+# or: printf 'flatpak\n' > ~/.config/nocturne/signal-backend
+```
+
+Never delete either profile merely to resolve the password-store warning.
+
 ## Report a bug
 
 Include:

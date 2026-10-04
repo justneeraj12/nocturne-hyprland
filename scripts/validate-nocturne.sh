@@ -147,6 +147,13 @@ grep -Fq 'PATH=${HOME}/.local/bin:$PATH' "$root/config/environment.d/10-nocturne
 grep -Fq '*":$HOME/.local/bin:"*)' "$root/config/hypr/scripts/bar"
 printf '[ OK ] fail-closed NVIDIA Steam offload\n'
 
+grep -Fq -- '--password-store=gnome-libsecret' "$root/bin/nocturne-signal"
+grep -Fq 'flatpak_profile=' "$root/bin/nocturne-signal"
+grep -Fq 'nocturne-signal.desktop.in' "$root/apply-hyprland.sh"
+grep -Fq 'x-scheme-handler/sgnl' "$root/assets/nocturne-signal.desktop.in"
+grep -Fq 'Signal uses the preserved profile' "$root/bin/nocturne-doctor"
+printf '[ OK ] Signal keyring and profile routing\n'
+
 (
   cd "$root/agent"
   PYTHONPATH=src python3 -m pytest -q

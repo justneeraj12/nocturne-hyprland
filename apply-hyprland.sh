@@ -31,6 +31,7 @@ done
 mkdir -p "$snapshot/applications"
 desktop_targets=(
   steam.desktop
+  signal-desktop.desktop
   org.kde.kdeconnect.app.desktop
   org.gnome.Settings.desktop
   nocturne-settings.desktop
@@ -53,7 +54,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-signal steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -70,6 +71,8 @@ fi
 {
   printf 'inode/directory\t%s\n' "$(xdg-mime query default inode/directory 2>/dev/null || true)"
   printf 'application/pdf\t%s\n' "$(xdg-mime query default application/pdf 2>/dev/null || true)"
+  printf 'x-scheme-handler/sgnl\t%s\n' "$(xdg-mime query default x-scheme-handler/sgnl 2>/dev/null || true)"
+  printf 'x-scheme-handler/signalcaptcha\t%s\n' "$(xdg-mime query default x-scheme-handler/signalcaptcha 2>/dev/null || true)"
 } > "$snapshot/mime.tsv"
 printf 'Created before applying Hyprland: %s\n' "$(date --iso-8601=seconds)" > "$snapshot/README.txt"
 printf '%s\n' "$snapshot" > "$STATE_HOME/nocturne/last-preinstall-backup"
@@ -165,6 +168,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
+install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
 if [[ -f $HOME/Desktop/steam.desktop ]]; then
   sed -i \
@@ -205,6 +209,12 @@ sed "s|@SCRIPT@|$CONFIG_HOME/hypr/scripts/steam-launch|g" \
   "$ROOT_DIR/assets/nocturne-steam.desktop.in" \
   > "$DATA_HOME/applications/steam.desktop"
 chmod 0644 "$DATA_HOME/applications/steam.desktop"
+sed "s|@LAUNCHER@|$BIN_HOME/nocturne-signal|g" \
+  "$ROOT_DIR/assets/nocturne-signal.desktop.in" \
+  > "$DATA_HOME/applications/signal-desktop.desktop"
+chmod 0644 "$DATA_HOME/applications/signal-desktop.desktop"
+xdg-mime default signal-desktop.desktop x-scheme-handler/sgnl
+xdg-mime default signal-desktop.desktop x-scheme-handler/signalcaptcha
 sed "s|@SCRIPT@|$CONFIG_HOME/hypr/scripts/kdeconnect-settings|g" \
   "$ROOT_DIR/assets/nocturne-kdeconnect.desktop.in" \
   > "$DATA_HOME/applications/org.kde.kdeconnect.app.desktop"
