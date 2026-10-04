@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
 runtime_dir=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
 exec 9>"$runtime_dir/nocturne-native-bar.lock"
 flock -n 9 || exit 0

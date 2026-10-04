@@ -66,6 +66,7 @@ The shell includes:
 - Hyprshot screenshots and Kooha screen recording;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
+- fail-closed NVIDIA PRIME offload for Steam and every game it launches;
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
 - hardware-aware setup profiles plus portable preference export and restore;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.

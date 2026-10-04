@@ -80,6 +80,33 @@ for desktop in "${desktop_targets[@]}"; do
   fi
 done
 
+mkdir -p "$rollback/desktop"
+if [[ -f $HOME/Desktop/steam.desktop ]]; then
+  cp -a -- "$HOME/Desktop/steam.desktop" "$rollback/desktop/steam.desktop"
+  if [[ -e $backup/desktop/steam.desktop ]]; then
+    cp -a -- "$backup/desktop/steam.desktop" "$HOME/Desktop/steam.desktop"
+  elif [[ -e $NOCTURNE_STATE/steam-desktop-pre-gpu.desktop ]]; then
+    cp -a -- "$NOCTURNE_STATE/steam-desktop-pre-gpu.desktop" "$HOME/Desktop/steam.desktop"
+  else
+    sed -i "s|^Exec=$BIN_HOME/steam|Exec=/usr/bin/steam|" "$HOME/Desktop/steam.desktop"
+  fi
+fi
+while IFS= read -r -d '' shortcut; do
+  if grep -Fq "Exec=$BIN_HOME/steam steam://rungameid/" "$shortcut"; then
+    sed -i "s|^Exec=$BIN_HOME/steam steam://rungameid/|Exec=steam steam://rungameid/|" "$shortcut"
+  fi
+done < <(find "$DATA_HOME/applications" -maxdepth 1 -type f -name '*.desktop' -print0)
+
+mkdir -p "$rollback/environment.d" "$CONFIG_HOME/environment.d"
+environment_target="$CONFIG_HOME/environment.d/10-nocturne-path.conf"
+if [[ -e $environment_target ]]; then
+  cp -a -- "$environment_target" "$rollback/environment.d/10-nocturne-path.conf"
+fi
+rm -f -- "$environment_target"
+if [[ -e $backup/environment.d/10-nocturne-path.conf ]]; then
+  cp -a -- "$backup/environment.d/10-nocturne-path.conf" "$environment_target"
+fi
+
 systemctl --user unmask \
   mako.service \
   waybar.service \
@@ -92,7 +119,7 @@ systemctl --user unmask \
   localsearch-3.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"

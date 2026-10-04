@@ -135,6 +135,18 @@ grep -Fq 'boost) start_boost' "$root/config/hypr/scripts/power-profile"
 grep -Fq 'label:"SUPER"' "$root/native/qml/pages/PowerPage.qml"
 printf '[ OK ] zero-idle launcher + timed Super Performance control\n'
 
+grep -Fq '__NV_PRIME_RENDER_OFFLOAD=1' "$root/config/hypr/scripts/steam-launch"
+grep -Fq '__VK_LAYER_NV_optimus=NVIDIA_only' "$root/config/hypr/scripts/steam-launch"
+grep -Fq 'VK_LOADER_DRIVERS_SELECT=*nvidia*' "$root/config/hypr/scripts/steam-launch"
+grep -Fq -- '--verify-gpu' "$root/config/hypr/scripts/steam-launch"
+grep -Fq 'PrefersNonDefaultGPU=true' "$root/assets/nocturne-steam.desktop.in"
+grep -Fq 'nocturne-steam" "$BIN_HOME/steam"' "$root/apply-hyprland.sh"
+grep -Fq 'Exec=$BIN_HOME/steam steam://rungameid/' "$root/apply-hyprland.sh"
+grep -Fq 'Exec=steam steam://rungameid/' "$root/uninstall.sh"
+grep -Fq 'PATH=${HOME}/.local/bin:$PATH' "$root/config/environment.d/10-nocturne-path.conf"
+grep -Fq '*":$HOME/.local/bin:"*)' "$root/config/hypr/scripts/bar"
+printf '[ OK ] fail-closed NVIDIA Steam offload\n'
+
 (
   cd "$root/agent"
   PYTHONPATH=src python3 -m pytest -q

@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded grim slurp hyprshot cmake ninja xdg-mime)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded grim slurp hyprshot cmake ninja xdg-mime lspci glxinfo)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -44,8 +44,16 @@ for desktop in "${desktop_targets[@]}"; do
     cp -a -- "$DATA_HOME/applications/$desktop" "$snapshot/applications/$desktop"
   fi
 done
+mkdir -p "$snapshot/desktop"
+if [[ -e "$HOME/Desktop/steam.desktop" ]]; then
+  cp -a -- "$HOME/Desktop/steam.desktop" "$snapshot/desktop/steam.desktop"
+fi
+mkdir -p "$snapshot/environment.d"
+if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
+  cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
+fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -76,7 +84,7 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-porta
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/autostart" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d" \
-  "$STATE_HOME/nocturne" "$BIN_HOME"
+  "$CONFIG_HOME/environment.d" "$STATE_HOME/nocturne" "$BIN_HOME"
 if [[ ! -e "$CONFIG_HOME/nocturne/monitors.lua" ]]; then
   monitor_lines=()
   if command -v hyprctl >/dev/null 2>&1; then
@@ -149,6 +157,7 @@ if [[ ! -e "$CONFIG_HOME/nocturne/theme.json" ]]; then
 fi
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
 install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/color-schemes/Nocturne.colors"
+install -m 0644 "$ROOT_DIR/config/environment.d/10-nocturne-path.conf" "$CONFIG_HOME/environment.d/10-nocturne-path.conf"
 install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard"
 install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualizer"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
@@ -156,6 +165,18 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
+install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
+if [[ -f $HOME/Desktop/steam.desktop ]]; then
+  sed -i \
+    -e "s|^Exec=/usr/bin/steam|Exec=$BIN_HOME/steam|" \
+    -e "s|^Exec=/usr/games/steam|Exec=$BIN_HOME/steam|" \
+    "$HOME/Desktop/steam.desktop"
+fi
+while IFS= read -r -d '' shortcut; do
+  if grep -Fq 'Exec=steam steam://rungameid/' "$shortcut"; then
+    sed -i "s|^Exec=steam steam://rungameid/|Exec=$BIN_HOME/steam steam://rungameid/|" "$shortcut"
+  fi
+done < <(find "$DATA_HOME/applications" -maxdepth 1 -type f -name '*.desktop' -print0)
 NOCTURNE_BIN_DIR="$BIN_HOME" "$ROOT_DIR/scripts/build-native.sh"
 rm -f -- "$BIN_HOME/nocturne-panel" "$BIN_HOME/nocturne-power-card" \
   "$BIN_HOME/nocturne-capture" "$BIN_HOME/nocturne-settings-app" \

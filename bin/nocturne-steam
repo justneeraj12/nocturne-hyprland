@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+launcher="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/scripts/steam-launch"
+[[ -x $launcher ]] || {
+  printf 'Nocturne Steam launcher is missing: %s\n' "$launcher" >&2
+  exit 1
+}
+exec "$launcher" "$@"

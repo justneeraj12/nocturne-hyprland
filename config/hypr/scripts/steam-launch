@@ -2,10 +2,10 @@
 set -euo pipefail
 
 steam_command=()
-if command -v steam >/dev/null 2>&1; then
-  steam_command=("$(command -v steam)")
-elif [[ -x /usr/games/steam ]]; then
+if [[ -x /usr/games/steam ]]; then
   steam_command=(/usr/games/steam)
+elif [[ -x /usr/bin/steam ]]; then
+  steam_command=(/usr/bin/steam)
 elif flatpak info com.valvesoftware.Steam >/dev/null 2>&1; then
   steam_command=(flatpak run com.valvesoftware.Steam)
 else
@@ -14,12 +14,49 @@ else
 fi
 
 steam_environment=(env -u DRI_PRIME SDL_VIDEODRIVER=wayland,x11)
+nvidia_present=false
+nvidia_ready=false
+if command -v lspci >/dev/null 2>&1 \
+    && lspci -Dn 2>/dev/null | awk '$2 ~ /^030[02]:/ && $3 ~ /^10de:/' | grep -q .; then
+  nvidia_present=true
+fi
 if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi -L >/dev/null 2>&1; then
+  nvidia_present=true
+  nvidia_ready=true
   steam_environment+=(
     __NV_PRIME_RENDER_OFFLOAD=1
     __GLX_VENDOR_LIBRARY_NAME=nvidia
     __VK_LAYER_NV_optimus=NVIDIA_only
+    'VK_LOADER_DRIVERS_SELECT=*nvidia*'
   )
+fi
+
+if "$nvidia_present" && ! "$nvidia_ready"; then
+  notify-send -a Nocturne 'Steam launch blocked' 'The NVIDIA GPU is present, but its driver is unavailable. Games were not silently started on the integrated GPU.'
+  printf 'NVIDIA GPU detected, but nvidia-smi cannot reach the driver.\n' >&2
+  exit 1
+fi
+
+verify_gpu() {
+  local gpu_name='' renderer='' libraries32=false ok=false
+  if "$nvidia_ready"; then
+    gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -n1)
+    if command -v glxinfo >/dev/null 2>&1; then
+      renderer=$("${steam_environment[@]}" glxinfo -B 2>/dev/null | sed -n 's/^OpenGL renderer string: //p' | head -n1)
+    fi
+    [[ -e /usr/lib/i386-linux-gnu/libGLX_nvidia.so.0 \
+      || -e /usr/lib32/libGLX_nvidia.so.0 ]] && libraries32=true
+    [[ $renderer == *NVIDIA* && $libraries32 == true ]] && ok=true
+  fi
+  jq -cn --arg gpu "$gpu_name" --arg renderer "$renderer" \
+    --argjson driver_ready "$nvidia_ready" --argjson libraries32 "$libraries32" --argjson ok "$ok" \
+    '{ok:$ok,gpu:$gpu,renderer:$renderer,driver_ready:$driver_ready,libraries32:$libraries32}'
+  "$ok"
+}
+
+if [[ ${1:-} == --verify-gpu ]]; then
+  verify_gpu
+  exit
 fi
 
 # Protocol links and game shortcuts still need to be forwarded to Steam. The

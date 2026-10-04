@@ -64,6 +64,23 @@ card and include `nocturne-doctor` output in a bug report.
 Check that `/etc/pam.d/hyprlock` exists and that `hyprpolkitagent` is running.
 Do not weaken PAM configuration to make the lock screen appear functional.
 
+## Verify that Steam games use NVIDIA
+
+Nocturne places a verified `steam` wrapper in `~/.local/bin` and adds that
+directory to the managed user-session path. Steam-generated game shortcuts and
+the Nocturne launcher therefore share one PRIME offload path.
+
+```bash
+steam --verify-gpu | jq
+nvidia-smi
+```
+
+Verification must report `ok: true`, the NVIDIA renderer and available 32-bit
+libraries. On hybrid laptops, leave Ubuntu PRIME in **on-demand** mode;
+Nocturne keeps the desktop on the integrated GPU and offloads Steam and its
+child games. If the GPU exists but its driver is unavailable, Steam is blocked
+instead of silently launching games on Intel.
+
 ## Report a bug
 
 Include:

@@ -13,3 +13,4 @@
 - Added captive-portal/metered-network state and hardware-aware setup profiles.
 - Added validated portable preference export and restore.
 - Removed compositor blur from ChatGPT XWayland context-menu subsurfaces.
+- Added verified, fail-closed NVIDIA PRIME offload for Steam game processes.

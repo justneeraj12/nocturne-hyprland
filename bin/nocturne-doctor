@@ -74,6 +74,16 @@ brightnessctl -m >/dev/null 2>&1 && ok 'Hardware backlight responds' || warning 
 profile=$(powerprofilesctl get 2>/dev/null || true)
 [[ -n $profile ]] && ok "Power profile: $profile" || warning 'Power profile service is unavailable'
 
+if command -v lspci >/dev/null 2>&1 \
+    && lspci -Dn 2>/dev/null | awk '$2 ~ /^030[02]:/ && $3 ~ /^10de:/' | grep -q .; then
+  steam_gpu=$($HOME/.config/hypr/scripts/steam-launch --verify-gpu 2>/dev/null || true)
+  if jq -e '.ok == true and .driver_ready == true and .libraries32 == true' >/dev/null 2>&1 <<<"$steam_gpu"; then
+    ok "Steam offload: $(jq -r '.gpu' <<<"$steam_gpu")"
+  else
+    bad 'Steam cannot verify NVIDIA offload and 32-bit game libraries'
+  fi
+fi
+
 if [[ -r $HOME/.config/hypr/hyprlock.conf && -x $HOME/.config/hypr/scripts/lock-screen && -r /etc/pam.d/hyprlock ]]; then
   ok 'Hyprlock and PAM authentication are wired'
 else
