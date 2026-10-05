@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/theme-preview
+theme_dir="$config_home/nocturne/themes"
+timer=nocturne-theme-preview.timer
+service=nocturne-theme-preview.service
+script=$(readlink -f -- "$0")
+
+snapshot() {
+  [[ -d $state_dir ]] && return 0
+  mkdir -p "$state_dir" "$theme_dir"
+  for file in palette.css theme.conf theme.json accent.css accent.conf wallpaper.json; do
+    [[ -e $config_home/nocturne/$file ]] && cp -a -- "$config_home/nocturne/$file" "$state_dir/$file"
+  done
+}
+
+preview() {
+  local preset=${1:-} accent=${2:-}
+  snapshot
+  [[ -z $preset || $preset == '-' ]] || "$config_home/hypr/scripts/theme-preset" "$preset" >/dev/null
+  [[ -z $accent || $accent == '-' ]] || "$config_home/hypr/scripts/accent" "$accent" >/dev/null
+  systemctl --user stop "$timer" "$service" >/dev/null 2>&1 || true
+  systemd-run --user --quiet --collect --unit=nocturne-theme-preview --on-active=30s "$script" rollback
+}
+
+keep() { rm -rf -- "$state_dir"; systemctl --user stop "$timer" "$service" >/dev/null 2>&1 || true; }
+
+rollback() {
+  [[ -d $state_dir ]] || return 0
+  for file in "$state_dir"/*; do [[ -f $file ]] && cp -a -- "$file" "$config_home/nocturne/$(basename "$file")"; done
+  rm -rf -- "$state_dir"
+  systemctl --user stop "$timer" >/dev/null 2>&1 || true
+  "$config_home/hypr/scripts/sync-hyprtoolkit-theme" >/dev/null 2>&1 || true
+  hyprctl reload >/dev/null 2>&1 || true
+  notify-send -a Nocturne 'Theme preview reverted' 'The previous appearance was restored.'
+}
+
+derive() {
+  local image=${1:?wallpaper required} color accent accent2 border
+  [[ -f $image ]] || exit 2
+  color=$(convert "$image" -resize 1x1\! -colorspace sRGB -format '%[hex:p{0,0}]' info: | cut -c1-6)
+  [[ $color =~ ^[0-9A-Fa-f]{6}$ ]] || exit 1
+  accent=$(convert "xc:#$color" -modulate 150,150,100 -format '%[hex:p{0,0}]' info: | cut -c1-6)
+  accent2=$(convert "xc:#$color" -modulate 105,125,85 -format '%[hex:p{0,0}]' info: | cut -c1-6)
+  border=$(convert "xc:#$color" -modulate 85,120,75 -format '%[hex:p{0,0}]' info: | cut -c1-6)
+  snapshot
+  printf '@define-color accent #%s;\n@define-color accent2 #%s;\n@define-color nocturne_accent #%s;\n@define-color nocturne_accent2 #%s;\n' \
+    "$accent" "$accent2" "$accent" "$accent2" > "$config_home/nocturne/accent.css"
+  printf 'general:col.active_border = rgba(%sff)\n' "$border" > "$config_home/nocturne/accent.conf"
+  "$config_home/hypr/scripts/sync-hyprtoolkit-theme" >/dev/null 2>&1 || true
+  hyprctl reload >/dev/null 2>&1 || true
+  systemctl --user stop "$timer" "$service" >/dev/null 2>&1 || true
+  systemd-run --user --quiet --collect --unit=nocturne-theme-preview --on-active=30s "$script" rollback
+}
+
+save_custom() {
+  local name=${1:?name required} slug dir
+  slug=$(tr '[:upper:]' '[:lower:]' <<<"$name" | tr -cs 'a-z0-9._-' '-' | sed 's/^-//;s/-$//')
+  [[ -n $slug ]] || exit 2; dir="$theme_dir/$slug"; mkdir -p "$dir"
+  for file in palette.css theme.conf theme.json accent.css accent.conf wallpaper.json; do
+    [[ -e $config_home/nocturne/$file ]] && cp -a -- "$config_home/nocturne/$file" "$dir/$file"
+  done
+  jq -n --arg name "$name" --arg created "$(date --iso-8601=seconds)" '{name:$name,created:$created}' > "$dir/manifest.json"
+  keep
+}
+
+apply_custom() {
+  local slug dir
+  slug=$(tr '[:upper:]' '[:lower:]' <<<"${1:?theme required}" | tr -cs 'a-z0-9._-' '-' | sed 's/^-//;s/-$//'); dir="$theme_dir/$slug"
+  jq -e '.name' "$dir/manifest.json" >/dev/null
+  snapshot
+  for file in palette.css theme.conf theme.json accent.css accent.conf wallpaper.json; do [[ -e $dir/$file ]] && cp -a -- "$dir/$file" "$config_home/nocturne/$file"; done
+  "$config_home/hypr/scripts/sync-hyprtoolkit-theme" >/dev/null 2>&1 || true; hyprctl reload >/dev/null 2>&1 || true
+  systemctl --user stop "$timer" "$service" >/dev/null 2>&1 || true
+  systemd-run --user --quiet --collect --unit=nocturne-theme-preview --on-active=30s "$script" rollback
+}
+
+status() {
+  local preview=false remaining=0
+  if [[ -d $state_dir ]]; then preview=true; remaining=$(systemctl --user show "$timer" -p NextElapseUSecRealtime --value 2>/dev/null || true); fi
+  mkdir -p "$theme_dir"
+  jq -cn --argjson preview "$preview" --arg remaining "$remaining" --slurpfile themes <(find "$theme_dir" -mindepth 2 -maxdepth 2 -name manifest.json -exec cat {} \; 2>/dev/null | jq -s '.') \
+    '{preview:$preview,remaining:$remaining,themes:($themes[0] // [])}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  preview) preview "${2:-}" "${3:-}" ;;
+  derive) derive "${2:?wallpaper required}" ;;
+  keep) keep ;;
+  rollback) rollback ;;
+  save) save_custom "${2:?name required}" ;;
+  apply) apply_custom "${2:?theme required}" ;;
+  *) printf 'Usage: %s status|preview PRESET ACCENT|derive IMAGE|keep|rollback|save NAME|apply NAME\n' "$0" >&2; exit 2 ;;
+esac

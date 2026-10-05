@@ -3,29 +3,31 @@ set -euo pipefail
 
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
 state_file="$state_dir/game-session.state"
-config_file=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/game-mode.conf
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+config_file="$config_home/nocturne/game-mode.conf"
 AUTO_PERFORMANCE=true
 AUTO_CAFFEINE=true
 AUTO_DND=true
 [[ -r $config_file ]] && source "$config_file"
 
 game_clients() {
-  local pid class title current depth environment found
+  local pid class title current depth environment found appid
   while IFS=$'\t' read -r pid class title; do
     [[ $pid =~ ^[0-9]+$ ]] || continue
-    found=false
+    found=false; appid=''
     current=$pid
     for depth in {1..10}; do
       [[ $current =~ ^[0-9]+$ && $current -gt 1 ]] || break
       environment=$(cat "/proc/$current/environ" 2>/dev/null | tr '\0' '\n' || true)
       if grep -Eq '^(SteamAppId|SteamGameId)=[1-9][0-9]*$' <<<"$environment"; then
         found=true
+        appid=$(sed -n 's/^SteamAppId=//p; s/^SteamGameId=//p' <<<"$environment" | head -n1)
         break
       fi
       current=$(awk '/^PPid:/ {print $2}' "/proc/$current/status" 2>/dev/null || printf 0)
     done
     if [[ $found == true || ${class,,} == gamescope ]]; then
-      printf '%s\t%s\n' "$pid" "${title:-Steam game}"
+      printf '%s\t%s\t%s\n' "$pid" "${appid:-0}" "${title:-Steam game}"
     fi
   done < <(hyprctl clients -j 2>/dev/null | jq -r '.[] | [.pid, .class, .title] | @tsv' 2>/dev/null || true)
 }
@@ -38,26 +40,32 @@ read_state() {
   PREVIOUS_DND=false
   REQUEST_PID=0
   MANAGED_POWER=false
+  APPLIED_PROFILE=performance
   [[ -r $state_file ]] || return 1
-  IFS=$'\t' read -r PREVIOUS_PROFILE PREVIOUS_IDLE PREVIOUS_DND REQUEST_PID MANAGED_POWER < "$state_file"
+  IFS=$'\t' read -r PREVIOUS_PROFILE PREVIOUS_IDLE PREVIOUS_DND REQUEST_PID MANAGED_POWER APPLIED_PROFILE < "$state_file"
 }
 
 activate() {
-  local profile idle=true dnd=false request_pid=0 managed_power=false temp_state
+  local profile idle=true dnd=false request_pid=0 managed_power=false temp_state requested_profile=performance appid
   [[ -e $state_file ]] && return 0
   profile=$(powerprofilesctl get 2>/dev/null || printf balanced)
   pgrep -x hypridle >/dev/null || idle=false
   makoctl mode 2>/dev/null | grep -qx 'do-not-disturb' && dnd=true
+  appid=$(game_clients | head -n1 | cut -f2)
+  if [[ $appid =~ ^[0-9]+$ && -r $config_home/nocturne/game-profiles.json ]]; then
+    requested_profile=$(jq -r --arg appid "$appid" '.games[$appid].power // .default.power // "performance"' "$config_home/nocturne/game-profiles.json")
+  fi
+  [[ $requested_profile =~ ^(performance|balanced|power-saver)$ ]] || requested_profile=performance
 
   # Persist the rollback point before touching live state so a service stop or
   # compositor exit during activation cannot strand the laptop in game mode.
   mkdir -p -- "$state_dir"
   temp_state=$(mktemp "$state_dir/.game-session.XXXXXX")
-  printf '%s\t%s\t%s\t0\tfalse\n' "$profile" "$idle" "$dnd" > "$temp_state"
+  printf '%s\t%s\t%s\t0\tfalse\t%s\n' "$profile" "$idle" "$dnd" "$requested_profile" > "$temp_state"
   mv -f -- "$temp_state" "$state_file"
 
   if [[ $AUTO_PERFORMANCE == true && $("$HOME/.config/hypr/scripts/power-profile" status 2>/dev/null | cut -f1) != boost ]]; then
-    powerprofilesctl set performance >/dev/null 2>&1 && managed_power=true
+    powerprofilesctl set "$requested_profile" >/dev/null 2>&1 && managed_power=true
   fi
   if command -v gamemoded >/dev/null 2>&1 && [[ $(gamemoded -s 2>/dev/null || true) == *inactive* ]]; then
     gamemoded -r >/dev/null 2>&1 &
@@ -67,7 +75,7 @@ activate() {
   if [[ $AUTO_DND == true && $dnd == false ]]; then makoctl mode -a do-not-disturb >/dev/null 2>&1 || true; fi
 
   temp_state=$(mktemp "$state_dir/.game-session.XXXXXX")
-  printf '%s\t%s\t%s\t%s\t%s\n' "$profile" "$idle" "$dnd" "$request_pid" "$managed_power" > "$temp_state"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$profile" "$idle" "$dnd" "$request_pid" "$managed_power" "$requested_profile" > "$temp_state"
   mv -f -- "$temp_state" "$state_file"
   notify-send -a Nocturne -u low 'Gaming mode active' 'Performance, caffeine and focus controls were applied automatically.'
 }
@@ -80,7 +88,7 @@ restore() {
     kill "$REQUEST_PID" 2>/dev/null || true
   fi
   current_profile=$(powerprofilesctl get 2>/dev/null || true)
-  if [[ $MANAGED_POWER == true && $current_profile == performance ]]; then
+  if [[ $MANAGED_POWER == true && $current_profile == "$APPLIED_PROFILE" ]]; then
     powerprofilesctl set "$PREVIOUS_PROFILE" >/dev/null 2>&1 || true
   fi
   if [[ $AUTO_CAFFEINE == true && $PREVIOUS_IDLE == true ]] && ! pgrep -x hypridle >/dev/null; then
@@ -99,15 +107,16 @@ refresh() {
 }
 
 status() {
-  local count active=false enabled=false title='Waiting for a Steam game'
+  local count active=false enabled=false title='Waiting for a Steam game' appid=0
   count=$(game_count)
   [[ -e $state_file ]] && active=true
   systemctl --user is-enabled --quiet nocturne-game-session.service 2>/dev/null && enabled=true
   if ((count > 0)); then
-    title=$(game_clients | head -n1 | cut -f2)
+    appid=$(game_clients | head -n1 | cut -f2)
+    title=$(game_clients | head -n1 | cut -f3)
   fi
-  jq -cn --argjson active "$active" --argjson enabled "$enabled" --argjson games "$count" --arg title "$title" \
-    '{active:$active,enabled:$enabled,games:$games,title:$title}'
+  jq -cn --argjson active "$active" --argjson enabled "$enabled" --argjson games "$count" --argjson appid "$appid" --arg title "$title" \
+    '{active:$active,enabled:$enabled,games:$games,appid:$appid,title:$title}'
 }
 
 watch() {
@@ -126,7 +135,7 @@ watch() {
     coproc HYPR_EVENTS { exec socat -U - "UNIX-CONNECT:$socket" 2>/dev/null; }
     stream_pid=$HYPR_EVENTS_PID
     while IFS= read -r -u "${HYPR_EVENTS[0]}" event; do
-      case $event in openwindow*|closewindow*) refresh ;; esac
+      case $event in openwindow*|closewindow*) refresh ;; monitoradded*|monitorremoved*) "$config_home/hypr/scripts/context-engine" refresh || true ;; esac
     done
     wait "$stream_pid" 2>/dev/null || true
     stream_pid=0

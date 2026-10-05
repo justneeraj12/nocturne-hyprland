@@ -1,0 +1,6 @@
+[Unit]
+Description=Expire Nocturne per-application notification mutes
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/hypr/scripts/notification-rules expire

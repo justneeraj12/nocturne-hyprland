@@ -5,6 +5,8 @@ REMEMBER ONLY THESE THREE
   Super + Space           Find and launch any app
   Super + R               Open the full Nocturne Settings app
   Super + Shift + R       Open the graphical resource monitor
+  Super + Tab             Overview all workspaces and windows
+  Super + Shift + Tab     Save or restore a session scene
   Super + /               Reopen this guide at any time
 
 EVERYDAY APPS
@@ -66,6 +68,8 @@ STEAM + ODD APP WINDOWS
   Super + Shift + 1…9     Send the focused app to another workspace
 
 WORKSPACES
+  Super + Tab             Visual overview; drag windows between workspaces
+  Super + Shift + Tab     Desktop, display, wallpaper and audio scenes
   Super + 1…9             Switch workspace
   Super + Shift + 1…9     Send a window to a workspace
   Super + mouse wheel     Cycle workspaces

@@ -43,7 +43,10 @@ systemctl --user disable --now \
   nocturne-wallpaper-cycle.service \
   nocturne-easyeffects.service \
   nocturne-audio-autoswitch.service \
-  nocturne-game-session.service >/dev/null 2>&1 || true
+  nocturne-game-session.service \
+  nocturne-notification-rules.timer \
+  nocturne-context.timer \
+  nocturne-session-health.service >/dev/null 2>&1 || true
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
 pkill -f '^.*/nocturne-(dashboard|visualizer)( |$)' 2>/dev/null || true
 
@@ -121,7 +124,7 @@ systemctl --user unmask \
   localsearch-3.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-signal steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-signal steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"
@@ -165,6 +168,15 @@ fi
 
 command -v update-desktop-database >/dev/null 2>&1 && \
   update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true
+
+if [[ -e /usr/share/wayland-sessions/nocturne-recovery.desktop || -e /usr/local/bin/nocturne-recovery-session ]]; then
+  if sudo -n true 2>/dev/null; then
+    sudo -n rm -f -- /usr/share/wayland-sessions/nocturne-recovery.desktop /usr/local/bin/nocturne-recovery-session
+  else
+    printf 'Root-owned recovery login files remain; remove them later with:\n'
+    printf '  sudo rm -f /usr/share/wayland-sessions/nocturne-recovery.desktop /usr/local/bin/nocturne-recovery-session\n'
+  fi
+fi
 
 printf '\nNocturne config was rolled back from:\n  %s\n' "$backup"
 printf 'The removed Nocturne state is recoverable from:\n  %s\n' "$rollback"

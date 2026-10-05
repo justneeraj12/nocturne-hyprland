@@ -12,10 +12,10 @@ ApplicationWindow {
     height: 1
     screen: backend.targetScreen
 
-    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "osd"
-    readonly property int cardWidth: backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
+    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "osd" || backend.surface === "overview" || backend.surface === "scenes" || backend.surface === "privacy" || backend.surface === "gaming"
+    readonly property int cardWidth: backend.surface === "overview" ? Math.min(1080, width - 48) : (backend.surface === "scenes" ? 610 : (backend.surface === "gaming" ? 510 : (backend.surface === "privacy" ? 460 : (backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
         : (backend.surface === "display" ? 460
-            : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : 410)))
+            : ((backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "notifications") ? (backend.surface === "clipboard" ? 520 : (backend.surface === "notifications" ? 480 : 500)) : 410)))))))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     function dismiss() { backend.close() }
@@ -52,6 +52,10 @@ ApplicationWindow {
             anchors.fill: parent
             sourceComponent: {
                 if (backend.surface === "launcher") return launcherPage
+                if (backend.surface === "overview") return overviewPage
+                if (backend.surface === "scenes") return scenesPage
+                if (backend.surface === "privacy") return privacyPage
+                if (backend.surface === "gaming") return gamingPage
                 if (backend.surface === "osd") return osdPage
                 if (backend.surface === "background") return backgroundPage
                 if (backend.surface === "notifications") return notificationsPage
@@ -80,6 +84,10 @@ ApplicationWindow {
     Component { id: pomodoroPage; PomodoroPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: launcherPage; LauncherPage {} }
+    Component { id: overviewPage; OverviewPage {} }
+    Component { id: scenesPage; ScenesPage {} }
+    Component { id: privacyPage; PrivacyPage {} }
+    Component { id: gamingPage; GamingPage {} }
     Component { id: osdPage; OsdPage {} }
     Component { id: backgroundPage; BackgroundPage {} }
     Component { id: notificationsPage; NotificationsPage {} }

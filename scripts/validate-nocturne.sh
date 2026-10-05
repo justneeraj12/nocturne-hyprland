@@ -45,7 +45,7 @@ grep -Fq 'NIGHT SHIFT' "$root/native/qml/pages/BrightnessPage.qml"
 grep -Fq 'connection.metered' "$root/native/qml/pages/ConnectivityPage.qml"
 grep -Fq 'SYSTEM PACKAGES' "$root/native/qml/pages/MaintenancePage.qml"
 grep -Fq 'SAVE LAYOUT' "$root/native/qml/pages/DisplayPage.qml"
-grep -Fq 'SETUP + BACKUP' "$root/native/qml/Settings.qml"
+grep -Fq 'SETUP + RECOVERY' "$root/native/qml/Settings.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
 ! grep -Fq 'targetScreen.name === "HDMI-A-1"' "$root/native/qml/BarWindow.qml"
@@ -139,6 +139,20 @@ grep -Fq 'UNIX-CONNECT:' "$root/config/hypr/scripts/game-session"
 grep -Fq 'focus-mode' "$root/native/qml/pages/NotificationsPage.qml"
 grep -Fq 'qml/pages/OsdPage.qml' "$root/native/CMakeLists.txt"
 printf '[ OK ] command-center launcher + focus, gaming and native OSD controls\n'
+
+for page in OverviewPage ScenesPage PrivacyPage GamingPage; do
+  grep -Fq "qml/pages/$page.qml" "$root/native/CMakeLists.txt"
+done
+grep -Fq 'hl.bind(mod .. " + Tab"' "$root/config/hypr/hyprland.lua"
+grep -Fq 'nocturne-scene-v1' "$root/config/hypr/scripts/scene-manager"
+grep -Fq 'nocturne-audio-scene-v1' "$root/config/hypr/scripts/audio-scene"
+grep -Fq 'OnUnitActiveSec=30s' "$root/config/systemd/user/nocturne-context.timer"
+grep -Fq 'invisible=1' "$root/config/hypr/scripts/notification-rules"
+grep -Fq 'last-good.tar.gz' "$root/bin/nocturne-recovery"
+grep -Fq 'nocturne-session-health.service' "$root/apply-hyprland.sh"
+grep -Fq 'theme-studio' "$root/native/qml/Settings.qml"
+grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
+printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
 
 grep -Fq '__NV_PRIME_RENDER_OFFLOAD=1' "$root/config/hypr/scripts/steam-launch"
 grep -Fq '__VK_LAYER_NV_optimus=NVIDIA_only' "$root/config/hypr/scripts/steam-launch"

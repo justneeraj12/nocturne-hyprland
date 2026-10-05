@@ -38,6 +38,11 @@ Log out after the first installation and choose **Hyprland (uwsm-managed)**.
 The next login starts the bar, wallpaper engine, notifications, idle manager,
 clipboard watchers and hardware helpers.
 
+The package-assisted install also adds a **Nocturne Recovery** login entry. It
+starts a minimal Hyprland config with no shell panels or effects. Use
+`Super+R` there to restore the last-known-good checkpoint, or run
+`nocturne-recovery restore` from a TTY.
+
 ## What changes
 
 User-owned files are installed below:
@@ -51,6 +56,8 @@ User-owned files are installed below:
 Before applying those files, the installer snapshots existing desktop config
 under `~/.local/state/nocturne/backups/`. It does not delete browser profiles,
 Steam data, documents, downloads, application accounts or the GNOME session.
+After a successful install it also writes a compact operational checkpoint to
+`~/.local/state/nocturne/recovery/last-good.tar.gz`.
 
 ## Validate first
 
@@ -107,7 +114,7 @@ sleep modes and embedded-controller behavior differ across machines.
 
 ## First-run profile and portable backup
 
-Open **Nocturne Settings → Setup + Backup** after the first login. Hardware
+Open **Nocturne Settings → Setup + Recovery** after the first login. Hardware
 detection recommends a desktop or laptop profile; the choice changes only
 optional background services and never removes the core shell. The same page
 exports a portable preferences bundle under `~/Documents/Nocturne-Backups`.

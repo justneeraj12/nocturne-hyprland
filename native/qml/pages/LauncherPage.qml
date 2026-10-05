@@ -39,6 +39,8 @@ Rectangle {
     function kindLabel(kind) {
         if (kind === "window") return "RUNNING"
         if (kind === "action") return "ACTION"
+        if (kind === "file") return "FILE"
+        if (kind === "calculation") return "COPY RESULT"
         return "APP"
     }
 
@@ -49,7 +51,7 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            PanelHeader { Layout.fillWidth: true; title: "Command Center"; subtitle: "Apps, windows and desktop actions" }
+            PanelHeader { Layout.fillWidth: true; title: "Command Center"; subtitle: "Apps, windows, files, calculator and desktop actions" }
             Text {
                 text: root.results.length + " RESULTS"
                 color: backend.mutedColor
@@ -62,7 +64,7 @@ Rectangle {
             id: search
             Layout.fillWidth: true
             implicitHeight: 42
-            placeholderText: "Search everything…   @ windows   > actions"
+            placeholderText: "Search…   @ windows   > actions   ~ files   = calculate"
             color: backend.textColor
             placeholderTextColor: backend.mutedColor
             font.family: "monospace"
@@ -90,6 +92,10 @@ Rectangle {
                     event.accepted = true
                 } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                     root.launchCurrent()
+                    event.accepted = true
+                } else if ((event.modifiers & Qt.AltModifier) && event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
+                    var quickIndex = event.key - Qt.Key_1
+                    if (quickIndex < root.results.length) backend.activateLauncherResult(root.results[quickIndex])
                     event.accepted = true
                 } else if (event.key === Qt.Key_Escape) {
                     backend.close()
@@ -186,6 +192,12 @@ Rectangle {
                         font.pixelSize: 8
                         font.bold: true
                     }
+                    NocturneButton {
+                        visible: modelData.kind === "application"
+                        text: modelData.favorite ? "★" : "☆"
+                        selected: Boolean(modelData.favorite)
+                        onClicked: { backend.toggleFavorite(modelData.path); root.refresh() }
+                    }
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -199,7 +211,7 @@ Rectangle {
 
         Text {
             Layout.fillWidth: true
-            text: "TAB FILTER   ↑↓ NAVIGATE   ↵ OPEN   ESC CLOSE"
+            text: "TAB FILTER   ↑↓ NAVIGATE   ALT+1…9 QUICK OPEN   ↵ OPEN   ESC CLOSE"
             color: backend.mutedColor
             horizontalAlignment: Text.AlignHCenter
             font.family: "monospace"

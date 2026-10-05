@@ -50,8 +50,23 @@ workflow:
 - Copper Deep Green
 - Copper Deep Gold
 
-Sixteen accents are available from the same page. The active values are stored
-under `~/.config/nocturne` and synchronized to Hyprland and the native shell.
+Sixteen accents are available from the same page. Changes begin as a 30-second
+preview: choose **Keep** or let Nocturne restore the old palette automatically.
+Theme Studio can derive an accent from the active wallpaper and save named
+custom themes under `~/.config/nocturne/themes`.
+
+## Scenes and context automation
+
+Open **Settings → Scenes + Automation** to save the current applications,
+workspace placement, monitors, wallpaper, power profile and audio defaults.
+Restoring a scene may relaunch its known desktop applications. Context rules
+for docked, mobile, AC and battery states use `settings-only` mode and never
+launch applications automatically. They are checked by a 30-second systemd
+timer, so there is no persistent polling process.
+
+Audio scenes remember output/input devices, master levels, active application
+levels and the selected EasyEffects preset. The Meeting action always prefers
+the laptop microphone but leaves output routing switchable.
 
 ## World clocks and weather
 
@@ -83,7 +98,7 @@ other applications; the shell does not require those exact choices.
 
 ## Portable preferences
 
-**Settings → Setup + Backup** exports theme state, accents, locations, wallpaper
+**Settings → Setup + Recovery** exports theme state, accents, locations, wallpaper
 selection, saved monitor layout and Night Shift configuration. The archive does
 not include Wi-Fi secrets, passwords, browser profiles or wallpaper images.
 

@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Nocturne Recovery
+Comment=Minimal Hyprland session for restoring a Nocturne checkpoint
+Exec=/usr/local/bin/nocturne-recovery-session
+Type=Application
+DesktopNames=Hyprland

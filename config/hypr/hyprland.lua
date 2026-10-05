@@ -149,6 +149,8 @@ local mod = "SUPER"
 
 hl.bind(mod .. " + Return", run(terminal))
 hl.bind(mod .. " + Space", run(launcher))
+hl.bind(mod .. " + Tab", run(scripts .. "overview"))
+hl.bind(mod .. " + SHIFT + Tab", run(home .. "/.local/bin/nocturne-native scenes"))
 hl.bind(mod .. " + slash", run(scripts .. "help"))
 hl.bind(mod .. " + R", run(control))
 hl.bind(mod .. " + SHIFT + R", run("resources"))

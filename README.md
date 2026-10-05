@@ -62,7 +62,11 @@ The shell includes:
 - master volume, output routing and live per-application PipeWire streams;
 - hardware-synchronized brightness and microphone state;
 - a command-center launcher for apps, running windows and safe desktop actions;
+- a nine-workspace overview plus restorable desktop and audio scenes;
+- launcher favorites, recent apps, local file search and inline calculations;
 - notification history, timed focus modes, clipboard history and minimized apps;
+- per-app timed notification muting, grouped alerts and verification-code copying;
+- live privacy and gaming dashboards with on-demand sensor/GPU inspection;
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
@@ -71,6 +75,7 @@ The shell includes:
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
 - hardware-aware setup profiles plus portable preference export and restore;
+- dock/power context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 
 More images are in the [showcase](docs/SHOWCASE.md).
@@ -112,6 +117,8 @@ before installing on a machine with an existing custom rice.
 | Action | Shortcut |
 | --- | --- |
 | Launch an app | `Super + Space` |
+| Workspace overview | `Super + Tab` |
+| Session scenes | `Super + Shift + Tab` |
 | Open terminal | `Super + Enter` |
 | Open Nocturne Settings | `Super + R` |
 | Show the full key guide | `Super + /` |

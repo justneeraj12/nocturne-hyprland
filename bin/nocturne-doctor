@@ -11,7 +11,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────────────'
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt convert upower)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -82,6 +82,11 @@ systemctl --user is-active --quiet nocturne-audio-autoswitch.service \
   && ok 'Bluetooth audio auto-routing is active' || warning 'Bluetooth audio auto-routing is inactive'
 systemctl --user is-active --quiet nocturne-game-session.service \
   && ok 'Automatic gaming-session controller is active' || warning 'Automatic gaming-session controller is inactive'
+systemctl --user is-active --quiet nocturne-notification-rules.timer \
+  && ok 'Timed notification rules are scheduled' || warning 'Timed notification rules are not scheduled'
+systemctl --user is-active --quiet nocturne-context.timer \
+  && ok 'Dock/power context checks are scheduled' || warning 'Dock/power context checks are not scheduled'
+if pgrep -f '/context-engine (refresh|status)' >/dev/null 2>&1; then warning 'Context helper is unexpectedly persistent'; else ok 'Context automation has zero persistent processes'; fi
 brightnessctl -m >/dev/null 2>&1 && ok 'Hardware backlight responds' || warning 'No controllable backlight was found'
 profile=$(powerprofilesctl get 2>/dev/null || true)
 [[ -n $profile ]] && ok "Power profile: $profile" || warning 'Power profile service is unavailable'
@@ -101,6 +106,8 @@ if [[ -r $HOME/.config/hypr/hyprlock.conf && -x $HOME/.config/hypr/scripts/lock-
 else
   bad 'Hyprlock integration is incomplete'
 fi
+recovery=$($HOME/.local/bin/nocturne-recovery status 2>/dev/null || true)
+if jq -e '.exists == true' >/dev/null 2>&1 <<<"$recovery"; then ok 'Last-known-good recovery checkpoint is ready'; else warning 'No recovery checkpoint exists yet'; fi
 pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
 
 if [[ -x $HOME/.local/bin/hyprshot ]] \

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+scene_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/audio-scenes
+mkdir -p "$scene_dir"
+
+slugify() { tr '[:upper:]' '[:lower:]' <<<"$1" | tr -cs 'a-z0-9._-' '-' | sed 's/^-//;s/-$//'; }
+scene_path() { printf '%s/%s.json\n' "$scene_dir" "$(slugify "$1")"; }
+volume_percent() { wpctl get-volume "$1" 2>/dev/null | awk '{printf "%d", $2 * 100}'; }
+
+save_scene() {
+  local name=${1:?scene name required} file temp sink source output_preset input_preset streams
+  file=$(scene_path "$name"); temp=$(mktemp "$scene_dir/.audio.XXXXXX")
+  sink=$(pactl get-default-sink); source=$(pactl get-default-source)
+  output_preset=$(timeout 2 easyeffects -a output 2>/dev/null | tail -n1 || true)
+  input_preset=$(timeout 2 easyeffects -a input 2>/dev/null | tail -n1 || true)
+  streams=$(pactl -f json list sink-inputs 2>/dev/null | jq -c '[.[] | {
+    app:(.properties["application.name"] // .properties["application.process.binary"] // "Application"),
+    volume:(((.volume | to_entries | first | .value.value_percent) // "100%") | sub("%";"") | tonumber), mute
+  }] | unique_by(.app)' || printf '[]')
+  jq -n --arg format nocturne-audio-scene-v1 --arg name "$name" --arg created "$(date --iso-8601=seconds)" \
+    --arg sink "$sink" --arg source "$source" --arg output "$output_preset" --arg input "$input_preset" \
+    --argjson sinkVolume "$(volume_percent @DEFAULT_AUDIO_SINK@)" --argjson sourceVolume "$(volume_percent @DEFAULT_AUDIO_SOURCE@)" \
+    --argjson streams "$streams" '{format:$format,name:$name,created:$created,sink:$sink,source:$source,
+      sinkVolume:$sinkVolume,sourceVolume:$sourceVolume,outputPreset:$output,inputPreset:$input,streams:$streams}' > "$temp"
+  jq -e '.format == "nocturne-audio-scene-v1"' "$temp" >/dev/null
+  mv -f -- "$temp" "$file"
+  notify-send -a Nocturne 'Audio scene saved' "$name"
+}
+
+apply_scene() {
+  local file sink source preset app volume index
+  file=$(scene_path "${1:?scene name required}")
+  jq -e '.format == "nocturne-audio-scene-v1"' "$file" >/dev/null
+  sink=$(jq -r '.sink' "$file"); source=$(jq -r '.source' "$file")
+  pactl set-default-sink "$sink" >/dev/null 2>&1 || true
+  ${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/scripts/audio-route set-mic "$source" "$source" >/dev/null 2>&1 || true
+  wpctl set-volume --limit 1.5 @DEFAULT_AUDIO_SINK@ "$(jq -r '.sinkVolume' "$file")%"
+  wpctl set-volume @DEFAULT_AUDIO_SOURCE@ "$(jq -r '.sourceVolume' "$file")%"
+  preset=$(jq -r '.outputPreset // empty' "$file"); [[ -z $preset ]] || easyeffects -l "$preset" >/dev/null 2>&1 || true
+  while IFS=$'\t' read -r app volume; do
+    while IFS= read -r index; do pactl set-sink-input-volume "$index" "${volume}%" >/dev/null 2>&1 || true; done \
+      < <(pactl -f json list sink-inputs | jq -r --arg app "$app" '.[] | select((.properties["application.name"] // .properties["application.process.binary"]) == $app) | .index')
+  done < <(jq -r '.streams[] | [.app,.volume] | @tsv' "$file")
+  notify-send -a Nocturne 'Audio scene active' "$(jq -r '.name' "$file")"
+}
+
+list_scenes() {
+  find "$scene_dir" -maxdepth 1 -type f -name '*.json' -print0 2>/dev/null | sort -z \
+    | xargs -0 -r jq -c 'select(.format == "nocturne-audio-scene-v1") | {name,created,sink,source}' | jq -sc '.'
+}
+
+meeting() {
+  ${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/scripts/audio-route prefer-laptop-mic yes
+  wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 0
+  notify-send -a Nocturne 'Meeting audio ready' 'Laptop microphone selected and unmuted.'
+}
+
+case ${1:-list} in
+  list|status) list_scenes ;;
+  save) save_scene "${2:?scene name required}" ;;
+  apply) apply_scene "${2:?scene name required}" ;;
+  delete) rm -f -- "$(scene_path "${2:?scene name required}")" ;;
+  meeting) meeting ;;
+  *) printf 'Usage: %s list|save NAME|apply NAME|delete NAME|meeting\n' "$0" >&2; exit 2 ;;
+esac

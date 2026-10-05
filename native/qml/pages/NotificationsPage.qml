@@ -5,7 +5,7 @@ import "../components"
 
 Rectangle {
     id: root
-    implicitWidth: 410
+    implicitWidth: 480
     implicitHeight: Math.min(530, Math.max(278, 184 + shownItems.length * 75))
     color: backend.baseColor
     border.color: backend.accent2Color
@@ -110,7 +110,7 @@ Rectangle {
                         id: notification
                         required property var modelData
                         Layout.fillWidth: true
-                        implicitHeight: 70
+                        implicitHeight: notification.modelData.body ? 88 : 74
                         color: backend.surfaceColor
                         border.width: 1
                         border.color: modelData.urgency === "critical" ? "#c75c66" : backend.lineColor
@@ -154,7 +154,7 @@ Rectangle {
                                 spacing: 2
                                 Text {
                                     Layout.fillWidth: true
-                                    text: String(notification.modelData.displayApp || "System").toUpperCase()
+                                    text: String(notification.modelData.displayApp || "System").toUpperCase() + (notification.modelData.groupCount > 1 ? "  ×" + notification.modelData.groupCount : "")
                                     color: notification.modelData.urgency === "critical" ? "#ff8c96" : backend.mutedColor
                                     font.family: "Inter"
                                     font.pixelSize: 8
@@ -171,6 +171,15 @@ Rectangle {
                                     elide: Text.ElideRight
                                 }
                                 Text {
+                                    Layout.fillWidth: true
+                                    visible: Boolean(notification.modelData.body)
+                                    text: notification.modelData.body || ""
+                                    color: backend.mutedColor
+                                    font.family: "Inter"
+                                    font.pixelSize: 8
+                                    elide: Text.ElideRight
+                                }
+                                Text {
                                     text: root.tab === "current" ? "NOW" : "RECENT"
                                     color: backend.mutedColor
                                     font.family: "Inter"
@@ -178,6 +187,16 @@ Rectangle {
                                 }
                             }
 
+                            NocturneButton {
+                                visible: Boolean(notification.modelData.code)
+                                text: "COPY " + notification.modelData.code
+                                onClicked: backend.copyText(notification.modelData.code)
+                            }
+                            NocturneButton {
+                                visible: Boolean(notification.modelData.app)
+                                text: "MUTE 1H"
+                                onClicked: { backend.run([backend.home + "/.config/hypr/scripts/notification-rules", "mute", notification.modelData.app, "60"], 1500); root.refresh() }
+                            }
                             NocturneButton {
                                 visible: root.tab === "current" && Boolean(notification.modelData.hasAction)
                                 text: "OPEN"

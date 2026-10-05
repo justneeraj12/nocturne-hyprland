@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/recovery
+archive="$state_root/last-good.tar.gz"
+fail_file="$state_root/failures"
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+
+checkpoint() {
+  mkdir -p "$state_root"
+  local temp
+  temp=$(mktemp "$state_root/.checkpoint.XXXXXX.tar.gz")
+  tar -C "$HOME" -czf "$temp" --ignore-failed-read \
+    .config/hypr .config/nocturne .config/mako .config/systemd/user/nocturne-*.service \
+    .config/systemd/user/nocturne-*.timer .local/bin/nocturne-native 2>/dev/null
+  tar -tzf "$temp" >/dev/null
+  mv -f "$temp" "$archive"
+  printf '0\n' > "$fail_file"
+  notify-send -a Nocturne 'Recovery checkpoint created' 'The current desktop can be restored from Settings or a TTY.' 2>/dev/null || true
+}
+
+restore() {
+  [[ -s $archive ]] || { printf 'No recovery checkpoint exists.\n' >&2; exit 1; }
+  if tar -tzf "$archive" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then printf 'Unsafe checkpoint archive.\n' >&2; exit 1; fi
+  mkdir -p "$state_root"
+  [[ -e $config_home/hypr ]] && tar -C "$HOME" -czf "$state_root/pre-restore-$(date +%Y%m%d-%H%M%S).tar.gz" \
+    .config/hypr .config/nocturne .config/mako 2>/dev/null || true
+  tar -C "$HOME" -xzf "$archive"
+  printf '0\n' > "$fail_file"
+  systemctl --user daemon-reload 2>/dev/null || true
+  hyprctl reload 2>/dev/null || true
+  "$config_home/hypr/scripts/bar" 2>/dev/null || true
+  printf 'Nocturne restored from %s\n' "$archive"
+}
+
+healthy() {
+  command -v hyprctl >/dev/null && hyprctl version >/dev/null 2>&1 \
+    && [[ -x $HOME/.local/bin/nocturne-native ]] \
+    && [[ -r $config_home/hypr/hyprland.lua ]] \
+    && ! hyprctl configerrors 2>/dev/null | grep -q '[^[:space:]]'
+}
+
+verify() {
+  mkdir -p "$state_root"
+  local failures=0
+  [[ -r $fail_file ]] && read -r failures < "$fail_file"
+  if healthy; then printf '0\n' > "$fail_file"; exit 0; fi
+  failures=$((failures + 1)); printf '%s\n' "$failures" > "$fail_file"
+  if ((failures >= 2)) && [[ -s $archive ]]; then restore; fi
+  exit 1
+}
+
+status() {
+  local exists=false size=0 modified='' failures=0
+  if [[ -s $archive ]]; then exists=true; size=$(stat -c %s "$archive"); modified=$(stat -c %y "$archive"); fi
+  [[ -r $fail_file ]] && read -r failures < "$fail_file"
+  jq -cn --argjson exists "$exists" --argjson size "$size" --arg modified "$modified" --argjson failures "$failures" \
+    '{exists:$exists,size:$size,modified:$modified,failures:$failures}'
+}
+
+case ${1:-status} in
+  checkpoint) checkpoint ;;
+  restore) restore ;;
+  verify) verify ;;
+  status) status ;;
+  *) printf 'Usage: %s checkpoint|restore|verify|status\n' "$0" >&2; exit 2 ;;
+esac

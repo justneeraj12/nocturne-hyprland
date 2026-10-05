@@ -61,7 +61,7 @@ ApplicationWindow {
                 spacing: 5
                 SectionLabel { text: "CONTROL GROUPS" }
                 Repeater {
-                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "WORKFLOW", "POWER + SESSION", "SETUP + BACKUP", "ABOUT"]
+                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "WORKFLOW", "SCENES + AUTOMATION", "PRIVACY + GAMING", "POWER + SESSION", "SETUP + RECOVERY", "ABOUT"]
                     NocturneButton {
                         required property int index
                         required property string modelData
@@ -119,6 +119,24 @@ ApplicationWindow {
                 ]
             }
             SettingsPage {
+                title: "SCENES + AUTOMATION"
+                description: "Save complete working contexts, restore them on demand, or apply only safe settings when your dock or power state changes."
+                actions: [
+                    {label:"WORKSPACE OVERVIEW", detail:"See all nine workspaces, focus windows, close them or drag them between workspaces.", button:"OPEN", surface:"overview"},
+                    {label:"SESSION + AUDIO SCENES", detail:"Save applications, layouts, monitors, wallpaper, power and audio routing.", button:"MANAGE", surface:"scenes"},
+                    {label:"CONTEXT ENGINE", detail:"Assign scenes to docked, mobile, AC and battery states without automatic app launches.", button:"CONFIGURE", surface:"scenes"}
+                ]
+            }
+            SettingsPage {
+                title: "PRIVACY + GAMING"
+                description: "Live inspection is intentionally sampled only while its dashboard is open; background automation remains event-driven."
+                actions: [
+                    {label:"PRIVACY DASHBOARD", detail:"Identify applications using your microphone or camera and stop a suspicious client.", button:"INSPECT", surface:"privacy"},
+                    {label:"GAMING DASHBOARD", detail:"GPU telemetry, reversible automatic game mode and optional MangoHud.", button:"OPEN", surface:"gaming"},
+                    {label:"NOTIFICATION CONTROL", detail:"Focus modes, grouped history and per-application timed muting.", button:"OPEN", surface:"notifications"}
+                ]
+            }
+            SettingsPage {
                 title: "POWER + SESSION"
                 description: "Profiles are backed by power-profiles-daemon; gaming sessions can apply performance, focus and caffeine automatically with rollback."
                 actions: [
@@ -144,6 +162,7 @@ ApplicationWindow {
         color: backend.baseColor
         property var hardware: ({current:"unconfigured", recommended:"desktop", battery:false, bluetooth:false, displays:0})
         property var backup: ({latest:"", exists:false})
+        property var recovery: ({exists:false,size:0,modified:"",failures:0})
         property bool confirmRestore: false
         readonly property string profileHelper: backend.home + "/.config/hypr/scripts/setup-profile"
         readonly property string portable: backend.home + "/.local/bin/nocturne-portable"
@@ -151,6 +170,7 @@ ApplicationWindow {
         function refresh() {
             hardware = backend.json([profileHelper, "status"], 2500) || hardware
             backup = backend.json([portable, "status"], 2500) || backup
+            recovery = backend.json([backend.home + "/.local/bin/nocturne-recovery", "status"], 2500) || recovery
         }
         function applyProfile(name) {
             backend.start([profileHelper, "apply", name])
@@ -159,7 +179,7 @@ ApplicationWindow {
 
         ColumnLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 10
-            Text { text: "SETUP + BACKUP"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true }
+            Text { text: "SETUP + RECOVERY"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true }
             Text {
                 Layout.fillWidth: true
                 text: "Hardware-aware profiles and portable preferences. Profiles change only optional background services; the shell workflow stays intact."
@@ -230,6 +250,17 @@ ApplicationWindow {
                 text: "Bundles contain Nocturne preferences and monitor layout—not passwords, Wi-Fi credentials, browser data or wallpapers."
                 color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; wrapMode: Text.WordWrap
             }
+            SectionLabel { text: "LAST-KNOWN-GOOD RECOVERY" }
+            RowLayout {
+                Layout.fillWidth: true; spacing: 5
+                Text {
+                    Layout.fillWidth: true
+                    text: setup.recovery.exists ? "CHECKPOINT READY · " + Math.round(setup.recovery.size / 1024 / 1024) + " MiB" : "NO RECOVERY CHECKPOINT"
+                    color: setup.recovery.exists ? backend.accentColor : backend.mutedColor; font.family: "monospace"; font.pixelSize: 9
+                }
+                NocturneButton { text: "CHECKPOINT"; onClicked: { backend.run([backend.home + "/.local/bin/nocturne-recovery", "checkpoint"], 20000); setup.refresh() } }
+                NocturneButton { text: "RESTORE"; danger: true; enabled: setup.recovery.exists; onClicked: { backend.run([backend.home + "/.local/bin/nocturne-recovery", "restore"], 20000); setup.refresh() } }
+            }
             Item { Layout.fillHeight: true }
         }
         Timer { id: refreshDelay; interval: 900; onTriggered: setup.refresh() }
@@ -240,6 +271,7 @@ ApplicationWindow {
         id: appearance
         color: backend.baseColor
         property var images: backend.wallpapers()
+        property var studio: ({preview:false,themes:[]})
         property string current: {
             var state = backend.json([backend.home + "/.local/bin/nocturne-wallpaper-cycle", "status"])
             return state ? (state.current || "") : ""
@@ -250,13 +282,14 @@ ApplicationWindow {
             current = path
         }
         function applyDesign(name) {
-            backend.run([backend.home + "/.config/hypr/scripts/theme-preset", name], 12000)
-            backend.refreshTheme()
+            backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "preview", name, "-"], 12000)
+            backend.refreshTheme(); refreshStudio()
         }
         function applyAccent(name) {
-            backend.run([backend.home + "/.config/hypr/scripts/accent", name], 12000)
-            backend.refreshTheme()
+            backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "preview", "-", name], 12000)
+            backend.refreshTheme(); refreshStudio()
         }
+        function refreshStudio() { studio = backend.json([backend.home + "/.config/hypr/scripts/theme-studio", "status"], 1800) || studio }
         ScrollView {
             anchors.fill: parent
             contentWidth: availableWidth
@@ -314,6 +347,26 @@ ApplicationWindow {
                         NocturneButton { required property string modelData; text: modelData.toUpperCase(); onClicked: appearance.applyDesign(modelData) }
                     }
                 }
+                Rectangle {
+                    Layout.fillWidth: true; implicitHeight: 45; visible: appearance.studio.preview
+                    color: backend.overlayColor; border.color: backend.accentColor
+                    RowLayout { anchors.fill: parent; anchors.margins: 7
+                        Text { Layout.fillWidth: true; text: "30-SECOND THEME PREVIEW"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 9 }
+                        NocturneButton { text: "KEEP"; selected: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "keep"]); appearance.refreshStudio() } }
+                        NocturneButton { text: "REVERT"; danger: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "rollback"]); backend.refreshTheme(); appearance.refreshStudio() } }
+                    }
+                }
+                SectionLabel { text: "THEME STUDIO" }
+                RowLayout {
+                    Layout.fillWidth: true
+                    TextField { id: customThemeName; Layout.fillWidth: true; placeholderText: "Custom theme name"; color: backend.textColor; font.family: "monospace"; background: Rectangle { color: backend.surfaceColor; border.color: customThemeName.activeFocus ? backend.accentColor : backend.lineColor } }
+                    NocturneButton { text: "DERIVE FROM WALLPAPER"; enabled: appearance.current.length > 0; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "derive", appearance.current], 12000); backend.refreshTheme(); appearance.refreshStudio() } }
+                    NocturneButton { text: "SAVE"; selected: true; enabled: customThemeName.text.trim().length > 0; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "save", customThemeName.text]); customThemeName.clear(); appearance.refreshStudio() } }
+                }
+                Flow {
+                    Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height; spacing: 5
+                    Repeater { model: appearance.studio.themes || []; NocturneButton { required property var modelData; text: modelData.name.toUpperCase(); onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "apply", modelData.name], 12000); backend.refreshTheme(); appearance.refreshStudio() } } }
+                }
                 SectionLabel { text: "ACCENT" }
                 Flow {
                     Layout.fillWidth: true
@@ -331,6 +384,7 @@ ApplicationWindow {
                 }
             }
         }
+        Component.onCompleted: refreshStudio()
     }
 
     component SettingsPage: Rectangle {

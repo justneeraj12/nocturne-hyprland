@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+config_file="$config_home/nocturne/context.json"
+state_file="$state_dir/context.state"
+scene_manager="$config_home/hypr/scripts/scene-manager"
+
+ensure_config() {
+  mkdir -p "$config_home/nocturne" "$state_dir"
+  [[ -s $config_file ]] || cat > "$config_file" <<'JSON'
+{"enabled":false,"contexts":{"docked":"","mobile":"","ac":"","battery":""}}
+JSON
+}
+
+snapshot() {
+  local monitors external=false power=unknown context
+  monitors=$(hyprctl monitors -j 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
+  ((monitors > 1)) && external=true
+  if [[ -r /sys/class/power_supply/AC/online ]] && [[ $(</sys/class/power_supply/AC/online) == 1 ]]; then power=ac
+  elif upower -e 2>/dev/null | grep -q line_power && upower -i "$(upower -e | grep line_power | head -n1)" 2>/dev/null | grep -q 'online:.*yes'; then power=ac
+  else power=battery; fi
+  if [[ $external == true ]]; then context=docked; else context=mobile; fi
+  jq -cn --argjson monitors "$monitors" --argjson external "$external" --arg power "$power" --arg context "$context" \
+    '{monitors:$monitors,external:$external,power:$power,context:$context}'
+}
+
+status() {
+  ensure_config
+  jq -s '.[0] as $live | .[1] as $config | $live + {enabled:$config.enabled,mappings:$config.contexts}' \
+    <(snapshot) "$config_file"
+}
+
+refresh() {
+  local live enabled context power scene previous=''
+  ensure_config; enabled=$(jq -r '.enabled' "$config_file")
+  [[ $enabled == true ]] || exit 0
+  live=$(snapshot)
+  context=$(jq -r '.context' <<<"$live"); power=$(jq -r '.power' <<<"$live")
+  scene=$(jq -r --arg context "$context" --arg power "$power" '
+    (.contexts[$context] // "") as $primary
+    | if $primary != "" then $primary else (.contexts[$power] // "") end' "$config_file")
+  [[ -r $state_file ]] && previous=$(<"$state_file")
+  [[ -n $scene && $scene != "$previous" ]] || exit 0
+  "$scene_manager" apply "$scene" settings-only
+  printf '%s\n' "$scene" > "$state_file"
+}
+
+set_enabled() {
+  ensure_config
+  local value=$1 temp
+  temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
+  jq --argjson value "$value" '.enabled=$value' "$config_file" > "$temp"; mv -f "$temp" "$config_file"
+  [[ $value == true ]] && refresh || rm -f "$state_file"
+}
+
+assign() {
+  local context=${1:?context required} scene=${2:-} temp
+  [[ $context =~ ^(docked|mobile|ac|battery)$ ]] || exit 2
+  ensure_config; temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
+  jq --arg context "$context" --arg scene "$scene" '.contexts[$context]=$scene' "$config_file" > "$temp"; mv -f "$temp" "$config_file"
+}
+
+case ${1:-status} in
+  status) status ;;
+  refresh) refresh ;;
+  enable) set_enabled true ;;
+  disable) set_enabled false ;;
+  assign) assign "${2:?context required}" "${3:-}" ;;
+  *) printf 'Usage: %s status|refresh|enable|disable|assign CONTEXT SCENE\n' "$0" >&2; exit 2 ;;
+esac

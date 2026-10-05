@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot cmake ninja xdg-mime lspci glxinfo)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot cmake ninja xdg-mime lspci glxinfo convert upower)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -54,7 +54,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-signal steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-signal steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -144,6 +144,9 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service; do
+  install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
+done
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
@@ -164,6 +167,9 @@ fi
 if [[ ! -e "$CONFIG_HOME/nocturne/game-mode.conf" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/game-mode.conf" "$CONFIG_HOME/nocturne/game-mode.conf"
 fi
+if [[ ! -e "$CONFIG_HOME/nocturne/mako-muted.conf" ]]; then
+  install -m 0644 "$ROOT_DIR/config/nocturne/mako-muted.conf" "$CONFIG_HOME/nocturne/mako-muted.conf"
+fi
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
 install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/color-schemes/Nocturne.colors"
 install -m 0644 "$ROOT_DIR/config/environment.d/10-nocturne-path.conf" "$CONFIG_HOME/environment.d/10-nocturne-path.conf"
@@ -174,6 +180,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
+install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
 install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
 if [[ -f $HOME/Desktop/steam.desktop ]]; then
@@ -332,6 +339,9 @@ systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true
+systemctl --user enable --now nocturne-notification-rules.timer >/dev/null 2>&1 || true
+systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+systemctl --user enable nocturne-session-health.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
   mako.service \
   waybar.service \
@@ -352,6 +362,8 @@ systemctl --user reset-failed \
 # its provider reloads. Remove it best-effort; the UWSM override above also
 # passes the Lua entry point explicitly on every fresh compositor start.
 rm -f -- "$CONFIG_HOME/hypr/hyprland.conf"
+
+"$BIN_HOME/nocturne-recovery" checkpoint >/dev/null 2>&1 || true
 
 printf 'Hyprland configuration installed. Select “Hyprland (uwsm-managed)” at login.\n'
 printf 'Pre-existing Hypr-related configs, if any, were saved at:\n  %s\n' "$snapshot"

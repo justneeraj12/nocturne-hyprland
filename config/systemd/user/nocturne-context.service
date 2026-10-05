@@ -1,0 +1,6 @@
+[Unit]
+Description=Apply a Nocturne context scene when hardware state changes
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/hypr/scripts/context-engine refresh

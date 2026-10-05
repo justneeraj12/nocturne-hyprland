@@ -48,6 +48,10 @@ public:
     Q_INVOKABLE QVariant json(const QVariantList &arguments, int timeoutMs = 5000) const;
     Q_INVOKABLE QVariantList audioStreams() const;
     Q_INVOKABLE bool microphoneInUse() const;
+    Q_INVOKABLE QVariantList windowItems() const;
+    Q_INVOKABLE bool windowAction(const QString &address, const QString &action, int workspace = 0) const;
+    Q_INVOKABLE QVariantList privacyItems() const;
+    Q_INVOKABLE bool stopPrivacyClient(int pid) const;
     Q_INVOKABLE QVariantList applications(const QString &query = QString()) const;
     Q_INVOKABLE QVariantList launcherResults(const QString &query = QString(),
         const QString &mode = QStringLiteral("all")) const;
@@ -56,7 +60,9 @@ public:
     Q_INVOKABLE QVariantList notifications(const QString &collection = QStringLiteral("list")) const;
     Q_INVOKABLE QVariantList clipboardItems(const QString &query = QString()) const;
     Q_INVOKABLE QVariantList wallpapers() const;
-    Q_INVOKABLE bool launchApplication(const QString &desktopFile) const;
+    Q_INVOKABLE bool launchApplication(const QString &desktopFile);
+    Q_INVOKABLE bool toggleFavorite(const QString &desktopFile);
+    Q_INVOKABLE bool copyText(const QString &text) const;
     Q_INVOKABLE bool activateTrayItem(const QString &reference, const QString &action = QStringLiteral("activate")) const;
     Q_INVOKABLE bool copyClipboardItem(const QString &entry) const;
     Q_INVOKABLE bool start(const QVariantList &arguments) const;

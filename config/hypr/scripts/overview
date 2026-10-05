@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+runtime=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/nocturne-overview
+mkdir -p "$runtime"
+find "$runtime" -maxdepth 1 -type f -name '*.png' -delete 2>/dev/null || true
+while IFS= read -r monitor; do
+  safe=${monitor//[^A-Za-z0-9_.-]/_}
+  grim -o "$monitor" "$runtime/$safe.png" >/dev/null 2>&1 || true
+done < <(hyprctl monitors -j | jq -r '.[].name')
+exec "$HOME/.local/bin/nocturne-native" overview

@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Nocturne notification mute expiry
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Unit=nocturne-notification-rules.service
+
+[Install]
+WantedBy=timers.target

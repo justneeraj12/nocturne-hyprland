@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+config_file="$config_home/nocturne/game-mode.conf"
+profiles_file="$config_home/nocturne/game-profiles.json"
+
+ensure_config() {
+  mkdir -p "$config_home/nocturne"
+  [[ -s $config_file ]] || printf 'AUTO_PERFORMANCE=true\nAUTO_CAFFEINE=true\nAUTO_DND=true\nENABLE_MANGOHUD=false\n' > "$config_file"
+  grep -q '^ENABLE_MANGOHUD=' "$config_file" || printf 'ENABLE_MANGOHUD=false\n' >> "$config_file"
+  [[ -s $profiles_file ]] || printf '{"default":{"power":"performance","hud":false},"games":{}}\n' > "$profiles_file"
+}
+
+set_game() {
+  local appid=${1:?appid required} power=${2:?power required} hud=${3:-false} temp
+  [[ $appid =~ ^[0-9]+$ && $power =~ ^(performance|balanced|power-saver)$ && $hud =~ ^(true|false)$ ]] || exit 2
+  ensure_config; temp=$(mktemp "$config_home/nocturne/.game-profiles.XXXXXX")
+  jq --arg appid "$appid" --arg power "$power" --argjson hud "$hud" '.games[$appid]={power:$power,hud:$hud}' "$profiles_file" > "$temp"
+  mv -f "$temp" "$profiles_file"
+}
+
+set_value() {
+  local key=$1 value=$2 temp
+  [[ $key =~ ^(AUTO_PERFORMANCE|AUTO_CAFFEINE|AUTO_DND|ENABLE_MANGOHUD)$ ]] || exit 2
+  [[ $value =~ ^(true|false)$ ]] || exit 2
+  ensure_config; temp=$(mktemp "$config_home/nocturne/.game-mode.XXXXXX")
+  awk -v key="$key" -v value="$value" 'BEGIN{done=0} $0 ~ "^"key"=" {print key"="value;done=1;next} {print} END{if(!done) print key"="value}' "$config_file" > "$temp"
+  mv -f "$temp" "$config_file"
+}
+
+status() {
+  local session gpu='Unavailable' usage=0 memory=0 temperature=0 hud=false
+  ensure_config; source "$config_file"
+  session=$("$config_home/hypr/scripts/game-session" status 2>/dev/null || printf '{}')
+  if command -v nvidia-smi >/dev/null 2>&1; then
+    IFS=',' read -r gpu usage memory temperature < <(nvidia-smi --query-gpu=name,utilization.gpu,memory.used,temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | sed 's/, /,/g' || true)
+  fi
+  [[ ${ENABLE_MANGOHUD:-false} == true ]] && hud=true
+  jq -cn --argjson session "$session" --arg gpu "$gpu" --argjson usage "${usage:-0}" --argjson memory "${memory:-0}" \
+    --argjson temperature "${temperature:-0}" --argjson hud "$hud" \
+    '$session + {gpu:$gpu,gpuUsage:$usage,gpuMemory:$memory,gpuTemperature:$temperature,hud:$hud}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  hud) set_value ENABLE_MANGOHUD "${2:?true or false required}" ;;
+  option) set_value "${2:?key required}" "${3:?true or false required}" ;;
+  set-game) set_game "${2:?appid required}" "${3:?power required}" "${4:-false}" ;;
+  *) printf 'Usage: %s status|hud true|false|option KEY true|false|set-game APPID POWER [HUD]\n' "$0" >&2; exit 2 ;;
+esac

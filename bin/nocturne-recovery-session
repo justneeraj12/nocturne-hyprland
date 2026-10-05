@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+set -euo pipefail
+exec Hyprland --config "$HOME/.config/hypr/recovery.lua"

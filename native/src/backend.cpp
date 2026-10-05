@@ -12,11 +12,14 @@
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QJSEngine>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
 #include <algorithm>
+#include <cmath>
+#include <signal.h>
 #include <unistd.h>
 
 Backend::Backend(QString surface, QString page, QObject *parent)
@@ -213,6 +216,72 @@ bool Backend::microphoneInUse() const
     return false;
 }
 
+QVariantList Backend::windowItems() const
+{
+    QVariantList result;
+    const auto clients = json({"hyprctl", "clients", "-j"}, 1400).toList();
+    for (const auto &value : clients) {
+        const auto client = value.toMap();
+        if (!client.value("mapped").toBool()) continue;
+        const auto windowClass = client.value("class").toString();
+        if (windowClass.compare(QStringLiteral("nocturne-native"), Qt::CaseInsensitive) == 0) continue;
+        result.push_back(QVariantMap{
+            {"address", client.value("address")}, {"title", client.value("title")},
+            {"class", windowClass}, {"workspace", client.value("workspace").toMap().value("id")},
+            {"monitor", client.value("monitor")}, {"floating", client.value("floating")},
+            {"fullscreen", client.value("fullscreen")}
+        });
+    }
+    return result;
+}
+
+bool Backend::windowAction(const QString &address, const QString &action, int workspace) const
+{
+    if (!QRegularExpression(QStringLiteral("^0x[0-9a-fA-F]+$")).match(address).hasMatch()) return false;
+    QString dispatcher;
+    if (action == QStringLiteral("focus")) dispatcher = QStringLiteral("hl.dsp.focus({ window = \"address:%1\" })").arg(address);
+    else if (action == QStringLiteral("close")) dispatcher = QStringLiteral("hl.dsp.window.close({ window = \"address:%1\" })").arg(address);
+    else if (action == QStringLiteral("move") && workspace >= 1 && workspace <= 99)
+        dispatcher = QStringLiteral("hl.dsp.window.move({ window = \"address:%1\", workspace = %2, silent = true })").arg(address).arg(workspace);
+    else return false;
+    return QProcess::execute(QStringLiteral("hyprctl"), {QStringLiteral("dispatch"), dispatcher}) == 0;
+}
+
+QVariantList Backend::privacyItems() const
+{
+    QVariantList result;
+    const auto outputs = json({"pactl", "-f", "json", "list", "source-outputs"}, 1500).toList();
+    for (const auto &value : outputs) {
+        const auto stream = value.toMap();
+        if (stream.value("corked").toBool()) continue;
+        const auto properties = stream.value("properties").toMap();
+        if (properties.value("stream.capture.sink").toString() == QStringLiteral("true")) continue;
+        const auto binary = properties.value("application.process.binary").toString();
+        if (binary.contains(QStringLiteral("cava"), Qt::CaseInsensitive)
+            || binary.contains(QStringLiteral("easyeffects"), Qt::CaseInsensitive)) continue;
+        result.push_back(QVariantMap{{"kind", "microphone"},
+            {"app", properties.value("application.name").toString()},
+            {"pid", properties.value("application.process.id").toInt()}, {"active", true}});
+    }
+    const auto nodes = json({"pw-dump"}, 2200).toList();
+    for (const auto &value : nodes) {
+        const auto object = value.toMap();
+        const auto props = object.value("info").toMap().value("props").toMap();
+        const auto mediaClass = props.value("media.class").toString();
+        if (mediaClass != QStringLiteral("Stream/Input/Video") && mediaClass != QStringLiteral("Stream/Output/Video")) continue;
+        result.push_back(QVariantMap{{"kind", "camera"},
+            {"app", props.value("application.name").toString()},
+            {"pid", props.value("application.process.id").toInt()}, {"active", true}});
+    }
+    return result;
+}
+
+bool Backend::stopPrivacyClient(int pid) const
+{
+    if (pid <= 1) return false;
+    return ::kill(pid, SIGTERM) == 0;
+}
+
 QVariantList Backend::applications(const QString &query) const
 {
     const auto needle = query.simplified().toLower();
@@ -258,7 +327,33 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
 {
     auto mode = requestedMode.toLower();
     auto needle = query.simplified();
-    if (needle.startsWith(QLatin1Char('@'))) {
+    if (needle.startsWith(QLatin1Char('='))) {
+        auto expression = needle.mid(1).trimmed();
+        if (expression.isEmpty() || expression.size() > 100
+            || !QRegularExpression(QStringLiteral("^[0-9+\\-*/%().\\s^]+$")).match(expression).hasMatch()) return {};
+        expression.replace(QLatin1Char('^'), QStringLiteral("**"));
+        QJSEngine calculator;
+        const auto value = calculator.evaluate(expression);
+        if (value.isError() || !value.isNumber() || !std::isfinite(value.toNumber())) return {};
+        const auto answer = QString::number(value.toNumber(), 'g', 14);
+        return {QVariantMap{{"kind", "calculation"}, {"name", answer}, {"generic", expression}, {"icon", "accessories-calculator-symbolic"}}};
+    } else if (needle.startsWith(QLatin1Char('~'))) {
+        const auto wanted = needle.mid(1).trimmed();
+        QVariantList files;
+        int visited = 0;
+        for (const auto &root : {home() + QStringLiteral("/Documents"), home() + QStringLiteral("/Downloads"), home() + QStringLiteral("/Pictures")}) {
+            QDirIterator iterator(root, QDir::Files, QDirIterator::Subdirectories);
+            while (iterator.hasNext() && files.size() < 60 && visited < 4000) {
+                ++visited;
+                const QFileInfo info(iterator.next());
+                if (!wanted.isEmpty() && !info.fileName().contains(wanted, Qt::CaseInsensitive)) continue;
+                files.push_back(QVariantMap{{"kind", "file"}, {"name", info.fileName()}, {"generic", info.absolutePath()},
+                    {"path", info.absoluteFilePath()}, {"icon", "text-x-generic-symbolic"}});
+            }
+            if (visited >= 4000) break;
+        }
+        return files;
+    } else if (needle.startsWith(QLatin1Char('@'))) {
         mode = QStringLiteral("windows");
         needle = needle.mid(1).trimmed();
     } else if (needle.startsWith(QLatin1Char('>'))) {
@@ -306,7 +401,15 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
             QVariantMap{{"kind", "action"}, {"id", "record"}, {"name", "Record the Screen"},
                 {"generic", "Open Kooha screen recorder"}, {"icon", "media-record-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "lock"}, {"name", "Lock the Session"},
-                {"generic", "Show the Nocturne lock screen"}, {"icon", "system-lock-screen-symbolic"}}
+                {"generic", "Show the Nocturne lock screen"}, {"icon", "system-lock-screen-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "overview"}, {"name", "Workspace Overview"},
+                {"generic", "See every workspace and move windows"}, {"icon", "view-grid-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "scenes"}, {"name", "Session Scenes"},
+                {"generic", "Save and restore an application layout"}, {"icon", "document-save-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "privacy"}, {"name", "Privacy Dashboard"},
+                {"generic", "See applications using microphones and cameras"}, {"icon", "security-high-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "gaming"}, {"name", "Gaming Dashboard"},
+                {"generic", "GPU metrics, automatic mode and MangoHud"}, {"icon", "applications-games-symbolic"}}
         };
         for (const auto &value : actions) {
             const auto action = value.toMap();
@@ -333,9 +436,25 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
     }
 
     if (mode == QStringLiteral("all") || mode == QStringLiteral("apps")) {
-        for (const auto &value : applications(needle)) {
+        const auto favoriteValues = json({QStringLiteral("jq"), QStringLiteral("-c"), QStringLiteral("."),
+            home() + QStringLiteral("/.config/nocturne/launcher-favorites.json")}, 800).toList();
+        const auto recentValues = json({QStringLiteral("jq"), QStringLiteral("-c"), QStringLiteral("."),
+            home() + QStringLiteral("/.local/state/nocturne/launcher-recents.json")}, 800).toList();
+        auto applicationValues = applications(needle);
+        std::stable_sort(applicationValues.begin(), applicationValues.end(), [&](const QVariant &left, const QVariant &right) {
+            const auto leftPath = left.toMap().value(QStringLiteral("path")).toString();
+            const auto rightPath = right.toMap().value(QStringLiteral("path")).toString();
+            const int leftFavorite = favoriteValues.indexOf(leftPath), rightFavorite = favoriteValues.indexOf(rightPath);
+            if ((leftFavorite >= 0) != (rightFavorite >= 0)) return leftFavorite >= 0;
+            if (leftFavorite >= 0 && rightFavorite >= 0) return leftFavorite < rightFavorite;
+            const int leftRecent = recentValues.indexOf(leftPath), rightRecent = recentValues.indexOf(rightPath);
+            if ((leftRecent >= 0) != (rightRecent >= 0)) return leftRecent >= 0;
+            return leftRecent >= 0 && rightRecent >= 0 && leftRecent < rightRecent;
+        });
+        for (const auto &value : applicationValues) {
             auto application = value.toMap();
             application.insert(QStringLiteral("kind"), QStringLiteral("application"));
+            application.insert(QStringLiteral("favorite"), favoriteValues.contains(application.value(QStringLiteral("path"))));
             result.push_back(application);
             if (result.size() >= 80) break;
         }
@@ -348,6 +467,12 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
     const auto kind = result.value(QStringLiteral("kind")).toString();
     if (kind == QStringLiteral("application")) {
         return launchApplication(result.value(QStringLiteral("path")).toString());
+    }
+    if (kind == QStringLiteral("calculation")) return copyText(result.value(QStringLiteral("name")).toString());
+    if (kind == QStringLiteral("file")) {
+        const bool launched = QProcess::startDetached(QStringLiteral("xdg-open"), {result.value(QStringLiteral("path")).toString()});
+        if (launched) QCoreApplication::quit();
+        return launched;
     }
     if (kind == QStringLiteral("window")) {
         const auto address = result.value(QStringLiteral("address")).toString();
@@ -374,6 +499,10 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
     else if (id == QStringLiteral("screenshot")) command = {home() + QStringLiteral("/.local/bin/hyprshot"), QStringLiteral("-o"), home() + QStringLiteral("/Pictures/Screenshots"), QStringLiteral("-m"), QStringLiteral("region")};
     else if (id == QStringLiteral("record")) command = {QStringLiteral("flatpak"), QStringLiteral("run"), QStringLiteral("io.github.seadve.Kooha")};
     else if (id == QStringLiteral("lock")) command = {home() + QStringLiteral("/.config/hypr/scripts/lock-screen")};
+    else if (id == QStringLiteral("overview")) command = {home() + QStringLiteral("/.config/hypr/scripts/overview")};
+    else if (id == QStringLiteral("scenes")) { dispatch(QStringLiteral("scenes"), {}); return true; }
+    else if (id == QStringLiteral("privacy")) { dispatch(QStringLiteral("privacy"), {}); return true; }
+    else if (id == QStringLiteral("gaming")) { dispatch(QStringLiteral("gaming"), {}); return true; }
     else return false;
 
     const bool launched = QProcess::startDetached(command.takeFirst(), command);
@@ -484,6 +613,10 @@ QVariantList Backend::notifications(const QString &collection) const
             current.insert(QStringLiteral("desktop"), line.section(QLatin1Char(':'), 1).trimmed());
         } else if (line.trimmed().startsWith(QStringLiteral("Urgency:"))) {
             current.insert(QStringLiteral("urgency"), line.section(QLatin1Char(':'), 1).trimmed());
+        } else if (line.trimmed().startsWith(QStringLiteral("Body:"))) {
+            current.insert(QStringLiteral("body"), line.section(QLatin1Char(':'), 1).trimmed());
+        } else if (line.trimmed().startsWith(QStringLiteral("Progress:"))) {
+            current.insert(QStringLiteral("progress"), line.section(QLatin1Char(':'), 1).trimmed().toInt());
         } else if (line.trimmed() == QStringLiteral("Actions:")) {
             readingActions = true;
         } else if (readingActions && line.startsWith(QStringLiteral("    ")) && line.contains(QLatin1Char(':'))) {
@@ -542,6 +675,17 @@ QVariantList Backend::notifications(const QString &collection) const
         }
         notification.insert(QStringLiteral("displayApp"), displayApp);
         notification.insert(QStringLiteral("icon"), icon);
+        const auto searchable = notification.value(QStringLiteral("summary")).toString() + QLatin1Char(' ')
+            + notification.value(QStringLiteral("body")).toString();
+        const auto codeMatch = QRegularExpression(QStringLiteral("(?:^|\\D)(\\d{4,8})(?:\\D|$)")).match(searchable);
+        if (codeMatch.hasMatch()) notification.insert(QStringLiteral("code"), codeMatch.captured(1));
+        value = notification;
+    }
+    QMap<QString, int> counts;
+    for (const auto &value : result) counts[value.toMap().value(QStringLiteral("displayApp")).toString()]++;
+    for (auto &value : result) {
+        auto notification = value.toMap();
+        notification.insert(QStringLiteral("groupCount"), counts.value(notification.value(QStringLiteral("displayApp")).toString()));
         value = notification;
     }
     return result;
@@ -597,7 +741,7 @@ bool Backend::activateTrayItem(const QString &reference, const QString &action) 
         != QDBusMessage::ErrorMessage;
 }
 
-bool Backend::launchApplication(const QString &desktopFile) const
+bool Backend::launchApplication(const QString &desktopFile)
 {
     QSettings desktop(QDir::cleanPath(desktopFile), QSettings::IniFormat);
     desktop.beginGroup(QStringLiteral("Desktop Entry"));
@@ -614,13 +758,46 @@ bool Backend::launchApplication(const QString &desktopFile) const
         arguments.prepend(QStringLiteral("kitty"));
         const auto terminal = arguments.takeFirst();
         const bool launched = QProcess::startDetached(terminal, arguments);
-        if (launched) QCoreApplication::quit();
+        if (launched) {
+            const auto stateDirectory = home() + QStringLiteral("/.local/state/nocturne");
+            QDir().mkpath(stateDirectory);
+            auto recents = json({QStringLiteral("jq"), QStringLiteral("-c"), QStringLiteral("."), stateDirectory + QStringLiteral("/launcher-recents.json")}, 500).toList();
+            recents.removeAll(desktopFile); recents.prepend(desktopFile); while (recents.size() > 20) recents.removeLast();
+            writeText(stateDirectory + QStringLiteral("/launcher-recents.json"), QString::fromUtf8(QJsonDocument::fromVariant(recents).toJson(QJsonDocument::Compact)) + QLatin1Char('\n'));
+            QCoreApplication::quit();
+        }
         return launched;
     }
     const auto workingDirectory = desktop.value(QStringLiteral("Path")).toString();
     const bool launched = QProcess::startDetached(program, arguments, workingDirectory);
-    if (launched) QCoreApplication::quit();
+    if (launched) {
+        const auto stateDirectory = home() + QStringLiteral("/.local/state/nocturne");
+        QDir().mkpath(stateDirectory);
+        auto recents = json({QStringLiteral("jq"), QStringLiteral("-c"), QStringLiteral("."), stateDirectory + QStringLiteral("/launcher-recents.json")}, 500).toList();
+        recents.removeAll(desktopFile); recents.prepend(desktopFile); while (recents.size() > 20) recents.removeLast();
+        writeText(stateDirectory + QStringLiteral("/launcher-recents.json"), QString::fromUtf8(QJsonDocument::fromVariant(recents).toJson(QJsonDocument::Compact)) + QLatin1Char('\n'));
+        QCoreApplication::quit();
+    }
     return launched;
+}
+
+bool Backend::toggleFavorite(const QString &desktopFile)
+{
+    if (desktopFile.isEmpty()) return false;
+    const auto path = home() + QStringLiteral("/.config/nocturne/launcher-favorites.json");
+    auto values = json({QStringLiteral("jq"), QStringLiteral("-c"), QStringLiteral("."), path}, 800).toList();
+    const int index = values.indexOf(desktopFile);
+    if (index >= 0) values.removeAt(index); else values.prepend(desktopFile);
+    return writeText(path, QString::fromUtf8(QJsonDocument::fromVariant(values).toJson(QJsonDocument::Compact)) + QLatin1Char('\n'));
+}
+
+bool Backend::copyText(const QString &text) const
+{
+    QProcess copy;
+    copy.start(QStringLiteral("wl-copy"));
+    if (!copy.waitForStarted(800)) return false;
+    copy.write(text.toUtf8()); copy.closeWriteChannel();
+    return copy.waitForFinished(1400) && copy.exitCode() == 0;
 }
 
 QVariantList Backend::wallpapers() const

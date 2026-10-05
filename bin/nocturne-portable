@@ -24,7 +24,7 @@ export_bundle() {
     [[ -e $config_home/hypr/$file ]] && cp -a -- "$config_home/hypr/$file" "$payload/config/hypr/$file"
   done
   jq -cn --arg format nocturne-portable-v1 --arg created "$(date --iso-8601=seconds)" \
-    '{format:$format,created:$created,contains:["theme","accents","locations","wallpaper state","monitor layout","night shift"]}' \
+    '{format:$format,created:$created,contains:["theme","accents","custom themes","locations","wallpaper state","monitor layout","night shift","session scenes","audio scenes","context mappings","notification rules","game profiles"]}' \
     > "$payload/manifest.json"
   stamp=$(date +%Y%m%d-%H%M%S)
   archive="$backup_root/nocturne-config-$stamp.tar.gz"

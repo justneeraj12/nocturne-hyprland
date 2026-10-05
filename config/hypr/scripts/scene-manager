@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+scene_dir="$config_home/nocturne/scenes"
+last_file="$state_home/last-scene"
+
+slugify() {
+  local value
+  value=$(tr '[:upper:]' '[:lower:]' <<<"$1" | tr -cs 'a-z0-9._-' '-')
+  value=${value#-}; value=${value%-}
+  [[ -n $value ]] || value=scene
+  printf '%s' "$value"
+}
+
+desktop_for_class() {
+  local target=${1,,} file startup id exec_line exec_base candidate
+  target=${target//[^a-z0-9]/}
+  while IFS= read -r -d '' file; do
+    startup=$(sed -n 's/^StartupWMClass=//p' "$file" | head -n1)
+    id=$(basename "$file" .desktop)
+    exec_line=$(sed -n 's/^Exec=//p' "$file" | head -n1)
+    exec_base=$(basename "${exec_line%% *}" 2>/dev/null || true)
+    for candidate in "$startup" "$id" "$exec_base"; do
+      candidate=${candidate,,}; candidate=${candidate//[^a-z0-9]/}
+      if [[ -n $candidate && $candidate == "$target" ]]; then printf '%s\n' "$file"; return 0; fi
+    done
+  done < <(find "$HOME/.local/share/applications" "$HOME/.local/share/flatpak/exports/share/applications" \
+      /var/lib/flatpak/exports/share/applications /usr/local/share/applications /usr/share/applications \
+      -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null)
+  return 1
+}
+
+scene_path() {
+  local slug
+  slug=$(slugify "$1")
+  printf '%s/%s.json\n' "$scene_dir" "$slug"
+}
+
+save_scene() {
+  local name=${1:?scene name required} file temporary clients enriched client desktop count
+  local monitors workspace profile sink source wallpaper theme
+  mkdir -p "$scene_dir" "$state_home"
+  file=$(scene_path "$name")
+  temporary=$(mktemp "$state_home/.scene.XXXXXX")
+  clients=$(hyprctl clients -j | jq -c '[.[] | select(.mapped == true and (.class | ascii_downcase) != "nocturne-native") | {
+    class, initialClass, title, workspace:(.workspace.id // 1), floating, fullscreen
+  }]')
+  enriched='[]'
+  while IFS= read -r client; do
+    desktop=$(desktop_for_class "$(jq -r '.initialClass // .class' <<<"$client")" || true)
+    client=$(jq -c --arg desktop "$desktop" '. + {desktop:$desktop}' <<<"$client")
+    enriched=$(jq -c --argjson item "$client" '. + [$item]' <<<"$enriched")
+  done < <(jq -c '.[]' <<<"$clients")
+  monitors=$(hyprctl monitors -j | jq -c '[.[] | {name,width,height,refreshRate,x,y,scale,transform:(.transform // 0)}]')
+  workspace=$(hyprctl activeworkspace -j | jq -r '.id // 1')
+  profile=$(powerprofilesctl get 2>/dev/null || printf balanced)
+  sink=$(pactl get-default-sink 2>/dev/null || true)
+  source=$(pactl get-default-source 2>/dev/null || true)
+  wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null | jq -r '.current // empty' || true)
+  theme=$(jq -r '.name // "Custom"' "$config_home/nocturne/theme.json" 2>/dev/null || printf Custom)
+  jq -n --arg format nocturne-scene-v1 --arg name "$name" --arg created "$(date --iso-8601=seconds)" \
+    --arg profile "$profile" --arg sink "$sink" --arg source "$source" --arg wallpaper "$wallpaper" \
+    --arg theme "$theme" --argjson workspace "$workspace" --argjson windows "$enriched" --argjson monitors "$monitors" \
+    '{format:$format,name:$name,created:$created,workspace:$workspace,windows:$windows,monitors:$monitors,
+      settings:{profile:$profile,sink:$sink,source:$source,wallpaper:$wallpaper,theme:$theme}}' > "$temporary"
+  jq -e '.format == "nocturne-scene-v1" and (.windows | type == "array")' "$temporary" >/dev/null
+  mv -f -- "$temporary" "$file"
+  count=$(jq 'length' <<<"$enriched")
+  notify-send -a Nocturne 'Scene saved' "$name · $count windows"
+}
+
+apply_monitors() {
+  local scene=$1 data name width height refresh x y scale transform
+  while IFS= read -r data; do
+    name=$(jq -r '.name' <<<"$data")
+    [[ $name =~ ^[A-Za-z0-9_.-]+$ ]] || continue
+    width=$(jq -r '.width' <<<"$data"); height=$(jq -r '.height' <<<"$data")
+    refresh=$(jq -r '.refreshRate' <<<"$data"); x=$(jq -r '.x' <<<"$data"); y=$(jq -r '.y' <<<"$data")
+    scale=$(jq -r '.scale' <<<"$data"); transform=$(jq -r '.transform' <<<"$data")
+    hyprctl keyword monitor "$name,${width}x${height}@${refresh},${x}x${y},$scale,transform,$transform" >/dev/null 2>&1 || true
+  done < <(jq -c '.monitors[]' "$scene")
+}
+
+apply_scene() {
+  local name=${1:?scene name required} mode=${2:-full} file desktop settings profile sink source wallpaper
+  local window class title workspace address deadline current seen='[]' needed_count current_count ready
+  file=$(scene_path "$name")
+  jq -e '.format == "nocturne-scene-v1"' "$file" >/dev/null
+  apply_monitors "$file"
+  settings=$(jq -c '.settings' "$file")
+  profile=$(jq -r '.profile // empty' <<<"$settings")
+  sink=$(jq -r '.sink // empty' <<<"$settings"); source=$(jq -r '.source // empty' <<<"$settings")
+  wallpaper=$(jq -r '.wallpaper // empty' <<<"$settings")
+  [[ $profile =~ ^(performance|balanced|power-saver)$ ]] && powerprofilesctl set "$profile" >/dev/null 2>&1 || true
+  [[ -z $sink ]] || pactl set-default-sink "$sink" >/dev/null 2>&1 || true
+  [[ -z $source ]] || "$config_home/hypr/scripts/audio-route" set-mic "$source" "$source" >/dev/null 2>&1 || true
+  [[ -z $wallpaper || ! -f $wallpaper ]] || "$HOME/.local/bin/nocturne-wallpaper-cycle" apply-file "$wallpaper" >/dev/null 2>&1 || true
+
+  if [[ $mode != settings-only ]]; then
+    while IFS= read -r desktop; do
+      [[ -f $desktop ]] || continue
+      gio launch "$desktop" >/dev/null 2>&1 || true
+    done < <(jq -r '[.windows[].desktop | select(. != "")] | unique[]' "$file")
+    deadline=$((SECONDS + 10))
+    while ((SECONDS < deadline)); do
+      current=$(hyprctl clients -j 2>/dev/null || printf '[]')
+      ready=true
+      while IFS=$'\t' read -r class needed_count; do
+        current_count=$(jq --arg class "$class" '[.[] | select(.mapped == true and .class == $class)] | length' <<<"$current")
+        if ((current_count < needed_count)); then ready=false; break; fi
+      done < <(jq -r '.windows | group_by(.class)[] | [.[0].class,length] | @tsv' "$file")
+      [[ $ready == true ]] && break
+      sleep 0.4
+    done
+  fi
+
+  if [[ $mode != settings-only ]]; then
+    current=$(hyprctl clients -j 2>/dev/null || printf '[]')
+    while IFS= read -r window; do
+      class=$(jq -r '.class' <<<"$window"); title=$(jq -r '.title' <<<"$window"); workspace=$(jq -r '.workspace' <<<"$window")
+      [[ $workspace =~ ^[0-9]+$ ]] || continue
+      address=$(jq -r --arg class "$class" --arg title "$title" --argjson seen "$seen" '
+        [.[] | . as $client | select(.mapped == true and .class == $class and (($seen | index($client.address)) == null))]
+        | (map(select(.title == $title)) + .) | first.address // empty' <<<"$current")
+      [[ $address =~ ^0x[0-9a-fA-F]+$ ]] || continue
+      seen=$(jq -c --arg address "$address" '. + [$address]' <<<"$seen")
+      hyprctl dispatch "hl.dsp.window.move({ window = \"address:$address\", workspace = $workspace, silent = true })" >/dev/null 2>&1 || true
+    done < <(jq -c '.windows[]' "$file")
+    workspace=$(jq -r '.workspace // 1' "$file")
+    [[ $workspace =~ ^[0-9]+$ ]] && hyprctl dispatch "hl.dsp.focus({ workspace = $workspace })" >/dev/null 2>&1 || true
+  fi
+  printf '%s\n' "$(slugify "$name")" > "$last_file"
+  notify-send -a Nocturne 'Scene restored' "$(jq -r '.name' "$file") · applications and workspace layout"
+}
+
+list_scenes() {
+  mkdir -p "$scene_dir"
+  local last=''
+  [[ -r $last_file ]] && last=$(<"$last_file")
+  find "$scene_dir" -maxdepth 1 -type f -name '*.json' -print0 2>/dev/null \
+    | sort -z | xargs -0 -r jq -c --arg last "$last" \
+      'select(.format == "nocturne-scene-v1") | {name,created,windows:(.windows|length),slug:(input_filename|split("/")|last|sub("[.]json$";"")),active:((input_filename|split("/")|last|sub("[.]json$";"")) == $last)}' \
+    | jq -sc '.'
+}
+
+delete_scene() {
+  local file
+  file=$(scene_path "${1:?scene name required}")
+  rm -f -- "$file"
+}
+
+case ${1:-list} in
+  list|status) list_scenes ;;
+  save) save_scene "${2:?scene name required}" ;;
+  apply) apply_scene "${2:?scene name required}" "${3:-full}" ;;
+  delete) delete_scene "${2:?scene name required}" ;;
+  *) printf 'Usage: %s list|save NAME|apply NAME [full|settings-only]|delete NAME\n' "$0" >&2; exit 2 ;;
+esac
