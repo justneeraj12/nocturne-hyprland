@@ -89,6 +89,7 @@ desktop_targets=(
   hyprpwcenter.desktop
   pcmanfm-qt.desktop
   org.kde.dolphin.desktop
+  brave-browser.desktop
 )
 mkdir -p "$rollback/applications" "$DATA_HOME/applications"
 for desktop in "${desktop_targets[@]}"; do
@@ -143,6 +144,11 @@ while IFS= read -r -d '' shortcut; do
     sed -i "s|^Exec=$BIN_HOME/steam steam://rungameid/|Exec=steam steam://rungameid/|" "$shortcut"
   fi
 done < <(find "$DATA_HOME/applications" -maxdepth 1 -type f -name '*.desktop' -print0)
+while IFS= read -r -d '' shortcut; do
+  sed -i \
+    "s|^Exec=$BIN_HOME/nocturne-browser|Exec=/opt/brave.com/brave/brave-browser|" \
+    "$shortcut"
+done < <(find "$DATA_HOME/applications" -maxdepth 1 -type f -name 'brave-*.desktop' -print0)
 
 mkdir -p "$rollback/environment.d" "$CONFIG_HOME/environment.d"
 environment_target="$CONFIG_HOME/environment.d/10-nocturne-path.conf"
@@ -167,7 +173,7 @@ systemctl --user unmask \
 systemctl --user unmask kde-baloo.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"

@@ -11,6 +11,9 @@ esac
 # Brave is already this desktop's default browser. App mode keeps the signed-in
 # Default profile while removing tabs and browser chrome, so Google tools feel
 # like normal tiled applications without inventing an unsupported sync layer.
+if command -v nocturne-browser >/dev/null 2>&1; then
+  exec nocturne-browser --profile-directory=Default --app="$url"
+fi
 if command -v brave-browser >/dev/null 2>&1; then
   exec brave-browser --profile-directory=Default --app="$url"
 fi

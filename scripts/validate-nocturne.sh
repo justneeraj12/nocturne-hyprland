@@ -222,6 +222,13 @@ grep -Fq 'x-scheme-handler/sgnl' "$root/assets/nocturne-signal.desktop.in"
 grep -Fq 'Signal uses the preserved profile' "$root/bin/nocturne-doctor"
 printf '[ OK ] Signal keyring and profile routing\n'
 
+grep -Fq 'AcceleratedVideoDecodeLinuxGL' "$root/bin/nocturne-browser"
+grep -Fq 'AcceleratedVideoDecodeLinuxZeroCopyGL' "$root/bin/nocturne-browser"
+grep -Fq 'nocturne-browser" "$BIN_HOME/nocturne-browser"' "$root/apply-hyprland.sh"
+grep -Fq 'intel-media-va-driver vainfo intel-gpu-tools' "$root/install.sh"
+grep -Fq 'Hardware video decode profiles are available' "$root/bin/nocturne-doctor"
+printf '[ OK ] native Wayland browser video acceleration\n'
+
 (
   cd "$root/agent"
   PYTHONPATH=src python3 -m pytest -q

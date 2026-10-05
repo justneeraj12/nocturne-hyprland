@@ -44,7 +44,9 @@ if "$install_packages"; then
     layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
     curl flatpak grim slurp wl-clipboard cliphist libnotify-bin brightnessctl pipewire-bin pulseaudio-utils xdg-utils \
     network-manager bluez jq socat kitty btop cava fastfetch playerctl gamemode dolphin plasma-integration kde-style-breeze kf6-breeze-icon-theme ffmpegthumbs pcmanfm-qt lxqt-archiver ffmpegthumbnailer qt6-image-formats-plugins kimageformat6-plugins qpdfview qalculate-qt \
-    power-profiles-daemon fwupd hyprsunset pciutils mesa-utils imagemagick upower mangohud fonts-inter fonts-jetbrains-mono
+    power-profiles-daemon fwupd hyprsunset pciutils mesa-utils imagemagick upower mangohud fonts-inter fonts-jetbrains-mono \
+    ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+    libva2 intel-media-va-driver vainfo intel-gpu-tools
   sudo install -m 0644 "$root/assets/nocturne-recovery.desktop" /usr/share/wayland-sessions/nocturne-recovery.desktop
   sudo install -m 0755 "$root/bin/nocturne-recovery-session" /usr/local/bin/nocturne-recovery-session
 fi

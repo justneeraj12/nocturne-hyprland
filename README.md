@@ -79,6 +79,7 @@ The shell includes:
 - hardware-aware setup profiles plus portable preference export and restore;
 - one searchable native Settings app with overview, live hardware state, appearance, devices, defaults, accounts, integrations and guarded recovery;
 - a compact dark Files profile with tabs, split view, rich previews, network/removable mounts and zero-idle indexing;
+- native-Wayland Brave launching with VA-API hardware video decode and a complete FFmpeg/GStreamer codec stack;
 - dock, power, meeting, focus and gaming context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 

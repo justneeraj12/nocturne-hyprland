@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Chromium leaves Linux VA-API decoding behind feature gates. Keep Brave on
+# native Wayland and enable the two upstream GL decode paths; libva still picks
+# the correct render node and driver, so this also remains safe on AMD systems.
+features=AcceleratedVideoDecodeLinuxGL,AcceleratedVideoDecodeLinuxZeroCopyGL
+
+for browser in /usr/bin/brave-browser-stable /opt/brave.com/brave/brave-browser; do
+  if [[ -x $browser ]]; then
+    exec "$browser" \
+      --ozone-platform-hint=wayland \
+      --enable-features="$features" \
+      "$@"
+  fi
+done
+
+printf 'Nocturne Browser: Brave is not installed.\n' >&2
+exit 127

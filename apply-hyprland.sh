@@ -52,6 +52,7 @@ desktop_targets=(
   hyprpwcenter.desktop
   pcmanfm-qt.desktop
   org.kde.dolphin.desktop
+  brave-browser.desktop
 )
 for desktop in "${desktop_targets[@]}"; do
   if [[ -e "$DATA_HOME/applications/$desktop" ]]; then
@@ -78,7 +79,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -224,6 +225,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard
 install -m 0755 "$ROOT_DIR/bin/nocturne-visualizer" "$BIN_HOME/nocturne-visualizer"
 install -m 0755 "$ROOT_DIR/bin/nocturne-settings" "$BIN_HOME/nocturne-settings"
 install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
+install -m 0755 "$ROOT_DIR/bin/nocturne-browser" "$BIN_HOME/nocturne-browser"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
@@ -232,6 +234,18 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-migrate" "$BIN_HOME/nocturne-migrate"
 install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-files" "$BIN_HOME/nocturne-files"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
+if [[ -f /usr/share/applications/brave-browser.desktop ]]; then
+  sed -e "s|/usr/bin/brave-browser-stable|$BIN_HOME/nocturne-browser|g" \
+    -e "s|/opt/brave.com/brave/brave-browser|$BIN_HOME/nocturne-browser|g" \
+    /usr/share/applications/brave-browser.desktop \
+    > "$DATA_HOME/applications/brave-browser.desktop"
+  chmod 0644 "$DATA_HOME/applications/brave-browser.desktop"
+fi
+while IFS= read -r -d '' shortcut; do
+  sed -i -E \
+    "s#^Exec=(/usr/bin/brave-browser-stable|/opt/brave.com/brave/brave-browser)#Exec=$BIN_HOME/nocturne-browser#" \
+    "$shortcut"
+done < <(find "$DATA_HOME/applications" -maxdepth 1 -type f -name 'brave-*.desktop' -print0)
 if [[ -f $HOME/Desktop/steam.desktop ]]; then
   sed -i \
     -e "s|^Exec=/usr/bin/steam|Exec=$BIN_HOME/steam|" \
