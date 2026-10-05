@@ -49,6 +49,9 @@ public:
     Q_INVOKABLE QVariantList audioStreams() const;
     Q_INVOKABLE bool microphoneInUse() const;
     Q_INVOKABLE QVariantList applications(const QString &query = QString()) const;
+    Q_INVOKABLE QVariantList launcherResults(const QString &query = QString(),
+        const QString &mode = QStringLiteral("all")) const;
+    Q_INVOKABLE bool activateLauncherResult(const QVariantMap &result);
     Q_INVOKABLE QVariantList trayItems() const;
     Q_INVOKABLE QVariantList notifications(const QString &collection = QStringLiteral("list")) const;
     Q_INVOKABLE QVariantList clipboardItems(const QString &query = QString()) const;

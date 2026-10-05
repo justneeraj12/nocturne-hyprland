@@ -7,15 +7,15 @@ ApplicationWindow {
     id: root
     visible: true
     color: "transparent"
-    flags: Qt.FramelessWindowHint | Qt.Tool
+    flags: Qt.FramelessWindowHint | Qt.Tool | (backend.surface === "osd" ? Qt.WindowTransparentForInput : 0)
     width: 1
     height: 1
     screen: backend.targetScreen
 
-    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized"
-    readonly property int cardWidth: backend.surface === "launcher" ? 540
+    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "osd"
+    readonly property int cardWidth: backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
         : (backend.surface === "display" ? 460
-            : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : 410))
+            : ((backend.surface === "clipboard" || backend.surface === "minimized") ? (backend.surface === "clipboard" ? 520 : 500) : 410)))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     function dismiss() { backend.close() }
@@ -23,15 +23,18 @@ ApplicationWindow {
     LayerShellQt.Window.scope: "nocturne-native"
     LayerShellQt.Window.layer: LayerShellQt.Window.LayerOverlay
     LayerShellQt.Window.exclusionZone: -1
-    LayerShellQt.Window.keyboardInteractivity: root.centerSurface
+    LayerShellQt.Window.keyboardInteractivity: backend.surface === "osd"
+        ? LayerShellQt.Window.KeyboardInteractivityNone
+        : root.centerSurface
         ? LayerShellQt.Window.KeyboardInteractivityExclusive
         : LayerShellQt.Window.KeyboardInteractivityOnDemand
-    LayerShellQt.Window.activateOnShow: true
+    LayerShellQt.Window.activateOnShow: backend.surface !== "osd"
     LayerShellQt.Window.screen: backend.targetScreen
     LayerShellQt.Window.anchors: LayerShellQt.Window.AnchorTop | LayerShellQt.Window.AnchorRight | LayerShellQt.Window.AnchorBottom | LayerShellQt.Window.AnchorLeft
 
     MouseArea {
         anchors.fill: parent
+        enabled: backend.surface !== "osd"
         onClicked: root.dismiss()
     }
 
@@ -40,7 +43,8 @@ ApplicationWindow {
         width: root.cardWidth
         height: root.cardHeight
         x: root.centerSurface ? Math.round((root.width - width) / 2) : root.width - width - backend.rightMargin(width)
-        y: root.centerSurface ? Math.round((root.height - height) * 0.36) : 33
+        y: backend.surface === "osd" ? root.height - height - 72
+            : (root.centerSurface ? Math.round((root.height - height) * 0.36) : 33)
 
         MouseArea { anchors.fill: parent }
         Loader {
@@ -48,6 +52,7 @@ ApplicationWindow {
             anchors.fill: parent
             sourceComponent: {
                 if (backend.surface === "launcher") return launcherPage
+                if (backend.surface === "osd") return osdPage
                 if (backend.surface === "background") return backgroundPage
                 if (backend.surface === "notifications") return notificationsPage
                 if (backend.surface === "clipboard") return clipboardPage
@@ -75,6 +80,7 @@ ApplicationWindow {
     Component { id: pomodoroPage; PomodoroPage {} }
     Component { id: powerPage; PowerPage {} }
     Component { id: launcherPage; LauncherPage {} }
+    Component { id: osdPage; OsdPage {} }
     Component { id: backgroundPage; BackgroundPage {} }
     Component { id: notificationsPage; NotificationsPage {} }
     Component { id: clipboardPage; ClipboardPage {} }

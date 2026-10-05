@@ -128,12 +128,17 @@ HOME="$temporary/portable-home" XDG_CONFIG_HOME="$temporary/portable-config" \
 printf '[ OK ] night shift, display, maintenance and portable setup controls\n'
 
 grep -Fq 'nocturne-native" launcher' "$root/config/hypr/scripts/launcher"
-grep -Fq 'backend.applications("")' "$root/native/qml/pages/LauncherPage.qml"
+grep -Fq 'backend.launcherResults(search.text, mode)' "$root/native/qml/pages/LauncherPage.qml"
+grep -Fq 'activateLauncherResult' "$root/native/src/backend.cpp"
 ! rg -q 'wofi --show drun' "$root/config/hypr/scripts/launcher"
 ! grep -Fq 'hyprlauncher -d' "$root/config/hypr/hyprland.lua"
 grep -Fq 'boost) start_boost' "$root/config/hypr/scripts/power-profile"
 grep -Fq 'label:"SUPER"' "$root/native/qml/pages/PowerPage.qml"
-printf '[ OK ] zero-idle launcher + timed Super Performance control\n'
+grep -Fq 'nocturne-game-session.service' "$root/apply-hyprland.sh"
+grep -Fq 'UNIX-CONNECT:' "$root/config/hypr/scripts/game-session"
+grep -Fq 'focus-mode' "$root/native/qml/pages/NotificationsPage.qml"
+grep -Fq 'qml/pages/OsdPage.qml' "$root/native/CMakeLists.txt"
+printf '[ OK ] command-center launcher + focus, gaming and native OSD controls\n'
 
 grep -Fq '__NV_PRIME_RENDER_OFFLOAD=1' "$root/config/hypr/scripts/steam-launch"
 grep -Fq '__VK_LAYER_NV_optimus=NVIDIA_only' "$root/config/hypr/scripts/steam-launch"

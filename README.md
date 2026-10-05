@@ -38,7 +38,7 @@ history, power modes, screenshots and screen recording to behave normally.
 | **One native shell** | A single Qt 6 binary owns the bar and on-demand cards—no Waybar + Eww + AGS stack to theme and debug separately. |
 | **Zero-idle popovers** | Audio, network, power and workflow cards exist only while visible, then exit cleanly. |
 | **Real system state** | Sliders and toggles read PipeWire, sysfs, NetworkManager, BlueZ and power-profiles-daemon instead of maintaining a second fake state. |
-| **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys stay authoritative, and ordinary apps tile normally. |
+| **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys show compact native OSD feedback, and ordinary apps tile normally. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
 
@@ -61,12 +61,14 @@ The shell includes:
 - Wi-Fi, Bluetooth and VPN control through NetworkManager and BlueZ;
 - master volume, output routing and live per-application PipeWire streams;
 - hardware-synchronized brightness and microphone state;
-- a native launcher, notification history, clipboard history and minimized apps;
+- a command-center launcher for apps, running windows and safe desktop actions;
+- notification history, timed focus modes, clipboard history and minimized apps;
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;
+- automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
 - hardware-aware setup profiles plus portable preference export and restore;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.

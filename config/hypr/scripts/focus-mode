@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+state_file="$state_dir/focus-mode.state"
+timer_unit=nocturne-focus-mode.timer
+script_path=$(readlink -f -- "$0")
+
+dnd_active() {
+  makoctl mode 2>/dev/null | grep -qx 'do-not-disturb'
+}
+
+read_state() {
+  FOCUS_PREVIOUS=false
+  FOCUS_EXPIRES=0
+  [[ -r $state_file ]] || return 1
+  IFS=$'\t' read -r FOCUS_PREVIOUS FOCUS_EXPIRES < "$state_file" || return 1
+  [[ $FOCUS_PREVIOUS =~ ^(true|false)$ && $FOCUS_EXPIRES =~ ^[0-9]+$ ]]
+}
+
+clear_timer() {
+  systemctl --user stop "$timer_unit" >/dev/null 2>&1 || true
+  rm -f -- "$state_file"
+}
+
+status() {
+  local now remaining=0 label='Off' active=false
+  now=$(date +%s)
+  if read_state; then
+    if ((FOCUS_EXPIRES <= now)); then
+      expire
+    elif ! dnd_active; then
+      clear_timer
+    else
+      active=true
+      remaining=$(( (FOCUS_EXPIRES - now + 59) / 60 ))
+      label="${remaining}m remaining"
+    fi
+  elif dnd_active; then
+    active=true
+    label='Until turned off'
+  fi
+  jq -cn --argjson active "$active" --argjson remaining "$remaining" --arg label "$label" \
+    '{active:$active,remaining:$remaining,label:$label}'
+}
+
+start_focus() {
+  local minutes=$1 previous=false expires temp_state
+  [[ $minutes =~ ^[0-9]+$ ]] && ((minutes >= 5 && minutes <= 1440)) || {
+    printf 'Focus duration must be 5–1440 minutes.\n' >&2
+    exit 2
+  }
+  if read_state; then
+    previous=$FOCUS_PREVIOUS
+  elif dnd_active; then
+    previous=true
+  fi
+  makoctl mode -a do-not-disturb >/dev/null
+  expires=$(( $(date +%s) + minutes * 60 ))
+  mkdir -p -- "$state_dir"
+  temp_state=$(mktemp "$state_dir/.focus-mode.XXXXXX")
+  printf '%s\t%s\n' "$previous" "$expires" > "$temp_state"
+  mv -f -- "$temp_state" "$state_file"
+  systemctl --user stop "$timer_unit" >/dev/null 2>&1 || true
+  systemd-run --user --quiet --collect --unit=nocturne-focus-mode \
+    --on-active="${minutes}m" "$script_path" expire
+  notify-send -a Nocturne -u low 'Focus mode active' "Notification popups paused for ${minutes} minutes."
+}
+
+until_morning() {
+  local now target minutes
+  now=$(date +%s)
+  if ((10#$(date +%H) < 7)); then target=$(date -d 'today 07:00' +%s)
+  else target=$(date -d 'tomorrow 07:00' +%s); fi
+  minutes=$(( (target - now + 59) / 60 ))
+  start_focus "$minutes"
+}
+
+turn_off() {
+  clear_timer
+  makoctl mode -r do-not-disturb >/dev/null 2>&1 || true
+}
+
+expire() {
+  local previous=false
+  read_state && previous=$FOCUS_PREVIOUS
+  clear_timer
+  if [[ $previous == true ]]; then
+    makoctl mode -a do-not-disturb >/dev/null 2>&1 || true
+  else
+    makoctl mode -r do-not-disturb >/dev/null 2>&1 || true
+    notify-send -a Nocturne -u low 'Focus mode ended' 'Notification popups are active again.'
+  fi
+}
+
+toggle() {
+  if dnd_active; then turn_off; else makoctl mode -a do-not-disturb >/dev/null; fi
+}
+
+case ${1:-status} in
+  status) status ;;
+  on) start_focus "${2:-60}" ;;
+  morning) until_morning ;;
+  off) turn_off ;;
+  expire) expire ;;
+  toggle) toggle ;;
+  *) printf 'Usage: %s status|on MINUTES|morning|off|expire|toggle\n' "$0" >&2; exit 2 ;;
+esac

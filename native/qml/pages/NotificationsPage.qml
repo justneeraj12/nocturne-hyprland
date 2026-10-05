@@ -6,7 +6,7 @@ import "../components"
 Rectangle {
     id: root
     implicitWidth: 410
-    implicitHeight: Math.min(500, Math.max(230, 142 + shownItems.length * 75))
+    implicitHeight: Math.min(530, Math.max(278, 184 + shownItems.length * 75))
     color: backend.baseColor
     border.color: backend.accent2Color
     border.width: 1
@@ -14,6 +14,7 @@ Rectangle {
     property var activeItems: []
     property var historyItems: []
     property bool dnd: false
+    property var focusState: ({active:false, remaining:0, label:"Off"})
     property string tab: "current"
     readonly property var shownItems: tab === "current" ? activeItems : historyItems
 
@@ -21,6 +22,7 @@ Rectangle {
         activeItems = backend.notifications("list")
         historyItems = backend.notifications("history")
         dnd = backend.run(["makoctl", "mode"], 1000).split("\n").indexOf("do-not-disturb") >= 0
+        focusState = backend.json([backend.home + "/.config/hypr/scripts/focus-mode", "status"], 1200) || focusState
     }
 
     function dismiss(id) {
@@ -40,10 +42,25 @@ Rectangle {
             NocturneToggle {
                 checked: root.dnd
                 onToggleRequested: function(enabled) {
-                    backend.run(["makoctl", "mode", "-t", "do-not-disturb"], 1200)
+                    backend.run([backend.home + "/.config/hypr/scripts/focus-mode", enabled ? "toggle" : "off"], 1200)
                     root.refresh()
                 }
             }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 5
+            Text {
+                Layout.fillWidth: true
+                text: root.focusState.active ? "FOCUS · " + root.focusState.label.toUpperCase() : "FOCUS TIMER"
+                color: root.focusState.active ? backend.accentColor : backend.mutedColor
+                font.family: "Inter"; font.pixelSize: 9; font.bold: true
+            }
+            NocturneButton { text: "30M"; selected: root.focusState.active && root.focusState.remaining > 0 && root.focusState.remaining <= 30; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "on", "30"], 1500); root.refresh() } }
+            NocturneButton { text: "1H"; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "on", "60"], 1500); root.refresh() } }
+            NocturneButton { text: "MORNING"; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "morning"], 1500); root.refresh() } }
+            NocturneButton { visible: root.dnd; text: "OFF"; danger: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "off"], 1200); root.refresh() } }
         }
 
         RowLayout {

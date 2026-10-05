@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded grim slurp hyprshot cmake ninja xdg-mime lspci glxinfo)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot cmake ninja xdg-mime lspci glxinfo)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -142,6 +142,9 @@ install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-audio-autoswitch.service" \
   "$CONFIG_HOME/systemd/user/nocturne-audio-autoswitch.service"
 install -m 0644 \
+  "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
+  "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
+install -m 0644 \
   "$ROOT_DIR/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
 if [[ ! -e "$CONFIG_HOME/nocturne/locations.json" ]]; then
@@ -157,6 +160,9 @@ if [[ ! -e "$CONFIG_HOME/nocturne/theme.conf" ]]; then
 fi
 if [[ ! -e "$CONFIG_HOME/nocturne/theme.json" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/theme.json" "$CONFIG_HOME/nocturne/theme.json"
+fi
+if [[ ! -e "$CONFIG_HOME/nocturne/game-mode.conf" ]]; then
+  install -m 0644 "$ROOT_DIR/config/nocturne/game-mode.conf" "$CONFIG_HOME/nocturne/game-mode.conf"
 fi
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
 install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/color-schemes/Nocturne.colors"
@@ -325,6 +331,7 @@ systemctl --user daemon-reload >/dev/null 2>&1 || true
 systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
   mako.service \
   waybar.service \

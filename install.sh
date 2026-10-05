@@ -43,7 +43,7 @@ if "$install_packages"; then
     qml6-module-qtquick-window qml6-module-org-kde-layershell \
     layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
     curl flatpak grim slurp wl-clipboard cliphist libnotify-bin brightnessctl pipewire-bin pulseaudio-utils xdg-utils \
-    network-manager bluez jq kitty btop cava fastfetch playerctl gamemode pcmanfm-qt qpdfview qalculate-qt \
+    network-manager bluez jq socat kitty btop cava fastfetch playerctl gamemode pcmanfm-qt qpdfview qalculate-qt \
     power-profiles-daemon fwupd hyprsunset pciutils mesa-utils fonts-inter fonts-jetbrains-mono
 fi
 

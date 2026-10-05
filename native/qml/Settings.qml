@@ -110,7 +110,7 @@ ApplicationWindow {
             }
             SettingsPage {
                 title: "WORKFLOW"
-                description: "The shell stays keyboard-first, but every common action remains clickable."
+                description: "The command center searches applications, running windows and safe desktop actions from one keyboard-first surface."
                 actions: [
                     {label:"FOCUS TIMER", detail:"Pomodoro presets, pause, skip and cycle progress.", button:"OPEN", surface:"pomodoro"},
                     {label:"SCREENSHOT", detail:"Select an area with the stable upstream Hyprshot utility.", button:"CAPTURE", command:"screenshot"},
@@ -120,9 +120,9 @@ ApplicationWindow {
             }
             SettingsPage {
                 title: "POWER + SESSION"
-                description: "Profiles are backed by power-profiles-daemon and the session actions are provided by systemd/UWSM."
+                description: "Profiles are backed by power-profiles-daemon; gaming sessions can apply performance, focus and caffeine automatically with rollback."
                 actions: [
-                    {label:"POWER MODE", detail:"Super, Performance, Balanced and Saver with verified state.", button:"OPEN", surface:"power"},
+                    {label:"POWER + GAMING", detail:"Profiles plus automatic Steam game detection and exact state rollback.", button:"OPEN", surface:"power"},
                     {label:"SYSTEM MAINTENANCE", detail:"System packages, Flatpaks, firmware and failed-service health.", button:"OPEN", surface:"maintenance"},
                     {label:"LOCK", detail:"Lock now using the themed Hyprlock session.", button:"LOCK", command:"lock"}
                 ]

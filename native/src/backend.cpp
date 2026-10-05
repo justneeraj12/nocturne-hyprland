@@ -35,6 +35,8 @@ Backend::Backend(QString surface, QString page, QObject *parent)
 
     const QStringList roots = {
         home() + QStringLiteral("/.local/share/applications"),
+        home() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
+        QStringLiteral("/var/lib/flatpak/exports/share/applications"),
         QStringLiteral("/usr/local/share/applications"),
         QStringLiteral("/usr/share/applications")
     };
@@ -250,6 +252,133 @@ QVariantList Backend::applications(const QString &query) const
         if (result.size() == 80) break;
     }
     return result;
+}
+
+QVariantList Backend::launcherResults(const QString &query, const QString &requestedMode) const
+{
+    auto mode = requestedMode.toLower();
+    auto needle = query.simplified();
+    if (needle.startsWith(QLatin1Char('@'))) {
+        mode = QStringLiteral("windows");
+        needle = needle.mid(1).trimmed();
+    } else if (needle.startsWith(QLatin1Char('>'))) {
+        mode = QStringLiteral("actions");
+        needle = needle.mid(1).trimmed();
+    }
+    if (mode != QStringLiteral("apps") && mode != QStringLiteral("windows")
+        && mode != QStringLiteral("actions")) mode = QStringLiteral("all");
+
+    QVariantList result;
+    auto matches = [&needle](const QString &text) {
+        if (needle.isEmpty()) return true;
+        const auto haystack = text.toLower();
+        const auto wanted = needle.toLower();
+        if (haystack.contains(wanted)) return true;
+        int position = 0;
+        for (const auto character : wanted) {
+            position = haystack.indexOf(character, position);
+            if (position < 0) return false;
+            ++position;
+        }
+        return true;
+    };
+
+    if (mode == QStringLiteral("all") || mode == QStringLiteral("actions")) {
+        const QVariantList actions = {
+            QVariantMap{{"kind", "action"}, {"id", "settings"}, {"name", "Open Nocturne Settings"},
+                {"generic", "Appearance, displays and system controls"}, {"icon", "preferences-system-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "notifications"}, {"name", "Open Notifications"},
+                {"generic", "Alerts, history and focus mode"}, {"icon", "preferences-system-notifications-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "clipboard"}, {"name", "Open Clipboard History"},
+                {"generic", "Search recently copied items"}, {"icon", "edit-paste-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "connectivity"}, {"name", "Open Connectivity"},
+                {"generic", "Wi-Fi, Bluetooth and VPN"}, {"icon", "network-wireless-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "power"}, {"name", "Open Power Controls"},
+                {"generic", "Battery, profiles and session"}, {"icon", "battery-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "wallpaper"}, {"name", "Choose Wallpaper"},
+                {"generic", "Static and day-cycle backgrounds"}, {"icon", "preferences-desktop-wallpaper-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "caffeine"}, {"name", "Toggle Caffeine"},
+                {"generic", "Pause or resume idle locking"}, {"icon", "coffee-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "dnd"}, {"name", "Toggle Do Not Disturb"},
+                {"generic", "Silence or resume notification popups"}, {"icon", "notifications-disabled-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "screenshot"}, {"name", "Capture a Screen Region"},
+                {"generic", "Save to Screenshots and copy to clipboard"}, {"icon", "camera-photo-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "record"}, {"name", "Record the Screen"},
+                {"generic", "Open Kooha screen recorder"}, {"icon", "media-record-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "lock"}, {"name", "Lock the Session"},
+                {"generic", "Show the Nocturne lock screen"}, {"icon", "system-lock-screen-symbolic"}}
+        };
+        for (const auto &value : actions) {
+            const auto action = value.toMap();
+            if (matches(action.value("name").toString() + QLatin1Char(' ') + action.value("generic").toString())) {
+                result.push_back(action);
+            }
+        }
+    }
+
+    if (mode == QStringLiteral("all") || mode == QStringLiteral("windows")) {
+        const auto clients = json({"hyprctl", "clients", "-j"}, 1200).toList();
+        for (const auto &value : clients) {
+            const auto client = value.toMap();
+            const auto title = client.value("title").toString().trimmed();
+            const auto windowClass = client.value("class").toString().trimmed();
+            const auto address = client.value("address").toString();
+            if (title.isEmpty() || windowClass == QStringLiteral("nocturne-native")
+                || !matches(title + QLatin1Char(' ') + windowClass)) continue;
+            result.push_back(QVariantMap{{"kind", "window"}, {"name", title},
+                {"generic", windowClass + QStringLiteral(" · running window")},
+                {"icon", windowClass.toLower()}, {"address", address}});
+            if (result.size() >= 80) return result;
+        }
+    }
+
+    if (mode == QStringLiteral("all") || mode == QStringLiteral("apps")) {
+        for (const auto &value : applications(needle)) {
+            auto application = value.toMap();
+            application.insert(QStringLiteral("kind"), QStringLiteral("application"));
+            result.push_back(application);
+            if (result.size() >= 80) break;
+        }
+    }
+    return result;
+}
+
+bool Backend::activateLauncherResult(const QVariantMap &result)
+{
+    const auto kind = result.value(QStringLiteral("kind")).toString();
+    if (kind == QStringLiteral("application")) {
+        return launchApplication(result.value(QStringLiteral("path")).toString());
+    }
+    if (kind == QStringLiteral("window")) {
+        const auto address = result.value(QStringLiteral("address")).toString();
+        if (!QRegularExpression(QStringLiteral("^0x[0-9a-fA-F]+$")).match(address).hasMatch()) return false;
+        QProcess process;
+        process.start(QStringLiteral("hyprctl"), {QStringLiteral("dispatch"),
+            QStringLiteral("hl.dsp.focus({ window = \"address:%1\" })").arg(address)});
+        const bool focused = process.waitForStarted(800) && process.waitForFinished(1200) && process.exitCode() == 0;
+        if (focused) QCoreApplication::quit();
+        return focused;
+    }
+    if (kind != QStringLiteral("action")) return false;
+
+    const auto id = result.value(QStringLiteral("id")).toString();
+    QStringList command;
+    if (id == QStringLiteral("settings")) command = {home() + QStringLiteral("/.local/bin/nocturne-settings")};
+    else if (id == QStringLiteral("notifications")) { dispatch(QStringLiteral("notifications"), {}); return true; }
+    else if (id == QStringLiteral("clipboard")) { dispatch(QStringLiteral("clipboard"), {}); return true; }
+    else if (id == QStringLiteral("connectivity")) { dispatch(QStringLiteral("connectivity"), QStringLiteral("wifi")); return true; }
+    else if (id == QStringLiteral("power")) { dispatch(QStringLiteral("power"), {}); return true; }
+    else if (id == QStringLiteral("wallpaper")) { dispatch(QStringLiteral("background"), {}); return true; }
+    else if (id == QStringLiteral("caffeine")) command = {home() + QStringLiteral("/.config/hypr/scripts/caffeine"), QStringLiteral("toggle")};
+    else if (id == QStringLiteral("dnd")) command = {QStringLiteral("makoctl"), QStringLiteral("mode"), QStringLiteral("-t"), QStringLiteral("do-not-disturb")};
+    else if (id == QStringLiteral("screenshot")) command = {home() + QStringLiteral("/.local/bin/hyprshot"), QStringLiteral("-o"), home() + QStringLiteral("/Pictures/Screenshots"), QStringLiteral("-m"), QStringLiteral("region")};
+    else if (id == QStringLiteral("record")) command = {QStringLiteral("flatpak"), QStringLiteral("run"), QStringLiteral("io.github.seadve.Kooha")};
+    else if (id == QStringLiteral("lock")) command = {home() + QStringLiteral("/.config/hypr/scripts/lock-screen")};
+    else return false;
+
+    const bool launched = QProcess::startDetached(command.takeFirst(), command);
+    if (launched) QCoreApplication::quit();
+    return launched;
 }
 
 QVariantList Backend::trayItems() const

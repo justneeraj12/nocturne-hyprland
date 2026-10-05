@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(nocturne-native VERSION 0.1.0 LANGUAGES CXX)
+project(nocturne-native VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -33,6 +33,7 @@ qt_add_qml_module(nocturne-native
         qml/pages/PomodoroPage.qml
         qml/pages/PowerPage.qml
         qml/pages/LauncherPage.qml
+        qml/pages/OsdPage.qml
         qml/pages/BackgroundPage.qml
         qml/pages/NotificationsPage.qml
         qml/pages/ClipboardPage.qml

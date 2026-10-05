@@ -42,7 +42,8 @@ mkdir -p "$rollback"
 systemctl --user disable --now \
   nocturne-wallpaper-cycle.service \
   nocturne-easyeffects.service \
-  nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+  nocturne-audio-autoswitch.service \
+  nocturne-game-session.service >/dev/null 2>&1 || true
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
 pkill -f '^.*/nocturne-(dashboard|visualizer)( |$)' 2>/dev/null || true
 

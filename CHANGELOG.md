@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.0 - Unreleased
+
+- Upgraded the launcher into a command center for apps, running windows and
+  guarded desktop actions, with direct `@` and `>` search modes.
+- Added timed notification focus modes with 30-minute, one-hour and
+  until-morning presets and automatic expiry.
+- Added event-driven Steam game detection that applies performance, caffeine
+  and focus settings, then restores the previous session state.
+- Added compact native volume, microphone and brightness OSD feedback for
+  hardware keys.
+- Added Flatpak-exported applications to launcher discovery.
+
 ## 0.1.0 - Unreleased
 
 - Replaced custom GTK popovers with one Qt 6/Wayland layer-shell binary.

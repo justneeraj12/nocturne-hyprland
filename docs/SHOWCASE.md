@@ -30,8 +30,9 @@ in the same settings surface.
 
 ![Nocturne application launcher](screenshots/launcher.webp)
 
-The launcher starts only when requested, supports keyboard navigation and exits
-when dismissed.
+The launcher starts only when requested, searches installed apps, running
+windows and safe desktop actions, supports keyboard navigation and exits when
+dismissed. `@` jumps directly to windows and `>` jumps to actions.
 
 ## Calendar
 

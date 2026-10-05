@@ -11,7 +11,7 @@ bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
 printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
 printf '%s\n\n' '────────────────────────────────────────'
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot pcmanfm-qt qpdfview qalculate-qt)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -80,6 +80,8 @@ wpctl get-volume @DEFAULT_AUDIO_SINK@ >/dev/null 2>&1 && ok 'Default audio outpu
 wpctl get-volume @DEFAULT_AUDIO_SOURCE@ >/dev/null 2>&1 && ok 'Default microphone responds' || warning 'Default microphone is unavailable'
 systemctl --user is-active --quiet nocturne-audio-autoswitch.service \
   && ok 'Bluetooth audio auto-routing is active' || warning 'Bluetooth audio auto-routing is inactive'
+systemctl --user is-active --quiet nocturne-game-session.service \
+  && ok 'Automatic gaming-session controller is active' || warning 'Automatic gaming-session controller is inactive'
 brightnessctl -m >/dev/null 2>&1 && ok 'Hardware backlight responds' || warning 'No controllable backlight was found'
 profile=$(powerprofilesctl get 2>/dev/null || true)
 [[ -n $profile ]] && ok "Power profile: $profile" || warning 'Power profile service is unavailable'

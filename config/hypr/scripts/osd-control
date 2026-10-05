@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+native="$HOME/.local/bin/nocturne-native"
+
+show_osd() {
+  "$native" osd "$1|$2|$3|$(date +%s%N)" >/dev/null 2>&1 &
+  disown
+}
+
+audio_state() {
+  local kind=$1 state value muted=false
+  state=$(wpctl get-volume "$kind" 2>/dev/null || printf 'Volume: 0.00')
+  value=$(awk '{printf "%d", $2 * 100}' <<<"$state")
+  grep -q '\[MUTED\]' <<<"$state" && muted=true
+  printf '%s\t%s\n' "$value" "$muted"
+}
+
+case ${1:-} in
+  volume)
+    case ${2:-} in
+      up) wpctl set-volume --limit 1.5 @DEFAULT_AUDIO_SINK@ 5%+ ;;
+      down) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
+      mute) wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+      *) exit 2 ;;
+    esac
+    IFS=$'\t' read -r value muted < <(audio_state @DEFAULT_AUDIO_SINK@)
+    show_osd volume "$value" "$muted"
+    ;;
+  brightness)
+    case ${2:-} in up|down) "$HOME/.config/hypr/scripts/brightness" "$2" ;; *) exit 2 ;; esac
+    value=$("$HOME/.config/hypr/scripts/brightness" value)
+    show_osd brightness "$value" false
+    ;;
+  microphone)
+    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    IFS=$'\t' read -r value muted < <(audio_state @DEFAULT_AUDIO_SOURCE@)
+    show_osd microphone "$value" "$muted"
+    ;;
+  *) printf 'Usage: %s volume up|down|mute | brightness up|down | microphone\n' "$0" >&2; exit 2 ;;
+esac

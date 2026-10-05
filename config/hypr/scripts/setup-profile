@@ -20,15 +20,15 @@ apply_profile() {
   local profile=$1
   case $profile in
     minimal)
-      systemctl --user disable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+      systemctl --user disable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-audio-autoswitch.service nocturne-game-session.service >/dev/null 2>&1 || true
       "$config_home/hypr/scripts/night-light" off >/dev/null 2>&1 || true
       ;;
     desktop)
-      systemctl --user enable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service >/dev/null 2>&1 || true
+      systemctl --user enable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-game-session.service >/dev/null 2>&1 || true
       systemctl --user disable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
       ;;
     laptop)
-      systemctl --user enable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
+      systemctl --user enable --now nocturne-wallpaper-cycle.service nocturne-easyeffects.service nocturne-audio-autoswitch.service nocturne-game-session.service >/dev/null 2>&1 || true
       powerprofilesctl set balanced >/dev/null 2>&1 || true
       ;;
     *) printf 'Unknown profile: %s\n' "$profile" >&2; exit 2 ;;

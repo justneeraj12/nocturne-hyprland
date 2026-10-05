@@ -216,7 +216,7 @@ ApplicationWindow {
                 selected: shell.notificationCount > 0
                 tooltip: shell.dnd ? "Notifications · do not disturb on" : "Notifications"
                 onLeftClicked: root.nativeCard("notifications", "")
-                onRightClicked: root.run(["makoctl", "mode", "-t", "do-not-disturb"])
+                onRightClicked: root.run([backend.home + "/.config/hypr/scripts/focus-mode", "toggle"])
             }
             BarButton {
                 text: shell.battery.text || "󰁹"
