@@ -152,6 +152,7 @@ for desktop in org.gnome.Settings kdesystemsettings systemsettings nwg-look qt6c
 done
 printf '[ OK ] unified native system settings + launcher ownership\n'
 
+[[ -x $root/bin/nocturne-files ]]
 grep -Fq 'QT_QPA_PLATFORMTHEME=kde' "$root/bin/nocturne-files"
 grep -Fq 'widgetStyle=Breeze' "$root/config/kdeglobals"
 grep -Fq 'PreviewSize=96' "$root/config/dolphin/dolphinrc.in"

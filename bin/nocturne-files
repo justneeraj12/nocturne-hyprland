@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Dolphin's KDE platform adapter is scoped to the file manager. The rest of
+# Nocturne continues to use qt6ct, so adding a polished Files app does not turn
+# the Hyprland session into a Plasma session.
+if command -v dolphin >/dev/null 2>&1; then
+  export QT_QPA_PLATFORMTHEME=kde
+  exec dolphin "$@"
+fi
+
+# Recovery path for minimal/offline installs.
+exec pcmanfm-qt "$@"
