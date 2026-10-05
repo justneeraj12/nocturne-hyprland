@@ -19,6 +19,10 @@ ApplicationWindow {
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     function dismiss() { backend.close() }
+    function callPage(method, argument) {
+        var page = contentLoader.item
+        if (page && typeof page[method] === "function") page[method](argument)
+    }
 
     LayerShellQt.Window.scope: "nocturne-native"
     LayerShellQt.Window.layer: LayerShellQt.Window.LayerOverlay
@@ -99,5 +103,12 @@ ApplicationWindow {
     Component { id: displayPage; DisplayPage {} }
 
     Shortcut { sequence: "Escape"; onActivated: root.dismiss() }
+    Shortcut { sequence: "Down"; onActivated: root.callPage("navigate", 1) }
+    Shortcut { sequence: "Up"; onActivated: root.callPage("navigate", -1) }
+    Shortcut { sequence: "Return"; onActivated: root.callPage("activateCurrent") }
+    Shortcut { sequence: "Enter"; onActivated: root.callPage("activateCurrent") }
+    Shortcut { sequence: "Delete"; onActivated: root.callPage("deleteCurrent") }
+    Shortcut { sequence: "Menu"; onActivated: root.callPage("contextCurrent") }
+    Shortcut { sequence: "Ctrl+W"; onActivated: root.dismiss() }
     onClosing: backend.close()
 }

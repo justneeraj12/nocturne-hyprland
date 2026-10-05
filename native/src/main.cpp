@@ -5,6 +5,7 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QIcon>
+#include <QJsonDocument>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
@@ -67,6 +68,12 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("Nocturne"));
     QGuiApplication::setDesktopFileName(settings ? QStringLiteral("nocturne-settings") : QStringLiteral("nocturne-native"));
     QGuiApplication application(argc, argv);
+    if (surface == QStringLiteral("--tray-menu-test")) {
+        Backend diagnostic(surface, page);
+        const auto menu = diagnostic.trayMenu(page);
+        std::cout << QJsonDocument::fromVariant(menu).toJson(QJsonDocument::Compact).constData() << '\n';
+        return menu.isEmpty() ? 1 : 0;
+    }
     const QString socketName = QStringLiteral("nocturne-native-%1-%2")
                                    .arg(settings ? QStringLiteral("settings")
                                                  : (bar ? QStringLiteral("bar") : QStringLiteral("shell")))

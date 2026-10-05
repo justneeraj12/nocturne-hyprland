@@ -35,7 +35,7 @@ Rectangle {
         text: root.text
         color: root.selected ? backend.baseColor : (mouse.containsMouse ? backend.accentColor : backend.textColor)
         font.family: "MesloLGS Nerd Font Mono"
-        font.pixelSize: root.fontPixelSize
+        font.pixelSize: Math.round(root.fontPixelSize * ((root.Window.window && root.Window.window.barIconScale) ? root.Window.window.barIconScale : 1))
         font.bold: root.selected
     }
 

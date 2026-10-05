@@ -16,7 +16,10 @@ Rectangle {
     property bool dnd: false
     property var focusState: ({active:false, remaining:0, label:"Off"})
     property string tab: "current"
-    readonly property var shownItems: tab === "current" ? activeItems : historyItems
+    property string query: ""
+    property int currentIndex: 0
+    readonly property var sourceItems: tab === "current" ? activeItems : historyItems
+    readonly property var shownItems: sourceItems.filter(function(item) { var q = root.query.toLowerCase(); return !q || String(item.displayApp + " " + item.summary + " " + item.body).toLowerCase().indexOf(q) >= 0 })
 
     function refresh() {
         activeItems = backend.notifications("list")
@@ -29,6 +32,13 @@ Rectangle {
         backend.run(["makoctl", "dismiss", "-n", String(id)], 1200)
         refresh()
     }
+    function navigate(delta) { if (shownItems.length > 0) currentIndex = (currentIndex + delta + shownItems.length) % shownItems.length }
+    function activateCurrent() {
+        if (currentIndex < 0 || currentIndex >= shownItems.length) return
+        var item = shownItems[currentIndex]
+        if (item.hasAction && tab === "current") { backend.run(["makoctl", "invoke", "-n", String(item.id)], 1200); refresh() }
+    }
+    function deleteCurrent() { if (tab === "current" && currentIndex >= 0 && currentIndex < shownItems.length) dismiss(shownItems[currentIndex].id) }
 
     ColumnLayout {
         anchors.fill: parent
@@ -46,6 +56,13 @@ Rectangle {
                     root.refresh()
                 }
             }
+        }
+
+        TextField {
+            Layout.fillWidth: true; implicitHeight: 30; placeholderText: "Filter apps and messages"; text: root.query
+            color: backend.textColor; placeholderTextColor: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9
+            onTextChanged: { root.query = text; root.currentIndex = 0 }
+            background: Rectangle { color: backend.surfaceColor; border.color: parent.activeFocus ? backend.accentColor : backend.lineColor }
         }
 
         RowLayout {
@@ -108,12 +125,13 @@ Rectangle {
                     model: root.shownItems
                     delegate: Rectangle {
                         id: notification
+                        required property int index
                         required property var modelData
                         Layout.fillWidth: true
                         implicitHeight: notification.modelData.body ? 88 : 74
                         color: backend.surfaceColor
                         border.width: 1
-                        border.color: modelData.urgency === "critical" ? "#c75c66" : backend.lineColor
+                        border.color: modelData.urgency === "critical" ? "#c75c66" : (index === root.currentIndex ? backend.accent2Color : backend.lineColor)
 
                         RowLayout {
                             anchors.fill: parent
@@ -146,6 +164,12 @@ Rectangle {
                                     font.family: "monospace"
                                     font.pixelSize: 15
                                     font.bold: true
+                                }
+                                Rectangle {
+                                    Layout.fillWidth: true; implicitHeight: 3
+                                    visible: Number(notification.modelData.progress) > 0
+                                    color: backend.baseColor
+                                    Rectangle { width: parent.width * Math.max(0, Math.min(100, Number(notification.modelData.progress))) / 100; height: parent.height; color: backend.accentColor }
                                 }
                             }
 
@@ -241,6 +265,6 @@ Rectangle {
         }
     }
 
-    Timer { interval: 1500; running: true; repeat: true; onTriggered: root.refresh() }
+    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
     Component.onCompleted: refresh()
 }

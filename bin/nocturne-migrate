@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+state_home=${XDG_STATE_HOME:-$HOME/.local/state}
+state_dir=$state_home/nocturne
+version_file=$state_dir/schema-version
+target=5
+mkdir -p -- "$config_home/nocturne" "$state_dir"
+current=0
+[[ -r $version_file ]] && read -r current < "$version_file"
+[[ $current =~ ^[0-9]+$ ]] || current=0
+
+atomic_jq() {
+  local file=$1 filter=$2 temp
+  temp=$(mktemp "${file}.XXXXXX")
+  jq "$filter" "$file" > "$temp"
+  chmod --reference="$file" "$temp" 2>/dev/null || chmod 600 "$temp"
+  mv -f -- "$temp" "$file"
+}
+
+if ((current < 1)); then
+  if [[ ! -s $config_home/nocturne/bar.json ]]; then
+    cp -f -- "$config_home/nocturne/bar.default.json" "$config_home/nocturne/bar.json"
+  fi
+  printf '1\n' > "$version_file"; current=1
+fi
+if ((current < 2)); then
+  "$config_home/hypr/scripts/context-engine" status >/dev/null 2>&1 || true
+  printf '2\n' > "$version_file"; current=2
+fi
+if ((current < 3)); then
+  for file in launcher-favorites.json; do
+    [[ -s $config_home/nocturne/$file ]] || printf '[]\n' > "$config_home/nocturne/$file"
+  done
+  printf '3\n' > "$version_file"; current=3
+fi
+if ((current < 4)); then
+  if [[ -s $config_home/nocturne/bar.json ]]; then
+    atomic_jq "$config_home/nocturne/bar.json" '.format="nocturne-bar-v1" | .modules=(.modules // {}) + {pomodoro:(.modules.pomodoro // true),media:(.modules.media // true),caffeine:(.modules.caffeine // true),tray:(.modules.tray // true),kdeconnect:(.modules.kdeconnect // true),audio:(.modules.audio // true),microphone:(.modules.microphone // true),brightness:(.modules.brightness // true),system:(.modules.system // true),connectivity:(.modules.connectivity // true),notifications:(.modules.notifications // true),power:(.modules.power // true)} | .monitors=(.monitors // {})'
+  fi
+  printf '4\n' > "$version_file"; current=4
+fi
+if ((current < 5)); then
+  mkdir -p -- "$state_dir/logs"
+  printf '5\n' > "$version_file"; current=5
+fi
+
+if [[ ${1:-} == --json ]]; then
+  jq -cn --argjson current "$current" --argjson target "$target" '{schema:$current,target:$target,ready:($current == $target)}'
+else
+  printf 'NOCTURNE // schema %s ready\n' "$current"
+fi

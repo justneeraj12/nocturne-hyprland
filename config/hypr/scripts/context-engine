@@ -5,44 +5,67 @@ config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
 config_file="$config_home/nocturne/context.json"
 state_file="$state_dir/context.state"
+baseline_name=.context-baseline
 scene_manager="$config_home/hypr/scripts/scene-manager"
 
 ensure_config() {
   mkdir -p "$config_home/nocturne" "$state_dir"
-  [[ -s $config_file ]] || cat > "$config_file" <<'JSON'
-{"enabled":false,"contexts":{"docked":"","mobile":"","ac":"","battery":""}}
-JSON
+  if [[ ! -s $config_file ]]; then
+    printf '%s\n' '{"format":"nocturne-context-v2","enabled":false,"contexts":{"docked":"","mobile":"","ac":"","battery":""},"profiles":{"meeting":"","focus":"","gaming":""}}' > "$config_file"
+  elif ! jq -e '.format == "nocturne-context-v2" and (.contexts | type == "object") and (.profiles | type == "object")' "$config_file" >/dev/null 2>&1; then
+    local temp
+    temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
+    jq '.format="nocturne-context-v2" | .contexts=(.contexts // {}) + {docked:(.contexts.docked // ""),mobile:(.contexts.mobile // ""),ac:(.contexts.ac // ""),battery:(.contexts.battery // "")} | .profiles=(.profiles // {}) + {meeting:(.profiles.meeting // ""),focus:(.profiles.focus // ""),gaming:(.profiles.gaming // "")}' "$config_file" > "$temp"
+    mv -f -- "$temp" "$config_file"
+  fi
 }
 
 snapshot() {
-  local monitors external=false power=unknown context
+  local monitors external=false power=unknown context profile=normal clients mic=false focus=false gaming=false
   monitors=$(hyprctl monitors -j 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
   ((monitors > 1)) && external=true
   if [[ -r /sys/class/power_supply/AC/online ]] && [[ $(</sys/class/power_supply/AC/online) == 1 ]]; then power=ac
   elif upower -e 2>/dev/null | grep -q line_power && upower -i "$(upower -e | grep line_power | head -n1)" 2>/dev/null | grep -q 'online:.*yes'; then power=ac
   else power=battery; fi
   if [[ $external == true ]]; then context=docked; else context=mobile; fi
-  jq -cn --argjson monitors "$monitors" --argjson external "$external" --arg power "$power" --arg context "$context" \
-    '{monitors:$monitors,external:$external,power:$power,context:$context}'
+  clients=$(hyprctl clients -j 2>/dev/null || printf '[]')
+  if jq -e 'any(.[]; ((.title // "") + " " + (.class // "")) | test("meet|zoom|teams|webex"; "i"))' <<<"$clients" >/dev/null 2>&1 \
+      && pactl -f json list source-outputs 2>/dev/null | jq -e 'any(.[]; (.corked != true) and (.properties["stream.capture.sink"] != "true"))' >/dev/null 2>&1; then mic=true; fi
+  if "$config_home/hypr/scripts/focus-mode" status 2>/dev/null | jq -e '.active == true' >/dev/null; then focus=true; fi
+  if [[ -r $state_dir/game-session.json ]] && jq -e '.active == true' "$state_dir/game-session.json" >/dev/null 2>&1; then gaming=true; fi
+  if [[ $gaming == true ]]; then profile=gaming
+  elif [[ $mic == true ]]; then profile=meeting
+  elif [[ $focus == true ]]; then profile=focus
+  fi
+  jq -cn --argjson monitors "$monitors" --argjson external "$external" --arg power "$power" --arg context "$context" --arg profile "$profile" \
+    '{monitors:$monitors,external:$external,power:$power,context:$context,profile:$profile}'
 }
 
 status() {
   ensure_config
-  jq -s '.[0] as $live | .[1] as $config | $live + {enabled:$config.enabled,mappings:$config.contexts}' \
+  jq -s '.[0] as $live | .[1] as $config | $live + {enabled:$config.enabled,mappings:($config.contexts + $config.profiles)}' \
     <(snapshot) "$config_file"
 }
 
 refresh() {
-  local live enabled context power scene previous=''
+  local live enabled context power profile scene previous=''
   ensure_config; enabled=$(jq -r '.enabled' "$config_file")
   [[ $enabled == true ]] || exit 0
   live=$(snapshot)
-  context=$(jq -r '.context' <<<"$live"); power=$(jq -r '.power' <<<"$live")
-  scene=$(jq -r --arg context "$context" --arg power "$power" '
-    (.contexts[$context] // "") as $primary
-    | if $primary != "" then $primary else (.contexts[$power] // "") end' "$config_file")
+  context=$(jq -r '.context' <<<"$live"); power=$(jq -r '.power' <<<"$live"); profile=$(jq -r '.profile' <<<"$live")
+  scene=$(jq -r --arg context "$context" --arg power "$power" --arg profile "$profile" '
+    (.profiles[$profile] // "") as $special | (.contexts[$context] // "") as $primary
+    | if $special != "" then $special elif $primary != "" then $primary else (.contexts[$power] // "") end' "$config_file")
   [[ -r $state_file ]] && previous=$(<"$state_file")
-  [[ -n $scene && $scene != "$previous" ]] || exit 0
+  [[ $scene != "$previous" ]] || exit 0
+  if [[ -z $scene ]]; then
+    if [[ -n $previous && -s $config_home/nocturne/scenes/$baseline_name.json ]]; then
+      "$scene_manager" apply "$baseline_name" settings-only
+      "$scene_manager" delete "$baseline_name"
+    fi
+    printf '\n' > "$state_file"; exit 0
+  fi
+  if [[ -z $previous ]]; then "$scene_manager" save "$baseline_name"; fi
   "$scene_manager" apply "$scene" settings-only
   printf '%s\n' "$scene" > "$state_file"
 }
@@ -52,14 +75,26 @@ set_enabled() {
   local value=$1 temp
   temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
   jq --argjson value "$value" '.enabled=$value' "$config_file" > "$temp"; mv -f "$temp" "$config_file"
-  [[ $value == true ]] && refresh || rm -f "$state_file"
+  if [[ $value == true ]]; then refresh
+  else
+    if [[ -s $config_home/nocturne/scenes/$baseline_name.json ]]; then
+      "$scene_manager" apply "$baseline_name" settings-only
+      "$scene_manager" delete "$baseline_name"
+    fi
+    rm -f "$state_file"
+  fi
 }
 
 assign() {
   local context=${1:?context required} scene=${2:-} temp
-  [[ $context =~ ^(docked|mobile|ac|battery)$ ]] || exit 2
+  [[ $context =~ ^(docked|mobile|ac|battery|meeting|focus|gaming)$ ]] || exit 2
   ensure_config; temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
-  jq --arg context "$context" --arg scene "$scene" '.contexts[$context]=$scene' "$config_file" > "$temp"; mv -f "$temp" "$config_file"
+  if [[ $context =~ ^(meeting|focus|gaming)$ ]]; then
+    jq --arg context "$context" --arg scene "$scene" '.profiles[$context]=$scene' "$config_file" > "$temp"
+  else
+    jq --arg context "$context" --arg scene "$scene" '.contexts[$context]=$scene' "$config_file" > "$temp"
+  fi
+  mv -f "$temp" "$config_file"
 }
 
 case ${1:-status} in

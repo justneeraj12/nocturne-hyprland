@@ -68,7 +68,7 @@ save_scene() {
   jq -e '.format == "nocturne-scene-v1" and (.windows | type == "array")' "$temporary" >/dev/null
   mv -f -- "$temporary" "$file"
   count=$(jq 'length' <<<"$enriched")
-  notify-send -a Nocturne 'Scene saved' "$name · $count windows"
+  [[ $name == .* ]] || notify-send -a Nocturne 'Scene saved' "$name · $count windows"
 }
 
 apply_monitors() {
@@ -131,8 +131,10 @@ apply_scene() {
     workspace=$(jq -r '.workspace // 1' "$file")
     [[ $workspace =~ ^[0-9]+$ ]] && hyprctl dispatch "hl.dsp.focus({ workspace = $workspace })" >/dev/null 2>&1 || true
   fi
-  printf '%s\n' "$(slugify "$name")" > "$last_file"
-  notify-send -a Nocturne 'Scene restored' "$(jq -r '.name' "$file") · applications and workspace layout"
+  if [[ $name != .* ]]; then
+    printf '%s\n' "$(slugify "$name")" > "$last_file"
+    notify-send -a Nocturne 'Scene restored' "$(jq -r '.name' "$file") · applications and workspace layout"
+  fi
 }
 
 list_scenes() {
@@ -141,7 +143,7 @@ list_scenes() {
   [[ -r $last_file ]] && last=$(<"$last_file")
   find "$scene_dir" -maxdepth 1 -type f -name '*.json' -print0 2>/dev/null \
     | sort -z | xargs -0 -r jq -c --arg last "$last" \
-      'select(.format == "nocturne-scene-v1") | {name,created,windows:(.windows|length),slug:(input_filename|split("/")|last|sub("[.]json$";"")),active:((input_filename|split("/")|last|sub("[.]json$";"")) == $last)}' \
+      'select(.format == "nocturne-scene-v1" and (.name | startswith(".") | not)) | {name,created,windows:(.windows|length),slug:(input_filename|split("/")|last|sub("[.]json$";"")),active:((input_filename|split("/")|last|sub("[.]json$";"")) == $last)}' \
     | jq -sc '.'
 }
 

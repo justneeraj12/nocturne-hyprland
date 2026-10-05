@@ -20,6 +20,7 @@ Rectangle {
     property string artUrl: ""
     property real positionSeconds: 0
     property real lengthSeconds: 0
+    property real playerVolume: 1
     property double pinnedUntil: 0
 
     function playerLabel(name) {
@@ -72,6 +73,11 @@ Rectangle {
         artUrl = selected.art
         lengthSeconds = selected.length
         if (!seek.pressed) positionSeconds = selected.position
+        if (!playerVolumeSlider.pressed) {
+            var volumeText = backend.run(["playerctl", "--player", player, "volume"], 800)
+            var parsedVolume = parseFloat(volumeText)
+            if (!isNaN(parsedVolume)) playerVolume = parsedVolume
+        }
     }
 
     function runPlayer(action, extra) {
@@ -89,6 +95,14 @@ Rectangle {
         pinnedUntil = Date.now() + 10000
         refresh()
     }
+    function navigate(delta) {
+        if (players.length < 2) return
+        var index = players.indexOf(player)
+        player = players[(index + delta + players.length) % players.length]
+        pinnedUntil = Date.now() + 15000
+        refresh()
+    }
+    function activateCurrent() { runPlayer("play-pause") }
 
     ColumnLayout {
         id: panel
@@ -108,6 +122,15 @@ Rectangle {
                 visible: root.players.length > 1
                 text: "SWITCH"
                 onClicked: root.cyclePlayer()
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: root.players.length > 1
+            spacing: 4
+            Repeater { model: root.players
+                NocturneButton { required property string modelData; Layout.fillWidth: true; text: root.playerLabel(modelData).toUpperCase(); selected: root.player === modelData; onClicked: { root.player = modelData; root.pinnedUntil = Date.now() + 15000; root.refresh() } }
             }
         }
 
@@ -166,6 +189,13 @@ Rectangle {
                     elide: Text.ElideRight
                 }
             }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Text { text: "PLAYER VOL"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; font.bold: true }
+            NocturneSlider { id: playerVolumeSlider; Layout.fillWidth: true; from: 0; to: 1; stepSize: .01; value: root.playerVolume; onPressedChanged: if (!pressed && root.player) { root.playerVolume = value; root.runPlayer("volume", [value.toFixed(2)]) } }
+            Text { text: Math.round(playerVolumeSlider.value * 100) + "%"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 9 }
         }
 
         NocturneSlider {

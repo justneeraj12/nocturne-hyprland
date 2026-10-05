@@ -4,16 +4,22 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
+#include <QDateTime>
+#include <QDBusArgument>
 #include <QDBusInterface>
 #include <QDBusReply>
+#include <QDBusVariant>
 #include <QFile>
 #include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QJSEngine>
 #include <QProcess>
+#include <QLocalSocket>
+#include <QTimer>
 #include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
@@ -34,7 +40,12 @@ Backend::Backend(QString surface, QString page, QObject *parent)
     connect(qGuiApp, &QGuiApplication::screenRemoved, this, [this](QScreen *) {
         emit screensChanged();
     });
-    if (m_surface == QStringLiteral("bar")) m_trayWatcher = std::make_unique<TrayWatcher>(this);
+    if (m_surface == QStringLiteral("bar")) {
+        m_trayWatcher = std::make_unique<TrayWatcher>(this);
+        connect(m_trayWatcher.get(), &TrayWatcher::registeredItemsChanged, this,
+            [this]() { emit shellEvent(QStringLiteral("tray")); });
+        startShellEvents();
+    }
 
     const QStringList roots = {
         home() + QStringLiteral("/.local/share/applications"),
@@ -93,7 +104,97 @@ Backend::Backend(QString surface, QString page, QObject *parent)
     });
 }
 
-Backend::~Backend() = default;
+Backend::~Backend()
+{
+    m_shuttingDown = true;
+    if (m_audioEvents) {
+        m_audioEvents->disconnect(this);
+        m_audioEvents->terminate();
+        m_audioEvents->waitForFinished(250);
+    }
+}
+
+void Backend::startShellEvents()
+{
+    auto session = QDBusConnection::sessionBus();
+    session.connect(QString(), QString(), QStringLiteral("org.freedesktop.DBus.Properties"),
+        QStringLiteral("PropertiesChanged"), this,
+        SLOT(onPropertiesChanged(QString,QVariantMap,QStringList)));
+    auto system = QDBusConnection::systemBus();
+    system.connect(QString(), QString(), QStringLiteral("org.freedesktop.DBus.Properties"),
+        QStringLiteral("PropertiesChanged"), this,
+        SLOT(onPropertiesChanged(QString,QVariantMap,QStringList)));
+
+    m_hyprEvents = std::make_unique<QLocalSocket>(this);
+    connect(m_hyprEvents.get(), &QLocalSocket::readyRead, this, &Backend::readHyprEvents);
+    connect(m_hyprEvents.get(), &QLocalSocket::disconnected, this, [this]() {
+        if (!m_shuttingDown) QTimer::singleShot(900, this, &Backend::reconnectHyprEvents);
+    });
+    QTimer::singleShot(0, this, &Backend::reconnectHyprEvents);
+
+    m_audioEvents = std::make_unique<QProcess>(this);
+    connect(m_audioEvents.get(), &QProcess::readyReadStandardOutput, this, [this]() {
+        m_audioEvents->readAllStandardOutput();
+        emit shellEvent(QStringLiteral("audio"));
+    });
+    connect(m_audioEvents.get(), &QProcess::finished, this, [this]() {
+        if (!m_shuttingDown) QTimer::singleShot(1200, this, &Backend::startAudioEvents);
+    });
+    startAudioEvents();
+
+    m_fileEvents = std::make_unique<QFileSystemWatcher>(this);
+    const QDir backlights(QStringLiteral("/sys/class/backlight"));
+    for (const auto &device : backlights.entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        const auto path = backlights.filePath(device + QStringLiteral("/brightness"));
+        if (QFileInfo::exists(path)) m_fileEvents->addPath(path);
+    }
+    connect(m_fileEvents.get(), &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
+        emit shellEvent(QStringLiteral("brightness"));
+        if (QFileInfo::exists(path) && !m_fileEvents->files().contains(path)) m_fileEvents->addPath(path);
+    });
+}
+
+void Backend::onPropertiesChanged(const QString &interface, const QVariantMap &, const QStringList &)
+{
+    if (interface.startsWith(QStringLiteral("org.mpris.MediaPlayer2")))
+        emit shellEvent(QStringLiteral("media"));
+    else if (interface.startsWith(QStringLiteral("org.freedesktop.NetworkManager")))
+        emit shellEvent(QStringLiteral("connectivity"));
+    else if (interface.startsWith(QStringLiteral("org.bluez")))
+        emit shellEvent(QStringLiteral("connectivity"));
+    else if (interface.startsWith(QStringLiteral("org.freedesktop.UPower")))
+        emit shellEvent(QStringLiteral("power"));
+}
+
+void Backend::reconnectHyprEvents()
+{
+    if (m_shuttingDown || !m_hyprEvents || m_hyprEvents->state() != QLocalSocket::UnconnectedState) return;
+    const auto signature = qEnvironmentVariable("HYPRLAND_INSTANCE_SIGNATURE");
+    if (signature.isEmpty()) return;
+    m_hyprEvents->connectToServer(runtime() + QStringLiteral("/hypr/") + signature
+        + QStringLiteral("/.socket2.sock"), QIODevice::ReadOnly);
+}
+
+void Backend::readHyprEvents()
+{
+    m_hyprBuffer += m_hyprEvents->readAll();
+    qsizetype newline = -1;
+    while ((newline = m_hyprBuffer.indexOf('\n')) >= 0) {
+        const auto event = QString::fromUtf8(m_hyprBuffer.left(newline));
+        m_hyprBuffer.remove(0, newline + 1);
+        if (event.startsWith(QStringLiteral("workspace")) || event.startsWith(QStringLiteral("focusedmon"))
+            || event.startsWith(QStringLiteral("monitor"))) emit shellEvent(QStringLiteral("workspace"));
+        if (event.startsWith(QStringLiteral("openwindow")) || event.startsWith(QStringLiteral("closewindow"))
+            || event.startsWith(QStringLiteral("movewindow")) || event.startsWith(QStringLiteral("activewindow")))
+            emit shellEvent(QStringLiteral("windows"));
+    }
+}
+
+void Backend::startAudioEvents()
+{
+    if (m_shuttingDown || !m_audioEvents || m_audioEvents->state() != QProcess::NotRunning) return;
+    m_audioEvents->start(QStringLiteral("pactl"), {QStringLiteral("subscribe")}, QIODevice::ReadOnly);
+}
 
 QString Backend::surface() const { return m_surface; }
 QString Backend::page() const { return m_page; }
@@ -594,13 +695,15 @@ QVariantList Backend::trayItems() const
         }
         if (title.isEmpty()) title = id;
         if (title.isEmpty()) title = service;
+        const auto menuPath = item.property("Menu").value<QDBusObjectPath>().path();
         entries.push_back({priority, QVariantMap{
             {QStringLiteral("reference"), reference},
             {QStringLiteral("title"), title},
             {QStringLiteral("icon"), icon},
             {QStringLiteral("status"), item.property("Status").toString()},
             {QStringLiteral("category"), category},
-            {QStringLiteral("process"), processName}
+            {QStringLiteral("process"), processName},
+            {QStringLiteral("hasMenu"), !menuPath.isEmpty() && menuPath != QStringLiteral("/")}
         }});
     }
     if (!updateEntry.isEmpty()) entries.push_back({0, updateEntry});
@@ -615,6 +718,80 @@ QVariantList Backend::trayItems() const
         if (result.size() == 12) break;
     }
     return result;
+}
+
+namespace {
+void appendMenuLayout(const QDBusArgument &value, QVariantList &rows, int depth)
+{
+    if (depth > 3) return;
+    int id = 0;
+    QVariantMap properties;
+    value.beginStructure();
+    value >> id >> properties;
+    QVariantList children;
+    value >> children;
+    value.endStructure();
+    const auto label = properties.value(QStringLiteral("label")).toString();
+    const auto type = properties.value(QStringLiteral("type")).toString();
+    if (id != 0 && properties.value(QStringLiteral("visible"), true).toBool()) {
+        rows.push_back(QVariantMap{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("label"), label.isEmpty() && type != QStringLiteral("separator") ? QStringLiteral("Action") : label},
+            {QStringLiteral("enabled"), properties.value(QStringLiteral("enabled"), true).toBool()},
+            {QStringLiteral("separator"), type == QStringLiteral("separator")},
+            {QStringLiteral("toggle"), properties.value(QStringLiteral("toggle-type")).toString()},
+            {QStringLiteral("checked"), properties.value(QStringLiteral("toggle-state"), 0).toInt() == 1},
+            {QStringLiteral("icon"), properties.value(QStringLiteral("icon-name")).toString()},
+            {QStringLiteral("depth"), depth}
+        });
+    }
+    for (const auto &childValue : children) {
+        if (childValue.canConvert<QDBusArgument>()) appendMenuLayout(childValue.value<QDBusArgument>(), rows, depth + 1);
+    }
+}
+
+bool trayCoordinates(const QString &reference, QString &service, QString &path)
+{
+    const int slash = reference.indexOf(QLatin1Char('/'));
+    if (slash <= 0) return false;
+    service = reference.left(slash);
+    path = reference.mid(slash);
+    return true;
+}
+}
+
+QVariantList Backend::trayMenu(const QString &reference) const
+{
+    QString service, itemPath;
+    if (!trayCoordinates(reference, service, itemPath)) return {};
+    QDBusInterface item(service, itemPath, QStringLiteral("org.kde.StatusNotifierItem"), QDBusConnection::sessionBus());
+    const auto menuPath = item.property("Menu").value<QDBusObjectPath>().path();
+    if (menuPath.isEmpty() || menuPath == QStringLiteral("/")) return {};
+    QDBusInterface menu(service, menuPath, QStringLiteral("com.canonical.dbusmenu"), QDBusConnection::sessionBus());
+    menu.call(QStringLiteral("AboutToShow"), 0);
+    const auto reply = menu.call(QStringLiteral("GetLayout"), 0, 4,
+        QStringList{QStringLiteral("label"), QStringLiteral("enabled"), QStringLiteral("visible"),
+            QStringLiteral("type"), QStringLiteral("toggle-type"), QStringLiteral("toggle-state"),
+            QStringLiteral("icon-name"), QStringLiteral("children-display")});
+    if (reply.type() == QDBusMessage::ErrorMessage || reply.arguments().size() < 2
+        || !reply.arguments().at(1).canConvert<QDBusArgument>()) return {};
+    QVariantList rows;
+    appendMenuLayout(reply.arguments().at(1).value<QDBusArgument>(), rows, -1);
+    return rows;
+}
+
+bool Backend::activateTrayMenuItem(const QString &reference, int id) const
+{
+    if (id <= 0) return false;
+    QString service, itemPath;
+    if (!trayCoordinates(reference, service, itemPath)) return false;
+    QDBusInterface item(service, itemPath, QStringLiteral("org.kde.StatusNotifierItem"), QDBusConnection::sessionBus());
+    const auto menuPath = item.property("Menu").value<QDBusObjectPath>().path();
+    if (menuPath.isEmpty() || menuPath == QStringLiteral("/")) return false;
+    QDBusInterface menu(service, menuPath, QStringLiteral("com.canonical.dbusmenu"), QDBusConnection::sessionBus());
+    const auto reply = menu.call(QStringLiteral("Event"), id, QStringLiteral("clicked"),
+        QVariant::fromValue(QDBusVariant(0)), static_cast<uint>(QDateTime::currentSecsSinceEpoch()));
+    return reply.type() != QDBusMessage::ErrorMessage;
 }
 
 QVariantList Backend::notifications(const QString &collection) const

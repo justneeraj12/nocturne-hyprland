@@ -1,0 +1,22 @@
+{
+  "format": "nocturne-bar-v1",
+  "density": "auto",
+  "iconScale": 1.0,
+  "separators": true,
+  "trayCount": true,
+  "modules": {
+    "pomodoro": true,
+    "media": true,
+    "caffeine": true,
+    "tray": true,
+    "kdeconnect": true,
+    "audio": true,
+    "microphone": true,
+    "brightness": true,
+    "system": true,
+    "connectivity": true,
+    "notifications": true,
+    "power": true
+  },
+  "monitors": {}
+}

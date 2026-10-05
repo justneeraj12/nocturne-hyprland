@@ -12,7 +12,18 @@ flock -n 9 || exit 0
 
 # One Qt process owns every monitor bar and the StatusNotifier watcher. Restart
 # only after a real crash; a normal Hyprland shutdown ends the loop naturally.
+rapid_failures=0
 while hyprctl monitors -j >/dev/null 2>&1; do
+  started=$SECONDS
   "$HOME/.local/bin/nocturne-native" bar || true
-  sleep 1
+  runtime=$((SECONDS - started))
+  if ((runtime < 5)); then rapid_failures=$((rapid_failures + 1)); else rapid_failures=0; fi
+  if ((rapid_failures >= 3)); then
+    notify-send -a Nocturne -u critical 'Shell recovery started' 'The bar crashed repeatedly; restoring the last healthy checkpoint.' 2>/dev/null || true
+    "$HOME/.local/bin/nocturne-recovery" restore >/dev/null 2>&1 || true
+    rapid_failures=0
+    sleep 4
+  else
+    sleep $((rapid_failures + 1))
+  fi
 done

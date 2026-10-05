@@ -29,7 +29,7 @@ restore() {
   printf '0\n' > "$fail_file"
   systemctl --user daemon-reload 2>/dev/null || true
   hyprctl reload 2>/dev/null || true
-  "$config_home/hypr/scripts/bar" 2>/dev/null || true
+  nohup "$config_home/hypr/scripts/bar" >"$state_root/bar-restore.log" 2>&1 &
   printf 'Nocturne restored from %s\n' "$archive"
 }
 

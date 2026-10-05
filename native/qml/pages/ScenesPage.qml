@@ -53,17 +53,19 @@ Rectangle {
             Layout.fillWidth: true
             ColumnLayout { Layout.fillWidth: true; spacing: 1
                 SectionLabel { text: "CONTEXT AUTOMATION" }
-                Text { text: "Apply scene settings when docking or changing power source. App relaunch is never automatic."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
+                Text { text: "Apply settings-only scenes for displays, power, focus, meetings or games. App relaunch is never automatic."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
             }
             NocturneToggle { checked: root.context.enabled; onToggleRequested: function(enabled) { backend.run([backend.home + "/.config/hypr/scripts/context-engine", enabled ? "enable" : "disable"], 3000); root.refresh() } }
         }
-        RowLayout {
-            Layout.fillWidth: true; spacing: 5
-            Repeater { model: [{key:"docked",label:"DOCKED"},{key:"mobile",label:"MOBILE"},{key:"ac",label:"AC"},{key:"battery",label:"BATTERY"}]
-                ComboBox { required property var modelData; Layout.fillWidth: true; model: ["None"].concat(root.scenes.map(function(item){ return item.slug }))
-                    currentIndex: Math.max(0, model.indexOf((root.context.mappings || {})[modelData.key] || "None"))
-                    onActivated: backend.run([backend.home + "/.config/hypr/scripts/context-engine", "assign", modelData.key, currentText === "None" ? "" : currentText])
-                    ToolTip.visible: hovered; ToolTip.text: modelData.label
+        GridLayout {
+            Layout.fillWidth: true; columns: 4; columnSpacing: 5; rowSpacing: 5
+            Repeater { model: [{key:"docked",label:"DOCKED"},{key:"mobile",label:"MOBILE"},{key:"ac",label:"AC"},{key:"battery",label:"BATTERY"},{key:"meeting",label:"MEETING"},{key:"focus",label:"FOCUS"},{key:"gaming",label:"GAMING"}]
+                ColumnLayout { required property var modelData; Layout.fillWidth: true; spacing: 2
+                    Text { text: modelData.label + (root.context.profile === modelData.key ? "  ●" : ""); color: root.context.profile === modelData.key ? backend.accentColor : backend.mutedColor; font.family: "Inter"; font.pixelSize: 7; font.bold: true }
+                    ComboBox { Layout.fillWidth: true; model: ["None"].concat(root.scenes.map(function(item){ return item.slug }))
+                        currentIndex: Math.max(0, model.indexOf((root.context.mappings || {})[modelData.key] || "None"))
+                        onActivated: { backend.run([backend.home + "/.config/hypr/scripts/context-engine", "assign", modelData.key, currentText === "None" ? "" : currentText]); root.refresh() }
+                    }
                 }
             }
         }

@@ -20,6 +20,7 @@ ApplicationWindow {
     readonly property var navigation: [
         {key:"overview", label:"Overview", group:"HOME", icon:"go-home", glyph:"⌂", keywords:"status health dashboard machine"},
         {key:"appearance", label:"Appearance", group:"HOME", icon:"preferences-desktop-theme", glyph:"◈", keywords:"wallpaper theme color accent day cycle"},
+        {key:"bar", label:"Bar Studio", group:"HOME", icon:"video-display", glyph:"▤", keywords:"status bar modules density icons displays layout"},
         {key:"connectivity", label:"Connectivity", group:"DEVICES", icon:"network-wireless", glyph:"⌁", keywords:"wifi bluetooth vpn network internet"},
         {key:"sound", label:"Sound & displays", group:"DEVICES", icon:"audio-volume-high", glyph:"♪", keywords:"audio volume mixer brightness monitor night shift"},
         {key:"input", label:"Input & defaults", group:"DEVICES", icon:"input-keyboard", glyph:"⌨", keywords:"keyboard mouse touchpad default apps time timezone"},
@@ -211,6 +212,7 @@ ApplicationWindow {
                 anchors.fill: parent; currentIndex: root.section; visible: search.text === ""
                 OverviewSettingsPage { active: root.section === 0; onSectionRequested: function(key) { root.selectSection(key) } }
                 AppearanceSettingsPage { active: root.section === 1 }
+                BarSettingsPage { active: root.section === 2 }
                 SettingsActionsPage {
                     pageEyebrow: "DEVICES"; pageTitle: "Connectivity"
                     pageDescription: "Wi-Fi, Bluetooth and VPN use the standard Linux backends with one compact Nocturne interface."
@@ -231,8 +233,8 @@ ApplicationWindow {
                         {icon:"video-display",glyph:"▣",label:"Display layout",detail:"Scale, rotate, mirror, extend and save connected monitors.",button:"OPEN",surface:"display"}
                     ]
                 }
-                SystemSettingsPage { active: root.section === 4 }
-                IntegrationsPage { active: root.section === 5 }
+                SystemSettingsPage { active: root.section === 5 }
+                IntegrationsPage { active: root.section === 6 }
                 SettingsActionsPage {
                     pageEyebrow: "DAILY USE"; pageTitle: "Workflow"
                     pageDescription: "Focused tools for work, capture and keyboard-first navigation."
@@ -271,9 +273,9 @@ ApplicationWindow {
                         {icon:"system-lock-screen",glyph:"■",label:"Lock this session",detail:"Lock immediately with the themed Hyprlock session.",button:"LOCK",command:"lock",danger:true}
                     ]
                 }
-                SetupSettingsPage { active: root.section === 10 }
+                SetupSettingsPage { active: root.section === 11 }
                 SettingsActionsPage {
-                    pageEyebrow: "NOCTURNE 0.4"; pageTitle: "About"
+                    pageEyebrow: "NOCTURNE 0.5"; pageTitle: "About"
                     pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
                     pageBadge: "OPEN SOURCE"
                     actions: [

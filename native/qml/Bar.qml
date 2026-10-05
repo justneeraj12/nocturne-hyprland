@@ -22,6 +22,7 @@ Item {
     property int brightness: 0
     property int notificationCount: 0
     property bool dnd: false
+    property var barPrefs: ({density:"auto", iconScale:1, separators:true, trayCount:true, modules:{}, monitors:{}})
 
     function scriptJson(name, args) {
         var command = [backend.home + "/.config/hypr/scripts/" + name]
@@ -68,6 +69,7 @@ Item {
     function refreshSystem() { systemState = scriptJson("system-status") }
     function refreshPower() { battery = scriptJson("power-battery-status") }
     function refreshTray() { tray = backend.trayItems() }
+    function refreshPreferences() { barPrefs = scriptJson("bar-preferences", ["status"]) }
     function trayTooltip() {
         if (tray.length === 0) return "No background apps"
         var names = []
@@ -75,17 +77,31 @@ Item {
         return tray.length + (tray.length === 1 ? " background app\n" : " background apps\n") + names.join(" · ")
     }
 
-    Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
+    Connections {
+        target: backend
+        function onShellEvent(topic) {
+            if (topic === "workspace") root.refreshWorkspace()
+            else if (topic === "windows") root.refreshMinimized()
+            else if (topic === "audio" || topic === "brightness" || topic === "media") root.refreshAudio()
+            else if (topic === "connectivity") root.refreshConnectivity()
+            else if (topic === "power") root.refreshPower()
+            else if (topic === "tray") root.refreshTray()
+        }
+    }
+
+    // These are deliberately slow recovery timers. Normal updates arrive from
+    // Hyprland, PipeWire, MPRIS, NetworkManager, UPower and file-system events.
+    Timer { interval: 15000; running: true; repeat: true; onTriggered: root.now = new Date() }
     Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refreshActivity() }
-    Timer { interval: 3000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
-    Timer { interval: 3000; running: true; repeat: true; onTriggered: root.refreshAudio() }
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshAudio() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshNotifications() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshMinimized() }
-    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refreshTray() }
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshTray() }
     Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshCaffeine() }
-    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshConnectivity() }
+    Timer { interval: 120000; running: true; repeat: true; onTriggered: root.refreshConnectivity() }
     Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshSystem() }
-    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshPower() }
+    Timer { interval: 120000; running: true; repeat: true; onTriggered: root.refreshPower() }
 
     Instantiator {
         model: backend.screens
@@ -107,5 +123,6 @@ Item {
         refreshSystem()
         refreshPower()
         refreshTray()
+        refreshPreferences()
     }
 }

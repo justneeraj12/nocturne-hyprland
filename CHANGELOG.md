@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.5.0 - 2026-10-05
+
+- Replaced frequent bar polling with native Hyprland, PipeWire, MPRIS,
+  NetworkManager, BlueZ, UPower, backlight and StatusNotifier event updates,
+  retaining slow recovery timers instead of treating timers as primary state.
+- Added Bar Studio with live preview, global and per-display density, module
+  visibility overrides, icon scaling, separators and tray-count controls.
+- Added native DBusMenu rendering for background apps, keyboard navigation and
+  real per-application tray actions without opening foreign toolkit menus.
+- Upgraded notifications with search, progress, keyboard actions and calmer
+  refresh behavior, and upgraded Media Hub with player tabs, seek, artwork and
+  per-player MPRIS volume.
+- Extended context automation with meeting, focus and gaming detection plus
+  settings-only scene mappings, hidden baseline snapshots and exact rollback.
+- Added shared panel keyboard controls, versioned configuration migrations,
+  isolated interaction-contract tests, crash-loop backoff and automatic
+  last-known-good shell recovery.
+
 ## 0.4.1 - 2026-10-05
 
 - Rebuilt the background-app panel as a compact, scroll-safe application list

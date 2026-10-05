@@ -17,7 +17,7 @@ done < <(
 )
 printf '[ OK ] shell scripts\n'
 
-jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" >/dev/null
+jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" "$root/config/nocturne/bar.json" >/dev/null
 jq -e . "$root/agent/config/profile.default.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
@@ -39,6 +39,7 @@ printf '[ OK ] public documentation + showcase assets\n'
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
 cmake --build "$temporary/native" --parallel >/dev/null
 "$temporary/native/nocturne-native" --self-test >/dev/null
+grep -Fq -- '--tray-menu-test' "$root/native/src/main.cpp"
 ! rg -q 'import gi|from gi|Gtk' "$root/native" "$root/bin"
 grep -Fq 'backend.audioStreams()' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'interval: 200' "$root/native/qml/pages/BrightnessPage.qml"
@@ -54,7 +55,10 @@ grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow
 grep -Fq 'readonly property real responsiveWidth:' "$root/native/qml/BarWindow.qml"
 grep -Fq 'readonly property int density:' "$root/native/qml/BarWindow.qml"
 grep -Fq 'Q_PROPERTY(QVariantList screens READ screens NOTIFY screensChanged)' "$root/native/src/backend.h"
+grep -Fq 'void shellEvent(const QString &topic)' "$root/native/src/backend.h"
+grep -Fq 'QLocalSocket::readyRead' "$root/native/src/backend.cpp"
 grep -Fq 'org.kde.StatusNotifierWatcher' "$root/native/src/traywatcher.h"
+grep -Fq 'activateTrayMenuItem' "$root/native/src/backend.cpp"
 grep -Fq 'backend.notifications("history")' "$root/native/qml/pages/NotificationsPage.qml"
 grep -Fq 'QQuickImageProvider' "$root/native/src/main.cpp"
 grep -Fq 'image://theme/' "$root/native/qml/pages/BackgroundPage.qml"
@@ -149,6 +153,8 @@ grep -Fq 'qml/pages/SystemSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/IntegrationsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/OverviewSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/AppearanceSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/BarSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'Bar Studio' "$root/native/qml/Settings.qml"
 grep -Fq 'qml/components/SettingsNavItem.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'INPUT + APPLICATIONS' "$root/native/qml/pages/SystemSettingsPage.qml"
 grep -Fq 'MACHINE + SERVICES' "$root/native/qml/pages/IntegrationsPage.qml"
@@ -179,12 +185,18 @@ grep -Fq 'hl.bind(mod .. " + Tab"' "$root/config/hypr/hyprland.lua"
 grep -Fq 'nocturne-scene-v1' "$root/config/hypr/scripts/scene-manager"
 grep -Fq 'nocturne-audio-scene-v1' "$root/config/hypr/scripts/audio-scene"
 grep -Fq 'OnUnitActiveSec=30s' "$root/config/systemd/user/nocturne-context.timer"
+grep -Fq 'baseline_name=.context-baseline' "$root/config/hypr/scripts/context-engine"
 grep -Fq 'invisible=1' "$root/config/hypr/scripts/notification-rules"
 grep -Fq 'last-good.tar.gz' "$root/bin/nocturne-recovery"
+grep -Fq 'schema-version' "$root/bin/nocturne-migrate"
+grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
 grep -Fq 'nocturne-session-health.service' "$root/apply-hyprland.sh"
 grep -Fq 'theme-studio' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
 printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
+
+"$root/scripts/test-shell-contracts.sh" >/dev/null
+printf '[ OK ] migrations, bar preferences and context interaction contracts\n'
 
 grep -Fq '__NV_PRIME_RENDER_OFFLOAD=1' "$root/config/hypr/scripts/steam-launch"
 grep -Fq '__VK_LAYER_NV_optimus=NVIDIA_only' "$root/config/hypr/scripts/steam-launch"

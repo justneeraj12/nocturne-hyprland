@@ -6,6 +6,9 @@
 #include <memory>
 
 class TrayWatcher;
+class QFileSystemWatcher;
+class QLocalSocket;
+class QProcess;
 
 class Backend final : public QObject
 {
@@ -57,6 +60,8 @@ public:
         const QString &mode = QStringLiteral("all")) const;
     Q_INVOKABLE bool activateLauncherResult(const QVariantMap &result);
     Q_INVOKABLE QVariantList trayItems() const;
+    Q_INVOKABLE QVariantList trayMenu(const QString &reference) const;
+    Q_INVOKABLE bool activateTrayMenuItem(const QString &reference, int id) const;
     Q_INVOKABLE QVariantList notifications(const QString &collection = QStringLiteral("list")) const;
     Q_INVOKABLE QVariantList clipboardItems(const QString &query = QString()) const;
     Q_INVOKABLE QVariantList wallpapers() const;
@@ -81,10 +86,19 @@ signals:
     void targetScreenChanged();
     void screensChanged();
     void paletteChanged();
+    void shellEvent(const QString &topic);
+
+private slots:
+    void onPropertiesChanged(const QString &interface, const QVariantMap &changed,
+        const QStringList &invalidated);
+    void reconnectHyprEvents();
+    void readHyprEvents();
+    void startAudioEvents();
 
 private:
     static QStringList stringList(const QVariantList &arguments);
     void updateTargetScreen();
+    void startShellEvents();
     QString paletteValue(const QString &name, const QString &fallback) const;
 
     QString m_surface;
@@ -92,4 +106,9 @@ private:
     QScreen *m_targetScreen = nullptr;
     QVariantList m_applications;
     std::unique_ptr<TrayWatcher> m_trayWatcher;
+    std::unique_ptr<QLocalSocket> m_hyprEvents;
+    std::unique_ptr<QProcess> m_audioEvents;
+    std::unique_ptr<QFileSystemWatcher> m_fileEvents;
+    QByteArray m_hyprBuffer;
+    bool m_shuttingDown = false;
 };

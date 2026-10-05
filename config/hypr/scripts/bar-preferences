@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-$HOME/.config}
+config=$config_home/nocturne/bar.json
+default=$config_home/nocturne/bar.default.json
+mkdir -p -- "${config%/*}"
+
+fallback='{"format":"nocturne-bar-v1","density":"auto","iconScale":1,"separators":true,"trayCount":true,"modules":{"pomodoro":true,"media":true,"caffeine":true,"tray":true,"kdeconnect":true,"audio":true,"microphone":true,"brightness":true,"system":true,"connectivity":true,"notifications":true,"power":true},"monitors":{}}'
+[[ -s $config ]] || printf '%s\n' "$fallback" > "$config"
+
+restart_bar() {
+  [[ ${NOCTURNE_NO_RESTART:-0} == 1 ]] && return 0
+  local pid cmdline
+  while read -r pid; do
+    [[ $pid =~ ^[0-9]+$ ]] || continue
+    cmdline=$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)
+    [[ $cmdline == *"nocturne-native bar"* ]] && kill "$pid" 2>/dev/null || true
+  done < <(pgrep -x nocturne-native 2>/dev/null || true)
+}
+
+write_json() {
+  local tmp
+  tmp=$(mktemp "${config}.XXXXXX")
+  jq . > "$tmp"
+  chmod 600 "$tmp"
+  mv -f -- "$tmp" "$config"
+}
+
+case ${1:-status} in
+  status)
+    jq --argjson displays "$(hyprctl monitors -j 2>/dev/null || printf '[]')" \
+      '. + {displays: [$displays[] | {name, description, width, height, scale}]}' "$config"
+    ;;
+  set)
+    key=${2:?setting required}; value=${3:?value required}
+    case $key in
+      density)
+        [[ $value =~ ^(auto|compact|standard|full|detail)$ ]] || exit 2
+        jq --arg value "$value" '.density=$value' "$config" | write_json ;;
+      iconScale)
+        awk -v value="$value" 'BEGIN { exit !(value >= 0.8 && value <= 1.35) }'
+        jq --argjson value "$value" '.iconScale=$value' "$config" | write_json ;;
+      separators|trayCount)
+        [[ $value == true || $value == false ]] || exit 2
+        jq --arg key "$key" --argjson value "$value" '.[$key]=$value' "$config" | write_json ;;
+      module.*)
+        module=${key#module.}
+        [[ $module =~ ^[a-z]+$ && ( $value == true || $value == false ) ]] || exit 2
+        jq --arg key "$module" --argjson value "$value" '.modules[$key]=$value' "$config" | write_json ;;
+      *) exit 2 ;;
+    esac
+    restart_bar
+    ;;
+  monitor)
+    name=${2:?monitor required}; density=${3:?density required}
+    [[ $density =~ ^(auto|compact|standard|full|detail)$ ]] || exit 2
+    jq --arg name "$name" --arg density "$density" '.monitors[$name].density=$density' "$config" | write_json
+    restart_bar
+    ;;
+  monitor-module)
+    name=${2:?monitor required}; module=${3:?module required}; value=${4:?value required}
+    [[ $module =~ ^[a-z]+$ && ( $value == true || $value == false ) ]] || exit 2
+    jq --arg name "$name" --arg module "$module" --argjson value "$value" '.monitors[$name].modules[$module]=$value' "$config" | write_json
+    restart_bar
+    ;;
+  reset)
+    if [[ -s $default ]]; then cp -f -- "$default" "$config"; else printf '%s\n' "$fallback" | write_json; fi
+    restart_bar
+    ;;
+  *) printf 'usage: %s {status|set KEY VALUE|monitor NAME DENSITY|monitor-module NAME MODULE BOOL|reset}\n' "$0" >&2; exit 2 ;;
+esac

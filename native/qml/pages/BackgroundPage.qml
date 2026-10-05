@@ -12,6 +12,9 @@ Rectangle {
     border.width: 1
     property var items: backend.trayItems()
     property string actionError: ""
+    property string menuReference: ""
+    property string menuTitle: ""
+    property var menuItems: []
 
     function refresh() { items = backend.trayItems() }
     function activate(item, action) {
@@ -22,11 +25,25 @@ Rectangle {
             errorTimeout.restart()
         }
     }
+    function showMenu(item) {
+        if (menuReference === item.reference) { menuReference = ""; menuItems = []; return }
+        menuReference = item.reference
+        menuTitle = item.title || "Application"
+        menuItems = backend.trayMenu(item.reference)
+        if (menuItems.length === 0) activate(item, "context")
+    }
     function stateLabel(item) {
         var state = String(item.status || "passive").toUpperCase()
         if (state === "NEEDSATTENTION") return "NEEDS ATTENTION"
         return state
     }
+    function navigate(delta) {
+        if (items.length === 0) return
+        appList.currentIndex = (appList.currentIndex + delta + items.length) % items.length
+        appList.positionViewAtIndex(appList.currentIndex, ListView.Contain)
+    }
+    function activateCurrent() { if (appList.currentIndex >= 0 && appList.currentIndex < items.length) activate(items[appList.currentIndex], "activate") }
+    function contextCurrent() { if (appList.currentIndex >= 0 && appList.currentIndex < items.length) showMenu(items[appList.currentIndex]) }
 
     ColumnLayout {
         id: panel
@@ -104,9 +121,9 @@ Rectangle {
                     required property var modelData
                     width: ListView.view.width
                     height: 62
-                    color: rowMouse.containsMouse ? backend.overlayColor : backend.surfaceColor
+                    color: rowMouse.containsMouse || ListView.isCurrentItem ? backend.overlayColor : backend.surfaceColor
                     border.width: 1
-                    border.color: rowMouse.containsMouse ? backend.accent2Color : backend.lineColor
+                    border.color: rowMouse.containsMouse || ListView.isCurrentItem ? backend.accent2Color : backend.lineColor
 
                     RowLayout {
                         anchors.fill: parent
@@ -172,7 +189,7 @@ Rectangle {
                             }
                         }
                         Text {
-                            text: rowMouse.containsMouse ? "OPEN  ↗" : "↗"
+                                text: appRow.modelData.hasMenu ? (rowMouse.containsMouse ? "MENU  ≡" : "≡") : (rowMouse.containsMouse ? "OPEN  ↗" : "↗")
                             color: rowMouse.containsMouse ? backend.accentColor : backend.mutedColor
                             font.family: "monospace"
                             font.pixelSize: 8
@@ -187,14 +204,38 @@ Rectangle {
                         cursorShape: Qt.PointingHandCursor
                         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                         onClicked: function(mouse) {
-                            root.activate(appRow.modelData,
-                                mouse.button === Qt.RightButton ? "context"
-                                    : (mouse.button === Qt.MiddleButton ? "secondary" : "activate"))
+                            appList.currentIndex = index
+                            if (mouse.button === Qt.RightButton) root.showMenu(appRow.modelData)
+                            else root.activate(appRow.modelData, mouse.button === Qt.MiddleButton ? "secondary" : "activate")
                         }
                     }
-                    ToolTip.visible: rowMouse.containsMouse
-                    ToolTip.delay: 650
-                    ToolTip.text: "Left: open · Right: app menu · Middle: secondary action"
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: menuColumn.implicitHeight + 16
+            visible: root.menuReference !== "" && root.menuItems.length > 0
+            color: backend.surfaceColor
+            border.color: backend.accent2Color
+            ColumnLayout {
+                id: menuColumn
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
+                spacing: 3
+                RowLayout { Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; text: root.menuTitle.toUpperCase() + " MENU"; color: backend.accentColor; font.family: "monospace"; font.pixelSize: 8; font.bold: true }
+                    NocturneButton { text: "×"; onClicked: { root.menuReference = ""; root.menuItems = [] } }
+                }
+                Repeater { model: root.menuItems
+                    Rectangle { required property var modelData; Layout.fillWidth: true; implicitHeight: modelData.separator ? 5 : 28; color: itemMouse.containsMouse && modelData.enabled ? backend.overlayColor : "transparent"
+                        Rectangle { visible: modelData.separator; anchors.verticalCenter: parent.verticalCenter; width: parent.width; height: 1; color: backend.lineColor }
+                        RowLayout { anchors.fill: parent; anchors.leftMargin: 7 + Math.max(0, modelData.depth) * 11; anchors.rightMargin: 7; visible: !modelData.separator
+                            Text { text: modelData.checked ? "●" : (modelData.toggle ? "○" : "›"); color: modelData.enabled ? backend.accentColor : backend.mutedColor; font.family: "monospace"; font.pixelSize: 8 }
+                            Text { Layout.fillWidth: true; text: String(modelData.label || "Action").replace(/_/g, ""); color: modelData.enabled ? backend.textColor : backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; elide: Text.ElideRight }
+                        }
+                        MouseArea { id: itemMouse; anchors.fill: parent; hoverEnabled: true; enabled: !modelData.separator && modelData.enabled; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: { backend.activateTrayMenuItem(root.menuReference, modelData.id); root.menuReference = ""; root.menuItems = []; root.refresh() } }
+                    }
+                }
             }
         }
 
@@ -210,6 +251,6 @@ Rectangle {
         }
     }
 
-    Timer { interval: 1200; running: true; repeat: true; onTriggered: root.refresh() }
+    Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refresh() }
     Timer { id: errorTimeout; interval: 3000; onTriggered: root.actionError = "" }
 }

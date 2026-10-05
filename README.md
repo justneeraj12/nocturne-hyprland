@@ -37,7 +37,7 @@ history, power modes, screenshots and screen recording to behave normally.
 | --- | --- |
 | **One native shell** | A single Qt 6 binary owns the bar and on-demand cards—no Waybar + Eww + AGS stack to theme and debug separately. |
 | **Zero-idle popovers** | Audio, network, power and workflow cards exist only while visible, then exit cleanly. |
-| **Real system state** | Sliders and toggles read PipeWire, sysfs, NetworkManager, BlueZ and power-profiles-daemon instead of maintaining a second fake state. |
+| **Event-driven state** | Hyprland, PipeWire, MPRIS, NetworkManager, BlueZ, UPower, backlight and tray events update one native shell core without a farm of polling widgets. |
 | **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys show compact native OSD feedback, and ordinary apps tile normally. |
 | **One searchable control center** | Appearance, hardware, defaults, accounts, automation and recovery live in one responsive Settings app with no dead control-center duplicates. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
@@ -59,13 +59,14 @@ history, power modes, screenshots and screen recording to behave normally.
 The shell includes:
 
 - a multi-monitor bar with workspaces, media, weather, system state and tray;
+- Bar Studio with per-display density and module visibility, icon scale and layout controls;
 - Wi-Fi, Bluetooth and VPN control through NetworkManager and BlueZ;
 - master volume, output routing and live per-application PipeWire streams;
 - hardware-synchronized brightness and microphone state;
 - a command-center launcher for apps, running windows and safe desktop actions;
 - a nine-workspace overview plus restorable desktop and audio scenes;
 - launcher favorites, recent apps, local file search and inline calculations;
-- notification history, timed focus modes, clipboard history, minimized apps and a live background-app switcher;
+- searchable notification history, timed focus modes, clipboard history, minimized apps and a DBusMenu-aware background-app switcher;
 - per-app timed notification muting, grouped alerts and verification-code copying;
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
@@ -78,7 +79,7 @@ The shell includes:
 - hardware-aware setup profiles plus portable preference export and restore;
 - one searchable native Settings app with overview, live hardware state, appearance, devices, defaults, accounts, integrations and guarded recovery;
 - a compact dark Files profile with tabs, split view, rich previews, network/removable mounts and zero-idle indexing;
-- dock/power context automation, guarded theme previews and last-known-good recovery;
+- dock, power, meeting, focus and gaming context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 
 More images are in the [showcase](docs/SHOWCASE.md).

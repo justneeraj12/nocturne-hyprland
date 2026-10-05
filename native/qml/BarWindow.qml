@@ -12,9 +12,12 @@ ApplicationWindow {
     // stale logical size while outputs are added, removed or rescaled.
     readonly property real responsiveWidth: width > 0 ? width : targetScreen.width
     readonly property int monitorCount: Math.max(1, backend.screens.length)
-    readonly property int density: responsiveWidth >= 2400 ? 3
+    readonly property string preferredDensity: (((shell.barPrefs.monitors || {})[targetScreen.name] || {}).density || shell.barPrefs.density || "auto")
+    readonly property int automaticDensity: responsiveWidth >= 2400 ? 3
                                          : (responsiveWidth >= 1680 ? 2
                                              : (responsiveWidth >= 1180 ? 1 : 0))
+    readonly property int density: preferredDensity === "compact" ? 0 : (preferredDensity === "standard" ? 1 : (preferredDensity === "full" ? 2 : (preferredDensity === "detail" ? 3 : automaticDensity)))
+    property real barIconScale: Number(shell.barPrefs.iconScale || 1)
     readonly property bool standardBar: density >= 1
     readonly property bool fullBar: density >= 2
     readonly property bool detailBar: density >= 3
@@ -30,6 +33,11 @@ ApplicationWindow {
     flags: Qt.FramelessWindowHint | Qt.Tool
 
     function run(args) { backend.start(args) }
+    function moduleEnabled(name) {
+        var local = ((shell.barPrefs.monitors || {})[targetScreen.name] || {}).modules || ({})
+        if (local[name] !== undefined) return local[name] !== false
+        return (shell.barPrefs.modules || {})[name] !== false
+    }
     function clockText(value) {
         var hours = value.getHours()
         var displayHour = hours % 12
@@ -126,14 +134,14 @@ ApplicationWindow {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 2
             BarButton {
-                visible: root.standardBar
+                visible: root.standardBar && root.moduleEnabled("pomodoro")
                 text: shell.pomodoro.text || "󰔟"
                 tooltip: "Focus timer"
                 onLeftClicked: root.nativeCard("pomodoro", "")
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/pomodoro", "reset"])
             }
             BarButton {
-                visible: root.fullBar && shell.media.title !== ""
+                visible: root.fullBar && root.moduleEnabled("media") && shell.media.title !== ""
                 width: Math.min(root.detailBar ? 190 : 132, implicitWidth)
                 text: (shell.media.status === "Playing" ? "󰎈 " : "󰏤 ")
                     + shell.media.title.substring(0, root.detailBar ? 22 : 13)
@@ -143,7 +151,7 @@ ApplicationWindow {
                 onRightClicked: root.mediaCommand("next")
             }
             BarButton {
-                visible: root.standardBar
+                visible: root.standardBar && root.moduleEnabled("caffeine")
                 text: shell.caffeine.text || "󰛊"
                 fontPixelSize: 12
                 tooltip: shell.caffeine.tooltip || "Caffeine mode"
@@ -154,31 +162,31 @@ ApplicationWindow {
                 }
             }
             Rectangle {
-                visible: root.fullBar
+                visible: root.fullBar && shell.barPrefs.separators !== false
                 width: 1; height: 15; y: 6
                 color: backend.lineColor
             }
             BarButton {
-                visible: root.fullBar
-                text: "•••" + (shell.tray.length > 0 ? " " + shell.tray.length : "")
+                visible: root.fullBar && root.moduleEnabled("tray")
+                text: "•••" + (shell.barPrefs.trayCount !== false && shell.tray.length > 0 ? " " + shell.tray.length : "")
                 fontPixelSize: 10
                 tooltip: shell.trayTooltip()
                 onLeftClicked: root.nativeCard("background", "")
             }
             BarButton {
-                visible: root.fullBar
+                visible: root.fullBar && root.moduleEnabled("kdeconnect")
                 text: shell.kdeconnect.text || "󰄜"
                 tooltip: shell.kdeconnect.tooltip || "KDE Connect"
                 onLeftClicked: root.nativeCard("kdeconnect", "")
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/kdeconnect-menu", "clipboard"])
             }
             Rectangle {
-                visible: root.fullBar
+                visible: root.fullBar && shell.barPrefs.separators !== false
                 width: 1; height: 15; y: 6
                 color: backend.lineColor
             }
             BarButton {
-                visible: root.standardBar
+                visible: root.standardBar && root.moduleEnabled("audio")
                 text: (shell.volumeMuted ? "" : "")
                     + (root.fullBar ? " " + shell.volume + "%" : "")
                 fontPixelSize: 11
@@ -189,7 +197,7 @@ ApplicationWindow {
                 onScrolled: function(direction) { root.run(["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", direction > 0 ? "5%+" : "5%-"]) }
             }
             BarButton {
-                visible: root.standardBar
+                visible: root.standardBar && root.moduleEnabled("microphone")
                 text: shell.micMuted ? "󰍭" : "󰍬"
                 fontPixelSize: 12
                 selected: shell.micInUse
@@ -198,6 +206,7 @@ ApplicationWindow {
                 onLeftClicked: root.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
             }
             BarButton {
+                visible: root.moduleEnabled("brightness")
                 text: "󰃠" + (root.standardBar ? " " + shell.brightness + "%" : "")
                 tooltip: "Display brightness · right-click for display layout"
                 onLeftClicked: root.nativeCard("brightness", "")
@@ -205,7 +214,7 @@ ApplicationWindow {
                 onScrolled: function(direction) { root.run([backend.home + "/.config/hypr/scripts/brightness", direction > 0 ? "up" : "down"]) }
             }
             BarButton {
-                visible: root.fullBar
+                visible: root.fullBar && root.moduleEnabled("system")
                 text: root.detailBar ? (shell.systemState.text || "󰍛") : "󰍛"
                 fontPixelSize: 11
                 tooltip: (shell.systemState.tooltip || "System resources")
@@ -215,11 +224,12 @@ ApplicationWindow {
                 onRightClicked: root.nativeCard("maintenance", "")
             }
             Rectangle {
-                visible: root.fullBar
+                visible: root.fullBar && shell.barPrefs.separators !== false
                 width: 1; height: 15; y: 6
                 color: backend.lineColor
             }
             BarButton {
+                visible: root.moduleEnabled("connectivity")
                 text: shell.connectivity.text || "󰤨"
                 tooltip: shell.connectivity.tooltip || "Wi-Fi · Bluetooth · VPN"
                 onLeftClicked: root.nativeCard("connectivity", "wifi")
@@ -227,6 +237,7 @@ ApplicationWindow {
                 onMiddleClicked: root.nativeCard("connectivity", "vpn")
             }
             BarButton {
+                visible: root.moduleEnabled("notifications")
                 text: shell.dnd ? "󰂛" : (shell.notificationCount > 0 ? "󱅫 " + shell.notificationCount : "󰂚")
                 selected: shell.notificationCount > 0
                 tooltip: shell.dnd ? "Notifications · do not disturb on" : "Notifications"
@@ -234,6 +245,7 @@ ApplicationWindow {
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/focus-mode", "toggle"])
             }
             BarButton {
+                visible: root.moduleEnabled("power")
                 text: shell.battery.text || "󰁹"
                 fontPixelSize: 11
                 tooltip: shell.battery.tooltip || "Battery and power"
