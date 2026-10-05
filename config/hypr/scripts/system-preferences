@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
+state_file="$config_home/nocturne/system-preferences.json"
+input_lua="$config_home/nocturne/input.lua"
+
+ensure_state() {
+  mkdir -p "$config_home/nocturne"
+  [[ -s $state_file ]] || printf '%s\n' '{"input":{"kbLayout":"us","repeatRate":35,"repeatDelay":350,"sensitivity":0,"naturalScroll":true,"tapToClick":true,"disableWhileTyping":true}}' > "$state_file"
+}
+
+desktop_file() {
+  local id=$1 root
+  [[ $id =~ ^[A-Za-z0-9._+-]+[.]desktop$ ]] || return 1
+  for root in "$data_home/applications" "$data_home/flatpak/exports/share/applications" /var/lib/flatpak/exports/share/applications /var/lib/snapd/desktop/applications /usr/local/share/applications /usr/share/applications; do
+    [[ -f $root/$id ]] && { printf '%s\n' "$root/$id"; return 0; }
+  done
+  return 1
+}
+
+desktop_name() {
+  local file
+  file=$(desktop_file "$1" 2>/dev/null || true)
+  [[ -n $file ]] && sed -n 's/^Name=//p' "$file" | head -n1 || printf '%s' "$1"
+}
+
+mime_for() {
+  case $1 in
+    browser) printf 'x-scheme-handler/https' ;;
+    files) printf 'inode/directory' ;;
+    pdf) printf 'application/pdf' ;;
+    images) printf 'image/png' ;;
+    video) printf 'video/mp4' ;;
+    *) return 2 ;;
+  esac
+}
+
+options_for() {
+  local category=$1 mime file id name options='[]'
+  local -A seen=()
+  mime=$(mime_for "$category")
+  while IFS= read -r id; do
+    [[ $id =~ ^[A-Za-z0-9._+-]+[.]desktop$ && -z ${seen[$id]:-} ]] || continue; seen[$id]=1
+    [[ $id != org.gnome.* ]] || continue
+    file=$(desktop_file "$id" 2>/dev/null || true); [[ -n $file ]] || continue
+    grep -Eq '^Hidden=true|^NoDisplay=true' "$file" && continue
+    [[ $category != browser ]] || grep -Eq '^Categories=.*WebBrowser' "$file" || continue
+    [[ $category != files ]] || grep -Eq '^Categories=.*FileManager' "$file" || continue
+    name=$(sed -n 's/^Name=//p' "$file" | head -n1); [[ -n $name ]] || name=$id
+    options=$(jq -c --arg id "$id" --arg name "$name" '. + [{id:$id,name:$name}]' <<<"$options")
+  done < <(gio mime "$mime" 2>/dev/null | awk '/^Registered applications:/{reading=1;next} /^[^[:space:]]/{if(reading) exit} reading{sub(/^[[:space:]]+/,""); if($0 != "") print}')
+  jq -c 'unique_by(.id) | sort_by(.name)' <<<"$options"
+}
+
+category_status() {
+  local key=$1 label=$2 mime current name options
+  mime=$(mime_for "$key"); current=$(xdg-mime query default "$mime" 2>/dev/null || true)
+  name=$(desktop_name "$current"); options=$(options_for "$key")
+  jq -cn --arg key "$key" --arg label "$label" --arg current "$current" --arg name "$name" --argjson options "$options" \
+    '{key:$key,label:$label,current:$current,name:$name,options:$options}'
+}
+
+accounts_json() {
+  local file="$config_home/goa-1.0/accounts.conf" accounts='[]' provider='' identity='' files=false mail=false line
+  [[ -r $file ]] || { printf '[]'; return; }
+  flush_account() {
+    [[ -n $identity ]] || return 0
+    accounts=$(jq -c --arg provider "$provider" --arg identity "$identity" --argjson files "$files" --argjson mail "$mail" \
+      '. + [{provider:$provider,identity:$identity,files:$files,mail:$mail}]' <<<"$accounts")
+  }
+  while IFS= read -r line || [[ -n $line ]]; do
+    case $line in
+      '[Account '*) flush_account; provider=''; identity=''; files=false; mail=false ;;
+      Provider=*) provider=${line#Provider=} ;;
+      PresentationIdentity=*) identity=${line#PresentationIdentity=} ;;
+      FilesEnabled=true) files=true ;;
+      MailEnabled=true) mail=true ;;
+    esac
+  done < "$file"
+  flush_account
+  printf '%s' "$accounts"
+}
+
+status() {
+  local input timezone ntp devices categories accounts os kernel cpu memory disk gpu
+  ensure_state; input=$(jq -c '.input' "$state_file")
+  timezone=$(timedatectl show -p Timezone --value 2>/dev/null || date +%Z)
+  ntp=$(timedatectl show -p NTP --value 2>/dev/null || printf false)
+  [[ $ntp == yes || $ntp == true ]] && ntp=true || ntp=false
+  devices=$(hyprctl devices -j 2>/dev/null | jq -c '{keyboards:(.keyboards|length),mice:(.mice|length),touchpads:([.mice[]? | select((.name|ascii_downcase) | contains("touchpad"))]|length)}' 2>/dev/null || printf '{"keyboards":0,"mice":0,"touchpads":0}')
+  categories=$(jq -sc '.' < <(
+    category_status browser 'WEB BROWSER'
+    category_status files 'FILE MANAGER'
+    category_status pdf 'PDF VIEWER'
+    category_status images 'IMAGE VIEWER'
+    category_status video 'VIDEO PLAYER'
+  ))
+  accounts=$(accounts_json)
+  os=$(sed -n 's/^PRETTY_NAME=//p' /etc/os-release | tr -d '"' | head -n1)
+  kernel=$(uname -r); cpu=$(lscpu | sed -n 's/^Model name:[[:space:]]*//p' | head -n1)
+  memory=$(free -h | awk '/^Mem:/ {print $2}'); disk=$(df -h / | awk 'NR==2 {print $2" total · "$4" free"}')
+  gpu=$(lspci 2>/dev/null | sed -n '/VGA\|3D controller/{s/^[0-9A-Fa-f:.]* //;p}' | paste -sd ' + ' -)
+  jq -cn --argjson input "$input" --argjson devices "$devices" --arg timezone "$timezone" --argjson ntp "$ntp" \
+    --argjson categories "$categories" --argjson accounts "$accounts" --arg os "$os" --arg kernel "$kernel" \
+    --arg cpu "$cpu" --arg memory "$memory" --arg disk "$disk" --arg gpu "$gpu" \
+    '{input:$input,devices:$devices,time:{timezone:$timezone,ntp:$ntp},defaults:$categories,accounts:$accounts,
+      system:{os:$os,kernel:$kernel,cpu:$cpu,memory:$memory,disk:$disk,gpu:$gpu},
+      integrations:{hyprlandPortal:true,kdeFilePicker:true,keyring:true,goa:($accounts|length>0),kdeConnect:true}}'
+}
+
+render_input() {
+  local temporary kb rate delay sensitivity natural tap disable
+  kb=$(jq -r '.input.kbLayout' "$state_file"); rate=$(jq -r '.input.repeatRate' "$state_file")
+  delay=$(jq -r '.input.repeatDelay' "$state_file"); sensitivity=$(jq -r '.input.sensitivity' "$state_file")
+  natural=$(jq -r '.input.naturalScroll' "$state_file"); tap=$(jq -r '.input.tapToClick' "$state_file")
+  disable=$(jq -r '.input.disableWhileTyping' "$state_file")
+  temporary=$(mktemp "$config_home/nocturne/.input.XXXXXX")
+  printf '%s\n' '-- Generated by Nocturne System Settings.' \
+    'hl.config({' \
+    '    input = {' \
+    "        kb_layout = \"$kb\"," \
+    "        repeat_rate = $rate," \
+    "        repeat_delay = $delay," \
+    "        sensitivity = $sensitivity," \
+    '        touchpad = {' \
+    "            natural_scroll = $natural," \
+    "            tap_to_click = $tap," \
+    "            disable_while_typing = $disable," \
+    '        },' \
+    '    },' \
+    '})' > "$temporary"
+  mv -f -- "$temporary" "$input_lua"
+  hyprctl reload >/dev/null
+}
+
+set_input() {
+  local key=${1:?setting required} value=${2:?value required} path temp
+  case $key in
+    kbLayout) [[ $value =~ ^[a-z]{2,3}(,[a-z]{2,3})*$ ]] || exit 2; path='.input.kbLayout' ;;
+    repeatRate) [[ $value =~ ^[0-9]+$ ]] && ((value >= 10 && value <= 100)) || exit 2; path='.input.repeatRate' ;;
+    repeatDelay) [[ $value =~ ^[0-9]+$ ]] && ((value >= 150 && value <= 1000)) || exit 2; path='.input.repeatDelay' ;;
+    sensitivity) [[ $value =~ ^-?[0-9]+([.][0-9]+)?$ ]] && awk -v v="$value" 'BEGIN{exit !(v >= -1 && v <= 1)}' || exit 2; path='.input.sensitivity' ;;
+    naturalScroll) [[ $value =~ ^(true|false)$ ]] || exit 2; path='.input.naturalScroll' ;;
+    tapToClick) [[ $value =~ ^(true|false)$ ]] || exit 2; path='.input.tapToClick' ;;
+    disableWhileTyping) [[ $value =~ ^(true|false)$ ]] || exit 2; path='.input.disableWhileTyping' ;;
+    *) exit 2 ;;
+  esac
+  ensure_state; temp=$(mktemp "$config_home/nocturne/.system-preferences.XXXXXX")
+  if [[ $value =~ ^(true|false)$ || $value =~ ^-?[0-9]+([.][0-9]+)?$ ]]; then jq --arg path "$path" --argjson value "$value" 'setpath($path[1:]|split(".");$value)' "$state_file" > "$temp"
+  else jq --arg path "$path" --arg value "$value" 'setpath($path[1:]|split(".");$value)' "$state_file" > "$temp"; fi
+  mv -f -- "$temp" "$state_file"; render_input
+}
+
+set_default() {
+  local category=${1:?category required} id=${2:?desktop id required} mime
+  mime=$(mime_for "$category"); desktop_file "$id" >/dev/null
+  case $category in
+    browser) for mime in x-scheme-handler/http x-scheme-handler/https text/html; do xdg-mime default "$id" "$mime"; done ;;
+    files|pdf) xdg-mime default "$id" "$mime" ;;
+    images) for mime in image/png image/jpeg image/webp image/gif; do xdg-mime default "$id" "$mime"; done ;;
+    video) for mime in video/mp4 video/x-matroska video/webm audio/mpeg audio/flac; do xdg-mime default "$id" "$mime"; done ;;
+  esac
+}
+
+set_timezone() {
+  local zone=${1:?timezone required}
+  [[ $zone != *..* && -e /usr/share/zoneinfo/$zone ]] || exit 2
+  pkexec timedatectl set-timezone "$zone"
+}
+
+case ${1:-status} in
+  status) status ;;
+  set-input) set_input "${2:?setting required}" "${3:?value required}" ;;
+  set-default) set_default "${2:?category required}" "${3:?desktop id required}" ;;
+  timezone) set_timezone "${2:?timezone required}" ;;
+  ntp) [[ ${2:-} =~ ^(true|false)$ ]] || exit 2; pkexec timedatectl set-ntp "$2" ;;
+  *) printf 'Usage: %s status|set-input KEY VALUE|set-default CATEGORY DESKTOP|timezone ZONE|ntp true|false\n' "$0" >&2; exit 2 ;;
+esac

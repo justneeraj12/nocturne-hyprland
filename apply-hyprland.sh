@@ -39,6 +39,13 @@ desktop_targets=(
   nocturne-visualizer.desktop
   nocturne-google-keep.desktop
   nocturne-google-drive.desktop
+  kdesystemsettings.desktop
+  systemsettings.desktop
+  org.gnome.GTK4ThemeSwitcher.desktop
+  nwg-look.desktop
+  qt6ct.desktop
+  pcmanfm-qt-desktop-pref.desktop
+  hyprpwcenter.desktop
 )
 for desktop in "${desktop_targets[@]}"; do
   if [[ -e "$DATA_HOME/applications/$desktop" ]]; then
@@ -252,6 +259,7 @@ for google_app in keep drive; do
   chmod 0644 "$DATA_HOME/applications/nocturne-google-$google_app.desktop"
 done
 cp -a -- "$ROOT_DIR/config/autostart/." "$CONFIG_HOME/autostart/"
+cp -a -- "$ROOT_DIR/config/applications/." "$DATA_HOME/applications/"
 rm -f -- "$CONFIG_HOME/autostart/nocturne-gnome-theme-restore.desktop"
 command -v update-desktop-database >/dev/null 2>&1 && \
   update-desktop-database "$DATA_HOME/applications" >/dev/null 2>&1 || true
@@ -320,6 +328,9 @@ fi
 # Keep files and documents on the lightweight Qt application path.
 xdg-mime default pcmanfm-qt.desktop inode/directory
 xdg-mime default qpdfview.desktop application/pdf
+if [[ -f /usr/share/applications/vlc.desktop ]]; then
+  for mime in video/mp4 video/x-matroska video/webm audio/mpeg audio/flac; do xdg-mime default vlc.desktop "$mime"; done
+fi
 
 # Ubuntu's packages enable these for every graphical user session. The native
 # profile masks competing shell/portal owners; both GNOME restore scripts

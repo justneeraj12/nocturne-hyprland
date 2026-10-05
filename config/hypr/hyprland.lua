@@ -64,7 +64,6 @@ hl.env("XDG_SESSION_DESKTOP", "Hyprland")
 hl.on("hyprland.start", function()
     local commands = {
         "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME",
-        "hyprpaper -c " .. config_home .. "/hypr/nocturne-wallpaper.conf",
         "systemctl --user start nocturne-wallpaper-cycle.service",
         "hypridle",
         "mako",
@@ -134,6 +133,16 @@ hl.config({
         swallow_regex = "^(kitty)$",
     },
 })
+
+-- User-facing input settings are generated atomically by Nocturne Settings.
+-- Loading them after the base config makes the UI authoritative without
+-- rewriting this hand-maintainable file.
+local input_preferences = config_home .. "/nocturne/input.lua"
+local input_file = io.open(input_preferences, "r")
+if input_file then
+    input_file:close()
+    pcall(dofile, input_preferences)
+end
 
 hl.curve("nocturne", { type = "bezier", points = { {0.16, 1}, {0.3, 1} } })
 hl.curve("quick", { type = "bezier", points = { {0.25, 0.1}, {0.25, 1} } })

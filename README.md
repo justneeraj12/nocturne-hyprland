@@ -75,6 +75,7 @@ The shell includes:
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
 - hardware-aware setup profiles plus portable preference export and restore;
+- one native System Settings app for appearance, devices, defaults, accounts, integrations and recovery;
 - dock/power context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 
@@ -152,6 +153,11 @@ nocturne-native (Qt Quick + LayerShellQt)
 Nocturne does not replace those services. It gives them one compact,
 consistent interface. See the [architecture notes](docs/ARCHITECTURE.md) for
 process ownership, performance choices and extension points.
+
+Some freedesktop backends intentionally remain: Hyprland's portal owns screen
+sharing, KDE supplies the file chooser Hyprland's portal does not implement,
+Secret Service stores application credentials, and GVfs exposes configured
+Google accounts. None of those owns a panel, launcher or settings window.
 
 ## Personalize it
 

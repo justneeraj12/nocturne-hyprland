@@ -40,6 +40,7 @@ Backend::Backend(QString surface, QString page, QObject *parent)
         home() + QStringLiteral("/.local/share/applications"),
         home() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
         QStringLiteral("/var/lib/flatpak/exports/share/applications"),
+        QStringLiteral("/var/lib/snapd/desktop/applications"),
         QStringLiteral("/usr/local/share/applications"),
         QStringLiteral("/usr/share/applications")
     };
@@ -52,9 +53,25 @@ Backend::Backend(QString surface, QString page, QObject *parent)
             const auto path = directory.filePath(fileName);
             QSettings desktop(path, QSettings::IniFormat);
             desktop.beginGroup(QStringLiteral("Desktop Entry"));
+            auto desktops = [](const QVariant &value) {
+                auto text = value.toString();
+                text.replace(QLatin1Char(';'), QLatin1Char(':'));
+                return text.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+            };
+            const auto currentDesktops = qEnvironmentVariable("XDG_CURRENT_DESKTOP", QStringLiteral("Hyprland"))
+                                             .split(QLatin1Char(':'), Qt::SkipEmptyParts);
+            const auto onlyShowIn = desktops(desktop.value(QStringLiteral("OnlyShowIn")));
+            const auto notShowIn = desktops(desktop.value(QStringLiteral("NotShowIn")));
+            const bool allowedDesktop = onlyShowIn.isEmpty() || std::any_of(onlyShowIn.cbegin(), onlyShowIn.cend(), [&](const QString &name) {
+                return currentDesktops.contains(name, Qt::CaseInsensitive);
+            });
+            const bool blockedDesktop = std::any_of(notShowIn.cbegin(), notShowIn.cend(), [&](const QString &name) {
+                return currentDesktops.contains(name, Qt::CaseInsensitive);
+            });
             if (desktop.value(QStringLiteral("Type")).toString() != QStringLiteral("Application")
                 || desktop.value(QStringLiteral("Hidden"), false).toBool()
-                || desktop.value(QStringLiteral("NoDisplay"), false).toBool()) {
+                || desktop.value(QStringLiteral("NoDisplay"), false).toBool()
+                || !allowedDesktop || blockedDesktop) {
                 continue;
             }
             const auto name = desktop.value(QStringLiteral("Name")).toString().trimmed();

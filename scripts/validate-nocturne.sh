@@ -140,6 +140,18 @@ grep -Fq 'focus-mode' "$root/native/qml/pages/NotificationsPage.qml"
 grep -Fq 'qml/pages/OsdPage.qml' "$root/native/CMakeLists.txt"
 printf '[ OK ] command-center launcher + focus, gaming and native OSD controls\n'
 
+grep -Fq 'qml/pages/SystemSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/IntegrationsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'INPUT + DEFAULTS' "$root/native/qml/Settings.qml"
+grep -Fq 'SYSTEM + ACCOUNTS' "$root/native/qml/Settings.qml"
+grep -Fq 'OnlyShowIn' "$root/native/src/backend.cpp"
+grep -Fq 'NotShowIn' "$root/native/src/backend.cpp"
+grep -Fq 'system-preferences' "$root/native/qml/pages/SystemSettingsPage.qml"
+for desktop in org.gnome.Settings kdesystemsettings systemsettings nwg-look qt6ct hyprpwcenter; do
+  grep -Fq 'Hidden=true' "$root/config/applications/$desktop.desktop"
+done
+printf '[ OK ] unified native system settings + launcher ownership\n'
+
 for page in OverviewPage ScenesPage PrivacyPage GamingPage; do
   grep -Fq "qml/pages/$page.qml" "$root/native/CMakeLists.txt"
 done

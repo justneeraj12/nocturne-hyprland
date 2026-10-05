@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "components"
+import "pages"
 
 ApplicationWindow {
     id: root
@@ -10,14 +11,22 @@ ApplicationWindow {
     height: 600
     minimumWidth: 720
     minimumHeight: 500
-    title: "Nocturne Settings"
+    title: "System Settings // Nocturne"
     color: backend.baseColor
-    property int section: 0
+    readonly property var sectionKeys: ["appearance", "connectivity", "sound", "input", "system", "workflow", "scenes", "privacy", "power", "setup", "about"]
+    property int section: Math.max(0, sectionKeys.indexOf(backend.page || "appearance"))
 
     function openSurface(surface, page) {
         var args = [backend.home + "/.local/bin/nocturne-native", surface]
         if (page) args.push(page)
         backend.start(args)
+    }
+    Connections {
+        target: backend
+        function onPageChanged() {
+            var next = root.sectionKeys.indexOf(backend.page)
+            if (next >= 0) root.section = next
+        }
     }
 
     header: Rectangle {
@@ -52,7 +61,7 @@ ApplicationWindow {
 
         Rectangle {
             Layout.fillHeight: true
-            Layout.preferredWidth: 182
+            Layout.preferredWidth: 196
             color: "#090d0e"
             border.color: backend.lineColor
             ColumnLayout {
@@ -61,7 +70,7 @@ ApplicationWindow {
                 spacing: 5
                 SectionLabel { text: "CONTROL GROUPS" }
                 Repeater {
-                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "WORKFLOW", "SCENES + AUTOMATION", "PRIVACY + GAMING", "POWER + SESSION", "SETUP + RECOVERY", "ABOUT"]
+                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "INPUT + DEFAULTS", "SYSTEM + ACCOUNTS", "WORKFLOW", "SCENES + AUTOMATION", "PRIVACY + GAMING", "POWER + SESSION", "SETUP + RECOVERY", "ABOUT"]
                     NocturneButton {
                         required property int index
                         required property string modelData
@@ -108,6 +117,8 @@ ApplicationWindow {
                     {label:"DISPLAY LAYOUT", detail:"Scale, rotate, mirror, extend and persist every connected monitor.", button:"OPEN", surface:"display"}
                 ]
             }
+            SystemSettingsPage { active: root.section === 3 }
+            IntegrationsPage { active: root.section === 4 }
             SettingsPage {
                 title: "WORKFLOW"
                 description: "The command center searches applications, running windows and safe desktop actions from one keyboard-first surface."

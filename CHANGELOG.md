@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 - 2026-10-04
+
+- Consolidated desktop configuration into one **System Settings** launcher and
+  hid the non-functional GNOME, KDE, GTK, Qt and standalone PipeWire settings entries.
+- Added native input controls for touchpad behavior, pointer speed and keyboard repeat.
+- Added XDG default-application selectors and native timezone/network-time controls.
+- Added a system/integrations page showing hardware, three preserved Google accounts,
+  portal ownership, credentials, Google Drive, KDE Connect and advanced hardware tools.
+- Made the launcher honor `OnlyShowIn` and `NotShowIn` desktop-entry rules and discover Snap exports.
+- Documented compatibility backends explicitly instead of presenting them as shell components.
+
 ## 0.3.0 - 2026-10-04
 
 - Added a native nine-workspace overview with focus, close and drag-to-workspace controls.

@@ -72,6 +72,13 @@ desktop_targets=(
   nocturne-visualizer.desktop
   nocturne-google-keep.desktop
   nocturne-google-drive.desktop
+  kdesystemsettings.desktop
+  systemsettings.desktop
+  org.gnome.GTK4ThemeSwitcher.desktop
+  nwg-look.desktop
+  qt6ct.desktop
+  pcmanfm-qt-desktop-pref.desktop
+  hyprpwcenter.desktop
 )
 mkdir -p "$rollback/applications" "$DATA_HOME/applications"
 for desktop in "${desktop_targets[@]}"; do

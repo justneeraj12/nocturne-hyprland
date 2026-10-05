@@ -387,6 +387,14 @@ def daemon() -> None:
             except SystemExit:
                 scheduled = None
         desired = scheduled or (current if current.is_file() else None)
+        if desired is None:
+            # On the first login there may not be state yet. The wallpaper
+            # service is the sole Hyprpaper owner, so seed it from the chosen
+            # source instead of racing a second compositor-started process.
+            try:
+                desired = Path(scheduled_phase(str(config.get("source", "")))["image"])
+            except SystemExit:
+                desired = None
         if desired and (not display_is_active() or current != desired):
             try:
                 apply_image(desired, False)

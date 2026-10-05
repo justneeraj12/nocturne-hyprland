@@ -60,6 +60,12 @@ fi
 for legacy in waybar swaync wofi nm-applet blueman-applet; do
   if pgrep -x "$legacy" >/dev/null 2>&1; then warning "Legacy shell process is running: $legacy"; else ok "Legacy shell process is absent: $legacy"; fi
 done
+for legacy_settings in gnome-control-center systemsettings; do
+  if pgrep -x "$legacy_settings" >/dev/null 2>&1; then warning "Legacy settings UI is running: $legacy_settings"; else ok "Legacy settings UI is absent: $legacy_settings"; fi
+done
+[[ -r $HOME/.local/share/applications/org.gnome.Settings.desktop ]] \
+  && grep -q '^Hidden=true' "$HOME/.local/share/applications/org.gnome.Settings.desktop" \
+  && ok 'Duplicate desktop settings launchers are masked' || warning 'Duplicate settings launchers are not masked yet'
 
 [[ $(xdg-mime query default inode/directory 2>/dev/null) == pcmanfm-qt.desktop ]] \
   && ok 'PCManFM-Qt is the folder handler' || warning 'Folder handler is not PCManFM-Qt'
@@ -72,6 +78,10 @@ if jq -e '.display_active == true and (.monitors | length) > 0 and ((.mapped_mon
 else
   warning 'Wallpaper engine does not currently cover every display'
 fi
+hyprpaper_count=$(pgrep -x hyprpaper 2>/dev/null | wc -l)
+[[ $hyprpaper_count -eq 1 ]] \
+  && ok 'Wallpaper service owns exactly one Hyprpaper process' \
+  || warning "Expected one Hyprpaper process; found $hyprpaper_count"
 
 nm_state=$(nmcli -t -f STATE general 2>/dev/null | head -n1)
 [[ -n $nm_state ]] && ok "NetworkManager: $nm_state" || bad 'NetworkManager is unavailable'

@@ -31,9 +31,19 @@ Nocturne renders controls but does not invent parallel services:
 | Clipboard history | Cliphist |
 | Screenshots | Hyprshot, grim and slurp |
 | Screen recording | Kooha and the XDG ScreenCast portal |
+| File chooser | KDE XDG portal backend |
+| Application secrets | freedesktop Secret Service via GNOME Keyring |
+| Existing Google mounts | GVfs / GNOME Online Accounts backend |
+| Phone integration | KDE Connect daemon |
 
 This is why hardware keys and external changes remain authoritative while a
 card is open.
+
+The last four are compatibility services, not desktop-shell owners. Hyprland's
+portal does not implement a file chooser, Secret Service is the API used by
+Signal and other applications, and removing GVfs/GOA would disconnect the
+accounts already configured by the user. Nocturne Settings identifies these
+dependencies explicitly while remaining the only visible system control app.
 
 ## Toolkit boundary
 
