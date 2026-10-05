@@ -11,7 +11,7 @@ Rectangle {
     property bool busy: false
     property var state: ({
         memory:{percent:0,pressureAvg10:0}, swap:{totalKiB:0,usedKiB:0},
-        shell:{barMiB:0,barCpu:0,legacyProcesses:0},
+        shell:{barMiB:0,barRssMiB:0,barCpu:0,legacyProcesses:0},
         session:{activeUnits:0,failedUnits:0,portal:false,healthTimer:false,slowestStartup:"Checking…"},
         cleanup:{staleThumbnailLabel:"0 B",last:"",reclaimed:""}, top:[]
     })
@@ -61,7 +61,7 @@ Rectangle {
                     model: [
                         {label:"MEMORY",value:root.state.memory.percent + "%",detail:root.gib(root.state.memory.usedKiB) + " in use",good:root.state.memory.percent < 80},
                         {label:"PRESSURE",value:Number(root.state.memory.pressureAvg10 || 0).toFixed(2),detail:"10 second average",good:Number(root.state.memory.pressureAvg10 || 0) < 5},
-                        {label:"NATIVE BAR",value:root.state.shell.barMiB + " MiB",detail:Number(root.state.shell.barCpu || 0).toFixed(1) + "% CPU",good:Number(root.state.shell.barCpu || 0) < 5},
+                        {label:"NATIVE BAR",value:root.state.shell.barMiB + " MiB",detail:"PSS · " + root.state.shell.barRssMiB + " MiB RSS · " + Number(root.state.shell.barCpu || 0).toFixed(1) + "% CPU",good:Number(root.state.shell.barCpu || 0) < 5},
                         {label:"SESSION",value:root.state.session.activeUnits + " units",detail:root.state.session.failedUnits + " failed",good:root.state.session.failedUnits === 0}
                     ]
                     Rectangle {
@@ -100,7 +100,7 @@ Rectangle {
                             RowLayout {
                                 anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 9; spacing: 8
                                 Text { Layout.preferredWidth: 22; text: String(index + 1).padStart(2, "0"); color: backend.accent2Color; font.family: "monospace"; font.pixelSize: 8 }
-                                Text { Layout.fillWidth: true; text: modelData.name; color: backend.textColor; font.family: "Inter"; font.pixelSize: 9; elide: Text.ElideRight }
+                                Text { Layout.fillWidth: true; text: modelData.name + (Number(modelData.count || 1) > 1 ? "  ×" + modelData.count : ""); color: backend.textColor; font.family: "Inter"; font.pixelSize: 9; elide: Text.ElideRight }
                                 Text { Layout.preferredWidth: 72; text: Number(modelData.mib).toFixed(0) + " MiB"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 9; horizontalAlignment: Text.AlignRight }
                                 Text { Layout.preferredWidth: 54; text: Number(modelData.cpu).toFixed(1) + "%"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 9; horizontalAlignment: Text.AlignRight }
                             }

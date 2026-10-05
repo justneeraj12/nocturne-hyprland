@@ -54,6 +54,7 @@ public:
     Q_INVOKABLE QVariant json(const QVariantList &arguments, int timeoutMs = 5000) const;
     Q_INVOKABLE QVariantList audioStreams() const;
     Q_INVOKABLE bool microphoneInUse() const;
+    Q_INVOKABLE bool screenSharing() const;
     Q_INVOKABLE QVariantList windowItems() const;
     Q_INVOKABLE bool windowAction(const QString &address, const QString &action, int workspace = 0) const;
     Q_INVOKABLE QVariantList privacyItems() const;
@@ -66,6 +67,7 @@ public:
     Q_INVOKABLE QVariantList trayMenu(const QString &reference) const;
     Q_INVOKABLE bool activateTrayMenuItem(const QString &reference, int id) const;
     Q_INVOKABLE QVariantList notifications(const QString &collection = QStringLiteral("list")) const;
+    Q_INVOKABLE int notificationCount() const;
     Q_INVOKABLE QVariantList clipboardItems(const QString &query = QString()) const;
     Q_INVOKABLE QVariantList wallpapers() const;
     Q_INVOKABLE bool launchApplication(const QString &desktopFile);
@@ -102,6 +104,7 @@ private:
     static QStringList stringList(const QVariantList &arguments);
     void updateTargetScreen();
     void startShellEvents();
+    void ensureApplications() const;
     void queueShellEvent(const QString &topic, int delayMs = 140);
     void flushShellEvents();
     QString paletteValue(const QString &name, const QString &fallback) const;
@@ -109,7 +112,8 @@ private:
     QString m_surface;
     QString m_page;
     QScreen *m_targetScreen = nullptr;
-    QVariantList m_applications;
+    mutable QVariantList m_applications;
+    mutable bool m_applicationsLoaded = false;
     std::unique_ptr<TrayWatcher> m_trayWatcher;
     std::unique_ptr<QLocalSocket> m_hyprEvents;
     std::unique_ptr<QProcess> m_audioEvents;

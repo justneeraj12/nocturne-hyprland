@@ -21,7 +21,7 @@ ensure_config() {
 }
 
 snapshot() {
-  local monitors external=false power=unknown context profile=normal clients mic=false focus=false gaming=false
+  local monitors external=false power=unknown context profile=normal clients meeting=false focus=false gaming=false
   monitors=$(hyprctl monitors -j 2>/dev/null | jq 'length' 2>/dev/null || printf 0)
   ((monitors > 1)) && external=true
   if [[ -r /sys/class/power_supply/AC/online ]] && [[ $(</sys/class/power_supply/AC/online) == 1 ]]; then power=ac
@@ -29,12 +29,17 @@ snapshot() {
   else power=battery; fi
   if [[ $external == true ]]; then context=docked; else context=mobile; fi
   clients=$(hyprctl clients -j 2>/dev/null || printf '[]')
-  if jq -e 'any(.[]; ((.title // "") + " " + (.class // "")) | test("meet|zoom|teams|webex"; "i"))' <<<"$clients" >/dev/null 2>&1 \
-      && pactl -f json list source-outputs 2>/dev/null | jq -e 'any(.[]; (.corked != true) and (.properties["stream.capture.sink"] != "true"))' >/dev/null 2>&1; then mic=true; fi
+  if jq -e 'any(.[]; ((.title // "") + " " + (.class // "")) | test("google meet|meet|discord|zoom|teams|webex|slack huddle"; "i"))' <<<"$clients" >/dev/null 2>&1; then
+    if pactl -f json list source-outputs 2>/dev/null \
+        | jq -e 'any(.[]; (.corked != true) and (.properties["stream.capture.sink"] != "true"))' >/dev/null 2>&1 \
+        || pw-cli ls Node 2>/dev/null | grep -q 'node.name = "xdph-streaming-'; then
+      meeting=true
+    fi
+  fi
   if "$config_home/hypr/scripts/focus-mode" status 2>/dev/null | jq -e '.active == true' >/dev/null; then focus=true; fi
   if [[ -r $state_dir/game-session.json ]] && jq -e '.active == true' "$state_dir/game-session.json" >/dev/null 2>&1; then gaming=true; fi
   if [[ $gaming == true ]]; then profile=gaming
-  elif [[ $mic == true ]]; then profile=meeting
+  elif [[ $meeting == true ]]; then profile=meeting
   elif [[ $focus == true ]]; then profile=focus
   fi
   jq -cn --argjson monitors "$monitors" --argjson external "$external" --arg power "$power" --arg context "$context" --arg profile "$profile" \

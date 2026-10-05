@@ -42,7 +42,11 @@ Rectangle {
         appList.currentIndex = (appList.currentIndex + delta + items.length) % items.length
         appList.positionViewAtIndex(appList.currentIndex, ListView.Contain)
     }
-    function activateCurrent() { if (appList.currentIndex >= 0 && appList.currentIndex < items.length) activate(items[appList.currentIndex], "activate") }
+    function activateCurrent() {
+        if (appList.currentIndex < 0 || appList.currentIndex >= items.length) return
+        var item = items[appList.currentIndex]
+        if (item.hasMenu) showMenu(item); else activate(item, "activate")
+    }
     function contextCurrent() { if (appList.currentIndex >= 0 && appList.currentIndex < items.length) showMenu(items[appList.currentIndex]) }
 
     ColumnLayout {
@@ -72,7 +76,7 @@ Rectangle {
             PanelHeader {
                 Layout.fillWidth: true
                 title: "Background apps"
-                subtitle: "Running quietly · click a row to bring it forward"
+                subtitle: "Click for controls · middle-click to open the app"
             }
             Rectangle {
                 implicitWidth: appCount.implicitWidth + 16
@@ -206,7 +210,9 @@ Rectangle {
                         onClicked: function(mouse) {
                             appList.currentIndex = index
                             if (mouse.button === Qt.RightButton) root.showMenu(appRow.modelData)
-                            else root.activate(appRow.modelData, mouse.button === Qt.MiddleButton ? "secondary" : "activate")
+                            else if (mouse.button === Qt.MiddleButton) root.activate(appRow.modelData, "activate")
+                            else if (appRow.modelData.hasMenu) root.showMenu(appRow.modelData)
+                            else root.activate(appRow.modelData, "activate")
                         }
                     }
             }

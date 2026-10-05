@@ -70,10 +70,12 @@ The shell includes:
 - searchable notification history, timed focus modes, clipboard history, minimized apps and a DBusMenu-aware background-app switcher;
 - per-app timed notification muting, grouped alerts and verification-code copying;
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
+- a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
 - compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
+- reliable background-app controls with native DBusMenu actions on ordinary left-click;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;

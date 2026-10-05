@@ -260,10 +260,12 @@ hl.window_rule({ match = { class = "^(steam_app_.*)$" }, immediate = true })
 -- the tiling tree or disappear underneath the meeting it belongs to. Keep the
 -- upstream Hyprland picker compact, centered and visible on every workspace.
 hl.window_rule({
-    match = { class = "^(hyprland-share-picker)$", title = "^(MainPicker)$" },
+    -- The upstream title changed from MainPicker to Select what to share in
+    -- 1.4.x; the application class is its stable compositor contract.
+    match = { class = "^(hyprland-share-picker)$" },
     float = true,
     pin = true,
-    size = {720, 500},
+    size = {760, 520},
     center = true,
     no_blur = true,
     opacity = "1.0 override 1.0 override 1.0 override",

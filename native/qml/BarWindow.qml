@@ -206,6 +206,15 @@ ApplicationWindow {
                 onLeftClicked: root.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"])
             }
             BarButton {
+                visible: shell.screenSharing
+                text: root.standardBar ? "󰍹 SHARE" : "󰍹"
+                fontPixelSize: 11
+                selected: true
+                selectedColor: "#c75c66"
+                tooltip: "Screen sharing is active · click for capture clients"
+                onLeftClicked: root.nativeCard("privacy", "")
+            }
+            BarButton {
                 visible: root.moduleEnabled("brightness")
                 text: "󰃠" + (root.standardBar ? " " + shell.brightness + "%" : "")
                 tooltip: "Display brightness · right-click for display layout"

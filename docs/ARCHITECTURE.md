@@ -64,6 +64,9 @@ browsers and editor windows are not reimplemented inside the shell.
 - The bar uses one StatusNotifier watcher instead of launching applet stacks.
 - Audio subscription events are coalesced and client lifecycle noise is ignored,
   preventing the bar's own status probes from creating a PipeWire event loop.
+- Active XDPH capture nodes are detected through their upstream
+  `xdph-streaming-*` identity; idle camera hardware is not presented as an
+  application capture, and the portal itself is never terminated as a client.
 - Desktop-file discovery runs only in the on-demand launcher, never in the bar.
 - The Efficiency Center samples pressure and process data only while its page is
   visible. Its safe cleanup is explicit and limited to old regenerable

@@ -51,66 +51,10 @@ Backend::Backend(QString surface, QString page, QObject *parent)
         startShellEvents();
     }
 
-    // The persistent bar never searches or launches desktop files. Building
-    // this catalogue there retained every QSettings object and icon string for
-    // no benefit; only the on-demand launcher needs it.
-    if (m_surface == QStringLiteral("launcher")) {
-        const QStringList roots = {
-            home() + QStringLiteral("/.local/share/applications"),
-            home() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
-            QStringLiteral("/var/lib/flatpak/exports/share/applications"),
-            QStringLiteral("/var/lib/snapd/desktop/applications"),
-            QStringLiteral("/usr/local/share/applications"),
-            QStringLiteral("/usr/share/applications")
-        };
-        QSet<QString> seen;
-        for (const auto &root : roots) {
-            QDir directory(root);
-            for (const auto &fileName : directory.entryList({QStringLiteral("*.desktop")}, QDir::Files, QDir::Name)) {
-                if (seen.contains(fileName)) continue;
-                seen.insert(fileName);
-                const auto path = directory.filePath(fileName);
-                QSettings desktop(path, QSettings::IniFormat);
-                desktop.beginGroup(QStringLiteral("Desktop Entry"));
-                auto desktops = [](const QVariant &value) {
-                    auto text = value.toString();
-                    text.replace(QLatin1Char(';'), QLatin1Char(':'));
-                    return text.split(QLatin1Char(':'), Qt::SkipEmptyParts);
-                };
-                const auto currentDesktops = qEnvironmentVariable("XDG_CURRENT_DESKTOP", QStringLiteral("Hyprland"))
-                                                 .split(QLatin1Char(':'), Qt::SkipEmptyParts);
-                const auto onlyShowIn = desktops(desktop.value(QStringLiteral("OnlyShowIn")));
-                const auto notShowIn = desktops(desktop.value(QStringLiteral("NotShowIn")));
-                const bool allowedDesktop = onlyShowIn.isEmpty() || std::any_of(onlyShowIn.cbegin(), onlyShowIn.cend(), [&](const QString &name) {
-                    return currentDesktops.contains(name, Qt::CaseInsensitive);
-                });
-                const bool blockedDesktop = std::any_of(notShowIn.cbegin(), notShowIn.cend(), [&](const QString &name) {
-                    return currentDesktops.contains(name, Qt::CaseInsensitive);
-                });
-                if (desktop.value(QStringLiteral("Type")).toString() != QStringLiteral("Application")
-                    || desktop.value(QStringLiteral("Hidden"), false).toBool()
-                    || desktop.value(QStringLiteral("NoDisplay"), false).toBool()
-                    || !allowedDesktop || blockedDesktop) {
-                    continue;
-                }
-                const auto name = desktop.value(QStringLiteral("Name")).toString().trimmed();
-                const auto command = desktop.value(QStringLiteral("Exec")).toString().trimmed();
-                if (name.isEmpty() || command.isEmpty()) continue;
-                m_applications.push_back(QVariantMap{
-                    {QStringLiteral("name"), name},
-                    {QStringLiteral("generic"), desktop.value(QStringLiteral("GenericName")).toString()},
-                    {QStringLiteral("icon"), desktop.value(QStringLiteral("Icon")).toString()},
-                    {QStringLiteral("path"), path},
-                    {QStringLiteral("search"), (name + QLatin1Char(' ') + desktop.value(QStringLiteral("GenericName")).toString()
-                        + QLatin1Char(' ') + desktop.value(QStringLiteral("Keywords")).toString()).toLower()}
-                });
-            }
-        }
-        std::sort(m_applications.begin(), m_applications.end(), [](const QVariant &left, const QVariant &right) {
-            return left.toMap().value(QStringLiteral("name")).toString().localeAwareCompare(
-                       right.toMap().value(QStringLiteral("name")).toString()) < 0;
-        });
-    }
+    // The persistent bar never indexes desktop files. On-demand surfaces load
+    // the catalogue lazily so IPC surface switching still keeps launcher and
+    // notification attribution complete.
+    if (m_surface == QStringLiteral("launcher")) ensureApplications();
 }
 
 Backend::~Backend()
@@ -371,6 +315,15 @@ bool Backend::microphoneInUse() const
     return false;
 }
 
+bool Backend::screenSharing() const
+{
+    // XDPH gives every live portal capture node this stable prefix. pw-cli's
+    // listing is tiny compared with pw-dump and node removal is immediate when
+    // Meet, Discord or the browser stops sharing.
+    return run({QStringLiteral("pw-cli"), QStringLiteral("ls"), QStringLiteral("Node")}, 900)
+        .contains(QStringLiteral("node.name = \"xdph-streaming-"));
+}
+
 QVariantList Backend::windowItems() const
 {
     QVariantList result;
@@ -414,19 +367,37 @@ QVariantList Backend::privacyItems() const
         const auto binary = properties.value("application.process.binary").toString();
         if (binary.contains(QStringLiteral("cava"), Qt::CaseInsensitive)
             || binary.contains(QStringLiteral("easyeffects"), Qt::CaseInsensitive)) continue;
+        const int pid = properties.value("application.process.id").toInt();
         result.push_back(QVariantMap{{"kind", "microphone"},
             {"app", properties.value("application.name").toString()},
-            {"pid", properties.value("application.process.id").toInt()}, {"active", true}});
+            {"pid", pid}, {"active", true}, {"stoppable", pid > 1}});
     }
     const auto nodes = json({"pw-dump"}, 2200).toList();
+    QSet<QString> seenCapture;
     for (const auto &value : nodes) {
         const auto object = value.toMap();
-        const auto props = object.value("info").toMap().value("props").toMap();
+        const auto info = object.value("info").toMap();
+        if (info.value("state").toString() != QStringLiteral("running")) continue;
+        const auto props = info.value("props").toMap();
         const auto mediaClass = props.value("media.class").toString();
-        if (mediaClass != QStringLiteral("Stream/Input/Video") && mediaClass != QStringLiteral("Stream/Output/Video")) continue;
-        result.push_back(QVariantMap{{"kind", "camera"},
-            {"app", props.value("application.name").toString()},
-            {"pid", props.value("application.process.id").toInt()}, {"active", true}});
+        const auto nodeName = props.value("node.name").toString();
+        const bool sharing = nodeName.startsWith(QStringLiteral("xdph-streaming-"));
+        const bool camera = props.value("media.role").toString() == QStringLiteral("Camera")
+            || mediaClass == QStringLiteral("Stream/Input/Video")
+            || mediaClass == QStringLiteral("Stream/Output/Video");
+        if (!sharing && !camera) continue;
+        const auto kind = sharing ? QStringLiteral("screen") : QStringLiteral("camera");
+        const int pid = props.value("application.process.id").toInt();
+        const auto key = kind + QLatin1Char(':') + QString::number(pid) + QLatin1Char(':') + nodeName;
+        if (seenCapture.contains(key)) continue;
+        seenCapture.insert(key);
+        auto app = props.value("application.name").toString();
+        if (app.isEmpty()) app = props.value("node.description").toString();
+        if (app.isEmpty()) app = sharing ? QStringLiteral("Screen sharing") : QStringLiteral("Camera");
+        result.push_back(QVariantMap{{"kind", kind}, {"app", app}, {"pid", pid}, {"active", true},
+            // Never kill the XDPH or WirePlumber provider. Portal captures must
+            // be ended in the requesting app so permissions close cleanly.
+            {"stoppable", !sharing && mediaClass.startsWith(QStringLiteral("Stream/")) && pid > 1}});
     }
     return result;
 }
@@ -439,6 +410,7 @@ bool Backend::stopPrivacyClient(int pid) const
 
 QVariantList Backend::applications(const QString &query) const
 {
+    ensureApplications();
     const auto needle = query.simplified().toLower();
     if (needle.isEmpty()) {
         return m_applications.mid(0, 80);
@@ -476,6 +448,65 @@ QVariantList Backend::applications(const QString &query) const
         if (result.size() == 80) break;
     }
     return result;
+}
+
+void Backend::ensureApplications() const
+{
+    if (m_applicationsLoaded) return;
+    m_applicationsLoaded = true;
+    const QStringList roots = {
+        home() + QStringLiteral("/.local/share/applications"),
+        home() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
+        QStringLiteral("/var/lib/flatpak/exports/share/applications"),
+        QStringLiteral("/var/lib/snapd/desktop/applications"),
+        QStringLiteral("/usr/local/share/applications"),
+        QStringLiteral("/usr/share/applications")
+    };
+    QSet<QString> seen;
+    for (const auto &root : roots) {
+        QDir directory(root);
+        for (const auto &fileName : directory.entryList({QStringLiteral("*.desktop")}, QDir::Files, QDir::Name)) {
+            if (seen.contains(fileName)) continue;
+            seen.insert(fileName);
+            const auto path = directory.filePath(fileName);
+            QSettings desktop(path, QSettings::IniFormat);
+            desktop.beginGroup(QStringLiteral("Desktop Entry"));
+            auto desktops = [](const QVariant &value) {
+                auto text = value.toString();
+                text.replace(QLatin1Char(';'), QLatin1Char(':'));
+                return text.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+            };
+            const auto currentDesktops = qEnvironmentVariable("XDG_CURRENT_DESKTOP", QStringLiteral("Hyprland"))
+                                             .split(QLatin1Char(':'), Qt::SkipEmptyParts);
+            const auto onlyShowIn = desktops(desktop.value(QStringLiteral("OnlyShowIn")));
+            const auto notShowIn = desktops(desktop.value(QStringLiteral("NotShowIn")));
+            const bool allowedDesktop = onlyShowIn.isEmpty() || std::any_of(onlyShowIn.cbegin(), onlyShowIn.cend(), [&](const QString &name) {
+                return currentDesktops.contains(name, Qt::CaseInsensitive);
+            });
+            const bool blockedDesktop = std::any_of(notShowIn.cbegin(), notShowIn.cend(), [&](const QString &name) {
+                return currentDesktops.contains(name, Qt::CaseInsensitive);
+            });
+            if (desktop.value(QStringLiteral("Type")).toString() != QStringLiteral("Application")
+                || desktop.value(QStringLiteral("Hidden"), false).toBool()
+                || desktop.value(QStringLiteral("NoDisplay"), false).toBool()
+                || !allowedDesktop || blockedDesktop) continue;
+            const auto name = desktop.value(QStringLiteral("Name")).toString().trimmed();
+            const auto command = desktop.value(QStringLiteral("Exec")).toString().trimmed();
+            if (name.isEmpty() || command.isEmpty()) continue;
+            m_applications.push_back(QVariantMap{
+                {QStringLiteral("name"), name},
+                {QStringLiteral("generic"), desktop.value(QStringLiteral("GenericName")).toString()},
+                {QStringLiteral("icon"), desktop.value(QStringLiteral("Icon")).toString()},
+                {QStringLiteral("path"), path},
+                {QStringLiteral("search"), (name + QLatin1Char(' ') + desktop.value(QStringLiteral("GenericName")).toString()
+                    + QLatin1Char(' ') + desktop.value(QStringLiteral("Keywords")).toString()).toLower()}
+            });
+        }
+    }
+    std::sort(m_applications.begin(), m_applications.end(), [](const QVariant &left, const QVariant &right) {
+        return left.toMap().value(QStringLiteral("name")).toString().localeAwareCompare(
+                   right.toMap().value(QStringLiteral("name")).toString()) < 0;
+    });
 }
 
 QVariantList Backend::launcherResults(const QString &query, const QString &requestedMode) const
@@ -833,6 +864,7 @@ bool Backend::activateTrayMenuItem(const QString &reference, int id) const
 
 QVariantList Backend::notifications(const QString &collection) const
 {
+    ensureApplications();
     const auto command = collection == QStringLiteral("history") ? QStringLiteral("history") : QStringLiteral("list");
     const auto lines = run({QStringLiteral("makoctl"), command}, 1600).split(QLatin1Char('\n'));
     const QRegularExpression heading(QStringLiteral("^Notification\\s+(\\d+):\\s*(.*)$"));
@@ -931,6 +963,19 @@ QVariantList Backend::notifications(const QString &collection) const
         value = notification;
     }
     return result;
+}
+
+int Backend::notificationCount() const
+{
+    const auto output = run({QStringLiteral("makoctl"), QStringLiteral("list")}, 1200);
+    const QRegularExpression heading(QStringLiteral("(?:^|\\n)Notification\\s+\\d+:"));
+    int count = 0;
+    auto match = heading.globalMatch(output);
+    while (match.hasNext()) {
+        match.next();
+        ++count;
+    }
+    return count;
 }
 
 QVariantList Backend::clipboardItems(const QString &query) const

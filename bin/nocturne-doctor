@@ -56,6 +56,12 @@ if command -v hyprland-share-picker >/dev/null 2>&1 \
 else
   warning 'Meeting share chooser rule or upstream picker is missing'
 fi
+capture_state=$($HOME/.local/bin/nocturne-native --capture-test 2>/dev/null || true)
+if jq -e '(.screenSharing | type == "boolean") and (.items | type == "array")' <<<"$capture_state" >/dev/null 2>&1; then
+  ok 'Capture privacy state is readable without false idle-device alerts'
+else
+  warning 'Capture privacy state could not be inspected'
+fi
 if ! systemctl --user is-active --quiet xdg-desktop-portal-gtk.service \
     && ! systemctl --user is-active --quiet xdg-desktop-portal-gnome.service; then
   ok 'Legacy GTK/GNOME portal backends are inactive'

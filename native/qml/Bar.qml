@@ -19,6 +19,7 @@ Item {
     property bool volumeMuted: false
     property bool micMuted: false
     property bool micInUse: false
+    property bool screenSharing: false
     property int brightness: 0
     property int notificationCount: 0
     property bool dnd: false
@@ -62,9 +63,10 @@ Item {
         kdeconnect = scriptJson("kdeconnect-status")
     }
     function refreshNotifications() {
-        notificationCount = backend.notifications("list").length
+        notificationCount = backend.notificationCount()
         dnd = backend.run(["makoctl", "mode"], 1000).split("\n").indexOf("do-not-disturb") >= 0
     }
+    function refreshCapture() { screenSharing = backend.screenSharing() }
     function refreshCaffeine() { caffeine = scriptJson("caffeine", ["status"]) }
     function refreshSystem() { systemState = scriptJson("system-status") }
     function refreshPower() { battery = scriptJson("power-battery-status") }
@@ -96,6 +98,7 @@ Item {
     Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
     Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshAudio() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshNotifications() }
+    Timer { interval: 6000; running: true; repeat: true; onTriggered: root.refreshCapture() }
     Timer { interval: 120000; running: true; repeat: true; onTriggered: root.refreshMinimized() }
     Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshTray() }
     Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshCaffeine() }
@@ -120,6 +123,7 @@ Item {
         refreshCaffeine()
         refreshConnectivity()
         refreshNotifications()
+        refreshCapture()
         refreshSystem()
         refreshPower()
         refreshTray()

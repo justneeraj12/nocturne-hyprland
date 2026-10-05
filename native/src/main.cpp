@@ -74,6 +74,15 @@ int main(int argc, char *argv[])
         std::cout << QJsonDocument::fromVariant(menu).toJson(QJsonDocument::Compact).constData() << '\n';
         return menu.isEmpty() ? 1 : 0;
     }
+    if (surface == QStringLiteral("--capture-test")) {
+        Backend diagnostic(surface, page);
+        const QVariantMap state{
+            {QStringLiteral("screenSharing"), diagnostic.screenSharing()},
+            {QStringLiteral("items"), diagnostic.privacyItems()}
+        };
+        std::cout << QJsonDocument::fromVariant(state).toJson(QJsonDocument::Compact).constData() << '\n';
+        return 0;
+    }
     const QString socketName = QStringLiteral("nocturne-native-%1-%2")
                                    .arg(settings ? QStringLiteral("settings")
                                                  : (bar ? QStringLiteral("bar") : QStringLiteral("shell")))
