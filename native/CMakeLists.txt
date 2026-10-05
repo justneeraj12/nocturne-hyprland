@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(nocturne-native VERSION 0.3.3 LANGUAGES CXX)
+project(nocturne-native VERSION 0.4.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,11 @@ qt_add_qml_module(nocturne-native
         qml/components/PanelHeader.qml
         qml/components/SectionLabel.qml
         qml/components/BarButton.qml
+        qml/components/SettingsPageHeader.qml
+        qml/components/SettingsCard.qml
+        qml/components/SettingsAction.qml
+        qml/components/SettingsNavItem.qml
+        qml/components/NocturneComboBox.qml
         qml/pages/AudioPage.qml
         qml/pages/BrightnessPage.qml
         qml/pages/CalendarPage.qml
@@ -39,6 +44,10 @@ qt_add_qml_module(nocturne-native
         qml/pages/GamingPage.qml
         qml/pages/SystemSettingsPage.qml
         qml/pages/IntegrationsPage.qml
+        qml/pages/SettingsActionsPage.qml
+        qml/pages/OverviewSettingsPage.qml
+        qml/pages/AppearanceSettingsPage.qml
+        qml/pages/SetupSettingsPage.qml
         qml/pages/OsdPage.qml
         qml/pages/BackgroundPage.qml
         qml/pages/NotificationsPage.qml

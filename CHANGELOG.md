@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 - 2026-10-05
+
+- Rebuilt Nocturne Settings as a responsive control center with a collapsible,
+  self-revealing sidebar, global search and keyboard-first section navigation.
+- Added a real overview, wallpaper library and preview, day-cycle state, visible
+  accent swatches, guarded theme previews and a wallpaper-derived theme studio.
+- Added live touchpad, pointer, keyboard, default-application, file-location,
+  timezone and network-time controls backed by the active system configuration.
+- Added honest hardware, account and service health pages plus direct maintenance,
+  privacy, gaming, display, audio and connectivity entry points.
+- Added hardware-aware usage profiles, portable settings export and guarded
+  last-known-good rollback without including credentials or personal files.
+- Unified the settings visual language around compact Nocturne cards and terminal
+  glyphs, and fixed default file-manager discovery when the desktop cache is stale.
+
 ## 0.3.3 - 2026-10-05
 
 - Replaced the dated primary file-manager surface with a compact Dolphin-based

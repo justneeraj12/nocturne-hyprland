@@ -7,50 +7,134 @@ import "pages"
 ApplicationWindow {
     id: root
     visible: true
-    width: 860
-    height: 600
-    minimumWidth: 720
-    minimumHeight: 500
-    title: "System Settings // Nocturne"
+    width: 1040
+    height: 720
+    minimumWidth: 780
+    minimumHeight: 560
+    title: "Settings // Nocturne"
     color: backend.baseColor
-    readonly property var sectionKeys: ["appearance", "connectivity", "sound", "input", "system", "workflow", "scenes", "privacy", "power", "setup", "about"]
-    property int section: Math.max(0, sectionKeys.indexOf(backend.page || "appearance"))
 
-    function openSurface(surface, page) {
-        var args = [backend.home + "/.local/bin/nocturne-native", surface]
-        if (page) args.push(page)
-        backend.start(args)
+    property bool navExpanded: width >= 920
+    property int section: 0
+    property var filteredNavigation: []
+    readonly property var navigation: [
+        {key:"overview", label:"Overview", group:"HOME", icon:"go-home", glyph:"⌂", keywords:"status health dashboard machine"},
+        {key:"appearance", label:"Appearance", group:"HOME", icon:"preferences-desktop-theme", glyph:"◈", keywords:"wallpaper theme color accent day cycle"},
+        {key:"connectivity", label:"Connectivity", group:"DEVICES", icon:"network-wireless", glyph:"⌁", keywords:"wifi bluetooth vpn network internet"},
+        {key:"sound", label:"Sound & displays", group:"DEVICES", icon:"audio-volume-high", glyph:"♪", keywords:"audio volume mixer brightness monitor night shift"},
+        {key:"input", label:"Input & defaults", group:"DEVICES", icon:"input-keyboard", glyph:"⌨", keywords:"keyboard mouse touchpad default apps time timezone"},
+        {key:"system", label:"System & accounts", group:"SYSTEM", icon:"computer", glyph:"▣", keywords:"google account hardware integration portal phone"},
+        {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"pomodoro screenshot recorder shortcuts"},
+        {key:"automation", label:"Scenes & automation", group:"SYSTEM", icon:"view-calendar-timeline", glyph:"◎", keywords:"workspace scenes context dock automation"},
+        {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
+        {key:"power", label:"Power & session", group:"SYSTEM", icon:"battery", glyph:"⚡", keywords:"performance balanced saver maintenance lock"},
+        {key:"setup", label:"Setup & recovery", group:"RECOVERY", icon:"document-save", glyph:"↶", keywords:"backup restore checkpoint profile portable"},
+        {key:"about", label:"About", group:"RECOVERY", icon:"help-about", glyph:"?", keywords:"version github source doctor diagnostics"}
+    ]
+
+    function indexForKey(key) {
+        for (var i = 0; i < navigation.length; ++i) if (navigation[i].key === key) return i
+        return 0
     }
-    Connections {
-        target: backend
-        function onPageChanged() {
-            var next = root.sectionKeys.indexOf(backend.page)
-            if (next >= 0) root.section = next
+    function selectSection(key) { section = indexForKey(key); search.clear() }
+    function revealSelectedSection() {
+        if (!navRepeater || !navFlick) return
+        var item = navRepeater.itemAt(section)
+        if (!item) return
+        var top = item.y
+        var bottom = top + item.height
+        if (top < navFlick.contentY) navFlick.contentY = Math.max(0, top - 4)
+        else if (bottom > navFlick.contentY + navFlick.height)
+            navFlick.contentY = Math.min(navFlick.contentHeight - navFlick.height, bottom - navFlick.height + 4)
+    }
+    function refreshSearch() {
+        var query = search.text.trim().toLowerCase()
+        if (!query) { filteredNavigation = []; return }
+        var matches = []
+        for (var i = 0; i < navigation.length; ++i) {
+            var item = navigation[i]
+            if ((item.label + " " + item.group + " " + item.keywords).toLowerCase().indexOf(query) >= 0) matches.push(item)
         }
+        filteredNavigation = matches
     }
+    function applyBackendPage() {
+        var requested = backend.page || ""
+        if (requested) section = indexForKey(requested)
+    }
+    Connections { target: backend; function onPageChanged() { root.applyBackendPage() } }
+    Timer { id: navRevealTimer; interval: 100; onTriggered: root.revealSelectedSection() }
+    Component.onCompleted: { applyBackendPage(); navRevealTimer.restart() }
+    onSectionChanged: navRevealTimer.restart()
+
+    Shortcut { sequence: "Ctrl+K"; onActivated: search.forceActiveFocus() }
+    Shortcut { sequence: "Ctrl+F"; onActivated: search.forceActiveFocus() }
+    Shortcut { sequence: "Alt+Down"; onActivated: root.section = (root.section + 1) % root.navigation.length }
+    Shortcut { sequence: "Alt+Up"; onActivated: root.section = (root.section + root.navigation.length - 1) % root.navigation.length }
+    Shortcut { sequence: "Ctrl+0"; onActivated: root.selectSection("overview") }
+    Shortcut { sequence: "Escape"; onActivated: { if (search.text !== "") search.clear(); else root.close() } }
 
     header: Rectangle {
-        implicitHeight: 46
+        implicitHeight: 56
         color: backend.surfaceColor
         border.color: backend.lineColor
         RowLayout {
             anchors.fill: parent
-            anchors.leftMargin: 15
-            anchors.rightMargin: 15
-            Text {
-                Layout.fillWidth: true
-                text: "NOCTURNE // SYSTEM CONTROL"
-                color: backend.textColor
-                font.family: "monospace"
-                font.pixelSize: 13
-                font.bold: true
-                font.letterSpacing: 1
+            spacing: 0
+            Item {
+                Layout.preferredWidth: root.navExpanded ? 214 : 60
+                Layout.fillHeight: true
+                Behavior on Layout.preferredWidth { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 13
+                    anchors.rightMargin: 10
+                    spacing: 9
+                    Rectangle {
+                        implicitWidth: 29; implicitHeight: 29
+                        color: backend.baseColor; border.color: backend.accent2Color
+                        Text { anchors.centerIn: parent; text: "N"; color: backend.accentColor; font.family: "monospace"; font.pixelSize: 14; font.bold: true }
+                    }
+                    ColumnLayout {
+                        visible: root.navExpanded
+                        Layout.fillWidth: true; spacing: 0
+                        Text { text: "NOCTURNE"; color: backend.textColor; font.family: "Inter"; font.pixelSize: 11; font.bold: true; font.letterSpacing: 1.1 }
+                        Text { text: "SYSTEM SETTINGS"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 7; font.letterSpacing: 0.8 }
+                    }
+                }
             }
-            Text {
-                text: "HYPRLAND · WAYLAND NATIVE"
-                color: backend.mutedColor
-                font.family: "Inter"
-                font.pixelSize: 9
+            Rectangle { Layout.preferredWidth: 1; Layout.fillHeight: true; color: backend.lineColor }
+            RowLayout {
+                Layout.fillWidth: true; Layout.fillHeight: true
+                Layout.leftMargin: 17; Layout.rightMargin: 14; spacing: 12
+                ColumnLayout {
+                    Layout.fillWidth: true; spacing: 0
+                    Text { text: "SETTINGS"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; font.bold: true; font.letterSpacing: 1.2 }
+                    Text { text: root.navigation[root.section].label; color: backend.textColor; font.family: "Inter"; font.pixelSize: 11; font.bold: true }
+                }
+                TextField {
+                    id: search
+                    Layout.preferredWidth: Math.min(300, Math.max(200, root.width * 0.28))
+                    implicitHeight: 34
+                    placeholderText: "Search settings   Ctrl+K"
+                    color: backend.textColor; placeholderTextColor: backend.mutedColor
+                    font.family: "Inter"; font.pixelSize: 10
+                    leftPadding: 34; rightPadding: 10
+                    onTextChanged: root.refreshSearch()
+                    background: Rectangle {
+                        color: backend.baseColor
+                        border.color: search.activeFocus ? backend.accentColor : backend.lineColor
+                        Text { anchors.left: parent.left; anchors.leftMargin: 11; anchors.verticalCenter: parent.verticalCenter; text: "⌕"; color: backend.mutedColor; font.family: "MesloLGS Nerd Font Mono"; font.pixelSize: 14 }
+                    }
+                }
+                Rectangle {
+                    implicitWidth: liveLabel.implicitWidth + 18; implicitHeight: 27
+                    color: backend.baseColor; border.color: backend.lineColor
+                    Row {
+                        anchors.centerIn: parent; spacing: 6
+                        Rectangle { width: 5; height: 5; radius: 3; color: backend.accentColor; anchors.verticalCenter: parent.verticalCenter }
+                        Text { id: liveLabel; text: "WAYLAND"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 8; font.bold: true }
+                    }
+                }
             }
         }
     }
@@ -58,399 +142,174 @@ ApplicationWindow {
     RowLayout {
         anchors.fill: parent
         spacing: 0
-
         Rectangle {
+            Layout.preferredWidth: root.navExpanded ? 214 : 60
             Layout.fillHeight: true
-            Layout.preferredWidth: 196
-            color: "#090d0e"
-            border.color: backend.lineColor
+            color: "#080b0c"; border.color: backend.lineColor; clip: true
+            Behavior on Layout.preferredWidth { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 10
-                spacing: 5
-                SectionLabel { text: "CONTROL GROUPS" }
-                Repeater {
-                    model: ["APPEARANCE", "CONNECTIVITY", "SOUND + DISPLAY", "INPUT + DEFAULTS", "SYSTEM + ACCOUNTS", "WORKFLOW", "SCENES + AUTOMATION", "PRIVACY + GAMING", "POWER + SESSION", "SETUP + RECOVERY", "ABOUT"]
-                    NocturneButton {
-                        required property int index
-                        required property string modelData
-                        Layout.fillWidth: true
-                        text: modelData
-                        selected: root.section === index
-                        onClicked: root.section = index
-                    }
-                }
-                Item { Layout.fillHeight: true }
-                SectionLabel { text: "NOCTURNE CORE" }
-                Text {
-                    Layout.fillWidth: true
-                    text: "Qt Quick · layer-shell\nNetworkManager · PipeWire\nBlueZ · power-profiles-daemon"
-                    color: backend.mutedColor
-                    font.family: "monospace"
-                    font.pixelSize: 9
-                    lineHeight: 1.35
-                }
-            }
-        }
-
-        StackLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            currentIndex: root.section
-
-            AppearancePage {}
-            SettingsPage {
-                title: "CONNECTIVITY"
-                description: "NetworkManager and BlueZ remain the system backends; Nocturne supplies the shell interface."
-                actions: [
-                    {label:"WI-FI", detail:"Networks, signal and the active connection.", button:"MANAGE", surface:"connectivity", page:"wifi"},
-                    {label:"BLUETOOTH", detail:"Radio, discovered devices and active connections.", button:"MANAGE", surface:"connectivity", page:"bluetooth"},
-                    {label:"VPN", detail:"Start and stop NetworkManager VPN profiles.", button:"MANAGE", surface:"connectivity", page:"vpn"}
-                ]
-            }
-            SettingsPage {
-                title: "SOUND + DISPLAY"
-                description: "Live PipeWire streams and the hardware backlight are sampled only while their card is open."
-                actions: [
-                    {label:"OUTPUT + APP MIXER", detail:"Master volume, output routing and every currently playing app.", button:"OPEN", surface:"audio"},
-                    {label:"BRIGHTNESS + NIGHT SHIFT", detail:"Hardware-synced brightness plus scheduled native color temperature.", button:"OPEN", surface:"brightness"},
-                    {label:"DISPLAY LAYOUT", detail:"Scale, rotate, mirror, extend and persist every connected monitor.", button:"OPEN", surface:"display"}
-                ]
-            }
-            SystemSettingsPage { active: root.section === 3 }
-            IntegrationsPage { active: root.section === 4 }
-            SettingsPage {
-                title: "WORKFLOW"
-                description: "The command center searches applications, running windows and safe desktop actions from one keyboard-first surface."
-                actions: [
-                    {label:"FOCUS TIMER", detail:"Pomodoro presets, pause, skip and cycle progress.", button:"OPEN", surface:"pomodoro"},
-                    {label:"SCREENSHOT", detail:"Select an area with the stable upstream Hyprshot utility.", button:"CAPTURE", command:"screenshot"},
-                    {label:"SCREEN RECORDER", detail:"Open Kooha for area or display recording with desktop and microphone audio.", button:"OPEN", command:"recorder"},
-                    {label:"KEY GUIDE", detail:"Open the complete shortcut reference in a terminal.", button:"SHOW", command:"keys"}
-                ]
-            }
-            SettingsPage {
-                title: "SCENES + AUTOMATION"
-                description: "Save complete working contexts, restore them on demand, or apply only safe settings when your dock or power state changes."
-                actions: [
-                    {label:"WORKSPACE OVERVIEW", detail:"See all nine workspaces, focus windows, close them or drag them between workspaces.", button:"OPEN", surface:"overview"},
-                    {label:"SESSION + AUDIO SCENES", detail:"Save applications, layouts, monitors, wallpaper, power and audio routing.", button:"MANAGE", surface:"scenes"},
-                    {label:"CONTEXT ENGINE", detail:"Assign scenes to docked, mobile, AC and battery states without automatic app launches.", button:"CONFIGURE", surface:"scenes"}
-                ]
-            }
-            SettingsPage {
-                title: "PRIVACY + GAMING"
-                description: "Live inspection is intentionally sampled only while its dashboard is open; background automation remains event-driven."
-                actions: [
-                    {label:"PRIVACY DASHBOARD", detail:"Identify applications using your microphone or camera and stop a suspicious client.", button:"INSPECT", surface:"privacy"},
-                    {label:"GAMING DASHBOARD", detail:"GPU telemetry, reversible automatic game mode and optional MangoHud.", button:"OPEN", surface:"gaming"},
-                    {label:"NOTIFICATION CONTROL", detail:"Focus modes, grouped history and per-application timed muting.", button:"OPEN", surface:"notifications"}
-                ]
-            }
-            SettingsPage {
-                title: "POWER + SESSION"
-                description: "Profiles are backed by power-profiles-daemon; gaming sessions can apply performance, focus and caffeine automatically with rollback."
-                actions: [
-                    {label:"POWER + GAMING", detail:"Profiles plus automatic Steam game detection and exact state rollback.", button:"OPEN", surface:"power"},
-                    {label:"SYSTEM MAINTENANCE", detail:"System packages, Flatpaks, firmware and failed-service health.", button:"OPEN", surface:"maintenance"},
-                    {label:"LOCK", detail:"Lock now using the themed Hyprlock session.", button:"LOCK", command:"lock"}
-                ]
-            }
-            SetupPage {}
-            SettingsPage {
-                title: "ABOUT"
-                description: "Nocturne is an open Hyprland desktop layer built from standard, replaceable Linux services."
-                actions: [
-                    {label:"SYSTEM CHECK", detail:"Run the read-only Nocturne diagnostics in a terminal.", button:"RUN", command:"doctor"},
-                    {label:"SOURCE", detail:"Configuration, native shell code, installer and validation live in one repository.", button:"GITHUB", command:"source"}
-                ]
-            }
-        }
-    }
-
-    component SetupPage: Rectangle {
-        id: setup
-        color: backend.baseColor
-        property var hardware: ({current:"unconfigured", recommended:"desktop", battery:false, bluetooth:false, displays:0})
-        property var backup: ({latest:"", exists:false})
-        property var recovery: ({exists:false,size:0,modified:"",failures:0})
-        property bool confirmRestore: false
-        readonly property string profileHelper: backend.home + "/.config/hypr/scripts/setup-profile"
-        readonly property string portable: backend.home + "/.local/bin/nocturne-portable"
-
-        function refresh() {
-            hardware = backend.json([profileHelper, "status"], 2500) || hardware
-            backup = backend.json([portable, "status"], 2500) || backup
-            recovery = backend.json([backend.home + "/.local/bin/nocturne-recovery", "status"], 2500) || recovery
-        }
-        function applyProfile(name) {
-            backend.start([profileHelper, "apply", name])
-            refreshDelay.restart()
-        }
-
-        ColumnLayout {
-            anchors.fill: parent; anchors.margins: 22; spacing: 10
-            Text { text: "SETUP + RECOVERY"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true }
-            Text {
-                Layout.fillWidth: true
-                text: "Hardware-aware profiles and portable preferences. Profiles change only optional background services; the shell workflow stays intact."
-                wrapMode: Text.WordWrap; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 11
-            }
-            SectionLabel { text: "DETECTED HARDWARE" }
-            Rectangle {
-                Layout.fillWidth: true; implicitHeight: 60; color: backend.surfaceColor; border.color: backend.lineColor
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 9
+                anchors.topMargin: 9; anchors.bottomMargin: 9
+                spacing: 0
+                Flickable {
+                    id: navFlick
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    contentHeight: navColumn.implicitHeight
+                    clip: true; boundsBehavior: Flickable.StopAtBounds
                     ColumnLayout {
-                        Layout.fillWidth: true; spacing: 2
-                        Text { text: setup.hardware.displays + " DISPLAY" + (setup.hardware.displays === 1 ? "" : "S") + "  ·  " + (setup.hardware.battery ? "BATTERY" : "DESKTOP") + "  ·  " + (setup.hardware.bluetooth ? "BLUETOOTH" : "NO BLUETOOTH"); color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 10 }
-                        Text { text: "Current: " + setup.hardware.current.toUpperCase() + "  ·  Recommended: " + setup.hardware.recommended.toUpperCase(); color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
-                    }
-                    NocturneButton { text: "RECHECK"; onClicked: setup.refresh() }
-                }
-            }
-            SectionLabel { text: "USAGE PROFILE" }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 5
-                Repeater {
-                    model: [
-                        {key:"minimal", label:"MINIMAL", detail:"Core shell only"},
-                        {key:"desktop", label:"DESKTOP", detail:"Visuals + EQ"},
-                        {key:"laptop", label:"LAPTOP", detail:"All hardware helpers"}
-                    ]
-                    NocturneButton {
-                        required property var modelData
-                        Layout.fillWidth: true; text: modelData.label
-                        selected: setup.hardware.current === modelData.key
-                        onClicked: setup.applyProfile(modelData.key)
-                        ToolTip.visible: hovered; ToolTip.text: modelData.detail
-                    }
-                }
-            }
-            SectionLabel { text: "PORTABLE CONFIGURATION" }
-            Rectangle {
-                Layout.fillWidth: true; implicitHeight: 66; color: backend.surfaceColor; border.color: backend.lineColor
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 9
-                    ColumnLayout {
-                        Layout.fillWidth: true; spacing: 2
-                        Text { text: setup.backup.exists ? "LATEST BACKUP READY" : "NO PORTABLE BACKUP YET"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 10 }
-                        Text { Layout.fillWidth: true; text: setup.backup.exists ? setup.backup.latest : "Saved under ~/Documents/Nocturne-Backups"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; elide: Text.ElideMiddle }
-                    }
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 5
-                NocturneButton {
-                    Layout.fillWidth: true; text: "EXPORT CONFIG"; selected: true
-                    onClicked: { backend.run([setup.portable, "export"], 15000); setup.refresh() }
-                }
-                NocturneButton {
-                    Layout.fillWidth: true
-                    text: setup.confirmRestore ? "CONFIRM RESTORE" : "RESTORE LATEST"
-                    danger: setup.confirmRestore; enabled: setup.backup.exists
-                    onClicked: {
-                        if (!setup.confirmRestore) setup.confirmRestore = true
-                        else { backend.run([setup.portable, "restore-latest"], 15000); setup.confirmRestore = false; setup.refresh() }
-                    }
-                }
-                NocturneButton { text: "OPEN FOLDER"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home + "/Documents/Nocturne-Backups"]) }
-            }
-            Text {
-                Layout.fillWidth: true
-                text: "Bundles contain Nocturne preferences and monitor layout—not passwords, Wi-Fi credentials, browser data or wallpapers."
-                color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; wrapMode: Text.WordWrap
-            }
-            SectionLabel { text: "LAST-KNOWN-GOOD RECOVERY" }
-            RowLayout {
-                Layout.fillWidth: true; spacing: 5
-                Text {
-                    Layout.fillWidth: true
-                    text: setup.recovery.exists ? "CHECKPOINT READY · " + Math.round(setup.recovery.size / 1024 / 1024) + " MiB" : "NO RECOVERY CHECKPOINT"
-                    color: setup.recovery.exists ? backend.accentColor : backend.mutedColor; font.family: "monospace"; font.pixelSize: 9
-                }
-                NocturneButton { text: "CHECKPOINT"; onClicked: { backend.run([backend.home + "/.local/bin/nocturne-recovery", "checkpoint"], 20000); setup.refresh() } }
-                NocturneButton { text: "RESTORE"; danger: true; enabled: setup.recovery.exists; onClicked: { backend.run([backend.home + "/.local/bin/nocturne-recovery", "restore"], 20000); setup.refresh() } }
-            }
-            Item { Layout.fillHeight: true }
-        }
-        Timer { id: refreshDelay; interval: 900; onTriggered: setup.refresh() }
-        Component.onCompleted: refresh()
-    }
-
-    component AppearancePage: Rectangle {
-        id: appearance
-        color: backend.baseColor
-        property var images: backend.wallpapers()
-        property var studio: ({preview:false,themes:[]})
-        property string current: {
-            var state = backend.json([backend.home + "/.local/bin/nocturne-wallpaper-cycle", "status"])
-            return state ? (state.current || "") : ""
-        }
-        function applyWallpaper(path) {
-            backend.run([backend.home + "/.local/bin/nocturne-wallpaper-cycle", "disable"], 10000)
-            backend.start([backend.home + "/.local/bin/nocturne-wallpaper-cycle", "apply-file", path])
-            current = path
-        }
-        function applyDesign(name) {
-            backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "preview", name, "-"], 12000)
-            backend.refreshTheme(); refreshStudio()
-        }
-        function applyAccent(name) {
-            backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "preview", "-", name], 12000)
-            backend.refreshTheme(); refreshStudio()
-        }
-        function refreshStudio() { studio = backend.json([backend.home + "/.config/hypr/scripts/theme-studio", "status"], 1800) || studio }
-        ScrollView {
-            anchors.fill: parent
-            contentWidth: availableWidth
-            ColumnLayout {
-                x: 22
-                width: parent.width - 44
-                spacing: 10
-                Text { text: "APPEARANCE"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true }
-                Text { Layout.fillWidth: true; text: "Native shell palette, layout density and compositor wallpapers."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 11; wrapMode: Text.WordWrap }
-                SectionLabel { text: "WALLPAPER LIBRARY · ~/PICTURES/WALLPAPERS" }
-                GridView {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 178
-                    clip: true
-                    cellWidth: 150
-                    cellHeight: 84
-                    model: appearance.images
-                    delegate: Item {
-                        required property var modelData
-                        width: 146; height: 80
-                        Image {
-                            anchors.fill: parent
-                            anchors.margins: 2
-                            source: "file://" + modelData.path
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            color: "transparent"
-                            border.width: appearance.current === modelData.path ? 2 : 1
-                            border.color: appearance.current === modelData.path ? backend.accentColor : backend.lineColor
-                        }
-                        MouseArea { anchors.fill: parent; onClicked: appearance.applyWallpaper(modelData.path) }
-                    }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    NocturneButton {
-                        Layout.fillWidth: true; text: "FOLLOW DYNAMIC DAY CYCLE"
-                        onClicked: backend.start([backend.home + "/.local/bin/nocturne-wallpaper-cycle", "enable"])
-                    }
-                    NocturneButton {
-                        text: "OPEN FOLDER"
-                        onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home + "/Pictures/Wallpapers"])
-                    }
-                }
-                SectionLabel { text: "DESIGN PRESET" }
-                Flow {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: childrenRect.height
-                    spacing: 5
-                    Repeater {
-                        model: ["Obsidian Grid", "Carbon Compact", "Midnight Circuit", "Phosphor Terminal", "Crimson Relay", "Copper Blue", "Copper Deep Green", "Copper Deep Gold"]
-                        NocturneButton { required property string modelData; text: modelData.toUpperCase(); onClicked: appearance.applyDesign(modelData) }
-                    }
-                }
-                Rectangle {
-                    Layout.fillWidth: true; implicitHeight: 45; visible: appearance.studio.preview
-                    color: backend.overlayColor; border.color: backend.accentColor
-                    RowLayout { anchors.fill: parent; anchors.margins: 7
-                        Text { Layout.fillWidth: true; text: "30-SECOND THEME PREVIEW"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 9 }
-                        NocturneButton { text: "KEEP"; selected: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "keep"]); appearance.refreshStudio() } }
-                        NocturneButton { text: "REVERT"; danger: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "rollback"]); backend.refreshTheme(); appearance.refreshStudio() } }
-                    }
-                }
-                SectionLabel { text: "THEME STUDIO" }
-                RowLayout {
-                    Layout.fillWidth: true
-                    TextField { id: customThemeName; Layout.fillWidth: true; placeholderText: "Custom theme name"; color: backend.textColor; font.family: "monospace"; background: Rectangle { color: backend.surfaceColor; border.color: customThemeName.activeFocus ? backend.accentColor : backend.lineColor } }
-                    NocturneButton { text: "DERIVE FROM WALLPAPER"; enabled: appearance.current.length > 0; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "derive", appearance.current], 12000); backend.refreshTheme(); appearance.refreshStudio() } }
-                    NocturneButton { text: "SAVE"; selected: true; enabled: customThemeName.text.trim().length > 0; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "save", customThemeName.text]); customThemeName.clear(); appearance.refreshStudio() } }
-                }
-                Flow {
-                    Layout.fillWidth: true; Layout.preferredHeight: childrenRect.height; spacing: 5
-                    Repeater { model: appearance.studio.themes || []; NocturneButton { required property var modelData; text: modelData.name.toUpperCase(); onClicked: { backend.run([backend.home + "/.config/hypr/scripts/theme-studio", "apply", modelData.name], 12000); backend.refreshTheme(); appearance.refreshStudio() } } }
-                }
-                SectionLabel { text: "ACCENT" }
-                Flow {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: childrenRect.height
-                    spacing: 5
-                    Repeater {
-                        model: ["Green", "Teal", "Cyan", "Ice", "Slate", "Blue", "Indigo", "Purple", "Magenta", "Pink", "Red", "Rose", "Orange", "Amber", "Yellow", "Lime"]
-                        NocturneButton { required property string modelData; text: modelData.toUpperCase(); onClicked: appearance.applyAccent(modelData) }
-                    }
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    NocturneButton { Layout.fillWidth: true; text: "WORLD CLOCKS"; onClicked: root.openSurface("world", "") }
-                    NocturneButton { Layout.fillWidth: true; text: "CALENDAR"; onClicked: root.openSurface("calendar", "") }
-                }
-            }
-        }
-        Component.onCompleted: refreshStudio()
-    }
-
-    component SettingsPage: Rectangle {
-        required property string title
-        required property string description
-        required property var actions
-        color: backend.baseColor
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 22
-            spacing: 10
-            Text { text: parent.parent.title; color: backend.textColor; font.family: "monospace"; font.pixelSize: 25; font.bold: true }
-            Text {
-                Layout.fillWidth: true
-                text: parent.parent.description
-                wrapMode: Text.WordWrap
-                color: backend.mutedColor
-                font.family: "Inter"
-                font.pixelSize: 11
-            }
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: backend.lineColor }
-            Repeater {
-                model: parent.parent.actions
-                delegate: Rectangle {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    implicitHeight: 68
-                    color: backend.surfaceColor
-                    border.color: backend.lineColor
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: modelData.label; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 12 }
-                            Text { Layout.fillWidth: true; text: modelData.detail; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 10; wrapMode: Text.WordWrap }
-                        }
-                        NocturneButton {
-                            text: modelData.button
-                            selected: true
-                            onClicked: {
-                                if (modelData.surface) root.openSurface(modelData.surface, modelData.page || "")
-                                else if (modelData.command === "screenshot") backend.start([backend.home + "/.local/bin/hyprshot", "-m", "region", "-o", backend.home + "/Pictures/Screenshots"])
-                                else if (modelData.command === "recorder") backend.start(["flatpak", "run", "io.github.seadve.Kooha"])
-                                else if (modelData.command === "keys") backend.start([backend.home + "/.config/hypr/scripts/help"])
-                                else if (modelData.command === "lock") backend.start([backend.home + "/.config/hypr/scripts/lock-screen"])
-                                else if (modelData.command === "doctor") backend.start(["kitty", "--class", "nocturne-doctor", "-e", backend.home + "/.local/bin/nocturne-doctor"])
-                                else if (modelData.command === "source") backend.start(["xdg-open", "https://github.com/justneeraj12/nocturne-hyprland"])
+                        id: navColumn
+                        x: 8; width: parent.width - 16; spacing: 3
+                        Repeater {
+                            id: navRepeater
+                            model: root.navigation
+                            Item {
+                                required property int index
+                                required property var modelData
+                                Layout.fillWidth: true
+                                implicitHeight: navItem.implicitHeight + (index === 0 || root.navigation[index - 1].group !== modelData.group ? (root.navExpanded ? 26 : 11) : 0)
+                                Text {
+                                    visible: root.navExpanded && (index === 0 || root.navigation[index - 1].group !== modelData.group)
+                                    anchors.left: parent.left; anchors.leftMargin: 8; anchors.top: parent.top
+                                    text: modelData.group; color: backend.mutedColor
+                                    font.family: "Inter"; font.pixelSize: 7; font.bold: true; font.letterSpacing: 1.2
+                                }
+                                Rectangle {
+                                    visible: !root.navExpanded && index > 0 && root.navigation[index - 1].group !== modelData.group
+                                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                                    height: 1; color: backend.lineColor
+                                }
+                                SettingsNavItem {
+                                    id: navItem
+                                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                                    iconName: modelData.icon; glyph: modelData.glyph; label: modelData.label; expanded: root.navExpanded
+                                    selected: root.section === index && search.text === ""
+                                    onClicked: { root.section = index; search.clear() }
+                                }
                             }
                         }
                     }
                 }
+                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: backend.lineColor }
+                Button {
+                    Layout.fillWidth: true; Layout.leftMargin: 8; Layout.rightMargin: 8
+                    implicitHeight: 38; hoverEnabled: true
+                    onClicked: root.navExpanded = !root.navExpanded
+                    contentItem: RowLayout {
+                        spacing: 11
+                        Text { Layout.preferredWidth: 18; text: root.navExpanded ? "‹" : "›"; color: backend.accentColor; font.family: "Inter"; font.pixelSize: 20; horizontalAlignment: Text.AlignHCenter }
+                        Text { visible: root.navExpanded; Layout.fillWidth: true; text: "COLLAPSE SIDEBAR"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; font.bold: true }
+                    }
+                    background: Rectangle { color: parent.hovered ? backend.surfaceColor : "transparent"; border.color: parent.hovered ? backend.lineColor : "transparent" }
+                    ToolTip.visible: !root.navExpanded && hovered; ToolTip.text: "Expand sidebar"
+                }
             }
-            Item { Layout.fillHeight: true }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true; Layout.fillHeight: true; color: backend.baseColor
+            StackLayout {
+                anchors.fill: parent; currentIndex: root.section; visible: search.text === ""
+                OverviewSettingsPage { active: root.section === 0; onSectionRequested: function(key) { root.selectSection(key) } }
+                AppearanceSettingsPage { active: root.section === 1 }
+                SettingsActionsPage {
+                    pageEyebrow: "DEVICES"; pageTitle: "Connectivity"
+                    pageDescription: "Wi-Fi, Bluetooth and VPN use the standard Linux backends with one compact Nocturne interface."
+                    pageBadge: "NETWORKMANAGER + BLUEZ"
+                    actions: [
+                        {icon:"network-wireless",glyph:"⌁",label:"Wi-Fi",detail:"Networks, signal, connection state and live throughput.",button:"MANAGE",surface:"connectivity",page:"wifi"},
+                        {icon:"preferences-system-bluetooth",glyph:"ᛒ",label:"Bluetooth",detail:"Radio state, discovered devices and active connections.",button:"MANAGE",surface:"connectivity",page:"bluetooth"},
+                        {icon:"network-vpn",glyph:"◇",label:"VPN",detail:"Start and stop saved NetworkManager VPN profiles.",button:"MANAGE",surface:"connectivity",page:"vpn"}
+                    ]
+                }
+                SettingsActionsPage {
+                    pageEyebrow: "HARDWARE"; pageTitle: "Sound & displays"
+                    pageDescription: "Live PipeWire routing, hardware-synced brightness and persistent monitor layouts."
+                    pageBadge: "LIVE HARDWARE STATE"
+                    actions: [
+                        {icon:"audio-volume-high",glyph:"♪",label:"Output & app mixer",detail:"Master volume, device routing and every active audio stream.",button:"OPEN",surface:"audio"},
+                        {icon:"display-brightness",glyph:"☼",label:"Brightness & night shift",detail:"Backlight control plus scheduled native color temperature.",button:"OPEN",surface:"brightness"},
+                        {icon:"video-display",glyph:"▣",label:"Display layout",detail:"Scale, rotate, mirror, extend and save connected monitors.",button:"OPEN",surface:"display"}
+                    ]
+                }
+                SystemSettingsPage { active: root.section === 4 }
+                IntegrationsPage { active: root.section === 5 }
+                SettingsActionsPage {
+                    pageEyebrow: "DAILY USE"; pageTitle: "Workflow"
+                    pageDescription: "Focused tools for work, capture and keyboard-first navigation."
+                    actions: [
+                        {icon:"chronometer",glyph:"◷",label:"Focus timer",detail:"Pomodoro presets, pause, skip and cycle progress.",button:"OPEN",surface:"pomodoro"},
+                        {icon:"spectacle",glyph:"⌗",label:"Screenshot",detail:"Capture an area with Hyprshot and copy it to the clipboard.",button:"CAPTURE",command:"screenshot"},
+                        {icon:"media-record",glyph:"●",label:"Screen recorder",detail:"Record an area or display with desktop and microphone audio.",button:"OPEN",command:"recorder"},
+                        {icon:"input-keyboard",glyph:"⌨",label:"Shortcut guide",detail:"Open the complete keyboard and mouse reference.",button:"SHOW",command:"keys"}
+                    ]
+                }
+                SettingsActionsPage {
+                    pageEyebrow: "CONTEXT"; pageTitle: "Scenes & automation"
+                    pageDescription: "Save complete working contexts or safely react to dock and power changes without launching apps unexpectedly."
+                    actions: [
+                        {icon:"view-grid",glyph:"▦",label:"Workspace overview",detail:"Inspect all workspaces and move, focus or close windows.",button:"OPEN",surface:"overview"},
+                        {icon:"document-save",glyph:"◫",label:"Session & audio scenes",detail:"Save applications, monitor layout, wallpaper, power and routing.",button:"MANAGE",surface:"scenes"},
+                        {icon:"preferences-system-time",glyph:"◎",label:"Context engine",detail:"Assign settings-only scenes to docked, mobile, AC and battery states.",button:"CONFIGURE",surface:"scenes"}
+                    ]
+                }
+                SettingsActionsPage {
+                    pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
+                    pageDescription: "Inspect live privacy clients and GPU behavior only when the dashboard is open."
+                    actions: [
+                        {icon:"security-high",glyph:"◉",label:"Privacy dashboard",detail:"Identify apps using the microphone or camera and stop a client.",button:"INSPECT",surface:"privacy"},
+                        {icon:"applications-games",glyph:"◆",label:"Gaming dashboard",detail:"GPU telemetry, automatic rollback and optional MangoHud.",button:"OPEN",surface:"gaming"},
+                        {icon:"preferences-desktop-notification",glyph:"◌",label:"Notification control",detail:"Focus modes, grouped history and timed app muting.",button:"OPEN",surface:"notifications"}
+                    ]
+                }
+                SettingsActionsPage {
+                    pageEyebrow: "ENERGY + SESSION"; pageTitle: "Power & session"
+                    pageDescription: "Hardware power profiles, reversible gaming boosts and guarded session actions."
+                    pageBadge: "DEEP SLEEP ENABLED"
+                    actions: [
+                        {icon:"battery",glyph:"⚡",label:"Power & gaming",detail:"Performance profiles and automatic Steam game detection.",button:"OPEN",surface:"power"},
+                        {icon:"system-software-update",glyph:"↻",label:"System maintenance",detail:"System packages, Flatpaks, firmware and failed-service health.",button:"OPEN",surface:"maintenance"},
+                        {icon:"system-lock-screen",glyph:"■",label:"Lock this session",detail:"Lock immediately with the themed Hyprlock session.",button:"LOCK",command:"lock",danger:true}
+                    ]
+                }
+                SetupSettingsPage { active: root.section === 10 }
+                SettingsActionsPage {
+                    pageEyebrow: "NOCTURNE 0.4"; pageTitle: "About"
+                    pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
+                    pageBadge: "OPEN SOURCE"
+                    actions: [
+                        {icon:"dialog-ok",glyph:"✓",label:"System check",detail:"Run the complete read-only Nocturne diagnostics.",button:"RUN",command:"doctor"},
+                        {icon:"applications-development",glyph:"<>",label:"Source & documentation",detail:"Configuration, native shell, installer and validation pipeline.",button:"GITHUB",command:"source"}
+                    ]
+                }
+            }
+            Rectangle {
+                anchors.fill: parent; visible: search.text !== ""; color: backend.baseColor
+                ColumnLayout {
+                    anchors.fill: parent; anchors.margins: 26; spacing: 12
+                    SettingsPageHeader {
+                        Layout.fillWidth: true; eyebrow: "SEARCH"
+                        title: root.filteredNavigation.length + (root.filteredNavigation.length === 1 ? " result" : " results")
+                        description: "Settings matching “" + search.text + "”"
+                    }
+                    ListView {
+                        Layout.fillWidth: true; Layout.fillHeight: true; clip: true; spacing: 8
+                        model: root.filteredNavigation
+                        delegate: SettingsAction {
+                            required property var modelData
+                            width: ListView.view.width
+                            iconName: modelData.icon; glyph: modelData.glyph; title: modelData.label
+                            description: modelData.group + " · " + modelData.keywords
+                            actionText: "GO"
+                            onClicked: root.selectSection(modelData.key)
+                        }
+                        Text {
+                            anchors.centerIn: parent; visible: root.filteredNavigation.length === 0
+                            text: "No setting matches this search"; color: backend.mutedColor
+                            font.family: "Inter"; font.pixelSize: 11
+                        }
+                    }
+                }
+            }
         }
     }
 }

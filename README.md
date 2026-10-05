@@ -39,6 +39,7 @@ history, power modes, screenshots and screen recording to behave normally.
 | **Zero-idle popovers** | Audio, network, power and workflow cards exist only while visible, then exit cleanly. |
 | **Real system state** | Sliders and toggles read PipeWire, sysfs, NetworkManager, BlueZ and power-profiles-daemon instead of maintaining a second fake state. |
 | **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys show compact native OSD feedback, and ordinary apps tile normally. |
+| **One searchable control center** | Appearance, hardware, defaults, accounts, automation and recovery live in one responsive Settings app with no dead control-center duplicates. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
 
@@ -75,7 +76,7 @@ The shell includes:
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
 - hardware-aware setup profiles plus portable preference export and restore;
-- one native System Settings app for appearance, devices, defaults, accounts, integrations and recovery;
+- one searchable native Settings app with overview, live hardware state, appearance, devices, defaults, accounts, integrations and guarded recovery;
 - a compact dark Files profile with tabs, split view, rich previews, network/removable mounts and zero-idle indexing;
 - dock/power context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.

@@ -4,7 +4,7 @@ set -euo pipefail
 if [[ -n ${1:-} ]]; then
   choice=$1
 else
-  exec nocturne-settings
+  exec nocturne-settings appearance
 fi
 
 case "${choice,,}" in

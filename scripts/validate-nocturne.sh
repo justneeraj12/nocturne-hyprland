@@ -33,6 +33,7 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/terminal.webp ]]
 [[ -s $root/docs/screenshots/quick-controls.webp ]]
 [[ -s $root/docs/screenshots/launcher.webp ]]
+[[ -s $root/docs/screenshots/settings.webp ]]
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
@@ -45,7 +46,8 @@ grep -Fq 'NIGHT SHIFT' "$root/native/qml/pages/BrightnessPage.qml"
 grep -Fq 'connection.metered' "$root/native/qml/pages/ConnectivityPage.qml"
 grep -Fq 'SYSTEM PACKAGES' "$root/native/qml/pages/MaintenancePage.qml"
 grep -Fq 'SAVE LAYOUT' "$root/native/qml/pages/DisplayPage.qml"
-grep -Fq 'SETUP + RECOVERY' "$root/native/qml/Settings.qml"
+grep -Fq 'qml/pages/SetupSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'SAFETY + PORTABILITY' "$root/native/qml/pages/SetupSettingsPage.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
 ! grep -Fq 'targetScreen.name === "HDMI-A-1"' "$root/native/qml/BarWindow.qml"
@@ -142,8 +144,13 @@ printf '[ OK ] command-center launcher + focus, gaming and native OSD controls\n
 
 grep -Fq 'qml/pages/SystemSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/IntegrationsPage.qml' "$root/native/CMakeLists.txt"
-grep -Fq 'INPUT + DEFAULTS' "$root/native/qml/Settings.qml"
-grep -Fq 'SYSTEM + ACCOUNTS' "$root/native/qml/Settings.qml"
+grep -Fq 'qml/pages/OverviewSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/AppearanceSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/components/SettingsNavItem.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'INPUT + APPLICATIONS' "$root/native/qml/pages/SystemSettingsPage.qml"
+grep -Fq 'MACHINE + SERVICES' "$root/native/qml/pages/IntegrationsPage.qml"
+grep -Fq 'Ctrl+K' "$root/native/qml/Settings.qml"
+grep -Fq 'revealSelectedSection' "$root/native/qml/Settings.qml"
 grep -Fq 'OnlyShowIn' "$root/native/src/backend.cpp"
 grep -Fq 'NotShowIn' "$root/native/src/backend.cpp"
 grep -Fq 'system-preferences' "$root/native/qml/pages/SystemSettingsPage.qml"
@@ -159,7 +166,7 @@ grep -Fq 'PreviewSize=96' "$root/config/dolphin/dolphinrc.in"
 grep -Fq 'PreviewsShown=true' "$root/config/dolphin/view_properties/global/.directory"
 grep -Fq 'org.kde.dolphin.desktop inode/directory' "$root/apply-hyprland.sh"
 grep -Fq 'kde-baloo.service' "$root/apply-hyprland.sh"
-grep -Fq 'FILES // NOCTURNE PROFILE' "$root/native/qml/pages/SystemSettingsPage.qml"
+grep -Fq 'Nocturne Files uses clean tabs' "$root/native/qml/pages/SystemSettingsPage.qml"
 printf '[ OK ] Nocturne Files profile, previews and zero-idle indexing\n'
 
 for page in OverviewPage ScenesPage PrivacyPage GamingPage; do
@@ -172,7 +179,7 @@ grep -Fq 'OnUnitActiveSec=30s' "$root/config/systemd/user/nocturne-context.timer
 grep -Fq 'invisible=1' "$root/config/hypr/scripts/notification-rules"
 grep -Fq 'last-good.tar.gz' "$root/bin/nocturne-recovery"
 grep -Fq 'nocturne-session-health.service' "$root/apply-hyprland.sh"
-grep -Fq 'theme-studio' "$root/native/qml/Settings.qml"
+grep -Fq 'theme-studio' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
 printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
 

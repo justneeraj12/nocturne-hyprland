@@ -38,19 +38,31 @@ mime_for() {
 }
 
 options_for() {
-  local category=$1 mime file id name options='[]'
+  local category=$1 mime file id name current options='[]'
   local -A seen=()
   mime=$(mime_for "$category")
   while IFS= read -r id; do
-    [[ $id =~ ^[A-Za-z0-9._+-]+[.]desktop$ && -z ${seen[$id]:-} ]] || continue; seen[$id]=1
+    [[ $id =~ ^[A-Za-z0-9._+-]+[.]desktop$ && -z ${seen[$id]:-} ]] || continue
     [[ $id != org.gnome.* ]] || continue
     file=$(desktop_file "$id" 2>/dev/null || true); [[ -n $file ]] || continue
     grep -Eq '^Hidden=true|^NoDisplay=true' "$file" && continue
     [[ $category != browser ]] || grep -Eq '^Categories=.*WebBrowser' "$file" || continue
     [[ $category != files ]] || grep -Eq '^Categories=.*FileManager' "$file" || continue
+    seen[$id]=1
     name=$(sed -n 's/^Name=//p' "$file" | head -n1); [[ -n $name ]] || name=$id
     options=$(jq -c --arg id "$id" --arg name "$name" '. + [{id:$id,name:$name}]' <<<"$options")
   done < <(gio mime "$mime" 2>/dev/null | awk '/^Registered applications:/{reading=1;next} /^[^[:space:]]/{if(reading) exit} reading{sub(/^[[:space:]]+/,""); if($0 != "") print}')
+  # A per-user desktop override may be the active handler before it appears in
+  # GIO's cached registration list. Always include that valid current choice so
+  # Settings never renders a disabled or apparently missing default.
+  current=$(xdg-mime query default "$mime" 2>/dev/null || true)
+  if [[ $current =~ ^[A-Za-z0-9._+-]+[.]desktop$ && -z ${seen[$current]:-} ]]; then
+    file=$(desktop_file "$current" 2>/dev/null || true)
+    if [[ -n $file ]] && ! grep -Eq '^Hidden=true|^NoDisplay=true' "$file"; then
+      name=$(sed -n 's/^Name=//p' "$file" | head -n1); [[ -n $name ]] || name=$current
+      options=$(jq -c --arg id "$current" --arg name "$name" '. + [{id:$id,name:$name}]' <<<"$options")
+    fi
+  fi
   jq -c 'unique_by(.id) | sort_by(.name)' <<<"$options"
 }
 
