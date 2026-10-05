@@ -397,7 +397,14 @@ systemctl --user stop \
   evolution-calendar-factory.service \
   evolution-source-registry.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
-systemctl --user start nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
+# The compositor starts this only after importing the Wayland environment.
+# Remove historical default.target enablement which races login and leaves a
+# healthy daemon unable to connect to the display for its entire lifetime.
+systemctl --user disable nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
+if [[ ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
+  dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME >/dev/null 2>&1 || true
+  systemctl --user restart nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
+fi
 systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true

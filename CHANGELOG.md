@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.1 - 2026-10-05
+
+- Fixed a reboot race where the wallpaper service inherited no Wayland display,
+  repeatedly failed to start Hyprpaper and left every output without a background.
+- Moved wallpaper startup ownership to Hyprland after session-environment import,
+  removed historical `default.target` enablement and added monitor-aware recovery.
+- Capped repetitive Hyprpaper diagnostics so a failed renderer cannot grow its
+  login log indefinitely.
+
 ## 0.5.0 - 2026-10-05
 
 - Replaced frequent bar polling with native Hyprland, PipeWire, MPRIS,

@@ -63,8 +63,7 @@ hl.env("XDG_SESSION_DESKTOP", "Hyprland")
 
 hl.on("hyprland.start", function()
     local commands = {
-        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME",
-        "systemctl --user start nocturne-wallpaper-cycle.service",
+        "sh -lc 'dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME; systemctl --user restart nocturne-wallpaper-cycle.service'",
         "hypridle",
         "mako",
         scripts .. "bar",

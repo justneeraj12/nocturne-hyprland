@@ -248,6 +248,10 @@ def display_is_active(expected: list[str] | None = None) -> bool:
 
 def start_hyprpaper(expected: list[str]) -> None:
     LOG.parent.mkdir(parents=True, exist_ok=True)
+    # A stale boot race used to append the same Wayland connection error every
+    # five seconds. Keep diagnostics useful without allowing an unbounded log.
+    if LOG.exists() and LOG.stat().st_size > 1024 * 1024:
+        LOG.replace(LOG.with_suffix(".log.previous"))
     with LOG.open("ab") as stream:
         process = subprocess.Popen(
             ["hyprpaper", "-c", str(RUNTIME_CONFIG)],
@@ -395,7 +399,11 @@ def daemon() -> None:
                 desired = Path(scheduled_phase(str(config.get("source", "")))["image"])
             except SystemExit:
                 desired = None
-        if desired and (not display_is_active() or current != desired):
+        # The systemd user manager can exist before the compositor. Never
+        # launch a Wayland renderer until this process can see real outputs;
+        # Hyprland restarts the service after importing its environment.
+        monitors = monitor_names()
+        if desired and monitors and (not display_is_active(monitors) or current != desired):
             try:
                 apply_image(desired, False)
             except SystemExit:

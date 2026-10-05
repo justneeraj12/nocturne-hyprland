@@ -195,6 +195,11 @@ grep -Fq 'theme-studio' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
 printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
 
+grep -Fq 'systemctl --user restart nocturne-wallpaper-cycle.service' "$root/config/hypr/hyprland.lua"
+grep -Fq 'if desired and monitors and' "$root/bin/nocturne-wallpaper-cycle"
+! grep -Fq 'WantedBy=default.target' "$root/config/systemd/user/nocturne-wallpaper-cycle.service"
+printf '[ OK ] compositor-owned wallpaper startup and reboot recovery\n'
+
 "$root/scripts/test-shell-contracts.sh" >/dev/null
 printf '[ OK ] migrations, bar preferences and context interaction contracts\n'
 
