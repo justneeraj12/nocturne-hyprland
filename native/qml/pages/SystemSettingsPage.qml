@@ -66,6 +66,19 @@ Rectangle {
                     }
                 }
             }
+            SectionLabel { text: "FILES // NOCTURNE PROFILE" }
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: 62; color: backend.surfaceColor; border.color: backend.lineColor
+                RowLayout { anchors.fill: parent; anchors.margins: 8; spacing: 6
+                    ColumnLayout { Layout.fillWidth: true; spacing: 1
+                        Text { text: "COMPACT TABS · LIVE PREVIEWS · CLOUD MOUNTS · NOC CONTEXT TOOLS"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 9 }
+                        Text { Layout.fillWidth: true; text: "Single-window navigation, restored tabs, safe archives, checksums, phone sharing and direct terminal/editor actions."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; elide: Text.ElideRight }
+                    }
+                    NocturneButton { text: "OPEN FILES"; onClicked: backend.start(["pcmanfm-qt", backend.home]) }
+                    NocturneButton { text: "FIND"; onClicked: backend.start(["pcmanfm-qt", "--find-files"]) }
+                    NocturneButton { text: "ADVANCED"; onClicked: backend.start(["pcmanfm-qt", "--show-pref", "behavior"]) }
+                }
+            }
             SectionLabel { text: "DATE + TIME" }
             RowLayout {
                 Layout.fillWidth: true

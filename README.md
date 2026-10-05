@@ -76,6 +76,7 @@ The shell includes:
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
 - hardware-aware setup profiles plus portable preference export and restore;
 - one native System Settings app for appearance, devices, defaults, accounts, integrations and recovery;
+- a compact Qt Files profile with restored tabs, rich previews, cloud/removable mounts and a focused NOC Tools context menu;
 - dock/power context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 

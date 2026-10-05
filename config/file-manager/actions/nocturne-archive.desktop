@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Action
+Name=Compress to Archive
+Icon=package-x-generic
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount=>0
+Exec=@FILE_ACTIONS@ archive %F

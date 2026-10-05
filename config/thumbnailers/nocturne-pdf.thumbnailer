@@ -1,0 +1,3 @@
+[Thumbnailer Entry]
+Exec=@FILE_ACTIONS@ thumbnail-pdf %i %o %s
+MimeType=application/pdf;application/x-pdf;

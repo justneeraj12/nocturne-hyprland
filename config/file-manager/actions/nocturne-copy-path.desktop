@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Action
+Name=Copy Path
+Icon=edit-copy
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount=>0
+Exec=@FILE_ACTIONS@ copy-path %F

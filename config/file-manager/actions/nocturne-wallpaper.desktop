@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Action
+Name=Set as Wallpaper
+Icon=preferences-desktop-wallpaper
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount==1
+MimeTypes=image/*;
+Exec=@FILE_ACTIONS@ wallpaper %f

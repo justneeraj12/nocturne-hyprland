@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Menu
+Name=NOC Tools
+Icon=applications-system
+ItemsList=nocturne-terminal;nocturne-code;nocturne-copy-path;nocturne-hash;nocturne-archive;nocturne-extract;nocturne-wallpaper;nocturne-phone;

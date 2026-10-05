@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Action
+Name=Extract Here
+Icon=package-x-generic
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount=>0
+MimeTypes=application/zip;application/x-7z-compressed;application/x-rar;application/vnd.rar;application/x-tar;application/gzip;application/x-bzip2;application/x-xz;
+Exec=@FILE_ACTIONS@ extract %F

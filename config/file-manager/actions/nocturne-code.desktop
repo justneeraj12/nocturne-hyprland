@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Action
+Name=Open in VS Code
+Icon=visual-studio-code
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount==1
+Exec=@FILE_ACTIONS@ code %f

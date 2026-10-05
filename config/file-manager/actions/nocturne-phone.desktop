@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Action
+Name=Send to Phone
+Icon=kdeconnect
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount=>0
+Exec=@FILE_ACTIONS@ phone %F

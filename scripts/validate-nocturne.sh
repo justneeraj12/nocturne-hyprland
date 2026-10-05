@@ -152,6 +152,14 @@ for desktop in org.gnome.Settings kdesystemsettings systemsettings nwg-look qt6c
 done
 printf '[ OK ] unified native system settings + launcher ownership\n'
 
+grep -Fq 'Terminal=kitty' "$root/config/pcmanfm-qt/default/settings.conf.in"
+grep -Fq 'SingleWindowMode=true' "$root/config/pcmanfm-qt/default/settings.conf.in"
+grep -Fq 'NOC Tools' "$root/config/file-manager/actions/nocturne-menu.desktop"
+[[ $(find "$root/config/file-manager/actions" -maxdepth 1 -type f -name 'nocturne-*.desktop' | wc -l) -eq 9 ]]
+grep -Fq 'thumbnail-pdf' "$root/config/thumbnailers/nocturne-pdf.thumbnailer"
+grep -Fq 'FILES // NOCTURNE PROFILE' "$root/native/qml/pages/SystemSettingsPage.qml"
+printf '[ OK ] Nocturne Files profile, previews and guarded context actions\n'
+
 for page in OverviewPage ScenesPage PrivacyPage GamingPage; do
   grep -Fq "qml/pages/$page.qml" "$root/native/CMakeLists.txt"
 done

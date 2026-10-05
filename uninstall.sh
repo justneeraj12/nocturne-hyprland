@@ -62,6 +62,14 @@ for relative in "${config_items[@]}"; do
   fi
 done
 
+# Older Nocturne snapshots predate the managed Files profile. Never delete a
+# user's PCManFM configuration unless that exact snapshot contains its original.
+if [[ -e $backup/pcmanfm-qt ]]; then
+  [[ -e $CONFIG_HOME/pcmanfm-qt ]] && cp -a -- "$CONFIG_HOME/pcmanfm-qt" "$rollback/pcmanfm-qt"
+  rm -rf -- "$CONFIG_HOME/pcmanfm-qt"
+  cp -a -- "$backup/pcmanfm-qt" "$CONFIG_HOME/pcmanfm-qt"
+fi
+
 desktop_targets=(
   steam.desktop
   signal-desktop.desktop
@@ -79,6 +87,7 @@ desktop_targets=(
   qt6ct.desktop
   pcmanfm-qt-desktop-pref.desktop
   hyprpwcenter.desktop
+  pcmanfm-qt.desktop
 )
 mkdir -p "$rollback/applications" "$DATA_HOME/applications"
 for desktop in "${desktop_targets[@]}"; do
@@ -91,6 +100,19 @@ for desktop in "${desktop_targets[@]}"; do
     cp -a -- "$backup/applications/$desktop" "$current"
   fi
 done
+
+mkdir -p "$rollback/file-manager-actions" "$DATA_HOME/file-manager/actions" "$rollback/thumbnailers" "$DATA_HOME/thumbnailers"
+for action in nocturne-menu.desktop nocturne-terminal.desktop nocturne-code.desktop nocturne-copy-path.desktop nocturne-hash.desktop nocturne-archive.desktop nocturne-extract.desktop nocturne-wallpaper.desktop nocturne-phone.desktop level-zero.directory; do
+  current="$DATA_HOME/file-manager/actions/$action"
+  [[ -e $current ]] && cp -a -- "$current" "$rollback/file-manager-actions/$action"
+  rm -f -- "$current"
+  [[ -e $backup/file-manager-actions/$action ]] && cp -a -- "$backup/file-manager-actions/$action" "$current"
+done
+thumbnail="$DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer"
+[[ -e $thumbnail ]] && cp -a -- "$thumbnail" "$rollback/thumbnailers/"
+rm -f -- "$thumbnail"
+[[ -e $backup/thumbnailers/nocturne-pdf.thumbnailer ]] \
+  && cp -a -- "$backup/thumbnailers/nocturne-pdf.thumbnailer" "$thumbnail"
 
 mkdir -p "$rollback/desktop"
 if [[ -f $HOME/Desktop/steam.desktop ]]; then

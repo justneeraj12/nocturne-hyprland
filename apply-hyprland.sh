@@ -23,7 +23,7 @@ fi
 mkdir -p "$STATE_HOME/nocturne/backups"
 snapshot="$STATE_HOME/nocturne/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
-for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals; do
+for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals pcmanfm-qt; do
   if [[ -e "$CONFIG_HOME/$relative" ]]; then
     cp -a -- "$CONFIG_HOME/$relative" "$snapshot/$relative"
   fi
@@ -46,12 +46,21 @@ desktop_targets=(
   qt6ct.desktop
   pcmanfm-qt-desktop-pref.desktop
   hyprpwcenter.desktop
+  pcmanfm-qt.desktop
 )
 for desktop in "${desktop_targets[@]}"; do
   if [[ -e "$DATA_HOME/applications/$desktop" ]]; then
     cp -a -- "$DATA_HOME/applications/$desktop" "$snapshot/applications/$desktop"
   fi
 done
+mkdir -p "$snapshot/file-manager-actions" "$snapshot/thumbnailers"
+for action in "$ROOT_DIR"/config/file-manager/actions/*; do
+  target="$DATA_HOME/file-manager/actions/$(basename -- "$action")"
+  [[ -e $target ]] && cp -a -- "$target" "$snapshot/file-manager-actions/"
+done
+if [[ -e $DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer ]]; then
+  cp -a -- "$DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer" "$snapshot/thumbnailers/"
+fi
 mkdir -p "$snapshot/desktop"
 if [[ -e "$HOME/Desktop/steam.desktop" ]]; then
   cp -a -- "$HOME/Desktop/steam.desktop" "$snapshot/desktop/steam.desktop"
@@ -92,6 +101,8 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-porta
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screenrecords" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
+  "$DATA_HOME/file-manager/actions" "$DATA_HOME/thumbnailers" \
+  "$CONFIG_HOME/pcmanfm-qt/default" \
   "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/autostart" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d" \
   "$CONFIG_HOME/environment.d" "$STATE_HOME/nocturne" "$BIN_HOME"
@@ -178,6 +189,18 @@ if [[ ! -e "$CONFIG_HOME/nocturne/mako-muted.conf" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/mako-muted.conf" "$CONFIG_HOME/nocturne/mako-muted.conf"
 fi
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
+archiver=file-roller
+command -v lxqt-archiver >/dev/null 2>&1 && archiver=lxqt-archiver
+sed "s|@ARCHIVER@|$archiver|g" \
+  "$ROOT_DIR/config/pcmanfm-qt/default/settings.conf.in" \
+  > "$CONFIG_HOME/pcmanfm-qt/default/settings.conf"
+for action in "$ROOT_DIR"/config/file-manager/actions/*; do
+  sed "s|@FILE_ACTIONS@|$CONFIG_HOME/hypr/scripts/file-actions|g" "$action" \
+    > "$DATA_HOME/file-manager/actions/$(basename -- "$action")"
+done
+sed "s|@FILE_ACTIONS@|$CONFIG_HOME/hypr/scripts/file-actions|g" \
+  "$ROOT_DIR/config/thumbnailers/nocturne-pdf.thumbnailer" \
+  > "$DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer"
 install -m 0644 "$ROOT_DIR/config/color-schemes/Nocturne.colors" "$DATA_HOME/color-schemes/Nocturne.colors"
 install -m 0644 "$ROOT_DIR/config/environment.d/10-nocturne-path.conf" "$CONFIG_HOME/environment.d/10-nocturne-path.conf"
 install -m 0755 "$ROOT_DIR/bin/nocturne-dashboard" "$BIN_HOME/nocturne-dashboard"
@@ -243,6 +266,9 @@ sed "s|@LAUNCHER@|$BIN_HOME/nocturne-settings|g" \
   "$ROOT_DIR/assets/nocturne-settings.desktop.in" \
   > "$DATA_HOME/applications/nocturne-settings.desktop"
 chmod 0644 "$DATA_HOME/applications/nocturne-settings.desktop"
+sed "s|@HOME@|$HOME|g" "$ROOT_DIR/assets/pcmanfm-qt.desktop.in" \
+  > "$DATA_HOME/applications/pcmanfm-qt.desktop"
+chmod 0644 "$DATA_HOME/applications/pcmanfm-qt.desktop"
 sed "s|@LAUNCHER@|$BIN_HOME/nocturne-native|g" \
   "$ROOT_DIR/assets/nocturne-native.desktop.in" \
   > "$DATA_HOME/applications/nocturne-native.desktop"

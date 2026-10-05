@@ -69,6 +69,20 @@ done
 
 [[ $(xdg-mime query default inode/directory 2>/dev/null) == pcmanfm-qt.desktop ]] \
   && ok 'PCManFM-Qt is the folder handler' || warning 'Folder handler is not PCManFM-Qt'
+if grep -q '^Terminal=kitty$' "$HOME/.config/pcmanfm-qt/default/settings.conf" 2>/dev/null \
+    && grep -q '^SingleWindowMode=true$' "$HOME/.config/pcmanfm-qt/default/settings.conf" 2>/dev/null \
+    && [[ -x $HOME/.config/hypr/scripts/file-actions ]]; then
+  ok 'Nocturne Files profile and guarded actions are installed'
+else
+  warning 'Nocturne Files profile is incomplete'
+fi
+action_count=$(find "$HOME/.local/share/file-manager/actions" -maxdepth 1 -type f -name 'nocturne-*.desktop' 2>/dev/null | wc -l)
+[[ $action_count -eq 9 ]] && ok 'NOC Tools context menu has all 9 actions' || warning "Expected 9 NOC file actions; found $action_count"
+if command -v lxqt-archiver >/dev/null 2>&1 && command -v ffmpegthumbnailer >/dev/null 2>&1; then
+  ok 'Qt archive and video-thumbnail helpers are installed'
+else
+  warning 'Install lxqt-archiver and ffmpegthumbnailer for the full Files experience'
+fi
 [[ $(xdg-mime query default application/pdf 2>/dev/null) == qpdfview.desktop ]] \
   && ok 'qpdfview is the PDF handler' || warning 'PDF handler is not qpdfview'
 

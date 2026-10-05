@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action=${1:-}
+[[ -n $action ]] || exit 2
+shift || true
+
+notify() { notify-send -a 'Nocturne Files' "$1" "${2:-}" >/dev/null 2>&1 || true; }
+require_selection() { (($# > 0)) || { notify 'Nothing selected'; exit 2; }; }
+
+case "$action" in
+  terminal)
+    require_selection "$@"
+    target=$1
+    [[ -d $target ]] || target=$(dirname -- "$target")
+    exec kitty --directory "$target"
+    ;;
+  code)
+    require_selection "$@"
+    exec code --new-window -- "$1"
+    ;;
+  copy-path)
+    require_selection "$@"
+    paths=()
+    for item in "$@"; do paths+=("$(realpath -m -- "$item")"); done
+    printf '%s\n' "${paths[@]}" | wl-copy
+    notify 'Path copied' "${#paths[@]} item(s)"
+    ;;
+  hash)
+    require_selection "$@"
+    files=()
+    for item in "$@"; do [[ -f $item ]] && files+=("$item"); done
+    ((${#files[@]})) || { notify 'SHA-256 unavailable' 'Select one or more files'; exit 2; }
+    sha256sum -- "${files[@]}" | wl-copy
+    notify 'SHA-256 copied' "${#files[@]} file(s)"
+    ;;
+  archive)
+    require_selection "$@"
+    parent=$(dirname -- "$1")
+    archive="$parent/NOC-$(date +%Y%m%d-%H%M%S).7z"
+    7z a -t7z -mx5 -- "$archive" "$@" >/dev/null
+    notify 'Archive created' "$(basename -- "$archive")"
+    ;;
+  extract)
+    require_selection "$@"
+    for archive in "$@"; do
+      [[ -f $archive ]] || continue
+      name=$(basename -- "$archive")
+      name=${name%.tar.gz}; name=${name%.tar.xz}; name=${name%.tar.bz2}; name=${name%.*}
+      destination="$(dirname -- "$archive")/$name"
+      mkdir -p -- "$destination"
+      7z x -y "-o$destination" -- "$archive" >/dev/null
+    done
+    notify 'Extraction complete' "$# item(s)"
+    ;;
+  wallpaper)
+    require_selection "$@"
+    exec "$HOME/.local/bin/nocturne-wallpaper-cycle" apply-file "$1"
+    ;;
+  phone)
+    require_selection "$@"
+    device=$(kdeconnect-cli --list-available --id-only 2>/dev/null | head -n1)
+    [[ -n $device ]] || { notify 'Phone unavailable' 'No paired and reachable device'; exit 1; }
+    for item in "$@"; do kdeconnect-cli --device "$device" --share "$item" >/dev/null; done
+    notify 'Sent to phone' "$# item(s)"
+    ;;
+  thumbnail-pdf)
+    (($# == 3)) || exit 2
+    input=$1 output=$2 size=$3
+    temporary=$(mktemp -d)
+    trap 'rm -rf -- "$temporary"' EXIT
+    pdftoppm -f 1 -singlefile -scale-to "$size" -png -- "$input" "$temporary/page" >/dev/null 2>&1
+    mv -- "$temporary/page.png" "$output"
+    ;;
+  *)
+    printf 'Unknown Nocturne file action: %s\n' "$action" >&2
+    exit 2
+    ;;
+esac

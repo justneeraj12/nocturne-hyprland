@@ -1,0 +1,32 @@
+[Desktop Entry]
+Type=Application
+Name=Files
+GenericName=Nocturne File Manager
+Comment=Browse files, cloud mounts and removable storage
+Exec=pcmanfm-qt %U
+Icon=system-file-manager
+MimeType=inode/directory;
+Categories=FileManager;Utility;Core;Qt;
+Keywords=files;folders;storage;downloads;documents;
+StartupNotify=true
+Actions=Home;Downloads;Documents;Pictures;Terminal;
+
+[Desktop Action Home]
+Name=Home
+Exec=pcmanfm-qt @HOME@
+
+[Desktop Action Downloads]
+Name=Downloads
+Exec=pcmanfm-qt @HOME@/Downloads
+
+[Desktop Action Documents]
+Name=Documents
+Exec=pcmanfm-qt @HOME@/Documents
+
+[Desktop Action Pictures]
+Name=Pictures
+Exec=pcmanfm-qt @HOME@/Pictures
+
+[Desktop Action Terminal]
+Name=Terminal Here
+Exec=kitty --directory @HOME@

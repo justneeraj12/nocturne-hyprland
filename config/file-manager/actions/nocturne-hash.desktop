@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Action
+Name=Copy SHA-256
+Icon=security-high
+Profiles=default;
+
+[X-Action-Profile default]
+SelectionCount=>0
+Exec=@FILE_ACTIONS@ hash %F

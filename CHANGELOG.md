@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.2 - 2026-10-04
+
+- Upgraded PCManFM-Qt into the Nocturne Files profile with compact tabs,
+  restored sessions, larger local previews and lightweight search defaults.
+- Added a single NOC Tools context menu for terminal, VS Code, path copying,
+  SHA-256, safe archives, extraction, wallpaper changes and KDE Connect sharing.
+- Added PDF previews, a clean Files launcher with location shortcuts and direct
+  Files controls inside Nocturne System Settings.
+- Replaced the GNOME archive integration with LXQt Archiver when available while
+  retaining a safe fallback on existing systems.
+
 ## 0.3.1 - 2026-10-04
 
 - Consolidated desktop configuration into one **System Settings** launcher and

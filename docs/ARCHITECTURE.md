@@ -35,6 +35,7 @@ Nocturne renders controls but does not invent parallel services:
 | Application secrets | freedesktop Secret Service via GNOME Keyring |
 | Existing Google mounts | GVfs / GNOME Online Accounts backend |
 | Phone integration | KDE Connect daemon |
+| Nocturne Files | PCManFM-Qt with guarded Nocturne actions |
 
 This is why hardware keys and external changes remain authoritative while a
 card is open.
