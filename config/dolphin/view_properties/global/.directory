@@ -1,0 +1,12 @@
+[Dolphin]
+GroupedSorting=false
+PreviewsShown=true
+SortFoldersFirst=true
+SortHiddenLast=true
+SortOrder=0
+SortRole=text
+Version=4
+ViewMode=0
+
+[Settings]
+HiddenFilesShown=false

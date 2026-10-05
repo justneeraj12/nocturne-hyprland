@@ -164,7 +164,7 @@ hl.bind(mod .. " + slash", run(scripts .. "help"))
 hl.bind(mod .. " + R", run(control))
 hl.bind(mod .. " + SHIFT + R", run("resources"))
 hl.bind(mod .. " + W", run(wallpaper))
-hl.bind(mod .. " + E", run("pcmanfm-qt"))
+hl.bind(mod .. " + E", run(home .. "/.local/bin/nocturne-files"))
 hl.bind(mod .. " + B", run("xdg-open https://www.google.com"))
 hl.bind(mod .. " + C", run("chatgpt"))
 hl.bind(mod .. " + X", run("kitty --class nox --title 'NØX // LOCAL OPERATOR' -e nox"))
@@ -239,7 +239,7 @@ hl.bind(mod .. " + Print", run("flatpak run io.github.seadve.Kooha"))
 
 hl.layer_rule({ match = { namespace = "nocturne-native" }, blur = true, ignore_alpha = 0.2 })
 
-local tiled_apps = "^(NocturneVisualizer|com\\.nocturne\\.Visualizer|com\\.nocturne\\.Settings|NocturneDashboard|pcmanfm-qt|qpdfview|qalculate-qt|net\\.nokyan\\.Resources|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph|org\\.kde\\.kdeconnect\\.app)$"
+local tiled_apps = "^(NocturneVisualizer|com\\.nocturne\\.Visualizer|com\\.nocturne\\.Settings|NocturneDashboard|org\\.kde\\.dolphin|pcmanfm-qt|qpdfview|qalculate-qt|net\\.nokyan\\.Resources|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph|org\\.kde\\.kdeconnect\\.app)$"
 hl.window_rule({ match = { class = tiled_apps }, tile = true })
 
 local opaque_utilities = "^(com\\.nocturne\\.Settings|pcmanfm-qt|qpdfview|qalculate-qt|org\\.kde\\..*|net\\.nokyan\\.Resources|io\\.missioncenter\\.MissionCenter|pavucontrol|org\\.pulseaudio\\.pavucontrol|nm-connection-editor|blueman-manager|com\\.github\\.wwmm\\.easyeffects|org\\.rncbc\\.qpwgraph)$"

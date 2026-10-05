@@ -2,30 +2,31 @@
 Type=Application
 Name=Files
 GenericName=Nocturne File Manager
-Comment=Browse files, cloud mounts and removable storage
-Exec=pcmanfm-qt %U
-Icon=system-file-manager
+Comment=Browse files, devices and network locations
+Exec=@LAUNCHER@ %U
+Icon=org.kde.dolphin
 MimeType=inode/directory;
-Categories=FileManager;Utility;Core;Qt;
+Categories=System;FileTools;Qt;
 Keywords=files;folders;storage;downloads;documents;
 StartupNotify=true
+DBusActivatable=false
 Actions=Home;Downloads;Documents;Pictures;Terminal;
 
 [Desktop Action Home]
 Name=Home
-Exec=pcmanfm-qt @HOME@
+Exec=@LAUNCHER@ @HOME@
 
 [Desktop Action Downloads]
 Name=Downloads
-Exec=pcmanfm-qt @HOME@/Downloads
+Exec=@LAUNCHER@ @HOME@/Downloads
 
 [Desktop Action Documents]
 Name=Documents
-Exec=pcmanfm-qt @HOME@/Documents
+Exec=@LAUNCHER@ @HOME@/Documents
 
 [Desktop Action Pictures]
 Name=Pictures
-Exec=pcmanfm-qt @HOME@/Pictures
+Exec=@LAUNCHER@ @HOME@/Pictures
 
 [Desktop Action Terminal]
 Name=Terminal Here

@@ -71,12 +71,12 @@ Rectangle {
                 Layout.fillWidth: true; implicitHeight: 62; color: backend.surfaceColor; border.color: backend.lineColor
                 RowLayout { anchors.fill: parent; anchors.margins: 8; spacing: 6
                     ColumnLayout { Layout.fillWidth: true; spacing: 1
-                        Text { text: "COMPACT TABS · LIVE PREVIEWS · CLOUD MOUNTS · NOC CONTEXT TOOLS"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 9 }
-                        Text { Layout.fillWidth: true; text: "Single-window navigation, restored tabs, safe archives, checksums, phone sharing and direct terminal/editor actions."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; elide: Text.ElideRight }
+                        Text { text: "CLEAN TABS · SPLIT VIEW · LIVE PREVIEWS · DEVICES"; color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 9 }
+                        Text { Layout.fillWidth: true; text: "A compact dark Files app with search, network locations and removable storage. Press F3 for split view."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; elide: Text.ElideRight }
                     }
-                    NocturneButton { text: "OPEN FILES"; onClicked: backend.start(["pcmanfm-qt", backend.home]) }
-                    NocturneButton { text: "FIND"; onClicked: backend.start(["pcmanfm-qt", "--find-files"]) }
-                    NocturneButton { text: "ADVANCED"; onClicked: backend.start(["pcmanfm-qt", "--show-pref", "behavior"]) }
+                    NocturneButton { text: "OPEN FILES"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home]) }
+                    NocturneButton { text: "DOWNLOADS"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home + "/Downloads"]) }
+                    NocturneButton { text: "PICTURES"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home + "/Pictures"]) }
                 }
             }
             SectionLabel { text: "DATE + TIME" }

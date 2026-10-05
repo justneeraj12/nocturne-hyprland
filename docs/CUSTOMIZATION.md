@@ -92,7 +92,7 @@ The remaining manually configured cities continue working normally.
 
 ## Default applications
 
-The reference setup uses PCManFM-Qt for folders, qpdfview for PDFs and
+The reference setup uses the Nocturne-styled Dolphin profile for folders, qpdfview for PDFs and
 Qalculate-Qt for calculations. Change defaults with `xdg-mime` if you prefer
 other applications; the shell does not require those exact choices.
 

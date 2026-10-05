@@ -254,7 +254,7 @@ ApplicationWindow {
                         else { backend.run([setup.portable, "restore-latest"], 15000); setup.confirmRestore = false; setup.refresh() }
                     }
                 }
-                NocturneButton { text: "OPEN FOLDER"; onClicked: backend.start(["pcmanfm-qt", backend.home + "/Documents/Nocturne-Backups"]) }
+                NocturneButton { text: "OPEN FOLDER"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home + "/Documents/Nocturne-Backups"]) }
             }
             Text {
                 Layout.fillWidth: true
@@ -345,7 +345,7 @@ ApplicationWindow {
                     }
                     NocturneButton {
                         text: "OPEN FOLDER"
-                        onClicked: backend.start(["pcmanfm-qt", backend.home + "/Pictures/Wallpapers"])
+                        onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", backend.home + "/Pictures/Wallpapers"])
                     }
                 }
                 SectionLabel { text: "DESIGN PRESET" }

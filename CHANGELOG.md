@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.3 - 2026-10-05
+
+- Replaced the dated primary file-manager surface with a compact Dolphin-based
+  Nocturne Files profile: dark palette, tabs, split view and rich previews.
+- Scoped KDE platform styling to Files without installing or launching Plasma,
+  KDE Settings or another desktop shell.
+- Disabled Baloo background indexing, hid the PCManFM fallback from the launcher
+  and made Files the default folder handler and `Super + E` destination.
+- Added reversible Dolphin preferences and data handling to install, health-check
+  and rollback paths.
+
 ## 0.3.2 - 2026-10-04
 
 - Upgraded PCManFM-Qt into the Nocturne Files profile with compact tabs,

@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot cmake ninja xdg-mime lspci glxinfo convert upower)
+required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot dolphin cmake ninja xdg-mime lspci glxinfo convert upower)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -20,10 +20,14 @@ fi
   printf 'Missing Qt 6 Layer Shell QML support (qml6-module-org-kde-layershell).\n' >&2
   exit 1
 }
+find /usr/lib /usr/lib64 -path '*/qt6/plugins/platformthemes/KDEPlasmaPlatformTheme6.so' -print -quit 2>/dev/null | grep -q . || {
+  printf 'Missing the KDE Qt platform adapter (plasma-integration).\n' >&2
+  exit 1
+}
 mkdir -p "$STATE_HOME/nocturne/backups"
 snapshot="$STATE_HOME/nocturne/backups/pre-hyprland-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$snapshot"
-for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals pcmanfm-qt; do
+for relative in hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals dolphinrc pcmanfm-qt; do
   if [[ -e "$CONFIG_HOME/$relative" ]]; then
     cp -a -- "$CONFIG_HOME/$relative" "$snapshot/$relative"
   fi
@@ -47,6 +51,7 @@ desktop_targets=(
   pcmanfm-qt-desktop-pref.desktop
   hyprpwcenter.desktop
   pcmanfm-qt.desktop
+  org.kde.dolphin.desktop
 )
 for desktop in "${desktop_targets[@]}"; do
   if [[ -e "$DATA_HOME/applications/$desktop" ]]; then
@@ -61,6 +66,9 @@ done
 if [[ -e $DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer ]]; then
   cp -a -- "$DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer" "$snapshot/thumbnailers/"
 fi
+if [[ -e $DATA_HOME/dolphin ]]; then
+  cp -a -- "$DATA_HOME/dolphin" "$snapshot/dolphin-data"
+fi
 mkdir -p "$snapshot/desktop"
 if [[ -e "$HOME/Desktop/steam.desktop" ]]; then
   cp -a -- "$HOME/Desktop/steam.desktop" "$snapshot/desktop/steam.desktop"
@@ -70,7 +78,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-signal steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-signal nocturne-files steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -102,6 +110,7 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-porta
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screenrecords" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
   "$DATA_HOME/file-manager/actions" "$DATA_HOME/thumbnailers" \
+  "$DATA_HOME/dolphin/view_properties/global" \
   "$CONFIG_HOME/pcmanfm-qt/default" \
   "$CONFIG_HOME/systemd/user" "$CONFIG_HOME/autostart" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d" \
@@ -189,6 +198,10 @@ if [[ ! -e "$CONFIG_HOME/nocturne/mako-muted.conf" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/mako-muted.conf" "$CONFIG_HOME/nocturne/mako-muted.conf"
 fi
 install -m 0644 "$ROOT_DIR/config/kdeglobals" "$CONFIG_HOME/kdeglobals"
+sed "s|@HOME@|$HOME|g" "$ROOT_DIR/config/dolphin/dolphinrc.in" \
+  > "$CONFIG_HOME/dolphinrc"
+install -m 0644 "$ROOT_DIR/config/dolphin/view_properties/global/.directory" \
+  "$DATA_HOME/dolphin/view_properties/global/.directory"
 archiver=file-roller
 command -v lxqt-archiver >/dev/null 2>&1 && archiver=lxqt-archiver
 sed "s|@ARCHIVER@|$archiver|g" \
@@ -212,6 +225,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
 install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
 install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
+install -m 0755 "$ROOT_DIR/bin/nocturne-files" "$BIN_HOME/nocturne-files"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
 if [[ -f $HOME/Desktop/steam.desktop ]]; then
   sed -i \
@@ -266,9 +280,10 @@ sed "s|@LAUNCHER@|$BIN_HOME/nocturne-settings|g" \
   "$ROOT_DIR/assets/nocturne-settings.desktop.in" \
   > "$DATA_HOME/applications/nocturne-settings.desktop"
 chmod 0644 "$DATA_HOME/applications/nocturne-settings.desktop"
-sed "s|@HOME@|$HOME|g" "$ROOT_DIR/assets/pcmanfm-qt.desktop.in" \
-  > "$DATA_HOME/applications/pcmanfm-qt.desktop"
-chmod 0644 "$DATA_HOME/applications/pcmanfm-qt.desktop"
+sed -e "s|@LAUNCHER@|$BIN_HOME/nocturne-files|g" -e "s|@HOME@|$HOME|g" \
+  "$ROOT_DIR/assets/nocturne-files.desktop.in" \
+  > "$DATA_HOME/applications/org.kde.dolphin.desktop"
+chmod 0644 "$DATA_HOME/applications/org.kde.dolphin.desktop"
 sed "s|@LAUNCHER@|$BIN_HOME/nocturne-native|g" \
   "$ROOT_DIR/assets/nocturne-native.desktop.in" \
   > "$DATA_HOME/applications/nocturne-native.desktop"
@@ -351,8 +366,10 @@ if [[ -e "$CONFIG_HOME/autostart/unblock-lid.desktop" ]]; then
     "$STATE_HOME/nocturne/retired-autostarts/unblock-lid.desktop"
 fi
 
-# Keep files and documents on the lightweight Qt application path.
-xdg-mime default pcmanfm-qt.desktop inode/directory
+# Keep files and documents on the themed Qt application path. Dolphin's file
+# indexer is deliberately disabled: previews are generated on demand and the
+# app consumes no resources after its last window closes.
+xdg-mime default org.kde.dolphin.desktop inode/directory
 xdg-mime default qpdfview.desktop application/pdf
 if [[ -f /usr/share/applications/vlc.desktop ]]; then
   for mime in video/mp4 video/x-matroska video/webm audio/mpeg audio/flac; do xdg-mime default vlc.desktop "$mime"; done
@@ -365,7 +382,9 @@ systemctl --user mask --now swaync.service >/dev/null 2>&1 || true
 systemctl --user mask --now \
   xdg-desktop-portal-gtk.service \
   xdg-desktop-portal-gnome.service \
-  localsearch-3.service >/dev/null 2>&1 || true
+  localsearch-3.service \
+  kde-baloo.service >/dev/null 2>&1 || true
+command -v balooctl6 >/dev/null 2>&1 && balooctl6 disable >/dev/null 2>&1 || true
 systemctl --user stop \
   'app-org.gnome.Evolution\x2dalarm\x2dnotify@autostart.service' \
   evolution-addressbook-factory.service \

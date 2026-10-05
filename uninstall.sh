@@ -50,7 +50,7 @@ systemctl --user disable --now \
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
 pkill -f '^.*/nocturne-(dashboard|visualizer)( |$)' 2>/dev/null || true
 
-config_items=(hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals)
+config_items=(hypr gtklock waybar wofi swaync mako xdg-desktop-portal kitty btop tmux qt6ct cava fastfetch nocturne systemd autostart kdeglobals dolphinrc)
 for relative in "${config_items[@]}"; do
   current="$CONFIG_HOME/$relative"
   if [[ -e $current || -L $current ]]; then
@@ -88,6 +88,7 @@ desktop_targets=(
   pcmanfm-qt-desktop-pref.desktop
   hyprpwcenter.desktop
   pcmanfm-qt.desktop
+  org.kde.dolphin.desktop
 )
 mkdir -p "$rollback/applications" "$DATA_HOME/applications"
 for desktop in "${desktop_targets[@]}"; do
@@ -113,6 +114,18 @@ thumbnail="$DATA_HOME/thumbnailers/nocturne-pdf.thumbnailer"
 rm -f -- "$thumbnail"
 [[ -e $backup/thumbnailers/nocturne-pdf.thumbnailer ]] \
   && cp -a -- "$backup/thumbnailers/nocturne-pdf.thumbnailer" "$thumbnail"
+
+if [[ -e $DATA_HOME/dolphin ]]; then
+  cp -a -- "$DATA_HOME/dolphin" "$rollback/dolphin-data"
+fi
+if [[ -e $backup/dolphin-data ]]; then
+  rm -rf -- "$DATA_HOME/dolphin"
+  cp -a -- "$backup/dolphin-data" "$DATA_HOME/dolphin"
+else
+  rm -f -- "$DATA_HOME/dolphin/view_properties/global/.directory"
+  rmdir --ignore-fail-on-non-empty "$DATA_HOME/dolphin/view_properties/global" \
+    "$DATA_HOME/dolphin/view_properties" "$DATA_HOME/dolphin" 2>/dev/null || true
+fi
 
 mkdir -p "$rollback/desktop"
 if [[ -f $HOME/Desktop/steam.desktop ]]; then
@@ -151,9 +164,10 @@ systemctl --user unmask \
   xdg-desktop-portal-gtk.service \
   xdg-desktop-portal-gnome.service \
   localsearch-3.service >/dev/null 2>&1 || true
+systemctl --user unmask kde-baloo.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-signal steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-wallpaper-cycle nocturne-doctor nocturne-portable nocturne-recovery nocturne-signal nocturne-files steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"

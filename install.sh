@@ -37,13 +37,13 @@ fi
 
 if "$install_packages"; then
   sudo apt-get update
-  sudo apt-get install -y \
+  sudo apt-get install -y --no-install-recommends \
     build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev \
     qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
     qml6-module-qtquick-window qml6-module-org-kde-layershell \
     layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
     curl flatpak grim slurp wl-clipboard cliphist libnotify-bin brightnessctl pipewire-bin pulseaudio-utils xdg-utils \
-    network-manager bluez jq socat kitty btop cava fastfetch playerctl gamemode pcmanfm-qt lxqt-archiver ffmpegthumbnailer qt6-image-formats-plugins kimageformat6-plugins qpdfview qalculate-qt \
+    network-manager bluez jq socat kitty btop cava fastfetch playerctl gamemode dolphin plasma-integration kde-style-breeze kf6-breeze-icon-theme ffmpegthumbs pcmanfm-qt lxqt-archiver ffmpegthumbnailer qt6-image-formats-plugins kimageformat6-plugins qpdfview qalculate-qt \
     power-profiles-daemon fwupd hyprsunset pciutils mesa-utils imagemagick upower mangohud fonts-inter fonts-jetbrains-mono
   sudo install -m 0644 "$root/assets/nocturne-recovery.desktop" /usr/share/wayland-sessions/nocturne-recovery.desktop
   sudo install -m 0755 "$root/bin/nocturne-recovery-session" /usr/local/bin/nocturne-recovery-session
