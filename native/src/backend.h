@@ -1,7 +1,9 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QScreen>
+#include <QString>
 #include <QVariant>
 #include <memory>
 
@@ -9,6 +11,7 @@ class TrayWatcher;
 class QFileSystemWatcher;
 class QLocalSocket;
 class QProcess;
+class QTimer;
 
 class Backend final : public QObject
 {
@@ -99,6 +102,8 @@ private:
     static QStringList stringList(const QVariantList &arguments);
     void updateTargetScreen();
     void startShellEvents();
+    void queueShellEvent(const QString &topic, int delayMs = 140);
+    void flushShellEvents();
     QString paletteValue(const QString &name, const QString &fallback) const;
 
     QString m_surface;
@@ -109,6 +114,9 @@ private:
     std::unique_ptr<QLocalSocket> m_hyprEvents;
     std::unique_ptr<QProcess> m_audioEvents;
     std::unique_ptr<QFileSystemWatcher> m_fileEvents;
+    QTimer *m_eventTimer = nullptr;
+    QSet<QString> m_pendingShellEvents;
     QByteArray m_hyprBuffer;
+    QByteArray m_audioBuffer;
     bool m_shuttingDown = false;
 };

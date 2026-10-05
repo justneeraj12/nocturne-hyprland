@@ -46,6 +46,7 @@ systemctl --user disable --now \
   nocturne-game-session.service \
   nocturne-notification-rules.timer \
   nocturne-context.timer \
+  nocturne-session-health.timer \
   nocturne-session-health.service >/dev/null 2>&1 || true
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
 pkill -f '^.*/nocturne-(dashboard|visualizer)( |$)' 2>/dev/null || true

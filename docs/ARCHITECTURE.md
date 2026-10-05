@@ -31,6 +31,7 @@ Nocturne renders controls but does not invent parallel services:
 | Clipboard history | Cliphist |
 | Screenshots | Hyprshot, grim and slurp |
 | Screen recording | Kooha and the XDG ScreenCast portal |
+| Meeting screen sharing | Hyprland XDG ScreenCast portal + PipeWire |
 | File chooser | KDE XDG portal backend |
 | Application secrets | freedesktop Secret Service via GNOME Keyring |
 | Existing Google mounts | GVfs / GNOME Online Accounts backend |
@@ -61,6 +62,12 @@ browsers and editor windows are not reimplemented inside the shell.
 - Monitor geometry is captured once into a user-owned override, not hard-coded
   into the public Hyprland configuration.
 - The bar uses one StatusNotifier watcher instead of launching applet stacks.
+- Audio subscription events are coalesced and client lifecycle noise is ignored,
+  preventing the bar's own status probes from creating a PipeWire event loop.
+- Desktop-file discovery runs only in the on-demand launcher, never in the bar.
+- The Efficiency Center samples pressure and process data only while its page is
+  visible. Its safe cleanup is explicit and limited to old regenerable
+  thumbnails, old user journal entries and failed-unit state.
 - Cava and the dashboard are user-launched, never idle background services.
 
 Nocturne avoids marketing a fixed RAM number because GPU drivers, Flatpak

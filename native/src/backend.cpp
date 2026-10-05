@@ -25,6 +25,7 @@
 #include <QSettings>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 #include <signal.h>
 #include <unistd.h>
 
@@ -41,67 +42,75 @@ Backend::Backend(QString surface, QString page, QObject *parent)
         emit screensChanged();
     });
     if (m_surface == QStringLiteral("bar")) {
+        m_eventTimer = new QTimer(this);
+        m_eventTimer->setSingleShot(true);
+        connect(m_eventTimer, &QTimer::timeout, this, &Backend::flushShellEvents);
         m_trayWatcher = std::make_unique<TrayWatcher>(this);
         connect(m_trayWatcher.get(), &TrayWatcher::registeredItemsChanged, this,
-            [this]() { emit shellEvent(QStringLiteral("tray")); });
+            [this]() { queueShellEvent(QStringLiteral("tray")); });
         startShellEvents();
     }
 
-    const QStringList roots = {
-        home() + QStringLiteral("/.local/share/applications"),
-        home() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
-        QStringLiteral("/var/lib/flatpak/exports/share/applications"),
-        QStringLiteral("/var/lib/snapd/desktop/applications"),
-        QStringLiteral("/usr/local/share/applications"),
-        QStringLiteral("/usr/share/applications")
-    };
-    QSet<QString> seen;
-    for (const auto &root : roots) {
-        QDir directory(root);
-        for (const auto &fileName : directory.entryList({QStringLiteral("*.desktop")}, QDir::Files, QDir::Name)) {
-            if (seen.contains(fileName)) continue;
-            seen.insert(fileName);
-            const auto path = directory.filePath(fileName);
-            QSettings desktop(path, QSettings::IniFormat);
-            desktop.beginGroup(QStringLiteral("Desktop Entry"));
-            auto desktops = [](const QVariant &value) {
-                auto text = value.toString();
-                text.replace(QLatin1Char(';'), QLatin1Char(':'));
-                return text.split(QLatin1Char(':'), Qt::SkipEmptyParts);
-            };
-            const auto currentDesktops = qEnvironmentVariable("XDG_CURRENT_DESKTOP", QStringLiteral("Hyprland"))
-                                             .split(QLatin1Char(':'), Qt::SkipEmptyParts);
-            const auto onlyShowIn = desktops(desktop.value(QStringLiteral("OnlyShowIn")));
-            const auto notShowIn = desktops(desktop.value(QStringLiteral("NotShowIn")));
-            const bool allowedDesktop = onlyShowIn.isEmpty() || std::any_of(onlyShowIn.cbegin(), onlyShowIn.cend(), [&](const QString &name) {
-                return currentDesktops.contains(name, Qt::CaseInsensitive);
-            });
-            const bool blockedDesktop = std::any_of(notShowIn.cbegin(), notShowIn.cend(), [&](const QString &name) {
-                return currentDesktops.contains(name, Qt::CaseInsensitive);
-            });
-            if (desktop.value(QStringLiteral("Type")).toString() != QStringLiteral("Application")
-                || desktop.value(QStringLiteral("Hidden"), false).toBool()
-                || desktop.value(QStringLiteral("NoDisplay"), false).toBool()
-                || !allowedDesktop || blockedDesktop) {
-                continue;
+    // The persistent bar never searches or launches desktop files. Building
+    // this catalogue there retained every QSettings object and icon string for
+    // no benefit; only the on-demand launcher needs it.
+    if (m_surface == QStringLiteral("launcher")) {
+        const QStringList roots = {
+            home() + QStringLiteral("/.local/share/applications"),
+            home() + QStringLiteral("/.local/share/flatpak/exports/share/applications"),
+            QStringLiteral("/var/lib/flatpak/exports/share/applications"),
+            QStringLiteral("/var/lib/snapd/desktop/applications"),
+            QStringLiteral("/usr/local/share/applications"),
+            QStringLiteral("/usr/share/applications")
+        };
+        QSet<QString> seen;
+        for (const auto &root : roots) {
+            QDir directory(root);
+            for (const auto &fileName : directory.entryList({QStringLiteral("*.desktop")}, QDir::Files, QDir::Name)) {
+                if (seen.contains(fileName)) continue;
+                seen.insert(fileName);
+                const auto path = directory.filePath(fileName);
+                QSettings desktop(path, QSettings::IniFormat);
+                desktop.beginGroup(QStringLiteral("Desktop Entry"));
+                auto desktops = [](const QVariant &value) {
+                    auto text = value.toString();
+                    text.replace(QLatin1Char(';'), QLatin1Char(':'));
+                    return text.split(QLatin1Char(':'), Qt::SkipEmptyParts);
+                };
+                const auto currentDesktops = qEnvironmentVariable("XDG_CURRENT_DESKTOP", QStringLiteral("Hyprland"))
+                                                 .split(QLatin1Char(':'), Qt::SkipEmptyParts);
+                const auto onlyShowIn = desktops(desktop.value(QStringLiteral("OnlyShowIn")));
+                const auto notShowIn = desktops(desktop.value(QStringLiteral("NotShowIn")));
+                const bool allowedDesktop = onlyShowIn.isEmpty() || std::any_of(onlyShowIn.cbegin(), onlyShowIn.cend(), [&](const QString &name) {
+                    return currentDesktops.contains(name, Qt::CaseInsensitive);
+                });
+                const bool blockedDesktop = std::any_of(notShowIn.cbegin(), notShowIn.cend(), [&](const QString &name) {
+                    return currentDesktops.contains(name, Qt::CaseInsensitive);
+                });
+                if (desktop.value(QStringLiteral("Type")).toString() != QStringLiteral("Application")
+                    || desktop.value(QStringLiteral("Hidden"), false).toBool()
+                    || desktop.value(QStringLiteral("NoDisplay"), false).toBool()
+                    || !allowedDesktop || blockedDesktop) {
+                    continue;
+                }
+                const auto name = desktop.value(QStringLiteral("Name")).toString().trimmed();
+                const auto command = desktop.value(QStringLiteral("Exec")).toString().trimmed();
+                if (name.isEmpty() || command.isEmpty()) continue;
+                m_applications.push_back(QVariantMap{
+                    {QStringLiteral("name"), name},
+                    {QStringLiteral("generic"), desktop.value(QStringLiteral("GenericName")).toString()},
+                    {QStringLiteral("icon"), desktop.value(QStringLiteral("Icon")).toString()},
+                    {QStringLiteral("path"), path},
+                    {QStringLiteral("search"), (name + QLatin1Char(' ') + desktop.value(QStringLiteral("GenericName")).toString()
+                        + QLatin1Char(' ') + desktop.value(QStringLiteral("Keywords")).toString()).toLower()}
+                });
             }
-            const auto name = desktop.value(QStringLiteral("Name")).toString().trimmed();
-            const auto command = desktop.value(QStringLiteral("Exec")).toString().trimmed();
-            if (name.isEmpty() || command.isEmpty()) continue;
-            m_applications.push_back(QVariantMap{
-                {QStringLiteral("name"), name},
-                {QStringLiteral("generic"), desktop.value(QStringLiteral("GenericName")).toString()},
-                {QStringLiteral("icon"), desktop.value(QStringLiteral("Icon")).toString()},
-                {QStringLiteral("path"), path},
-                {QStringLiteral("search"), (name + QLatin1Char(' ') + desktop.value(QStringLiteral("GenericName")).toString()
-                    + QLatin1Char(' ') + desktop.value(QStringLiteral("Keywords")).toString()).toLower()}
-            });
         }
+        std::sort(m_applications.begin(), m_applications.end(), [](const QVariant &left, const QVariant &right) {
+            return left.toMap().value(QStringLiteral("name")).toString().localeAwareCompare(
+                       right.toMap().value(QStringLiteral("name")).toString()) < 0;
+        });
     }
-    std::sort(m_applications.begin(), m_applications.end(), [](const QVariant &left, const QVariant &right) {
-        return left.toMap().value(QStringLiteral("name")).toString().localeAwareCompare(
-                   right.toMap().value(QStringLiteral("name")).toString()) < 0;
-    });
 }
 
 Backend::~Backend()
@@ -134,8 +143,20 @@ void Backend::startShellEvents()
 
     m_audioEvents = std::make_unique<QProcess>(this);
     connect(m_audioEvents.get(), &QProcess::readyReadStandardOutput, this, [this]() {
-        m_audioEvents->readAllStandardOutput();
-        emit shellEvent(QStringLiteral("audio"));
+        m_audioBuffer += m_audioEvents->readAllStandardOutput();
+        bool relevant = false;
+        qsizetype newline = -1;
+        while ((newline = m_audioBuffer.indexOf('\n')) >= 0) {
+            const auto event = m_audioBuffer.left(newline);
+            m_audioBuffer.remove(0, newline + 1);
+            // Ignore client lifecycle noise. The status commands used by the
+            // bar are PulseAudio clients themselves; reacting to those events
+            // created a self-sustaining refresh loop under PipeWire.
+            relevant = relevant || event.contains(" on sink #") || event.contains(" on source #")
+                || event.contains(" on sink-input #") || event.contains(" on source-output #")
+                || event.contains(" on card #") || event.contains(" on server #");
+        }
+        if (relevant) queueShellEvent(QStringLiteral("audio"));
     });
     connect(m_audioEvents.get(), &QProcess::finished, this, [this]() {
         if (!m_shuttingDown) QTimer::singleShot(1200, this, &Backend::startAudioEvents);
@@ -149,7 +170,7 @@ void Backend::startShellEvents()
         if (QFileInfo::exists(path)) m_fileEvents->addPath(path);
     }
     connect(m_fileEvents.get(), &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
-        emit shellEvent(QStringLiteral("brightness"));
+        queueShellEvent(QStringLiteral("brightness"));
         if (QFileInfo::exists(path) && !m_fileEvents->files().contains(path)) m_fileEvents->addPath(path);
     });
 }
@@ -157,13 +178,13 @@ void Backend::startShellEvents()
 void Backend::onPropertiesChanged(const QString &interface, const QVariantMap &, const QStringList &)
 {
     if (interface.startsWith(QStringLiteral("org.mpris.MediaPlayer2")))
-        emit shellEvent(QStringLiteral("media"));
+        queueShellEvent(QStringLiteral("media"));
     else if (interface.startsWith(QStringLiteral("org.freedesktop.NetworkManager")))
-        emit shellEvent(QStringLiteral("connectivity"));
+        queueShellEvent(QStringLiteral("connectivity"));
     else if (interface.startsWith(QStringLiteral("org.bluez")))
-        emit shellEvent(QStringLiteral("connectivity"));
+        queueShellEvent(QStringLiteral("connectivity"));
     else if (interface.startsWith(QStringLiteral("org.freedesktop.UPower")))
-        emit shellEvent(QStringLiteral("power"));
+        queueShellEvent(QStringLiteral("power"));
 }
 
 void Backend::reconnectHyprEvents()
@@ -183,11 +204,27 @@ void Backend::readHyprEvents()
         const auto event = QString::fromUtf8(m_hyprBuffer.left(newline));
         m_hyprBuffer.remove(0, newline + 1);
         if (event.startsWith(QStringLiteral("workspace")) || event.startsWith(QStringLiteral("focusedmon"))
-            || event.startsWith(QStringLiteral("monitor"))) emit shellEvent(QStringLiteral("workspace"));
+            || event.startsWith(QStringLiteral("monitor"))) queueShellEvent(QStringLiteral("workspace"), 70);
         if (event.startsWith(QStringLiteral("openwindow")) || event.startsWith(QStringLiteral("closewindow"))
             || event.startsWith(QStringLiteral("movewindow")) || event.startsWith(QStringLiteral("activewindow")))
-            emit shellEvent(QStringLiteral("windows"));
+            queueShellEvent(QStringLiteral("windows"), 70);
     }
+}
+
+void Backend::queueShellEvent(const QString &topic, int delayMs)
+{
+    if (!m_eventTimer) {
+        emit shellEvent(topic);
+        return;
+    }
+    m_pendingShellEvents.insert(topic);
+    if (!m_eventTimer->isActive()) m_eventTimer->start(delayMs);
+}
+
+void Backend::flushShellEvents()
+{
+    const auto topics = std::exchange(m_pendingShellEvents, {});
+    for (const auto &topic : topics) emit shellEvent(topic);
 }
 
 void Backend::startAudioEvents()

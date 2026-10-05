@@ -92,9 +92,10 @@ status() {
   else
     icon='󱫞'; label='Focus paused'; class=paused
   fi
-  jq -cn --arg text "$icon $timer" \
+  jq -cn --arg text "$icon $timer" --argjson running "$running" \
+    --argjson remaining "$remaining" --arg mode "$mode" \
     --arg tooltip "$label · click for controls · middle start/pause · right reset" \
-    --arg class "$class" '{text:$text,tooltip:$tooltip,class:$class}'
+    --arg class "$class" '{text:$text,tooltip:$tooltip,class:$class,running:($running == 1),remaining:$remaining,mode:$mode}'
 }
 
 case "${1:-status}" in

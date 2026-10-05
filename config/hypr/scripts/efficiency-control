@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+state_dir="$state_home/nocturne"
+cleanup_state="$state_dir/efficiency-cleanup.json"
+
+human_bytes() {
+  local bytes=${1:-0}
+  numfmt --to=iec-i --suffix=B "$bytes" 2>/dev/null || printf '%s B' "$bytes"
+}
+
+stale_thumbnail_bytes() {
+  local root="$HOME/.cache/thumbnails"
+  [[ -d $root ]] || { printf '0\n'; return; }
+  find "$root" -type f -mtime +30 -printf '%s\n' 2>/dev/null \
+    | awk '{total += $1} END {printf "%.0f\n", total + 0}'
+}
+
+unit_count() {
+  { systemctl --user list-units "$@" --no-legend --no-pager 2>/dev/null || true; } \
+    | awk 'NF {count++} END {print count + 0}'
+}
+
+status() {
+  local mem_total mem_available mem_used mem_percent swap_total swap_free swap_used
+  local pressure bar_pid bar_rss=0 bar_cpu=0 active_units failed_units legacy=0
+  local stale_bytes stale_label top_json slowest portal=false health_timer=false last_cleanup='' reclaimed=''
+
+  mem_total=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+  mem_available=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+  mem_used=$((mem_total - mem_available))
+  mem_percent=$(awk -v used="$mem_used" -v total="$mem_total" 'BEGIN {printf "%.0f", total ? used * 100 / total : 0}')
+  swap_total=$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo)
+  swap_free=$(awk '/^SwapFree:/ {print $2}' /proc/meminfo)
+  swap_used=$((swap_total - swap_free))
+  pressure=$(awk '$1 == "some" {for (i=1;i<=NF;i++) if ($i ~ /^avg10=/) {sub(/^avg10=/,"",$i); print $i; exit}}' /proc/pressure/memory 2>/dev/null || printf '0')
+
+  bar_pid=$(pgrep -f '/nocturne-native bar($| )' | awk 'NR == 1 {print; exit}' || true)
+  if [[ $bar_pid =~ ^[0-9]+$ ]]; then
+    read -r bar_rss bar_cpu < <(ps -p "$bar_pid" -o rss=,pcpu= 2>/dev/null | awk '{print $1 + 0, $2 + 0}') || true
+  fi
+
+  active_units=$(unit_count --state=running)
+  failed_units=$(unit_count --state=failed)
+  for process in waybar swaync wofi nm-applet blueman-applet gnome-control-center; do
+    pgrep -x "$process" >/dev/null 2>&1 && legacy=$((legacy + 1))
+  done
+  systemctl --user is-active --quiet xdg-desktop-portal-hyprland.service 2>/dev/null && portal=true
+  systemctl --user is-enabled --quiet nocturne-session-health.timer 2>/dev/null && health_timer=true
+
+  stale_bytes=$(stale_thumbnail_bytes)
+  stale_label=$(human_bytes "$stale_bytes")
+  slowest=$(systemd-analyze --user blame 2>/dev/null | awk 'NF && $2 !~ /session-health/ {print $1 " " $2; exit}' || true)
+  [[ -n $slowest ]] || slowest='Not available'
+  top_json=$(ps -eo pid=,comm=,rss=,pcpu= --sort=-rss 2>/dev/null \
+    | awk 'NR <= 6 {printf "%s\t%s\t%.1f\t%s\n", $1, $2, $3 / 1024, $4}' \
+    | jq -Rsc 'split("\n") | map(select(length > 0) | split("\t") | {pid:(.[0]|tonumber),name:.[1],mib:(.[2]|tonumber),cpu:(.[3]|tonumber)})')
+
+  if [[ -s $cleanup_state ]]; then
+    last_cleanup=$(jq -r '.time // ""' "$cleanup_state" 2>/dev/null || true)
+    reclaimed=$(jq -r '.reclaimed // ""' "$cleanup_state" 2>/dev/null || true)
+  fi
+
+  jq -cn \
+    --argjson memTotal "$mem_total" --argjson memUsed "$mem_used" --argjson memPercent "$mem_percent" \
+    --argjson swapTotal "$swap_total" --argjson swapUsed "$swap_used" --argjson pressure "$pressure" \
+    --argjson barRss "$bar_rss" --argjson barCpu "$bar_cpu" --argjson activeUnits "$active_units" \
+    --argjson failedUnits "$failed_units" --argjson legacy "$legacy" --argjson portal "$portal" \
+    --argjson healthTimer "$health_timer" --argjson staleBytes "$stale_bytes" --arg staleLabel "$stale_label" \
+    --arg slowest "$slowest" --arg lastCleanup "$last_cleanup" --arg reclaimed "$reclaimed" --argjson top "$top_json" \
+    '{memory:{totalKiB:$memTotal,usedKiB:$memUsed,percent:$memPercent,pressureAvg10:$pressure},
+      swap:{totalKiB:$swapTotal,usedKiB:$swapUsed},
+      shell:{barMiB:($barRss/1024|floor),barCpu:$barCpu,legacyProcesses:$legacy},
+      session:{activeUnits:$activeUnits,failedUnits:$failedUnits,portal:$portal,healthTimer:$healthTimer,slowestStartup:$slowest},
+      cleanup:{staleThumbnailBytes:$staleBytes,staleThumbnailLabel:$staleLabel,last:$lastCleanup,reclaimed:$reclaimed},
+      top:$top}'
+}
+
+optimize() {
+  local before after reclaimed_bytes reclaimed_label now thumbnail_root="$HOME/.cache/thumbnails"
+  before=$(stale_thumbnail_bytes)
+  if [[ -d $thumbnail_root ]]; then
+    find "$thumbnail_root" -type f -mtime +30 -delete 2>/dev/null || true
+    find "$thumbnail_root" -type d -empty -delete 2>/dev/null || true
+  fi
+  journalctl --user --vacuum-time=14d >/dev/null 2>&1 || true
+  systemctl --user reset-failed >/dev/null 2>&1 || true
+  after=$(stale_thumbnail_bytes)
+  reclaimed_bytes=$((before - after))
+  ((reclaimed_bytes >= 0)) || reclaimed_bytes=0
+  reclaimed_label=$(human_bytes "$reclaimed_bytes")
+  now=$(date --iso-8601=seconds)
+  mkdir -p "$state_dir"
+  jq -cn --arg time "$now" --arg reclaimed "$reclaimed_label" \
+    --argjson reclaimedBytes "$reclaimed_bytes" \
+    '{time:$time,reclaimed:$reclaimed,reclaimedBytes:$reclaimedBytes}' > "$cleanup_state"
+  status
+}
+
+case ${1:-status} in
+  status) status ;;
+  optimize) optimize ;;
+  *) printf 'Usage: %s status|optimize\n' "$0" >&2; exit 2 ;;
+esac

@@ -48,6 +48,7 @@ qt_add_qml_module(nocturne-native
         qml/pages/OverviewSettingsPage.qml
         qml/pages/AppearanceSettingsPage.qml
         qml/pages/BarSettingsPage.qml
+        qml/pages/EfficiencySettingsPage.qml
         qml/pages/SetupSettingsPage.qml
         qml/pages/OsdPage.qml
         qml/pages/BackgroundPage.qml

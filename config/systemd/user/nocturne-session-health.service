@@ -5,7 +5,6 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStartPre=/usr/bin/sleep 8
 ExecStart=%h/.local/bin/nocturne-recovery verify
 
 [Install]

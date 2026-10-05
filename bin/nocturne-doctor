@@ -50,12 +50,28 @@ if systemctl --user is-active --quiet plasma-xdg-desktop-portal-kde.service \
 else
   bad 'Required portal backends are not both active'
 fi
+if command -v hyprland-share-picker >/dev/null 2>&1 \
+    && grep -q 'class = "^(hyprland-share-picker)$"' "$HOME/.config/hypr/hyprland.lua" 2>/dev/null; then
+  ok 'Meeting share chooser is compact, floating and pinned'
+else
+  warning 'Meeting share chooser rule or upstream picker is missing'
+fi
 if ! systemctl --user is-active --quiet xdg-desktop-portal-gtk.service \
     && ! systemctl --user is-active --quiet xdg-desktop-portal-gnome.service; then
   ok 'Legacy GTK/GNOME portal backends are inactive'
 else
   warning 'A legacy portal backend is still active'
 fi
+
+if systemctl --user is-enabled --quiet nocturne-session-health.timer 2>/dev/null \
+    && systemctl --user is-active --quiet nocturne-session-health.timer; then
+  ok 'Non-blocking post-login recovery check is scheduled'
+else
+  warning 'Post-login recovery timer is not active'
+fi
+[[ -x $HOME/.config/hypr/scripts/efficiency-control ]] \
+  && ok 'On-demand efficiency telemetry is installed' \
+  || warning 'Efficiency telemetry helper is missing'
 
 for legacy in waybar swaync wofi nm-applet blueman-applet; do
   if pgrep -x "$legacy" >/dev/null 2>&1; then warning "Legacy shell process is running: $legacy"; else ok "Legacy shell process is absent: $legacy"; fi

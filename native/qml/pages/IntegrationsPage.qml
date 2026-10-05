@@ -162,6 +162,43 @@ Rectangle {
 
             SettingsCard {
                 Layout.fillWidth: true
+                title: "MEETING SCREEN SHARING"
+                description: "Google Meet, Discord and browser calls use the native Hyprland portal. Its trusted chooser stays compact, centered and pinned above the call without entering your tiling layout."
+                icon: "video-display"
+                glyph: "▣"
+                highlighted: true
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: [
+                            {label:"APPLICATION WINDOW",detail:"Best privacy · follows one app"},
+                            {label:"ENTIRE DISPLAY",detail:"Best for workspace walkthroughs"},
+                            {label:"PORTAL STATE",detail:root.state.integrations.hyprlandPortal ? "READY" : "OFFLINE"}
+                        ]
+                        Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: 48
+                            color: backend.baseColor
+                            border.color: backend.lineColor
+                            Column {
+                                anchors.fill: parent; anchors.margins: 8; spacing: 3
+                                Text { text: modelData.label; color: backend.accentColor; font.family: "Inter"; font.pixelSize: 8; font.bold: true }
+                                Text { text: modelData.detail; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8 }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "Tip: choose APPLICATION WINDOW for meetings. The chooser can be used without rearranging tiles; closing it cancels cleanly and leaves the call untouched."
+                    color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9; wrapMode: Text.WordWrap
+                }
+            }
+
+            SettingsCard {
+                Layout.fillWidth: true
                 title: "ADVANCED HARDWARE"
                 description: "Specialized tools stay available without cluttering the daily controls."
                 icon: "configure"

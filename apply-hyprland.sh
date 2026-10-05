@@ -172,7 +172,7 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
-for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service; do
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer; do
   install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
 done
 install -m 0644 \
@@ -424,7 +424,8 @@ systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 
 systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-notification-rules.timer >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
-systemctl --user enable nocturne-session-health.service >/dev/null 2>&1 || true
+systemctl --user disable nocturne-session-health.service >/dev/null 2>&1 || true
+systemctl --user enable nocturne-session-health.timer >/dev/null 2>&1 || true
 systemctl --user mask --now \
   mako.service \
   waybar.service \

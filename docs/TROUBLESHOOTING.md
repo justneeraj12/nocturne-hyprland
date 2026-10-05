@@ -43,6 +43,23 @@ systemctl --user status plasma-xdg-desktop-portal-kde.service
 Log out and back in after changing portal configuration. Wayland portal state
 is session-scoped and is often not repaired by reopening only the application.
 
+## Meet or Discord's share chooser tiles or disappears
+
+Nocturne uses the upstream `hyprland-share-picker` supplied by
+xdg-desktop-portal-hyprland. The compositor rule keeps this trusted chooser
+compact, centered, floating and pinned above the meeting without making the
+rest of the desktop modal.
+
+```bash
+systemctl --user status xdg-desktop-portal-hyprland.service
+hyprctl clients | sed -n '/hyprland-share-picker/,+12p'
+```
+
+Choose **Application Window** when you want the least exposure, or **Entire
+Display** when demonstrating a complete workspace. If an older session still
+tiles the chooser, run `hyprctl reload`; restart the portal only when no screen
+share is active.
+
 ## Audio does not switch to Bluetooth
 
 ```bash

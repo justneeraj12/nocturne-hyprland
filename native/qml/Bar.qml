@@ -92,16 +92,16 @@ Item {
     // These are deliberately slow recovery timers. Normal updates arrive from
     // Hyprland, PipeWire, MPRIS, NetworkManager, UPower and file-system events.
     Timer { interval: 15000; running: true; repeat: true; onTriggered: root.now = new Date() }
-    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refreshActivity() }
-    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
-    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshAudio() }
+    Timer { interval: root.pomodoro.running ? 1000 : 60000; running: true; repeat: true; onTriggered: root.refreshActivity() }
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshAudio() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshNotifications() }
-    Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshMinimized() }
-    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshTray() }
-    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshCaffeine() }
-    Timer { interval: 120000; running: true; repeat: true; onTriggered: root.refreshConnectivity() }
-    Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshSystem() }
-    Timer { interval: 120000; running: true; repeat: true; onTriggered: root.refreshPower() }
+    Timer { interval: 120000; running: true; repeat: true; onTriggered: root.refreshMinimized() }
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshTray() }
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshCaffeine() }
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshConnectivity() }
+    Timer { interval: 60000; running: true; repeat: true; onTriggered: root.refreshSystem() }
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshPower() }
 
     Instantiator {
         model: backend.screens

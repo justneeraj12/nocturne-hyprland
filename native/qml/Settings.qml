@@ -28,6 +28,7 @@ ApplicationWindow {
         {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"pomodoro screenshot recorder shortcuts"},
         {key:"automation", label:"Scenes & automation", group:"SYSTEM", icon:"view-calendar-timeline", glyph:"◎", keywords:"workspace scenes context dock automation"},
         {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
+        {key:"efficiency", label:"Efficiency", group:"SYSTEM", icon:"utilities-system-monitor", glyph:"≋", keywords:"memory ram cpu startup resources optimize cleanup performance"},
         {key:"power", label:"Power & session", group:"SYSTEM", icon:"battery", glyph:"⚡", keywords:"performance balanced saver maintenance lock"},
         {key:"setup", label:"Setup & recovery", group:"RECOVERY", icon:"document-save", glyph:"↶", keywords:"backup restore checkpoint profile portable"},
         {key:"about", label:"About", group:"RECOVERY", icon:"help-about", glyph:"?", keywords:"version github source doctor diagnostics"}
@@ -263,6 +264,7 @@ ApplicationWindow {
                         {icon:"preferences-desktop-notification",glyph:"◌",label:"Notification control",detail:"Focus modes, grouped history and timed app muting.",button:"OPEN",surface:"notifications"}
                     ]
                 }
+                EfficiencySettingsPage { active: root.section === 10 }
                 SettingsActionsPage {
                     pageEyebrow: "ENERGY + SESSION"; pageTitle: "Power & session"
                     pageDescription: "Hardware power profiles, reversible gaming boosts and guarded session actions."
@@ -273,7 +275,7 @@ ApplicationWindow {
                         {icon:"system-lock-screen",glyph:"■",label:"Lock this session",detail:"Lock immediately with the themed Hyprlock session.",button:"LOCK",command:"lock",danger:true}
                     ]
                 }
-                SetupSettingsPage { active: root.section === 11 }
+                SetupSettingsPage { active: root.section === 12 }
                 SettingsActionsPage {
                     pageEyebrow: "NOCTURNE 0.5"; pageTitle: "About"
                     pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."

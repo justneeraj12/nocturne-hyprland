@@ -38,6 +38,7 @@ history, power modes, screenshots and screen recording to behave normally.
 | **One native shell** | A single Qt 6 binary owns the bar and on-demand cards—no Waybar + Eww + AGS stack to theme and debug separately. |
 | **Zero-idle popovers** | Audio, network, power and workflow cards exist only while visible, then exit cleanly. |
 | **Event-driven state** | Hyprland, PipeWire, MPRIS, NetworkManager, BlueZ, UPower, backlight and tray events update one native shell core without a farm of polling widgets. |
+| **Meeting-safe sharing** | Meet and Discord use the trusted Hyprland portal with a compact pinned chooser that stays above the call without disrupting the tiling tree. |
 | **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys show compact native OSD feedback, and ordinary apps tile normally. |
 | **One searchable control center** | Appearance, hardware, defaults, accounts, automation and recovery live in one responsive Settings app with no dead control-center duplicates. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
@@ -69,8 +70,10 @@ The shell includes:
 - searchable notification history, timed focus modes, clipboard history, minimized apps and a DBusMenu-aware background-app switcher;
 - per-app timed notification muting, grouped alerts and verification-code copying;
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
+- an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
+- compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
 - dynamic day-cycle wallpapers, eight design presets and sixteen accents;
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;

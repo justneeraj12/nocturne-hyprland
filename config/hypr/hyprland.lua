@@ -256,6 +256,19 @@ hl.window_rule({
 })
 hl.window_rule({ match = { class = "^(steam_app_.*)$" }, immediate = true })
 
+-- Portal screen/window selection is modal by design, but it should not enter
+-- the tiling tree or disappear underneath the meeting it belongs to. Keep the
+-- upstream Hyprland picker compact, centered and visible on every workspace.
+hl.window_rule({
+    match = { class = "^(hyprland-share-picker)$", title = "^(MainPicker)$" },
+    float = true,
+    pin = true,
+    size = {720, 500},
+    center = true,
+    no_blur = true,
+    opacity = "1.0 override 1.0 override 1.0 override",
+})
+
 local opaque_content = "^(firefox|Brave-browser|brave-browser|brave-.*|chromium|Google-chrome|google-chrome|mpv|vlc|qpdfview|libreoffice.*|steam|steam_app_.*)$"
 hl.window_rule({ match = { class = opaque_content }, opacity = "1.0 override 1.0 override 1.0 override" })
 
