@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1 - 2026-10-05
+
+- Rebuilt the background-app panel as a compact, scroll-safe application list
+  with live status, process identity and clear open/menu interactions.
+- Fixed left-click activation by dismissing the overlay after success and added
+  reliable fallbacks for Ayatana-only tray apps such as Steam.
+- Removed the three-item tray truncation, added a live background-app count and
+  application summary to the bar, and retained support for up to twelve items.
+- Added sharp visual grouping, hover feedback and accent focus lines across all
+  bar buttons without increasing bar height or idle process count.
+
 ## 0.4.0 - 2026-10-05
 
 - Rebuilt Nocturne Settings as a responsive control center with a collapsible,

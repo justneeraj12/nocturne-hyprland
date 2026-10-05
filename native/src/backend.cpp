@@ -548,6 +548,7 @@ QVariantList Backend::trayItems() const
         const auto id = item.property("Id").toString();
         auto title = item.property("Title").toString();
         auto icon = item.property("IconName").toString();
+        const auto category = item.property("Category").toString();
         const auto identity = (id + QLatin1Char(' ') + path).toLower();
 
         QString processName;
@@ -579,6 +580,14 @@ QVariantList Backend::trayItems() const
             title = QStringLiteral("Steam");
             icon = QStringLiteral("steam");
             priority = 2;
+        } else if (processName.contains(QStringLiteral("easyeffects"))) {
+            title = QStringLiteral("EasyEffects");
+            if (icon.isEmpty()) icon = QStringLiteral("com.github.wwmm.easyeffects");
+            priority = 3;
+        } else if (processName.contains(QStringLiteral("qpwgraph"))) {
+            title = QStringLiteral("QPWGraph");
+            if (icon.isEmpty()) icon = QStringLiteral("org.rncbc.qpwgraph");
+            priority = 4;
         } else if (identity.startsWith(QStringLiteral("chrome_status_icon"))) {
             if (title.isEmpty()) title = QStringLiteral("Chrome");
             if (icon.isEmpty()) icon = QStringLiteral("google-chrome");
@@ -589,7 +598,9 @@ QVariantList Backend::trayItems() const
             {QStringLiteral("reference"), reference},
             {QStringLiteral("title"), title},
             {QStringLiteral("icon"), icon},
-            {QStringLiteral("status"), item.property("Status").toString()}
+            {QStringLiteral("status"), item.property("Status").toString()},
+            {QStringLiteral("category"), category},
+            {QStringLiteral("process"), processName}
         }});
     }
     if (!updateEntry.isEmpty()) entries.push_back({0, updateEntry});
@@ -601,7 +612,7 @@ QVariantList Backend::trayItems() const
     QVariantList result;
     for (const auto &entry : entries) {
         result.push_back(entry.data);
-        if (result.size() == 3) break;
+        if (result.size() == 12) break;
     }
     return result;
 }
@@ -749,13 +760,40 @@ bool Backend::activateTrayItem(const QString &reference, const QString &action) 
     QDBusInterface item(reference.left(slash), reference.mid(slash),
         QStringLiteral("org.kde.StatusNotifierItem"), QDBusConnection::sessionBus());
     if (!item.isValid()) return false;
-    QString method = QStringLiteral("Activate");
-    if (action == QStringLiteral("context")) method = QStringLiteral("ContextMenu");
-    else if (action == QStringLiteral("secondary")) method = QStringLiteral("SecondaryActivate");
     const auto cursor = json({"hyprctl", "cursorpos", "-j"}, 1000).toMap();
-    return item.call(method, cursor.value(QStringLiteral("x")).toInt(),
-               cursor.value(QStringLiteral("y")).toInt()).type()
-        != QDBusMessage::ErrorMessage;
+    const int x = cursor.value(QStringLiteral("x")).toInt();
+    const int y = cursor.value(QStringLiteral("y")).toInt();
+    const auto id = item.property("Id").toString().toLower();
+
+    auto call = [&](const QString &method) {
+        return item.call(method, x, y).type() != QDBusMessage::ErrorMessage;
+    };
+    auto launchFallback = [&]() {
+        if (id.contains(QStringLiteral("steam"))) {
+            return QProcess::startDetached(home() + QStringLiteral("/.local/bin/steam"),
+                {QStringLiteral("steam://open/main")});
+        }
+        if (id.contains(QStringLiteral("easyeffects")))
+            return QProcess::startDetached(QStringLiteral("easyeffects"), {});
+        if (id.contains(QStringLiteral("qpwgraph")))
+            return QProcess::startDetached(QStringLiteral("qpwgraph"), {});
+        return false;
+    };
+
+    if (action == QStringLiteral("context")) {
+        if (call(QStringLiteral("ContextMenu"))) return true;
+        return launchFallback();
+    }
+    if (action == QStringLiteral("secondary")) {
+        if (call(QStringLiteral("SecondaryActivate"))) return true;
+        return launchFallback();
+    }
+    if (call(QStringLiteral("Activate"))) return true;
+    // Ayatana-only items such as Steam export a DBusMenu but no standard
+    // Activate method. A normal application URI is the least surprising
+    // left-click fallback and focuses the already-running client.
+    if (launchFallback()) return true;
+    return call(QStringLiteral("SecondaryActivate"));
 }
 
 bool Backend::launchApplication(const QString &desktopFile)

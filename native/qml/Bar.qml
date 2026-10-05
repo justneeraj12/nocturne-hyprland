@@ -13,6 +13,7 @@ Item {
     property var systemState: ({})
     property var kdeconnect: ({})
     property var battery: ({})
+    property var tray: []
     property var media: ({title: "", artist: "", status: ""})
     property int volume: 0
     property bool volumeMuted: false
@@ -66,6 +67,13 @@ Item {
     function refreshCaffeine() { caffeine = scriptJson("caffeine", ["status"]) }
     function refreshSystem() { systemState = scriptJson("system-status") }
     function refreshPower() { battery = scriptJson("power-battery-status") }
+    function refreshTray() { tray = backend.trayItems() }
+    function trayTooltip() {
+        if (tray.length === 0) return "No background apps"
+        var names = []
+        for (var i = 0; i < tray.length; ++i) names.push(tray[i].title || "Application")
+        return tray.length + (tray.length === 1 ? " background app\n" : " background apps\n") + names.join(" · ")
+    }
 
     Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
     Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refreshActivity() }
@@ -73,6 +81,7 @@ Item {
     Timer { interval: 3000; running: true; repeat: true; onTriggered: root.refreshAudio() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshNotifications() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshMinimized() }
+    Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refreshTray() }
     Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshCaffeine() }
     Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshConnectivity() }
     Timer { interval: 30000; running: true; repeat: true; onTriggered: root.refreshSystem() }
@@ -97,5 +106,6 @@ Item {
         refreshNotifications()
         refreshSystem()
         refreshPower()
+        refreshTray()
     }
 }

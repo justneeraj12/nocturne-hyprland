@@ -65,7 +65,7 @@ The shell includes:
 - a command-center launcher for apps, running windows and safe desktop actions;
 - a nine-workspace overview plus restorable desktop and audio scenes;
 - launcher favorites, recent apps, local file search and inline calculations;
-- notification history, timed focus modes, clipboard history and minimized apps;
+- notification history, timed focus modes, clipboard history, minimized apps and a live background-app switcher;
 - per-app timed notification muting, grouped alerts and verification-code copying;
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
 - calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;

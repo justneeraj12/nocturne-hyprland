@@ -153,11 +153,16 @@ ApplicationWindow {
                     shell.refreshCaffeine()
                 }
             }
+            Rectangle {
+                visible: root.fullBar
+                width: 1; height: 15; y: 6
+                color: backend.lineColor
+            }
             BarButton {
                 visible: root.fullBar
-                text: "•••"
-                fontPixelSize: 11
-                tooltip: "Background apps"
+                text: "•••" + (shell.tray.length > 0 ? " " + shell.tray.length : "")
+                fontPixelSize: 10
+                tooltip: shell.trayTooltip()
                 onLeftClicked: root.nativeCard("background", "")
             }
             BarButton {
@@ -166,6 +171,11 @@ ApplicationWindow {
                 tooltip: shell.kdeconnect.tooltip || "KDE Connect"
                 onLeftClicked: root.nativeCard("kdeconnect", "")
                 onRightClicked: root.run([backend.home + "/.config/hypr/scripts/kdeconnect-menu", "clipboard"])
+            }
+            Rectangle {
+                visible: root.fullBar
+                width: 1; height: 15; y: 6
+                color: backend.lineColor
             }
             BarButton {
                 visible: root.standardBar
@@ -203,6 +213,11 @@ ApplicationWindow {
                     + (root.monitorCount === 1 ? "" : "s")
                 onLeftClicked: root.run([backend.home + "/.local/bin/nocturne-dashboard"])
                 onRightClicked: root.nativeCard("maintenance", "")
+            }
+            Rectangle {
+                visible: root.fullBar
+                width: 1; height: 15; y: 6
+                color: backend.lineColor
             }
             BarButton {
                 text: shell.connectivity.text || "󰤨"

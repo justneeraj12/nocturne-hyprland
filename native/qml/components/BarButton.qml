@@ -15,15 +15,25 @@ Rectangle {
 
     implicitWidth: Math.max(24, label.implicitWidth + 12)
     implicitHeight: 27
-    color: selected ? selectedColor : "transparent"
-    border.width: selected ? 1 : 0
-    border.color: selected ? backend.accent2Color : "transparent"
+    color: selected ? selectedColor : (mouse.pressed ? backend.overlayColor : (mouse.containsMouse ? backend.surfaceColor : "transparent"))
+    border.width: selected || mouse.containsMouse ? 1 : 0
+    border.color: selected ? backend.accent2Color : (mouse.containsMouse ? backend.lineColor : "transparent")
+    Behavior on color { ColorAnimation { duration: 90 } }
+
+    Rectangle {
+        visible: mouse.containsMouse && !root.selected
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 1
+        color: backend.accentColor
+    }
 
     Text {
         id: label
         anchors.centerIn: parent
         text: root.text
-        color: root.selected ? backend.baseColor : backend.textColor
+        color: root.selected ? backend.baseColor : (mouse.containsMouse ? backend.accentColor : backend.textColor)
         font.family: "MesloLGS Nerd Font Mono"
         font.pixelSize: root.fontPixelSize
         font.bold: root.selected

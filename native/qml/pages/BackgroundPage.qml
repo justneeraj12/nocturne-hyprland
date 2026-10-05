@@ -5,14 +5,28 @@ import "../components"
 
 Rectangle {
     id: root
-    implicitWidth: 410
-    implicitHeight: Math.max(116, panel.implicitHeight + 20)
+    implicitWidth: 430
+    implicitHeight: Math.max(128, panel.implicitHeight + 20)
     color: backend.baseColor
     border.color: backend.accent2Color
     border.width: 1
     property var items: backend.trayItems()
+    property string actionError: ""
 
     function refresh() { items = backend.trayItems() }
+    function activate(item, action) {
+        actionError = ""
+        if (backend.activateTrayItem(item.reference, action)) backend.close()
+        else {
+            actionError = String(item.title || "Application").toUpperCase() + " DID NOT ACCEPT THAT ACTION"
+            errorTimeout.restart()
+        }
+    }
+    function stateLabel(item) {
+        var state = String(item.status || "passive").toUpperCase()
+        if (state === "NEEDSATTENTION") return "NEEDS ATTENTION"
+        return state
+    }
 
     ColumnLayout {
         id: panel
@@ -23,109 +37,179 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            PanelHeader { Layout.fillWidth: true; title: "Background apps"; subtitle: "Click to open · right-click for menu" }
-            Text {
-                text: root.items.length
-                color: backend.accentColor
-                font.family: "monospace"
-                font.pixelSize: 12
-                font.bold: true
+            spacing: 9
+            Rectangle {
+                implicitWidth: 31
+                implicitHeight: 31
+                color: backend.surfaceColor
+                border.color: backend.lineColor
+                Text {
+                    anchors.centerIn: parent
+                    text: "⋯"
+                    color: backend.accentColor
+                    font.family: "MesloLGS Nerd Font Mono"
+                    font.pixelSize: 17
+                    font.bold: true
+                }
+            }
+            PanelHeader {
+                Layout.fillWidth: true
+                title: "Background apps"
+                subtitle: "Running quietly · click a row to bring it forward"
+            }
+            Rectangle {
+                implicitWidth: appCount.implicitWidth + 16
+                implicitHeight: 25
+                color: backend.surfaceColor
+                border.color: backend.lineColor
+                Text {
+                    id: appCount
+                    anchors.centerIn: parent
+                    text: root.items.length + (root.items.length === 1 ? " APP" : " APPS")
+                    color: backend.accentColor
+                    font.family: "monospace"
+                    font.pixelSize: 8
+                    font.bold: true
+                }
             }
         }
 
-        Text {
+        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: backend.lineColor }
+
+        Rectangle {
             Layout.fillWidth: true
+            implicitHeight: 66
             visible: root.items.length === 0
-            text: "No background apps are exposing tray controls."
-            color: backend.mutedColor
-            font.family: "Inter"
-            font.pixelSize: 10
+            color: backend.surfaceColor
+            border.color: backend.lineColor
+            Column {
+                anchors.centerIn: parent
+                spacing: 4
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "NO BACKGROUND APPS"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 10; font.bold: true }
+                Text { anchors.horizontalCenter: parent.horizontalCenter; text: "Apps with tray controls will appear here automatically."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
+            }
         }
 
-        Grid {
-            id: trayGrid
+        ListView {
+            id: appList
             Layout.fillWidth: true
-            Layout.preferredHeight: root.items.length === 0 ? 0 : Math.ceil(root.items.length / columns) * 75 - spacing
-            columns: 3
+            Layout.preferredHeight: root.items.length === 0 ? 0 : Math.min(root.items.length * 67 - 5, 464)
             spacing: 5
-
-            Repeater {
-                model: root.items
-                delegate: Rectangle {
-                    id: tile
+            clip: true
+            model: root.items
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: ScrollBar { policy: appList.contentHeight > appList.height ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
+            delegate: Rectangle {
+                    id: appRow
                     required property var modelData
-                    width: (trayGrid.width - trayGrid.spacing * (trayGrid.columns - 1)) / trayGrid.columns
-                    height: 70
-                    color: tileMouse.containsMouse ? backend.overlayColor : backend.surfaceColor
+                    width: ListView.view.width
+                    height: 62
+                    color: rowMouse.containsMouse ? backend.overlayColor : backend.surfaceColor
                     border.width: 1
-                    border.color: tileMouse.containsMouse ? backend.accentColor : backend.lineColor
+                    border.color: rowMouse.containsMouse ? backend.accent2Color : backend.lineColor
 
-                    Rectangle {
-                        width: 4
-                        height: 4
-                        anchors.top: parent.top
-                        anchors.right: parent.right
-                        anchors.margins: 6
-                        color: String(tile.modelData.status).toLowerCase() === "active" ? backend.accentColor : backend.mutedColor
-                    }
-
-                    Image {
-                        id: appIcon
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.top: parent.top
-                        anchors.topMargin: 8
-                        width: 30
-                        height: 30
-                        sourceSize.width: 30
-                        sourceSize.height: 30
-                        fillMode: Image.PreserveAspectFit
-                        source: tile.modelData.icon ? "image://theme/" + encodeURIComponent(tile.modelData.icon) : ""
-                        asynchronous: true
-                    }
-
-                    Text {
-                        anchors.centerIn: appIcon
-                        visible: appIcon.status !== Image.Ready
-                        text: String(tile.modelData.title || "?").substring(0, 1).toUpperCase()
-                        color: backend.accentColor
-                        font.family: "monospace"
-                        font.pixelSize: 18
-                        font.bold: true
-                    }
-
-                    Text {
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        anchors.leftMargin: 5
-                        anchors.rightMargin: 5
-                        anchors.bottomMargin: 7
-                        text: tile.modelData.title || "Background app"
-                        color: backend.textColor
-                        horizontalAlignment: Text.AlignHCenter
-                        font.family: "Inter"
-                        font.pixelSize: 9
-                        elide: Text.ElideRight
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.margins: 9
+                        spacing: 10
+                        Rectangle {
+                            implicitWidth: 38
+                            implicitHeight: 38
+                            color: backend.baseColor
+                            border.color: backend.lineColor
+                            Image {
+                                id: appIcon
+                                anchors.centerIn: parent
+                                width: 26
+                                height: 26
+                                sourceSize: Qt.size(52, 52)
+                                fillMode: Image.PreserveAspectFit
+                                source: appRow.modelData.icon ? "image://theme/" + encodeURIComponent(appRow.modelData.icon) : ""
+                                asynchronous: true
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: appIcon.status !== Image.Ready
+                                text: String(appRow.modelData.title || "?").substring(0, 1).toUpperCase()
+                                color: backend.accentColor
+                                font.family: "monospace"
+                                font.pixelSize: 15
+                                font.bold: true
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 3
+                            Text {
+                                Layout.fillWidth: true
+                                text: appRow.modelData.title || "Background app"
+                                color: backend.textColor
+                                font.family: "Inter"
+                                font.pixelSize: 10
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+                            RowLayout {
+                                spacing: 6
+                                Rectangle {
+                                    implicitWidth: 6; implicitHeight: 6
+                                    color: String(appRow.modelData.status).toLowerCase() === "active" ? backend.accentColor : backend.mutedColor
+                                }
+                                Text {
+                                    text: root.stateLabel(appRow.modelData)
+                                    color: backend.mutedColor
+                                    font.family: "monospace"
+                                    font.pixelSize: 8
+                                }
+                                Text {
+                                    visible: String(appRow.modelData.process || "") !== ""
+                                    text: "·  " + String(appRow.modelData.process).toUpperCase()
+                                    color: backend.mutedColor
+                                    font.family: "monospace"
+                                    font.pixelSize: 8
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                        Text {
+                            text: rowMouse.containsMouse ? "OPEN  ↗" : "↗"
+                            color: rowMouse.containsMouse ? backend.accentColor : backend.mutedColor
+                            font.family: "monospace"
+                            font.pixelSize: 8
+                            font.bold: true
+                        }
                     }
 
                     MouseArea {
-                        id: tileMouse
+                        id: rowMouse
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
                         onClicked: function(mouse) {
-                            backend.activateTrayItem(tile.modelData.reference,
-                                mouse.button === Qt.RightButton ? "context" : (mouse.button === Qt.MiddleButton ? "secondary" : "activate"))
+                            root.activate(appRow.modelData,
+                                mouse.button === Qt.RightButton ? "context"
+                                    : (mouse.button === Qt.MiddleButton ? "secondary" : "activate"))
                         }
                     }
-                    ToolTip.visible: tileMouse.containsMouse
-                    ToolTip.delay: 700
-                    ToolTip.text: tile.modelData.title + " · " + String(tile.modelData.status || "passive").toLowerCase()
-                }
+                    ToolTip.visible: rowMouse.containsMouse
+                    ToolTip.delay: 650
+                    ToolTip.text: "Left: open · Right: app menu · Middle: secondary action"
             }
+        }
+
+        Text {
+            visible: root.actionError !== ""
+            Layout.fillWidth: true
+            text: root.actionError
+            color: "#ff8c96"
+            horizontalAlignment: Text.AlignHCenter
+            font.family: "monospace"
+            font.pixelSize: 8
+            font.bold: true
         }
     }
 
-    Timer { interval: 1500; running: true; repeat: true; onTriggered: root.refresh() }
+    Timer { interval: 1200; running: true; repeat: true; onTriggered: root.refresh() }
+    Timer { id: errorTimeout; interval: 3000; onTriggered: root.actionError = "" }
 }
