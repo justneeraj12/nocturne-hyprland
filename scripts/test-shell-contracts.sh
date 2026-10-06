@@ -27,7 +27,7 @@ jq -e '.format == "nocturne-context-v2" and .contexts.docked == "desk" and .prof
 "$XDG_CONFIG_HOME/hypr/scripts/context-engine" decision \
   | jq -e '.enabled == false and .context == "mobile" and .selectedScene == "commute" and .reason == "context:mobile"' >/dev/null
 
-"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 8' >/dev/null
+"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 9' >/dev/null
 trace="$root/config/hypr/scripts/automation-trace"
 "$trace" record context scene-applied profile:meeting calls 'Settings only.'
 "$trace" record context baseline-restored no-matching-scene calls 'Reversed.'
@@ -183,6 +183,27 @@ permissions="$root/config/hypr/scripts/permission-control"
 "$permissions" status | jq -e '.format == "nocturne-permissions-v1" and (.portals.healthy|type == "boolean") and (.flatpaks|length) == 1 and (.startup|length) == 1' >/dev/null
 "$permissions" startup example.desktop false
 grep -Fq 'Hidden=true' "$XDG_CONFIG_HOME/autostart/example.desktop"
+
+mkdir -p "$XDG_CONFIG_HOME/hypr/lockstyles"
+cp -- "$root/config/hypr/scripts/lock-style" "$XDG_CONFIG_HOME/hypr/scripts/lock-style"
+cp -- "$root/config/hypr/lockstyles/"*.conf.in "$XDG_CONFIG_HOME/hypr/lockstyles/"
+chmod +x "$XDG_CONFIG_HOME/hypr/scripts/lock-style"
+lock_style="$XDG_CONFIG_HOME/hypr/scripts/lock-style"
+"$lock_style" status | jq -e '.format == "nocturne-lock-style-v1" and .current == "editorial" and (.styles|length) == 5' >/dev/null
+for style in editorial center-signal noc-grid phosphor-terminal relay-split; do
+  "$lock_style" apply "$style"
+  "$lock_style" status | jq -e --arg style "$style" '.current == $style' >/dev/null
+  grep -Fq "NOCTURNE LOCK STYLE: $style" "$XDG_CONFIG_HOME/hypr/hyprlock.conf"
+  ! grep -Eq '@[A-Z0-9_]+@' "$XDG_CONFIG_HOME/hypr/hyprlock.conf"
+done
+"$lock_style" apply editorial
+[[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/lock-style.json") == 600 ]]
+for template in "$XDG_CONFIG_HOME/hypr/lockstyles/"*.conf.in; do
+  [[ $(basename -- "$template") == common.conf.in ]] && continue
+  grep -Fq 'input-field {' "$template"
+  grep -Fq 'fail_text =' "$template"
+  grep -Fq 'check_color =' "$template"
+done
 
 NOCTURNE_CAMERA_DEVICE="$test_root/missing-camera" \
   "$root/config/hypr/scripts/camera-control" status \

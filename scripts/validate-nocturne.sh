@@ -104,6 +104,7 @@ grep -Fq 'Accessible.role: Accessible.Button' "$root/native/qml/components/BarBu
 grep -Fq 'Accessible.role: Accessible.CheckBox' "$root/native/qml/components/NocturneToggle.qml"
 grep -Fq 'CONFIRM CLEAR' "$root/native/qml/pages/ClipboardPage.qml"
 grep -Fq 'SENSITIVE GUARD' "$root/native/qml/pages/ClipboardPage.qml"
+grep -Fq 'LOCK SCREEN STYLE' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'pendingSessionAction' "$root/native/qml/pages/PowerPage.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
@@ -255,6 +256,14 @@ grep -Fq 'nocturne-guard-v1' "$root/config/hypr/scripts/system-guard"
 grep -Fq 'nocturne-rules-v1' "$root/config/hypr/scripts/automation-rules"
 grep -Fq 'nocturne-clipboard-v1' "$root/config/hypr/scripts/clipboard-control"
 grep -Fq 'nocturne-power-lab-v1' "$root/config/hypr/scripts/power-lab"
+grep -Fq 'nocturne-lock-style-v1' "$root/config/hypr/scripts/lock-style"
+[[ $(find "$root/config/hypr/lockstyles" -maxdepth 1 -name '*.conf.in' | wc -l) -eq 6 ]]
+for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
+  [[ $(basename -- "$lock_style") == common.conf.in ]] && continue
+  grep -Fq 'input-field {' "$lock_style"
+  grep -Fq 'fail_text =' "$lock_style"
+  grep -Fq 'check_color =' "$lock_style"
+done
 grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
 grep -Fq 'nocturne-session-health.service' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-session-health.timer' "$root/apply-hyprland.sh"

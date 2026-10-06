@@ -55,6 +55,18 @@ preview: choose **Keep** or let Nocturne restore the old palette automatically.
 Theme Studio can derive an accent from the active wallpaper and save named
 custom themes under `~/.config/nocturne/themes`.
 
+## Lock screen styles
+
+**Settings → Appearance → Lock Screen Style** includes five layouts: Editorial,
+Center Signal, NOC Grid, Phosphor Terminal and Relay Split. **Apply** makes a
+style persistent. **Try** locks the session once with that layout and restores
+the previous style immediately after a successful unlock. Every layout uses the
+active Nocturne accent and the same PAM-backed Hyprlock authentication path.
+
+The selected style is stored privately in
+`~/.config/nocturne/lock-style.json`; rendered Hyprlock configuration is rebuilt
+when the session locks, so theme and accent changes stay synchronized.
+
 ## Scenes and context automation
 
 Open **Settings → Scenes + Automation** to save the current applications,

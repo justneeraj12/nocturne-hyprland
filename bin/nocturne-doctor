@@ -104,6 +104,12 @@ fi
 [[ -x $HOME/.config/hypr/scripts/efficiency-control ]] \
   && ok 'On-demand efficiency telemetry is installed' \
   || warning 'Efficiency telemetry helper is missing'
+lock_style_state=$($HOME/.config/hypr/scripts/lock-style status 2>/dev/null || true)
+if jq -e '.current as $current | .format == "nocturne-lock-style-v1" and (.styles|length) == 5 and ([.styles[].id]|index($current) != null)' <<<"$lock_style_state" >/dev/null 2>&1; then
+  ok 'Lock screen style registry is valid'
+else
+  warning 'Lock screen style registry could not be validated'
+fi
 for control_spec in \
   'storage-control:nocturne-storage-v1:Storage Center' \
   'permission-control:nocturne-permissions-v1:Permission Center' \

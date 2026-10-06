@@ -5,7 +5,7 @@ config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 state_home=${XDG_STATE_HOME:-$HOME/.local/state}
 state_dir=$state_home/nocturne
 version_file=$state_dir/schema-version
-target=8
+target=9
 mkdir -p -- "$config_home/nocturne" "$state_dir"
 current=0
 [[ -r $version_file ]] && read -r current < "$version_file"
@@ -65,6 +65,12 @@ if ((current < 8)); then
   [[ -x $config_home/hypr/scripts/system-preferences ]] \
     && "$config_home/hypr/scripts/system-preferences" apply >/dev/null 2>&1 || true
   printf '8\n' > "$version_file"; current=8
+fi
+if ((current < 9)); then
+  if [[ -x $config_home/hypr/scripts/lock-style ]]; then
+    "$config_home/hypr/scripts/lock-style" render >/dev/null 2>&1 || true
+  fi
+  printf '9\n' > "$version_file"; current=9
 fi
 
 if [[ ${1:-} == --json ]]; then

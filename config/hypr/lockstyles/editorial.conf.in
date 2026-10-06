@@ -1,0 +1,175 @@
+# NOCTURNE LOCK STYLE: editorial
+label {
+    monitor =
+    text = NOCTURNE  //  SESSION SECURED
+    color = rgba(@ACCENT@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    position = 96, -52
+    halign = left
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@MUTED@ff)
+    font_size = 10
+    font_family = JetBrains Mono
+    text_align = right
+    position = -96, -52
+    halign = right
+    valign = top
+}
+shape {
+    monitor =
+    size = 2, 224
+    color = rgba(@ACCENT@b3)
+    rounding = 0
+    position = 76, 132
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 136
+    font_family = Inter Display SemiBold
+    position = 100, 166
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@e8)
+    font_size = 18
+    font_family = JetBrains Mono Medium
+    position = 108, 45
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(@ACCENT2@ff)
+    font_size = 13
+    font_family = JetBrains Mono Medium
+    position = 108, -2
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = 󰎈  NOW PLAYING
+    color = rgba(@ACCENT@ff)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    position = -100, -190
+    halign = right
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 22
+    font_family = Inter Display Medium
+    text_align = right
+    position = -100, -224
+    halign = right
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media meta
+    color = rgba(@MUTED@ff)
+    font_size = 11
+    font_family = JetBrains Mono
+    text_align = right
+    position = -100, -265
+    halign = right
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-notifications
+    color = rgba(@ACCENT2@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    text_align = right
+    position = -100, -322
+    halign = right
+    valign = top
+}
+label {
+    monitor =
+    text = $USER  @  NOCTURNE
+    color = rgba(@MUTED@ff)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    position = -100, -85
+    halign = right
+    valign = center
+}
+input-field {
+    monitor =
+    size = 520, 52
+    outline_thickness = 0
+    rounding = 0
+    dots_size = 0.22
+    dots_spacing = 0.28
+    dots_center = false
+    outer_color = rgba(00000000)
+    inner_color = rgba(00000000)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">TYPE PASSWORD  ·  ENTER TO UNLOCK</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">ACCESS DENIED  ·  $FAIL  ·  ATTEMPT $ATTEMPTS</span>
+    capslock_color = rgba(@ACCENT2@ff)
+    position = -100, -138
+    halign = right
+    valign = center
+}
+shape {
+    monitor =
+    size = 520, 1
+    color = rgba(@ACCENT@bf)
+    rounding = 0
+    position = -100, -166
+    halign = right
+    valign = center
+}
+shape {
+    monitor =
+    size = 1728, 1
+    color = rgba(@ACCENT@3d)
+    rounding = 0
+    position = 0, 154
+    halign = center
+    valign = bottom
+}
+label {
+    monitor =
+    text = WORLD SIGNALS  //  + AM  ·  − PM
+    color = rgba(@ACCENT@ff)
+    font_size = 9
+    font_family = JetBrains Mono Medium
+    position = 96, 126
+    halign = left
+    valign = bottom
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@c8)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 96, 42
+    halign = left
+    valign = bottom
+}

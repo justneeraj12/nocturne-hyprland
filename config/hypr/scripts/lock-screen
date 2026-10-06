@@ -5,5 +5,7 @@ set -euo pipefail
 pgrep -x hyprlock >/dev/null 2>&1 && exit 0
 
 hyprlock_config=${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/hyprlock.conf
+lock_style=${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/scripts/lock-style
+[[ -x $lock_style ]] && "$lock_style" render >/dev/null 2>&1 || true
 [[ -r $hyprlock_config ]] || { notify-send -u critical -a Nocturne 'Lock screen' 'Hyprlock configuration is missing.'; exit 1; }
 exec hyprlock --config "$hyprlock_config"

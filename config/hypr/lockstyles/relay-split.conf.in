@@ -1,0 +1,143 @@
+# NOCTURNE LOCK STYLE: relay-split
+shape {
+    monitor =
+    size = 960, 1600
+    color = rgba(@BASE@a8)
+    rounding = 0
+    position = 0, 0
+    halign = right
+    valign = center
+}
+shape {
+    monitor =
+    size = 6, 1600
+    color = rgba(@ACCENT@e8)
+    rounding = 0
+    position = 0, 0
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = RELAY // 05\nSECURE SESSION
+    color = rgba(@ACCENT@ff)
+    font_size = 15
+    font_family = JetBrains Mono ExtraBold
+    text_align = left
+    position = 90, -74
+    halign = left
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 150
+    font_family = Inter Display SemiBold
+    position = -110, 224
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@d8)
+    font_size = 16
+    font_family = JetBrains Mono Medium
+    position = -118, 120
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(@ACCENT2@ff)
+    font_size = 12
+    font_family = JetBrains Mono Medium
+    position = -118, 75
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = $USER // RELAY AUTH
+    color = rgba(@ACCENT@ff)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    position = 110, 90
+    halign = left
+    valign = center
+}
+input-field {
+    monitor =
+    size = 560, 58
+    outline_thickness = 1
+    rounding = 0
+    dots_size = 0.20
+    dots_spacing = 0.28
+    dots_center = false
+    outer_color = rgba(@ACCENT@cc)
+    inner_color = rgba(@SURFACE@e8)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">ENTER PASSWORD // EXECUTE</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">RELAY REJECTED // $FAIL // $ATTEMPTS</span>
+    capslock_color = rgba(@ACCENT2@ff)
+    position = 110, 30
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@TEXT@bb)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = 110, -34
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 18
+    font_family = Inter Display Medium
+    position = 110, -126
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media meta
+    color = rgba(@MUTED@ff)
+    font_size = 10
+    font_family = JetBrains Mono
+    position = 110, -160
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-notifications
+    color = rgba(@ACCENT2@ff)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    position = 110, -210
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@a8)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = right
+    position = -110, 62
+    halign = right
+    valign = bottom
+}

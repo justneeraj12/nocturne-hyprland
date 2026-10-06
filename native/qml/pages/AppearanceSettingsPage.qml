@@ -9,11 +9,13 @@ Rectangle {
     property bool active: false
     property var images: []
     property var studio: ({preview:false,remaining:0,themes:[]})
+    property var lockState: ({current:"editorial",styles:[],previewLocksSession:true})
     property var wallpaperState: ({enabled:false,current:"",source:"",mode:"day-cycle",monitors:[],mapped_monitors:[]})
     property string selectedWallpaper: wallpaperState.current || ""
     property string selectedAccent: ""
     readonly property string wallpaperTool: backend.home + "/.local/bin/nocturne-wallpaper-cycle"
     readonly property string themeTool: backend.home + "/.config/hypr/scripts/theme-studio"
+    readonly property string lockTool: backend.home + "/.config/hypr/scripts/lock-style"
     readonly property var accents: [
         {name:"Green", color:"#5f8f76"}, {name:"Teal", color:"#3f9b91"},
         {name:"Cyan", color:"#42a5b3"}, {name:"Ice", color:"#8abac7"},
@@ -34,6 +36,8 @@ Rectangle {
         images = backend.wallpapers()
         wallpaperState = backend.json([wallpaperTool, "status"], 2500) || wallpaperState
         studio = backend.json([themeTool, "status"], 1800) || studio
+        var nextLock = backend.json([lockTool, "status"], 1800)
+        if (nextLock && nextLock.styles !== undefined) lockState = nextLock
         if (wallpaperState.current) selectedWallpaper = wallpaperState.current
     }
     function applyWallpaper(path) {
@@ -53,6 +57,13 @@ Rectangle {
         backend.run([themeTool, "preview", "-", name], 12000)
         backend.refreshTheme()
         previewRefresh.restart()
+    }
+    function applyLockStyle(id) {
+        backend.run([lockTool, "apply", id], 2500)
+        refresh()
+    }
+    function tryLockStyle(id) {
+        backend.start([lockTool, "try", id])
     }
 
     ScrollView {
@@ -221,6 +232,73 @@ Rectangle {
                             background: Rectangle {
                                 color: root.selectedAccent === modelData.name ? backend.overlayColor : backend.baseColor
                                 border.color: root.selectedAccent === modelData.name || parent.hovered ? modelData.color : backend.lineColor
+                            }
+                        }
+                    }
+                }
+            }
+
+            SettingsCard {
+                Layout.fillWidth: true
+                title: "LOCK SCREEN STYLE"
+                description: "Five sharp compositions share your wallpaper and active accent. TRY locks once, then restores the current style after you authenticate."
+                icon: "system-lock-screen"
+                glyph: "■"
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: width >= 690 ? 2 : 1
+                    columnSpacing: 8
+                    rowSpacing: 8
+                    Repeater {
+                        model: root.lockState.styles || []
+                        Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: 118
+                            color: backend.baseColor
+                            border.color: root.lockState.current === modelData.id ? backend.accentColor : backend.lineColor
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                spacing: 10
+                                Rectangle {
+                                    Layout.preferredWidth: 128
+                                    Layout.fillHeight: true
+                                    color: "#050708"
+                                    border.color: backend.lineColor
+                                    clip: true
+                                    Rectangle {
+                                        visible: modelData.id === "noc-grid" || modelData.id === "relay-split"
+                                        width: modelData.id === "noc-grid" ? 2 : 3
+                                        height: parent.height
+                                        x: modelData.id === "noc-grid" ? 17 : Math.round(parent.width / 2)
+                                        color: backend.accentColor
+                                    }
+                                    Text {
+                                        text: modelData.id === "phosphor-terminal" ? ">_ 12:47+" : (modelData.id === "noc-grid" ? "N\nO\nC    12:47+" : "12:47+")
+                                        color: backend.textColor
+                                        font.family: "monospace"
+                                        font.bold: true
+                                        font.pixelSize: modelData.id === "center-signal" ? 20 : 14
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        x: modelData.id === "editorial" ? 9 : Math.round((parent.width - width) / 2)
+                                        horizontalAlignment: Text.AlignHCenter
+                                    }
+                                    Text { anchors.left: parent.left; anchors.leftMargin: 8; anchors.top: parent.top; anchors.topMargin: 6; text: modelData.glyph; color: backend.accentColor; font.family: "monospace"; font.pixelSize: 7 }
+                                    Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.leftMargin: 8; anchors.rightMargin: 8; anchors.bottomMargin: 10; height: 1; color: backend.accent2Color }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    spacing: 3
+                                    Text { Layout.fillWidth: true; text: modelData.name.toUpperCase(); color: backend.textColor; font.family: "Inter"; font.pixelSize: 9; font.bold: true; elide: Text.ElideRight }
+                                    Text { Layout.fillWidth: true; Layout.fillHeight: true; text: modelData.description; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; wrapMode: Text.WordWrap }
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        NocturneButton { Layout.fillWidth: true; text: root.lockState.current === modelData.id ? "ACTIVE" : "APPLY"; selected: root.lockState.current === modelData.id; onClicked: root.applyLockStyle(modelData.id) }
+                                        NocturneButton { text: "TRY"; onClicked: root.tryLockStyle(modelData.id) }
+                                    }
+                                }
                             }
                         }
                     }

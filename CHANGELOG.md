@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added five accent-aware lock-screen compositions with persistent selection and a one-unlock safe preview.
+- Added a responsive Lock Screen Style selector to Appearance and regression coverage for every rendered layout.
+
 ## 1.1.0 - 2026-10-06
 
 - Added Storage Center with bounded cleanup, protected-data declarations and on-demand large-duplicate discovery.

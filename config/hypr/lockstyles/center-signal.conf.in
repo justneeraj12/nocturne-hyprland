@@ -1,0 +1,123 @@
+# NOCTURNE LOCK STYLE: center-signal
+shape {
+    monitor =
+    size = 760, 1
+    color = rgba(@ACCENT@73)
+    rounding = 0
+    position = 0, 214
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = NOC  //  CENTER SIGNAL
+    color = rgba(@ACCENT@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    position = 0, 350
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 154
+    font_family = Inter Display SemiBold
+    position = 0, 255
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@d9)
+    font_size = 17
+    font_family = JetBrains Mono Medium
+    position = 0, 156
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(@ACCENT2@ff)
+    font_size = 12
+    font_family = JetBrains Mono Medium
+    position = 0, 112
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = $USER // AUTHENTICATION REQUIRED
+    color = rgba(@MUTED@ff)
+    font_size = 9
+    font_family = JetBrains Mono Medium
+    position = 0, 10
+    halign = center
+    valign = center
+}
+input-field {
+    monitor =
+    size = 640, 58
+    outline_thickness = 1
+    rounding = 0
+    dots_size = 0.20
+    dots_spacing = 0.30
+    dots_center = true
+    outer_color = rgba(@ACCENT@bf)
+    inner_color = rgba(@BASE@d9)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">ENTER CREDENTIALS</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">AUTH FAILED  ·  $FAIL  ·  $ATTEMPTS</span>
+    capslock_color = rgba(@ACCENT2@ff)
+    position = 0, -54
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 18
+    font_family = Inter Display Medium
+    position = 0, -172
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media meta
+    color = rgba(@MUTED@ff)
+    font_size = 10
+    font_family = JetBrains Mono
+    position = 0, -205
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@TEXT@b8)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = 0, 52
+    halign = center
+    valign = bottom
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@a8)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = center
+    position = 0, 84
+    halign = center
+    valign = bottom
+}

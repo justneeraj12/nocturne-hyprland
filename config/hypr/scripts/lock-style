@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+style_dir="$config_home/hypr/lockstyles"
+state_file="$config_home/nocturne/lock-style.json"
+output="$config_home/hypr/hyprlock.conf"
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
+styles_json() {
+  jq -cn '[
+    {id:"editorial",name:"Editorial",glyph:"N//",description:"Asymmetric type, media context and a world-signal rail."},
+    {id:"center-signal",name:"Center Signal",glyph:"⊕",description:"Calm centered clock with balanced authentication and telemetry."},
+    {id:"noc-grid",name:"NOC Grid",glyph:"▦",description:"Dense operations-console blocks with a vertical NOC mast."},
+    {id:"phosphor-terminal",name:"Phosphor Terminal",glyph:">_",description:"A sharp terminal session with command-line authentication."},
+    {id:"relay-split",name:"Relay Split",glyph:"//",description:"Hard split composition with bold clock and relay controls."}
+  ]'
+}
+
+normalize_style() {
+  case ${1,,} in
+    editorial) printf 'editorial' ;;
+    center|signal|center-signal|'center signal') printf 'center-signal' ;;
+    grid|noc-grid|'noc grid') printf 'noc-grid' ;;
+    terminal|phosphor|phosphor-terminal|'phosphor terminal') printf 'phosphor-terminal' ;;
+    relay|split|relay-split|'relay split') printf 'relay-split' ;;
+    *) return 2 ;;
+  esac
+}
+
+ensure_state() {
+  mkdir -p "$config_home/nocturne" "$state_home"
+  if [[ ! -s $state_file ]]; then
+    printf '%s\n' '{"format":"nocturne-lock-style-v1","current":"editorial"}' > "$state_file"
+    chmod 600 "$state_file"
+  fi
+  jq -e '.format=="nocturne-lock-style-v1" and (.current|type=="string")' "$state_file" >/dev/null
+}
+
+css_color() {
+  local file=$1 name=$2 fallback=$3 value
+  value=$(sed -nE "s/^@define-color ${name} #([0-9A-Fa-f]{6});/\\1/p" "$file" 2>/dev/null | head -1)
+  [[ $value =~ ^[0-9A-Fa-f]{6}$ ]] && printf '%s' "${value,,}" || printf '%s' "$fallback"
+}
+
+render_style() {
+  local style=$1 common template palette accent_css base surface line text muted accent accent2
+  local blur_passes blur_size noise contrast brightness vibrancy temporary
+  common="$style_dir/common.conf.in"; template="$style_dir/$style.conf.in"
+  [[ -r $common && -r $template ]] || { printf 'Lock style assets are missing: %s\n' "$style" >&2; exit 3; }
+  palette="$config_home/nocturne/palette.css"; accent_css="$config_home/nocturne/accent.css"
+  base=$(css_color "$palette" base 07090a); surface=$(css_color "$palette" surface 0b0f10)
+  line=$(css_color "$palette" line 1b2925); text=$(css_color "$palette" text a7b8b1)
+  muted=$(css_color "$palette" muted 4d5d58); accent=$(css_color "$accent_css" accent 5f8f76)
+  accent2=$(css_color "$accent_css" accent2 477463)
+  case $style in
+    editorial) blur_passes=3; blur_size=6; noise=0.012; contrast=1.12; brightness=0.31; vibrancy=0.18 ;;
+    center-signal) blur_passes=4; blur_size=8; noise=0.008; contrast=1.08; brightness=0.27; vibrancy=0.12 ;;
+    noc-grid) blur_passes=2; blur_size=4; noise=0.018; contrast=1.18; brightness=0.24; vibrancy=0.20 ;;
+    phosphor-terminal) blur_passes=1; blur_size=3; noise=0.025; contrast=1.22; brightness=0.19; vibrancy=0.08 ;;
+    relay-split) blur_passes=2; blur_size=5; noise=0.014; contrast=1.16; brightness=0.25; vibrancy=0.16 ;;
+    *) return 2 ;;
+  esac
+  temporary=$(mktemp "$config_home/hypr/.hyprlock.XXXXXX")
+  { sed -e "s/@BLUR_PASSES@/$blur_passes/g" -e "s/@BLUR_SIZE@/$blur_size/g" \
+      -e "s/@NOISE@/$noise/g" -e "s/@CONTRAST@/$contrast/g" \
+      -e "s/@BRIGHTNESS@/$brightness/g" -e "s/@VIBRANCY@/$vibrancy/g" "$common"
+    sed -e "s/@BASE@/$base/g" -e "s/@SURFACE@/$surface/g" -e "s/@LINE@/$line/g" \
+      -e "s/@TEXT@/$text/g" -e "s/@MUTED@/$muted/g" -e "s/@ACCENT@/$accent/g" \
+      -e "s/@ACCENT2@/$accent2/g" "$template"
+  } > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$output"
+}
+
+write_state() {
+  local style=$1 temporary
+  temporary=$(mktemp "$config_home/nocturne/.lock-style.XXXXXX")
+  jq -cn --arg style "$style" '{format:"nocturne-lock-style-v1",current:$style}' > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$state_file"
+}
+
+status() {
+  ensure_state
+  local current styles
+  current=$(jq -r '.current' "$state_file"); styles=$(styles_json)
+  jq -cn --arg current "$current" --argjson styles "$styles" \
+    '{format:"nocturne-lock-style-v1",current:$current,styles:$styles,previewLocksSession:true}'
+}
+
+apply_style() {
+  local style; style=$(normalize_style "${1:?style required}")
+  ensure_state; render_style "$style"; write_state "$style"
+  notify-send -a Nocturne 'Lock style changed' "$(styles_json | jq -r --arg id "$style" '.[]|select(.id==$id)|.name')" >/dev/null 2>&1 || true
+}
+
+render_current() {
+  ensure_state
+  local current; current=$(jq -r '.current' "$state_file")
+  current=$(normalize_style "$current" 2>/dev/null || printf editorial)
+  render_style "$current"
+}
+
+try_style() {
+  pgrep -x hyprlock >/dev/null 2>&1 && exit 0
+  local style
+  style=$(normalize_style "${1:?style required}"); ensure_state
+  preview_previous=$(jq -r '.current' "$state_file")
+  preview_previous=$(normalize_style "$preview_previous" 2>/dev/null || printf editorial)
+  restore_preview() { render_style "$preview_previous"; }
+  trap restore_preview EXIT
+  render_style "$style"
+  hyprlock --config "$output"
+}
+
+case ${1:-status} in
+  status|list) status ;;
+  apply) apply_style "${2:-}" ;;
+  render) render_current ;;
+  try) try_style "${2:-}" ;;
+  *) printf 'Usage: %s status|list|apply STYLE|render|try STYLE\n' "$0" >&2; exit 2 ;;
+esac

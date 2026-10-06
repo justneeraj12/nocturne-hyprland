@@ -1,0 +1,169 @@
+# NOCTURNE LOCK STYLE: phosphor-terminal
+shape {
+    monitor =
+    size = 1180, 620
+    color = rgba(@BASE@d9)
+    rounding = 0
+    border_size = 1
+    border_color = rgba(@ACCENT@99)
+    position = 0, 0
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = root@noc:~$ session --locked
+    color = rgba(@ACCENT@ff)
+    font_size = 12
+    font_family = JetBrains Mono Medium
+    position = -550, 270
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 110
+    font_family = JetBrains Mono ExtraBold
+    position = -330, 135
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@cc)
+    font_size = 14
+    font_family = JetBrains Mono Medium
+    position = -338, 56
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(@ACCENT2@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    position = -338, 12
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = SYSTEM // LIVE
+    color = rgba(@ACCENT@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 290, 208
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@TEXT@d8)
+    font_size = 10
+    font_family = JetBrains Mono
+    text_align = left
+    position = 290, 176
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = MEDIA // MPRIS
+    color = rgba(@ACCENT@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 290, 104
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 16
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 290, 68
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media meta
+    color = rgba(@MUTED@ff)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = left
+    position = 290, 36
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-notifications
+    color = rgba(@ACCENT2@ff)
+    font_size = 9
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 290, -48
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = $USER@noc:~$ unlock
+    color = rgba(@ACCENT@ff)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    position = -415, -102
+    halign = center
+    valign = center
+}
+input-field {
+    monitor =
+    size = 500, 48
+    outline_thickness = 0
+    rounding = 0
+    dots_size = 0.18
+    dots_spacing = 0.25
+    dots_center = false
+    outer_color = rgba(00000000)
+    inner_color = rgba(00000000)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">password:</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">permission denied: $FAIL [$ATTEMPTS]</span>
+    capslock_color = rgba(@ACCENT2@ff)
+    position = -322, -154
+    halign = center
+    valign = center
+}
+shape {
+    monitor =
+    size = 500, 1
+    color = rgba(@ACCENT@cc)
+    rounding = 0
+    position = -322, -182
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@a8)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = -550, -268
+    halign = center
+    valign = center
+}

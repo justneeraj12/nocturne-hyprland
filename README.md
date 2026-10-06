@@ -111,7 +111,7 @@ The shell includes:
 - Hyprshot screenshots and Kooha screen recording;
 - compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
 - reliable background-app controls with native DBusMenu actions on ordinary left-click;
-- dynamic day-cycle wallpapers, eight design presets and sixteen accents;
+- dynamic day-cycle wallpapers, eight design presets, sixteen accents and five switchable lock-screen compositions;
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
