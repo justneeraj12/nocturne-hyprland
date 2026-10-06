@@ -277,7 +277,7 @@ ApplicationWindow {
                 }
                 SetupSettingsPage { active: root.section === 12 }
                 SettingsActionsPage {
-                    pageEyebrow: "NOCTURNE 0.6"; pageTitle: "About"
+                    pageEyebrow: "NOCTURNE 0.6.1"; pageTitle: "About"
                     pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
                     pageBadge: "OPEN SOURCE"
                     actions: [

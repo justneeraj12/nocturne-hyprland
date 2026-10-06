@@ -12,6 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
+  <img src="https://img.shields.io/badge/release-0.6.1-cb8d62?style=flat-square" alt="Nocturne 0.6.1">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -31,6 +32,19 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
+## Current release // 0.6.1
+
+- a distinct sun/radiance brightness icon across the bar, OSD and controls;
+- a compact, pinned XDG screen-share chooser plus a live red sharing indicator;
+- accurate capture privacy state without reporting an idle camera as active;
+- an Efficiency Center that separates proportional shell cost from shared RSS;
+- native left-click DBusMenu controls for background applications;
+- quieter event handling and lazy indexing for a lower-cost idle shell.
+
+The images below were captured from the installed 0.6.1 session on an isolated
+workspace. They contain no browser pages, messages, SSIDs, clipboard entries or
+personal file names.
+
 ## Why this one?
 
 | Difference | What it means in practice |
@@ -47,7 +61,7 @@ history, power modes, screenshots and screen recording to behave normally.
 ## The desktop
 
 <p align="center">
-  <img src="docs/screenshots/quick-controls.webp" alt="Nocturne launcher and quick controls" width="92%">
+  <img src="docs/screenshots/quick-controls.webp" alt="Nocturne 0.6.1 launcher, system overview, brightness and efficiency center" width="100%">
 </p>
 
 <details>
@@ -89,6 +103,13 @@ The shell includes:
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
 
 More images are in the [showcase](docs/SHOWCASE.md).
+
+<details>
+<summary><strong>See the live Efficiency Center</strong></summary>
+
+![Nocturne Efficiency Center](docs/screenshots/efficiency.webp)
+
+</details>
 
 ![Nocturne lock screen](docs/screenshots/lockscreen.webp)
 

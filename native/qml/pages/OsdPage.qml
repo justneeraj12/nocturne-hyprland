@@ -30,7 +30,7 @@ Rectangle {
         return muted ? "MASTER VOLUME MUTED" : "MASTER VOLUME"
     }
     function icon() {
-        if (kind === "brightness") return "󰃠"
+        if (kind === "brightness") return "󰖨"
         if (kind === "microphone") return muted ? "󰍭" : "󰍬"
         return muted ? "󰖁" : (value < 35 ? "󰕿" : (value < 70 ? "󰖀" : "󰕾"))
     }

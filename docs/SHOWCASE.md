@@ -1,9 +1,10 @@
 # Showcase
 
-UI images below were captured on an empty Hyprland workspace or an isolated
-nested Hyprland session. Browser windows, messages, clipboard content, account
-names, Wi-Fi SSIDs and personal files are excluded. The NOC banner is the
-editable project artwork rather than a desktop screenshot.
+UI images below were captured from Nocturne 0.6.1 on an empty Hyprland
+workspace on 5 October 2026, or from an isolated nested Hyprland session for
+the lock screen. Browser windows, messages, clipboard content, account names,
+Wi-Fi SSIDs and personal files are excluded. The NOC banner is editable
+project artwork rather than a desktop screenshot.
 
 ## NOC identity
 
@@ -53,6 +54,18 @@ dismissed. `@` jumps directly to windows and `>` jumps to actions.
 ## Hardware-synchronized brightness
 
 ![Nocturne brightness controls](screenshots/brightness.webp)
+
+The dedicated sun/radiance glyph stays visually distinct from the adjacent
+resource-dashboard chip. The slider follows hardware-key changes and scroll on
+the bar still adjusts the real backlight.
+
+## Efficiency Center
+
+![Nocturne Efficiency Center](screenshots/efficiency.webp)
+
+Memory pressure, proportional shell memory, startup health and grouped process
+cost are sampled only while this page is open. Safe Cleanup is deliberately
+limited to regenerable cache and retained user journals.
 
 The screenshots use the Copper Deep Gold preset with the Emerald Silk
 wallpaper. The same workflow and shortcuts remain available with every preset.

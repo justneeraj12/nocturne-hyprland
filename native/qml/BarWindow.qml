@@ -216,7 +216,8 @@ ApplicationWindow {
             }
             BarButton {
                 visible: root.moduleEnabled("brightness")
-                text: "󰃠" + (root.standardBar ? " " + shell.brightness + "%" : "")
+                text: "󰖨" + (root.standardBar ? " " + shell.brightness + "%" : "")
+                fontPixelSize: 12
                 tooltip: "Display brightness · right-click for display layout"
                 onLeftClicked: root.nativeCard("brightness", "")
                 onRightClicked: root.nativeCard("display", "")

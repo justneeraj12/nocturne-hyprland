@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.1 - 2026-10-05
+
+- Gave brightness a dedicated sun/radiance glyph across the bar, OSD and
+  command output so it cannot be confused with the resource-dashboard chip.
+- Replaced the dated repository captures with privacy-reviewed images from the
+  installed release and added Overview and Efficiency Center coverage.
+- Reworked the README release story and four-panel desktop showcase around the
+  current native shell rather than historical UI.
+
+## 0.6.0 - 2026-10-05
+
+- Added a compact pinned screen-share chooser and a live red capture indicator.
+- Fixed false idle-camera privacy reports and added read-only capture diagnostics.
+- Added the on-demand Efficiency Center with proportional memory reporting,
+  grouped consumers, startup health and guarded cache cleanup.
+- Preserved app attribution with lazy desktop indexing, reduced irrelevant
+  PipeWire event churn and improved ordinary left-click tray controls.
+
 ## 0.5.1 - 2026-10-05
 
 - Fixed a reboot race where the wallpaper service inherited no Wayland display,

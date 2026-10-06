@@ -21,10 +21,7 @@ set_percent() {
 status() {
   local percent icon
   percent=$(read_percent)
-  if ((percent < 25)); then icon='󰃞';
-  elif ((percent < 50)); then icon='󰃟';
-  elif ((percent < 75)); then icon='󰃝';
-  else icon='󰃠'; fi
+  icon='󰖨'
   printf -v tooltip 'Laptop brightness %s%%\nScroll: adjust · Click: choose level' "$percent"
   jq -cn --arg text "$icon ${percent}%" \
     --arg tooltip "$tooltip" \

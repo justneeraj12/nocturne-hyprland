@@ -34,6 +34,7 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/quick-controls.webp ]]
 [[ -s $root/docs/screenshots/launcher.webp ]]
 [[ -s $root/docs/screenshots/settings.webp ]]
+[[ -s $root/docs/screenshots/efficiency.webp ]]
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
@@ -56,6 +57,7 @@ grep -Fq 'barRssMiB' "$root/config/hypr/scripts/efficiency-control"
 grep -Fq 'event.contains(" on sink-input #")' "$root/native/src/backend.cpp"
 grep -Fq 'node.name = \"xdph-streaming-' "$root/native/src/backend.cpp"
 grep -Fq 'backend.notificationCount()' "$root/native/qml/Bar.qml"
+grep -Fq 'text: "󰖨"' "$root/native/qml/BarWindow.qml"
 grep -Fq 'END IN SHARING APP' "$root/native/qml/pages/PrivacyPage.qml"
 grep -Fq 'SAFETY + PORTABILITY' "$root/native/qml/pages/SetupSettingsPage.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
