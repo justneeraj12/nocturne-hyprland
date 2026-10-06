@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+store="$data_home/habits.json"
+undo_store="$state_home/habits-undo.json"
+lock="$state_home/habits.lock"
+mkdir -p -- "$data_home" "$state_home"
+exec 9>"$lock"; flock -x 9
+
+empty='{"format":"nocturne-habits-v1","nextId":1,"habits":[]}'
+
+ensure_store() {
+  [[ -s $store ]] || { printf '%s\n' "$empty" > "$store"; chmod 600 "$store"; }
+  jq -e '.format == "nocturne-habits-v1" and (.nextId|type == "number") and (.habits|type == "array")' "$store" >/dev/null \
+    || { printf 'NOC Habits data is invalid: %s\n' "$store" >&2; exit 1; }
+}
+
+save_json() {
+  local temporary; temporary=$(mktemp "$data_home/.habits.XXXXXX")
+  jq . > "$temporary"; chmod 600 "$temporary"; mv -f -- "$temporary" "$store"
+}
+
+remember() { cp -f -- "$store" "$undo_store"; chmod 600 "$undo_store"; }
+valid_id() { [[ ${1:-} =~ ^[1-9][0-9]*$ ]]; }
+exists() { jq -e --argjson id "$1" 'any(.habits[]; .id == $id)' "$store" >/dev/null; }
+
+calendar_days() {
+  for offset in $(seq 0 365); do
+    date -d "$offset days ago" +%F
+  done | jq -Rsc 'split("\n") | map(select(length > 0))'
+}
+
+list_habits() {
+  local filter=${1:-active} query=${2:-} today week_start days
+  [[ $filter =~ ^(active|archived|all)$ ]] || exit 2
+  today=$(date +%F); week_start=$(date -d "$(( $(date +%u) - 1 )) days ago" +%F); days=$(calendar_days)
+  jq --arg filter "$filter" --arg query "${query,,}" --arg today "$today" \
+     --arg weekStart "$week_start" --argjson days "$days" '
+    def streak($checks):
+      reduce $days[] as $day ({count:0,active:true};
+        if (.active|not) then .
+        elif ($checks|index($day)) != null then .count += 1
+        else .active=false end) | .count;
+    [.habits[]
+      | select($filter == "all" or ($filter == "active" and (.archived|not)) or ($filter == "archived" and .archived))
+      | select($query == "" or ((.name|ascii_downcase)|contains($query)))
+      | . as $habit
+      | ($habit.checks // []) as $checks
+      | ($checks|map(select(. >= $weekStart))|length) as $weekCount
+      | . + {doneToday:(($checks|index($today)) != null),weekCount:$weekCount,
+             progress:(if .target > 0 then (($weekCount * 100 / .target)|floor|if . > 100 then 100 else . end) else 0 end),
+             streak:streak($checks)}
+    ] | sort_by(if .archived then 1 else 0 end, if .doneToday then 1 else 0 end, -.streak, .id)' "$store"
+}
+
+status() {
+  local today week_start day_number
+  today=$(date +%F); day_number=$(date +%u); week_start=$(date -d "$(( day_number - 1 )) days ago" +%F)
+  jq -c --arg today "$today" --arg weekStart "$week_start" --argjson day "$day_number" '
+    [.habits[]|select(.archived|not)] as $active
+    | [$active[]|select((.checks // []|index($today)) != null)] as $done
+    | [$active[] | (.checks // []|map(select(. >= $weekStart))|length) as $count
+        | select($count < .target and ((7-$day+1) <= (.target-$count) or $day == 7))] as $due
+    | {format:"nocturne-habits-status-v1",active:($active|length),doneToday:($done|length),dueToday:($due|length),
+       text:(if ($due|length)>0 then "󰄵 " + (($due|length)|tostring) elif ($active|length)>0 then "󰄴 " + (($done|length)|tostring) else "󰄱" end),
+       tooltip:("NOC Habits · " + (($done|length)|tostring) + "/" + (($active|length)|tostring) + " checked today · " + (($due|length)|tostring) + " paced due")}' "$store"
+}
+
+add_habit() {
+  local name=${1:-} target=${2:-7} now
+  [[ $name =~ [^[:space:]] ]] && ((${#name} <= 160)) || exit 2
+  [[ $target =~ ^[1-7]$ ]] || exit 2
+  now=$(date --iso-8601=seconds); remember
+  jq --arg name "$name" --argjson target "$target" --arg now "$now" '
+    .nextId as $id | .nextId += 1
+    | .habits += [{id:$id,name:$name,target:$target,checks:[],archived:false,createdAt:$now}]' "$store" | save_json
+}
+
+toggle_check() {
+  local id=${1:-} day=${2:-$(date +%F)}
+  valid_id "$id" && exists "$id" || exit 3
+  day=$(date -d "$day" +%F 2>/dev/null) || exit 2; remember
+  jq --argjson id "$id" --arg day "$day" '.habits |= map(if .id == $id then
+    .checks=((.checks // []) | if index($day) != null then map(select(. != $day)) else . + [$day] | unique end)
+    else . end)' "$store" | save_json
+}
+
+edit_habit() {
+  local id=${1:-} name=${2:-} target=${3:-}
+  valid_id "$id" && exists "$id" || exit 3
+  [[ $name =~ [^[:space:]] ]] && ((${#name} <= 160)) && [[ $target =~ ^[1-7]$ ]] || exit 2
+  remember
+  jq --argjson id "$id" --arg name "$name" --argjson target "$target" '.habits |= map(if .id == $id then .name=$name|.target=$target else . end)' "$store" | save_json
+}
+
+archive_habit() {
+  local id=${1:-}; valid_id "$id" && exists "$id" || exit 3; remember
+  jq --argjson id "$id" '.habits |= map(if .id == $id then .archived=(.archived|not) else . end)' "$store" | save_json
+}
+
+delete_habit() {
+  local id=${1:-}; valid_id "$id" && exists "$id" || exit 3; remember
+  jq --argjson id "$id" '.habits |= map(select(.id != $id))' "$store" | save_json
+}
+
+undo() {
+  [[ -s $undo_store ]] || exit 3
+  jq -e '.format == "nocturne-habits-v1"' "$undo_store" >/dev/null
+  local temporary; temporary=$(mktemp "$state_home/.habits-undo.XXXXXX")
+  cp -f -- "$store" "$temporary"; cp -f -- "$undo_store" "$store"; mv -f -- "$temporary" "$undo_store"
+  chmod 600 "$store" "$undo_store"
+}
+
+export_markdown() {
+  local destination=${1:-"$HOME/Documents/NOC Habits $(date +%F).md"} directory
+  directory=${destination%/*}; [[ $directory != "$destination" ]] || directory=.
+  mkdir -p -- "$directory"
+  { printf '# NOC Habits // %s\n\n' "$(date +%F)"; list_habits all | jq -r '.[]|"- " + .name + " — " + (.weekCount|tostring) + "/" + (.target|tostring) + " this week · " + (.streak|tostring) + " day streak"'; } > "$destination"
+  chmod 600 "$destination"; printf '%s\n' "$destination"
+}
+
+ensure_store
+case ${1:-status} in
+  status) status ;;
+  list) list_habits "${2:-active}" "${3:-}" ;;
+  add) add_habit "${2:-}" "${3:-7}" ;;
+  check) toggle_check "${2:-}" "${3:-}" ;;
+  edit) edit_habit "${2:-}" "${3:-}" "${4:-}" ;;
+  archive) archive_habit "${2:-}" ;;
+  delete) delete_habit "${2:-}" ;;
+  undo) undo ;;
+  export) export_markdown "${2:-}" ;;
+  *) printf 'Usage: %s status|list [active|archived|all] [QUERY]|add NAME [TARGET]|check ID [DATE]|edit ID NAME TARGET|archive ID|delete ID|undo|export [PATH]\n' "$0" >&2; exit 2 ;;
+esac

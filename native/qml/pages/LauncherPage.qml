@@ -51,6 +51,11 @@ Rectangle {
         if (kind === "file") return "FILE"
         if (kind === "calculation") return "COPY RESULT"
         if (kind === "desk-capture") return "ADD TO DESK"
+        if (kind === "habit-capture") return "ADD HABIT"
+        if (kind === "vault-capture") return "SAVE TO VAULT"
+        if (kind === "note-capture") return "APPEND NOTE"
+        if (kind === "copy-text") return "COPY TEXT"
+        if (kind === "open-url") return "OPEN URL"
         if (kind === "control-action") return "CONTROL"
         return "APP"
     }
@@ -75,7 +80,7 @@ Rectangle {
             id: search
             Layout.fillWidth: true
             implicitHeight: 42
-            placeholderText: "Search…   @ windows   > actions   ~ files   = calculate   + task"
+            placeholderText: "Search…  + task  ++ habit  :: name | snippet  @ windows  > actions"
             color: backend.textColor
             placeholderTextColor: backend.mutedColor
             font.family: "monospace"

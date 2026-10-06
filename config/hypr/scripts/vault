@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+store="$data_home/vault.json"
+undo_store="$state_home/vault-undo.json"
+lock="$state_home/vault.lock"
+mkdir -p -- "$data_home" "$state_home"
+exec 9>"$lock"; flock -x 9
+
+empty='{"format":"nocturne-vault-v1","nextId":1,"items":[]}'
+
+ensure_store() {
+  [[ -s $store ]] || { printf '%s\n' "$empty" > "$store"; chmod 600 "$store"; }
+  jq -e '.format == "nocturne-vault-v1" and (.nextId|type == "number") and (.items|type == "array")' "$store" >/dev/null \
+    || { printf 'NOC Vault data is invalid: %s\n' "$store" >&2; exit 1; }
+}
+
+save_json() {
+  local temporary; temporary=$(mktemp "$data_home/.vault.XXXXXX")
+  jq . > "$temporary"; chmod 600 "$temporary"; mv -f -- "$temporary" "$store"
+}
+
+remember() { cp -f -- "$store" "$undo_store"; chmod 600 "$undo_store"; }
+valid_id() { [[ ${1:-} =~ ^[1-9][0-9]*$ ]]; }
+exists() { jq -e --argjson id "$1" 'any(.items[]; .id == $id)' "$store" >/dev/null; }
+
+tags_json() {
+  jq -Rsc 'split(",") | map(gsub("^[[:space:]]+|[[:space:]]+$"; "") | ascii_downcase) | map(select(length > 0)) | unique' <<<"${1:-}"
+}
+
+status() {
+  jq -c '{format:"nocturne-vault-status-v1",items:(.items|length),pinned:([.items[]|select(.pinned)]|length),
+    text:("󰌆 " + ((.items|length)|tostring)),tooltip:("NOC Vault · " + ((.items|length)|tostring) + " private items · " + (([.items[]|select(.pinned)]|length)|tostring) + " pinned")}' "$store"
+}
+
+list_items() {
+  local query=${1:-}
+  jq --arg query "${query,,}" '[.items[]
+    | select($query == "" or ((.name + " " + .content + " " + ((.tags // [])|join(" ")) | ascii_downcase) | contains($query)))
+    ] | sort_by(if .pinned then 0 else 1 end, -(.usedAt // .updatedAt // .createdAt | fromdateiso8601? // 0), .id)' "$store"
+}
+
+add_item() {
+  local name=${1:-} content=${2:-} raw_tags=${3:-} now tags
+  [[ $name =~ [^[:space:]] ]] && ((${#name} <= 120)) || exit 2
+  [[ $content =~ [^[:space:]] ]] && ((${#content} <= 12000)) || exit 2
+  tags=$(tags_json "$raw_tags"); now=$(date -u +%Y-%m-%dT%H:%M:%SZ); remember
+  jq --arg name "$name" --arg content "$content" --argjson tags "$tags" --arg now "$now" '
+    .nextId as $id | .nextId += 1
+    | .items += [{id:$id,name:$name,content:$content,tags:$tags,pinned:false,createdAt:$now,updatedAt:$now,usedAt:null,uses:0}]' "$store" | save_json
+}
+
+edit_item() {
+  local id=${1:-} name=${2:-} content=${3:-} raw_tags=${4:-} now tags
+  valid_id "$id" && exists "$id" || exit 3
+  [[ $name =~ [^[:space:]] ]] && ((${#name} <= 120)) || exit 2
+  [[ $content =~ [^[:space:]] ]] && ((${#content} <= 12000)) || exit 2
+  tags=$(tags_json "$raw_tags"); now=$(date -u +%Y-%m-%dT%H:%M:%SZ); remember
+  jq --argjson id "$id" --arg name "$name" --arg content "$content" --argjson tags "$tags" --arg now "$now" '
+    .items |= map(if .id == $id then .name=$name|.content=$content|.tags=$tags|.updatedAt=$now else . end)' "$store" | save_json
+}
+
+pin_item() {
+  local id=${1:-}; valid_id "$id" && exists "$id" || exit 3; remember
+  jq --argjson id "$id" '.items |= map(if .id == $id then .pinned=(.pinned|not) else . end)' "$store" | save_json
+}
+
+copy_item() {
+  local id=${1:-} content now
+  valid_id "$id" && exists "$id" || exit 3
+  command -v wl-copy >/dev/null || { printf 'wl-copy is required\n' >&2; exit 4; }
+  content=$(jq -r --argjson id "$id" '.items[]|select(.id == $id)|.content' "$store")
+  printf '%s' "$content" | wl-copy
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  jq --argjson id "$id" --arg now "$now" '.items |= map(if .id == $id then .uses=((.uses // 0)+1)|.usedAt=$now else . end)' "$store" | save_json
+}
+
+open_item() {
+  local id=${1:-} content
+  valid_id "$id" && exists "$id" || exit 3
+  content=$(jq -r --argjson id "$id" '.items[]|select(.id == $id)|.content' "$store")
+  [[ $content =~ ^https?://[^[:space:]]+$ ]] || { printf 'Only a single http(s) URL can be opened\n' >&2; exit 2; }
+  xdg-open "$content" >/dev/null 2>&1 &
+}
+
+capture_clipboard() {
+  local name=${1:-} raw_tags=${2:-} content
+  command -v wl-paste >/dev/null || { printf 'wl-paste is required\n' >&2; exit 4; }
+  content=$(wl-paste -n 2>/dev/null || true)
+  [[ $content =~ [^[:space:]] ]] || { printf 'Clipboard is empty\n' >&2; exit 3; }
+  add_item "$name" "$content" "$raw_tags"
+}
+
+delete_item() {
+  local id=${1:-}; valid_id "$id" && exists "$id" || exit 3; remember
+  jq --argjson id "$id" '.items |= map(select(.id != $id))' "$store" | save_json
+}
+
+undo() {
+  [[ -s $undo_store ]] || exit 3
+  jq -e '.format == "nocturne-vault-v1"' "$undo_store" >/dev/null
+  local temporary; temporary=$(mktemp "$state_home/.vault-undo.XXXXXX")
+  cp -f -- "$store" "$temporary"; cp -f -- "$undo_store" "$store"; mv -f -- "$temporary" "$undo_store"
+  chmod 600 "$store" "$undo_store"
+}
+
+export_markdown() {
+  local destination=${1:-"$HOME/Documents/NOC Vault $(date +%F).md"} directory
+  directory=${destination%/*}; [[ $directory != "$destination" ]] || directory=.
+  mkdir -p -- "$directory"
+  { printf '# NOC Vault // %s\n\n' "$(date +%F)"; jq -r '.items[]|"## " + .name + "\n\n" + .content + "\n\nTags: " + ((.tags // [])|join(", ")) + "\n"' "$store"; } > "$destination"
+  chmod 600 "$destination"; printf '%s\n' "$destination"
+}
+
+ensure_store
+case ${1:-status} in
+  status) status ;;
+  list) list_items "${2:-}" ;;
+  add) add_item "${2:-}" "${3:-}" "${4:-}" ;;
+  edit) edit_item "${2:-}" "${3:-}" "${4:-}" "${5:-}" ;;
+  pin) pin_item "${2:-}" ;;
+  copy) copy_item "${2:-}" ;;
+  open) open_item "${2:-}" ;;
+  capture) capture_clipboard "${2:-}" "${3:-}" ;;
+  delete) delete_item "${2:-}" ;;
+  undo) undo ;;
+  export) export_markdown "${2:-}" ;;
+  *) printf 'Usage: %s status|list [QUERY]|add NAME CONTENT [TAGS]|edit ID NAME CONTENT TAGS|pin ID|copy ID|open ID|capture NAME [TAGS]|delete ID|undo|export [PATH]\n' "$0" >&2; exit 2 ;;
+esac

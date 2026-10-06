@@ -183,6 +183,15 @@ set_note() {
   jq --arg note "$note" '.note=$note' "$store" | save_json
 }
 
+append_note() {
+  local addition=${1:-} current_length
+  [[ $addition =~ [^[:space:]] ]] || exit 2
+  current_length=$(jq -r '.note|length' "$store")
+  ((current_length + ${#addition} + 1 <= 12000)) || { printf 'Note must be at most 12,000 characters.\n' >&2; exit 2; }
+  remember
+  jq --arg addition "$addition" '.note += (if .note == "" then "" else "\n" end) + $addition' "$store" | save_json
+}
+
 export_markdown() {
   local destination=${1:-"$HOME/Documents/NOC Desk $(date +%F).md"} directory
   directory=${destination%/*}; [[ $directory != "$destination" ]] || directory=.
@@ -268,7 +277,8 @@ case ${1:-status} in
   undo) undo ;;
   note) jq -r '.note' "$store" ;;
   note-set) set_note "${2:-}" ;;
+  note-append) append_note "${2:-}" ;;
   export) export_markdown "${2:-}" ;;
   brief) brief ;;
-  *) printf 'Usage: %s status|brief|list [open|today|done|all] [QUERY]|add TEXT [PRIORITY] [DUE]|toggle ID|pin ID|edit ID TEXT|focus ID|start ID|record-session SECONDS|stats|clear-focus|snooze ID [DUE]|delete ID|clear-completed|undo|note|note-set TEXT|export [PATH]\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s status|brief|list [open|today|done|all] [QUERY]|add TEXT [PRIORITY] [DUE]|toggle ID|pin ID|edit ID TEXT|focus ID|start ID|record-session SECONDS|stats|clear-focus|snooze ID [DUE]|delete ID|clear-completed|undo|note|note-set TEXT|note-append TEXT|export [PATH]\n' "$0" >&2; exit 2 ;;
 esac

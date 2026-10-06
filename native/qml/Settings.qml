@@ -132,6 +132,8 @@ ApplicationWindow {
         actions: [
             {icon:"chronometer",glyph:"◷",label:"Focus timer",detail:"Pomodoro presets, pause, skip and cycle progress.",button:"OPEN",surface:"pomodoro"},
             {icon:"view-task",glyph:"󰄱",label:"NOC Desk",detail:"Local task inbox, daily focus, quick note, undo and Markdown export.",button:"OPEN",surface:"desk"},
+            {icon:"checkmark",glyph:"󰄵",label:"NOC Habits",detail:"Private daily check-ins, weekly pacing, streaks and portable export.",button:"OPEN",surface:"habits"},
+            {icon:"document-encrypt",glyph:"󰌆",label:"NOC Vault",detail:"Private snippets, links and reusable commands with clipboard capture.",button:"OPEN",surface:"vault"},
             {icon:"spectacle",glyph:"⌗",label:"Screenshot",detail:"Capture an area with Hyprshot and copy it to the clipboard.",button:"CAPTURE",command:"screenshot"},
             {icon:"media-record",glyph:"●",label:"Screen recorder",detail:"Record an area or display with desktop and microphone audio.",button:"OPEN",command:"recorder"},
             {icon:"input-keyboard",glyph:"⌨",label:"Shortcut guide",detail:"Open the complete keyboard and mouse reference.",button:"SHOW",command:"keys"}
@@ -169,7 +171,7 @@ ApplicationWindow {
     } }
     Component { id: setupPage; SetupSettingsPage { active: true } }
     Component { id: aboutPage; SettingsActionsPage {
-        pageEyebrow: "NOCTURNE 0.9.0"; pageTitle: "About"
+        pageEyebrow: "NOCTURNE 1.0.0"; pageTitle: "About"
         pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
         pageBadge: "OPEN SOURCE"
         actions: [

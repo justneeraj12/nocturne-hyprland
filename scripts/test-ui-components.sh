@@ -13,7 +13,7 @@ install -m 0644 "$root/config/nocturne/theme.json" "$test_root/home/.config/noct
 
 pages=(
   AudioPage BrightnessPage CameraPage CalendarPage WorldPage ConnectivityPage
-  PomodoroPage PowerPage LauncherPage DeskPage OverviewPage ScenesPage AutomationPage
+  PomodoroPage PowerPage LauncherPage DeskPage HabitsPage VaultPage OverviewPage ScenesPage AutomationPage
   PrivacyPage GamingPage OsdPage BackgroundPage NotificationsPage ClipboardPage
   MinimizedPage MediaPage KdeConnectPage MaintenancePage DisplayPage
 )
@@ -37,5 +37,10 @@ query_result 'volume 35' | jq -e '.[0].kind == "control-action" and .[0].id == "
 query_result 'timer 50/10' | jq -e '.[0].id == "set-timer" and .[0].value == "50:10"' >/dev/null
 query_result 'power saver' | jq -e '.[0].id == "set-power" and .[0].value == "power-saver"' >/dev/null
 query_result '+!^ ship release' | jq -e '.[0].kind == "desk-capture" and .[0].priority == "high" and .[0].due == "today"' >/dev/null
+query_result '++3 read' | jq -e '.[0].kind == "habit-capture" and .[0].target == 3 and .[0].name == "read"' >/dev/null
+query_result ':: Deploy | https://example.com' | jq -e '.[0].kind == "vault-capture" and .[0].name == "Deploy" and .[0].content == "https://example.com"' >/dev/null
+query_result 'note remember milk' | jq -e '.[0].kind == "note-capture" and .[0].name == "remember milk"' >/dev/null
+query_result 'copy hello' | jq -e '.[0].kind == "copy-text" and .[0].name == "hello"' >/dev/null
+query_result 'open https://example.com' | jq -e '.[0].kind == "open-url"' >/dev/null
 
 printf 'NOCTURNE // %d on-demand UI components instantiated cleanly\n' "${#pages[@]}"

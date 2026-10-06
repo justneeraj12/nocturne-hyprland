@@ -121,6 +121,25 @@ if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /\/hypr\/scripts\/desk (status|lis
 else
   ok 'NOC Desk has zero persistent processes'
 fi
+for workflow in habits vault; do
+  workflow_state=$($HOME/.config/hypr/scripts/$workflow status 2>/dev/null || true)
+  if jq -e --arg workflow "$workflow" '.format == ("nocturne-" + $workflow + "-status-v1")' <<<"$workflow_state" >/dev/null 2>&1; then
+    ok "NOC ${workflow^} local data is valid"
+  else
+    warning "NOC ${workflow^} data could not be validated"
+  fi
+  workflow_file=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne/$workflow.json
+  if [[ -e $workflow_file && $(stat -c %a "$workflow_file" 2>/dev/null) != 600 ]]; then
+    warning "NOC ${workflow^} data permissions are broader than 0600"
+  else
+    ok "NOC ${workflow^} content is private to the current user"
+  fi
+  if ps -eo etimes=,args= | awk -v workflow="$workflow" '$1 > 5 && index($0, "/hypr/scripts/" workflow " ") {found=1} END {exit !found}'; then
+    warning "NOC ${workflow^} helper is unexpectedly persistent"
+  else
+    ok "NOC ${workflow^} has zero persistent processes"
+  fi
+done
 
 for legacy in waybar swaync wofi nm-applet blueman-applet; do
   if pgrep -x "$legacy" >/dev/null 2>&1; then warning "Legacy shell process is running: $legacy"; else ok "Legacy shell process is absent: $legacy"; fi

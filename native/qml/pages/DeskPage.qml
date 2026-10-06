@@ -74,6 +74,8 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             PanelHeader { Layout.fillWidth: true; title: "NOC Desk"; subtitle: "Local task inbox, focus deck and scratch note" }
+            NocturneButton { text: "HABITS"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-native", "habits"]) }
+            NocturneButton { text: "VAULT"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-native", "vault"]) }
             NocturneButton { text: "UNDO"; onClicked: root.runAction(["undo"]) }
             NocturneButton { text: "BRIEF"; onClicked: backend.run([root.tool, "brief"], 1800) }
             NocturneButton {

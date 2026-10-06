@@ -27,7 +27,7 @@ jq -e '.format == "nocturne-context-v2" and .contexts.docked == "desk" and .prof
 "$XDG_CONFIG_HOME/hypr/scripts/context-engine" decision \
   | jq -e '.enabled == false and .context == "mobile" and .selectedScene == "commute" and .reason == "context:mobile"' >/dev/null
 
-"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 6' >/dev/null
+"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 7' >/dev/null
 trace="$root/config/hypr/scripts/automation-trace"
 "$trace" record context scene-applied profile:meeting calls 'Settings only.'
 "$trace" record context baseline-restored no-matching-scene calls 'Reversed.'
@@ -70,6 +70,41 @@ desk_export="$test_root/desk.md"
 [[ $("$desk" export "$desk_export") == "$desk_export" ]]
 grep -Fq 'Ship the next release' "$desk_export"
 [[ $(stat -c %a "$XDG_DATA_HOME/nocturne/desk.json") == 600 ]]
+"$desk" note-append 'Second line.'
+[[ $("$desk" note) == $'Local notes\nremain private.\nSecond line.' ]]
+
+habits="$root/config/hypr/scripts/habits"
+vault="$root/config/hypr/scripts/vault"
+"$habits" add Exercise 5
+"$habits" add Read 7
+"$habits" check 1
+"$habits" status | jq -e '.format == "nocturne-habits-status-v1" and .active == 2 and .doneToday == 1' >/dev/null
+"$habits" list active | jq -e 'map(select(.id == 1))[0] | .weekCount == 1 and .progress == 20 and .streak == 1' >/dev/null
+"$habits" edit 2 'Read deeply' 3
+"$habits" archive 2
+"$habits" list archived | jq -e 'length == 1 and .[0].target == 3' >/dev/null
+"$habits" undo
+"$habits" list active deeply | jq -e 'length == 1' >/dev/null
+[[ $(stat -c %a "$XDG_DATA_HOME/nocturne/habits.json") == 600 ]]
+habit_export="$test_root/habits.md"; [[ $("$habits" export "$habit_export") == "$habit_export" ]]
+
+printf '%s\n' '#!/bin/sh' 'cat > "$MOCK_COPY"' > "$test_root/bin/wl-copy"
+printf '%s\n' '#!/bin/sh' 'printf "captured clipboard"' > "$test_root/bin/wl-paste"
+chmod +x "$test_root/bin/wl-copy" "$test_root/bin/wl-paste"
+export PATH="$test_root/bin:$PATH" MOCK_COPY="$test_root/copied"
+"$vault" add 'Deploy link' 'https://example.com/release' 'work, links'
+"$vault" add 'Useful command' 'systemctl --user status nocturne-bar' 'linux, work'
+"$vault" pin 2
+"$vault" copy 1
+[[ $(cat "$MOCK_COPY") == 'https://example.com/release' ]]
+"$vault" capture 'Clipboard note' notes
+"$vault" status | jq -e '.format == "nocturne-vault-status-v1" and .items == 3 and .pinned == 1' >/dev/null
+"$vault" list work | jq -e 'length == 2 and .[0].pinned == true' >/dev/null
+"$vault" edit 2 'System status' 'systemctl --user status nocturne-bar' 'linux'
+"$vault" delete 3; "$vault" undo
+"$vault" list clipboard | jq -e 'length == 1' >/dev/null
+[[ $(stat -c %a "$XDG_DATA_HOME/nocturne/vault.json") == 600 ]]
+vault_export="$test_root/vault.md"; [[ $("$vault" export "$vault_export") == "$vault_export" ]]
 printf '%s\n' 'work_seconds=60' 'break_seconds=60' 'mode=work' 'running=1' 'remaining=1' 'end=1' 'cycles=0' 'auto=0' \
   > "$XDG_STATE_HOME/nocturne/pomodoro.state"
 "$XDG_CONFIG_HOME/hypr/scripts/pomodoro" inspect | jq -e '.mode == "break" and .cycles == 1' >/dev/null

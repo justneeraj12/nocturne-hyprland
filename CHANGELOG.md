@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.0 - 2026-10-06
+
+- Added NOC Habits, a native private weekly habit and streak tracker with pacing, filtering, archive, undo, export, and keyboard control.
+- Added NOC Vault, a native private snippet and link library with tags, pinning, usage sorting, safe URL opening, clipboard capture, undo, and export.
+- Added `++`, `::`, `note`, `copy`, and `open` Command Center grammars plus searchable Habits and Vault actions.
+- Added schema 7 migration, doctor privacy checks, zero-daemon checks, and comprehensive state/clipboard/UI contracts.
+- Published a precise [fifty-feature release manifest](docs/RELEASE-1.0.md).
+
 ## 0.9.0 - 2026-10-06
 
 - Added NOC Desk: a zero-daemon native task inbox with priority, due dates,

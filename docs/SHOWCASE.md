@@ -1,6 +1,6 @@
 # Showcase
 
-UI images below were captured from Nocturne 0.6.1–0.9.0 on an empty Hyprland
+UI images below were captured from Nocturne 0.6.1–1.0.0 on an empty Hyprland
 workspace on 5–6 October 2026, or from an isolated nested Hyprland session for
 the lock screen. Browser windows, messages, clipboard content, account names,
 Wi-Fi SSIDs and personal files are excluded. The NOC banner is editable

@@ -521,7 +521,35 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
 {
     auto mode = requestedMode.toLower();
     auto needle = query.simplified();
-    if (needle.startsWith(QLatin1Char('+'))) {
+    if (needle.startsWith(QStringLiteral("++"))) {
+        auto text = needle.mid(2).trimmed();
+        int target = 5;
+        const auto match = QRegularExpression(QStringLiteral("^([1-7])\\s+(.+)$")).match(text);
+        if (match.hasMatch()) { target = match.captured(1).toInt(); text = match.captured(2).trimmed(); }
+        if (text.isEmpty() || text.size() > 160) return {};
+        return {QVariantMap{{"kind", "habit-capture"}, {"name", text},
+            {"generic", QStringLiteral("NOC Habits · %1 checks / week").arg(target)},
+            {"target", target}, {"icon", "checkmark-symbolic"}}};
+    } else if (needle.startsWith(QStringLiteral("::"))) {
+        const auto fields = needle.mid(2).split(QLatin1Char('|'));
+        const auto name = fields.value(0).trimmed();
+        const auto content = fields.mid(1).join(QStringLiteral("|")).trimmed();
+        if (name.isEmpty() || content.isEmpty() || name.size() > 120 || content.size() > 12000) return {};
+        return {QVariantMap{{"kind", "vault-capture"}, {"name", name}, {"content", content},
+            {"generic", QStringLiteral("Save privately to NOC Vault")}, {"icon", "document-encrypt-symbolic"}}};
+    } else if (needle.startsWith(QStringLiteral("note "), Qt::CaseInsensitive)) {
+        const auto text = needle.mid(5).trimmed();
+        if (text.isEmpty() || text.size() > 2000) return {};
+        return {QVariantMap{{"kind", "note-capture"}, {"name", text}, {"generic", "Append to NOC Desk quick note"}, {"icon", "document-edit-symbolic"}}};
+    } else if (needle.startsWith(QStringLiteral("copy "), Qt::CaseInsensitive)) {
+        const auto text = needle.mid(5);
+        if (text.trimmed().isEmpty() || text.size() > 12000) return {};
+        return {QVariantMap{{"kind", "copy-text"}, {"name", text}, {"generic", "Copy text to the Wayland clipboard"}, {"icon", "edit-copy-symbolic"}}};
+    } else if (needle.startsWith(QStringLiteral("open "), Qt::CaseInsensitive)) {
+        const auto url = needle.mid(5).trimmed();
+        if (!QRegularExpression(QStringLiteral("^https?://[^\\s]+$")).match(url).hasMatch()) return {};
+        return {QVariantMap{{"kind", "open-url"}, {"name", url}, {"generic", "Open verified web address"}, {"icon", "internet-web-browser-symbolic"}}};
+    } else if (needle.startsWith(QLatin1Char('+'))) {
         auto text = needle.mid(1).trimmed();
         QString priority = QStringLiteral("normal");
         QString due = QStringLiteral("none");
@@ -669,6 +697,10 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
                 {"generic", "Nocturne Trace context decisions and history"}, {"icon", "view-history-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "desk"}, {"name", "Open NOC Desk"},
                 {"generic", "Tasks, daily focus, quick note and export"}, {"icon", "view-task-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "habits"}, {"name", "Open NOC Habits"},
+                {"generic", "Private check-ins, weekly pacing and streaks"}, {"icon", "checkmark-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "vault"}, {"name", "Open NOC Vault"},
+                {"generic", "Private snippets, links and clipboard capture"}, {"icon", "document-encrypt-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "desk-brief"}, {"name", "Show NOC Desk Daily Brief"},
                 {"generic", "Open, due, overdue and focus-minute summary"}, {"icon", "view-calendar-day-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "privacy"}, {"name", "Privacy Dashboard"},
@@ -743,6 +775,44 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
         if (launched) QCoreApplication::quit();
         return launched;
     }
+    if (kind == QStringLiteral("habit-capture")) {
+        const auto text = result.value(QStringLiteral("name")).toString();
+        const auto target = result.value(QStringLiteral("target"), 5).toInt();
+        if (text.isEmpty() || text.size() > 160 || target < 1 || target > 7) return false;
+        const bool launched = QProcess::startDetached(home() + QStringLiteral("/.config/hypr/scripts/habits"),
+            {QStringLiteral("add"), text, QString::number(target)});
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
+    if (kind == QStringLiteral("vault-capture")) {
+        const auto name = result.value(QStringLiteral("name")).toString();
+        const auto content = result.value(QStringLiteral("content")).toString();
+        if (name.isEmpty() || content.isEmpty() || name.size() > 120 || content.size() > 12000) return false;
+        const bool launched = QProcess::startDetached(home() + QStringLiteral("/.config/hypr/scripts/vault"),
+            {QStringLiteral("add"), name, content});
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
+    if (kind == QStringLiteral("note-capture")) {
+        const auto text = result.value(QStringLiteral("name")).toString();
+        if (text.isEmpty() || text.size() > 2000) return false;
+        const bool launched = QProcess::startDetached(home() + QStringLiteral("/.config/hypr/scripts/desk"),
+            {QStringLiteral("note-append"), text});
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
+    if (kind == QStringLiteral("copy-text")) {
+        const auto text = result.value(QStringLiteral("name")).toString();
+        if (text.isEmpty() || text.size() > 12000) return false;
+        const bool copied = copyText(text); if (copied) QCoreApplication::quit(); return copied;
+    }
+    if (kind == QStringLiteral("open-url")) {
+        const auto url = result.value(QStringLiteral("name")).toString();
+        if (!QRegularExpression(QStringLiteral("^https?://[^\\s]+$")).match(url).hasMatch()) return false;
+        const bool launched = QProcess::startDetached(QStringLiteral("xdg-open"), {url});
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
     if (kind == QStringLiteral("control-action")) {
         const auto id = result.value(QStringLiteral("id")).toString();
         const auto value = result.value(QStringLiteral("value")).toString();
@@ -807,6 +877,8 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
     else if (id == QStringLiteral("scenes")) { dispatch(QStringLiteral("scenes"), {}); return true; }
     else if (id == QStringLiteral("automation")) { dispatch(QStringLiteral("automation"), {}); return true; }
     else if (id == QStringLiteral("desk")) { dispatch(QStringLiteral("desk"), {}); return true; }
+    else if (id == QStringLiteral("habits")) { dispatch(QStringLiteral("habits"), {}); return true; }
+    else if (id == QStringLiteral("vault")) { dispatch(QStringLiteral("vault"), {}); return true; }
     else if (id == QStringLiteral("desk-brief")) command = {home() + QStringLiteral("/.config/hypr/scripts/desk"), QStringLiteral("brief")};
     else if (id == QStringLiteral("privacy")) { dispatch(QStringLiteral("privacy"), {}); return true; }
     else if (id == QStringLiteral("gaming")) { dispatch(QStringLiteral("gaming"), {}); return true; }

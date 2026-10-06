@@ -29,6 +29,8 @@ grep -Fq 'Nocturne Trace' "$root/README.md"
 grep -Fq 'Explainable continuity' "$root/docs/RELEASE-0.8.md"
 grep -Fq 'Local workflow memory' "$root/docs/RELEASE-0.9.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.9.md") -eq 44 ]]
+grep -Fq 'Fifty workflow upgrades' "$root/docs/RELEASE-1.0.md"
+[[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.0.md") -eq 50 ]]
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
 grep -Fq '~/.local/state/nocturne/backups/' "$root/docs/INSTALL.md"
@@ -45,6 +47,8 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/settings.webp ]]
 [[ -s $root/docs/screenshots/efficiency.webp ]]
 [[ -s $root/docs/screenshots/noc-desk.webp ]]
+[[ -s $root/docs/screenshots/noc-habits.webp ]]
+[[ -s $root/docs/screenshots/noc-vault.webp ]]
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
@@ -68,12 +72,16 @@ grep -Fq 'qml/pages/EfficiencySettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/CameraPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/AutomationPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/DeskPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/HabitsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/VaultPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'ADAPTIVE SENSOR PROFILE' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'camera-control' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'PRIVATE BY DESIGN' "$root/native/qml/pages/AutomationPage.qml"
 grep -Fq 'Nocturne Trace' "$root/native/qml/pages/AutomationPage.qml"
 grep -Fq 'NOC Desk' "$root/native/qml/pages/DeskPage.qml"
 grep -Fq 'desk-capture' "$root/native/src/backend.cpp"
+grep -Fq 'habit-capture' "$root/native/src/backend.cpp"
+grep -Fq 'vault-capture' "$root/native/src/backend.cpp"
 grep -Fq 'control-action' "$root/native/src/backend.cpp"
 grep -Fq 'SHIFT + N' "$root/config/hypr/hyprland.lua"
 grep -Fq 'TOP MEMORY CONSUMERS' "$root/native/qml/pages/EfficiencySettingsPage.qml"

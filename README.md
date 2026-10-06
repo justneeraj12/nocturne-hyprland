@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-0.9.0-cb8d62?style=flat-square" alt="Nocturne 0.9.0">
+  <img src="https://img.shields.io/badge/release-1.0.0-cb8d62?style=flat-square" alt="Nocturne 1.0.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -32,19 +32,22 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
-## Current release // 0.9.0
+## Current release // 1.0.0
 
-- **NOC Desk** adds a native local task inbox, due/priority views, focus target,
-  autosaved scratch note, guarded undo and Markdown export;
-- task focus links to the persistent Pomodoro timer, notification focus and
-  automatic focus-minute/session history;
-- Command Center now previews deterministic local controls such as `volume 35`,
-  `brightness 60`, `timer 50/10`, `power saver`, `wifi off` and `mute mic`;
-- `+ task`, `+! important` and `+!^ important today` capture work without
-  leaving the launcher;
-- the event-driven bar shows Desk state without adding another resident process.
+Nocturne 1.0 adds a local-first workflow layer without another idle service: NOC Habits for weekly pacing and streaks, NOC Vault for private reusable snippets, and direct capture grammar in Command Center. The [fifty-item release manifest](docs/RELEASE-1.0.md) lists every tested addition.
 
-Read the complete [0.9 release notes](docs/RELEASE-0.9.md).
+- **NOC Habits** adds weekly targets, pacing, check-ins, streaks, archive, undo,
+  keyboard control and private Markdown export;
+- **NOC Vault** adds searchable tagged snippets, pinning, usage sorting, safe
+  link opening, clipboard capture, undo and private Markdown export;
+- Command Center captures tasks, habits, snippets and notes, copies literal
+  text, opens validated web addresses, and still previews deterministic system controls;
+- Desk, Habits and Vault cross-link as one on-demand workflow suite with zero
+  persistent helper processes while their cards are closed;
+- schema migration, diagnostics and automated contracts cover permissions,
+  clipboard behavior, state mutation, parsing, exports and all native panels.
+
+Read the complete [1.0 release notes](docs/RELEASE-1.0.md).
 
 The images below show the native shell layout on an isolated
 workspace. They contain no browser pages, messages, SSIDs, clipboard entries or
@@ -63,13 +66,18 @@ personal file names.
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
 | **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Nocturne Trace tells you why, shows what changed and preserves a direct reversal path. |
-| **Local workflow memory** | NOC Desk ties tasks, notes, focus blocks and the bar together in one private file with no account, cloud dependency or resident task daemon. |
+| **Local workflow memory** | Desk, Habits and Vault connect tasks, notes, focus blocks, weekly pacing and reusable snippets through private files with no account, cloud dependency or resident workflow daemon. |
 | **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
 
 ## The desktop
 
 <p align="center">
   <img src="docs/screenshots/quick-controls.webp" alt="Nocturne launcher, system overview, brightness and efficiency center" width="100%">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/noc-habits.webp" alt="NOC Habits private weekly habit panel" width="45%">
+  <img src="docs/screenshots/noc-vault.webp" alt="NOC Vault private snippet and link panel" width="51%">
 </p>
 
 <details>
