@@ -1,6 +1,6 @@
 # Showcase
 
-UI images below were captured from Nocturne 0.6.1–1.0.0 on an empty Hyprland
+UI images below were captured from Nocturne 0.6.1–1.1.0 on an empty Hyprland
 workspace on 5–6 October 2026, or from an isolated nested Hyprland session for
 the lock screen. Browser windows, messages, clipboard content, account names,
 Wi-Fi SSIDs and personal files are excluded. The NOC banner is editable
@@ -74,6 +74,22 @@ the bar still adjusts the real backlight.
 Memory pressure, proportional shell memory, startup health and grouped process
 cost are sampled only while this page is open. Safe Cleanup is deliberately
 limited to regenerable cache and retained user journals.
+
+## Storage Center
+
+![Nocturne Storage Center](screenshots/storage-center.webp)
+
+Storage totals come from the live filesystem. Cleanup stays target-specific,
+large duplicate discovery is explicitly requested, and the protected-data list
+makes the safety boundary visible before an action.
+
+## System Command
+
+![Nocturne System Command](screenshots/system-command.webp)
+
+Meeting state, portal permissions, startup ownership, Guard and NOC Pulse share
+one responsive page. The narrow capture demonstrates the single-column tiled
+layout; wider windows use the same cards in two columns.
 
 The screenshots use the Copper Deep Gold preset with the Emerald Silk
 wallpaper. The same workflow and shortcuts remain available with every preset.

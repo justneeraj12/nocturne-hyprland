@@ -27,6 +27,8 @@ ApplicationWindow {
         {key:"sound", label:"Sound & displays", group:"DEVICES", icon:"audio-volume-high", glyph:"♪", keywords:"audio volume mixer brightness monitor night shift"},
         {key:"input", label:"Input & defaults", group:"DEVICES", icon:"input-keyboard", glyph:"⌨", keywords:"keyboard mouse touchpad default apps time timezone"},
         {key:"system", label:"System & accounts", group:"SYSTEM", icon:"computer", glyph:"▣", keywords:"google account hardware integration portal phone"},
+        {key:"command", label:"System Command", group:"SYSTEM", icon:"security-medium", glyph:"✓", keywords:"meeting permissions portal startup guard pulse repair health"},
+        {key:"storage", label:"Storage", group:"SYSTEM", icon:"drive-harddisk", glyph:"▰", keywords:"disk cleanup duplicate cache trash space"},
         {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"tasks focus notes pomodoro screenshot recorder shortcuts"},
         {key:"automation", label:"Scenes & automation", group:"SYSTEM", icon:"view-calendar-timeline", glyph:"◎", keywords:"workspace scenes context dock automation"},
         {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
@@ -97,7 +99,7 @@ ApplicationWindow {
 
     readonly property var pageComponents: [
         overviewPage, appearancePage, barPage, connectivityPage, soundPage,
-        inputPage, systemPage, workflowPage, automationPage, privacyPage,
+        inputPage, systemPage, commandPage, storagePage, workflowPage, automationPage, privacyPage,
         efficiencyPage, powerPage, setupPage, aboutPage
     ]
     Component { id: overviewPage; OverviewSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
@@ -126,6 +128,8 @@ ApplicationWindow {
     } }
     Component { id: inputPage; SystemSettingsPage { active: true } }
     Component { id: systemPage; IntegrationsPage { active: true } }
+    Component { id: commandPage; ControlCenterSettingsPage { active: true } }
+    Component { id: storagePage; StorageSettingsPage { active: true } }
     Component { id: workflowPage; SettingsActionsPage {
         pageEyebrow: "DAILY USE"; pageTitle: "Workflow"
         pageDescription: "Focused tools for work, capture and keyboard-first navigation."
@@ -136,19 +140,12 @@ ApplicationWindow {
             {icon:"document-encrypt",glyph:"󰌆",label:"NOC Vault",detail:"Private snippets, links and reusable commands with clipboard capture.",button:"OPEN",surface:"vault"},
             {icon:"spectacle",glyph:"⌗",label:"Screenshot",detail:"Capture an area with Hyprshot and copy it to the clipboard.",button:"CAPTURE",command:"screenshot"},
             {icon:"media-record",glyph:"●",label:"Screen recorder",detail:"Record an area or display with desktop and microphone audio.",button:"OPEN",command:"recorder"},
+            {icon:"draw-freehand",glyph:"✎",label:"Annotate screenshot",detail:"Select a region, draw or redact in Swappy, then save and copy the result.",button:"CAPTURE",command:"annotate"},
+            {icon:"edit-select-text",glyph:"Aa",label:"Copy text from screen",detail:"OCR a selected region locally and place recognized text on the clipboard.",button:"OCR",command:"ocr"},
             {icon:"input-keyboard",glyph:"⌨",label:"Shortcut guide",detail:"Open the complete keyboard and mouse reference.",button:"SHOW",command:"keys"}
         ]
     } }
-    Component { id: automationPage; SettingsActionsPage {
-        pageEyebrow: "CONTEXT"; pageTitle: "Scenes & automation"
-        pageDescription: "Save complete working contexts or safely react to dock and power changes without launching apps unexpectedly."
-        actions: [
-            {icon:"view-grid",glyph:"▦",label:"Workspace overview",detail:"Inspect all workspaces and move, focus or close windows.",button:"OPEN",surface:"overview"},
-            {icon:"document-save",glyph:"◫",label:"Session & audio scenes",detail:"Save applications, monitor layout, wallpaper, power and routing.",button:"MANAGE",surface:"scenes"},
-            {icon:"preferences-system-time",glyph:"◎",label:"Context engine",detail:"Assign settings-only scenes to docked, mobile, AC and battery states.",button:"CONFIGURE",surface:"scenes"},
-            {icon:"view-history",glyph:"↶",label:"Nocturne Trace",detail:"See why the desktop adapted, inspect its private decision history and reverse automatic settings.",button:"EXPLAIN",surface:"automation"}
-        ]
-    } }
+    Component { id: automationPage; AutomationRulesSettingsPage { active: true } }
     Component { id: privacyPage; SettingsActionsPage {
         pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
         pageDescription: "Inspect live privacy clients and GPU behavior only when the dashboard is open."
@@ -171,7 +168,7 @@ ApplicationWindow {
     } }
     Component { id: setupPage; SetupSettingsPage { active: true } }
     Component { id: aboutPage; SettingsActionsPage {
-        pageEyebrow: "NOCTURNE 1.0.0"; pageTitle: "About"
+        pageEyebrow: "NOCTURNE 1.1.0"; pageTitle: "About"
         pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
         pageBadge: "OPEN SOURCE"
         actions: [

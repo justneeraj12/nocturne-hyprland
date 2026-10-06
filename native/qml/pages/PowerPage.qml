@@ -14,6 +14,7 @@ Rectangle {
     property string batteryState: "EXTERNAL POWER"
     property string pendingSessionAction: ""
     property var gaming: ({active:false, enabled:false, games:0, title:"Waiting for a Steam game"})
+    property var lab: ({battery:{health:-1,cycles:-1},charge:{supported:false,threshold:-1},sleep:{current:"",deepAvailable:false},adaptiveSaver:false,lowBattery:20})
     function refresh() {
         var status = backend.run([backend.home + "/.config/hypr/scripts/power-profile", "status"]).split("\t")
         profile = status[0] || "balanced"; detail = status.slice(1).join(" ")
@@ -21,6 +22,8 @@ Rectangle {
         battery = capacity ? parseInt(capacity) : -1
         batteryState = backend.readFirst("/sys/class/power_supply", "status").trim().toUpperCase() || "EXTERNAL POWER"
         gaming = backend.json([backend.home + "/.config/hypr/scripts/game-session", "status"], 1600) || gaming
+        var nextLab = backend.json([backend.home + "/.config/hypr/scripts/power-lab", "status"], 1800)
+        if (nextLab && nextLab.battery && nextLab.sleep) lab = nextLab
     }
     function setProfile(name) {
         if (name === "boost") backend.start([backend.home + "/.config/hypr/scripts/power-profile", "boost", "30"])
@@ -55,6 +58,19 @@ Rectangle {
             }
         }
         Text { text: root.detail.toUpperCase(); color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9 }
+        SectionLabel { text: "BATTERY LAB" }
+        Rectangle { Layout.fillWidth: true; implicitHeight: 64; color: backend.surfaceColor; border.color: backend.lineColor
+            RowLayout { anchors.fill: parent; anchors.margins: 8; spacing: 8
+                ColumnLayout { Layout.fillWidth: true; spacing: 2
+                    Text { text: (root.lab.battery.health >= 0 ? root.lab.battery.health + "% HEALTH" : "HEALTH UNAVAILABLE") + " · " + (root.lab.sleep.current || "UNKNOWN").toUpperCase() + " SLEEP"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 8; font.bold: true }
+                    Text { text: root.lab.sleep.deepAvailable ? "DEEP SLEEP AVAILABLE" : "FIRMWARE EXPOSES S2IDLE ONLY"; color: root.lab.sleep.deepAvailable ? backend.accentColor : "#ffb36a"; font.family: "Inter"; font.pixelSize: 8 }
+                }
+                Text { visible: root.lab.charge.supported; text: "CHARGE LIMIT"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 7 }
+                NocturneButton { visible: root.lab.charge.supported; text: (root.lab.charge.threshold || 100) + "%"; onClicked: { var next = root.lab.charge.threshold >= 100 ? 80 : (root.lab.charge.threshold >= 80 ? 60 : 100); backend.start([backend.home + "/.config/hypr/scripts/power-lab", "threshold", String(next)]); delayed.restart() } }
+                Text { text: "AUTO SAVER"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 7 }
+                NocturneToggle { checked: root.lab.adaptiveSaver; onToggleRequested: function(v) { backend.run([backend.home + "/.config/hypr/scripts/power-lab", "configure", "adaptiveSaver", String(v)], 2500); delayed.restart() } }
+            }
+        }
         SectionLabel { text: "GAMING MODE" }
         Rectangle {
             Layout.fillWidth: true

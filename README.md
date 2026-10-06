@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-1.0.0-cb8d62?style=flat-square" alt="Nocturne 1.0.0">
+  <img src="https://img.shields.io/badge/release-1.1.0-cb8d62?style=flat-square" alt="Nocturne 1.1.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -32,22 +32,22 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
-## Current release // 1.0.0
+## Current release // 1.1.0
 
-Nocturne 1.0 adds a local-first workflow layer without another idle service: NOC Habits for weekly pacing and streaks, NOC Vault for private reusable snippets, and direct capture grammar in Command Center. The [fifty-item release manifest](docs/RELEASE-1.0.md) lists every tested addition.
+Nocturne 1.1 expands the native Settings app into a local system control plane without adding a new resident daemon. The [fifty-item release manifest](docs/RELEASE-1.1.md) lists every tested addition.
 
-- **NOC Habits** adds weekly targets, pacing, check-ins, streaks, archive, undo,
-  keyboard control and private Markdown export;
-- **NOC Vault** adds searchable tagged snippets, pinning, usage sorting, safe
-  link opening, clipboard capture, undo and private Markdown export;
-- Command Center captures tasks, habits, snippets and notes, copies literal
-  text, opens validated web addresses, and still previews deterministic system controls;
-- Desk, Habits and Vault cross-link as one on-demand workflow suite with zero
-  persistent helper processes while their cards are closed;
-- schema migration, diagnostics and automated contracts cover permissions,
-  clipboard behavior, state mutation, parsing, exports and all native panels.
+- **Storage Center** explains disk use, previews bounded cleanup and finds large duplicates without deleting personal files;
+- **System Command** combines reversible Meeting Mode, permissions, startup ownership, NOC Guard and the private NOC Pulse;
+- **Automation Builder** provides safe dock, power, meeting, focus and gaming rules with predefined reversible actions;
+- **Power Lab, Display and Input** expose battery health, deep sleep, adaptive saver, monitor modes, VRR and native touchpad gestures;
+- clipboard privacy, pinned text, Wi-Fi sharing, captive-portal handling, screenshot annotation and local OCR complete the daily-use layer.
 
-Read the complete [1.0 release notes](docs/RELEASE-1.0.md).
+Read the complete [1.1 release notes](docs/RELEASE-1.1.md).
+
+<p align="center">
+  <img src="docs/screenshots/storage-center.webp" alt="Nocturne Storage Center" width="47%">
+  <img src="docs/screenshots/system-command.webp" alt="Nocturne System Command center" width="47%">
+</p>
 
 The images below show the native shell layout on an isolated
 workspace. They contain no browser pages, messages, SSIDs, clipboard entries or
@@ -68,6 +68,7 @@ personal file names.
 | **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Nocturne Trace tells you why, shows what changed and preserves a direct reversal path. |
 | **Local workflow memory** | Desk, Habits and Vault connect tasks, notes, focus blocks, weekly pacing and reusable snippets through private files with no account, cloud dependency or resident workflow daemon. |
 | **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
+| **Explainable system control** | Storage, permissions, startup, power and recovery expose their real source of truth and keep destructive or privileged actions explicit. |
 
 ## The desktop
 
@@ -101,6 +102,7 @@ The shell includes:
 - a nine-workspace overview plus restorable desktop and audio scenes;
 - launcher favorites, recent apps, local file search and inline calculations;
 - searchable notification history, timed focus modes, clipboard history, minimized apps and a DBusMenu-aware background-app switcher;
+- sensitive clipboard filtering, automatic expiry and private pinned text;
 - per-app timed notification muting, grouped alerts and verification-code copying;
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
@@ -114,6 +116,9 @@ The shell includes:
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
 - apt, Flatpak, firmware and failed-service status in one maintenance card;
+- bounded Storage Center cleanup and on-demand duplicate discovery;
+- reversible Meeting Mode, portal/permission ownership, NOC Guard and NOC Pulse;
+- a safe trigger/action Automation Builder that shares the existing context timer;
 - hardware-aware setup profiles plus portable preference export and restore;
 - one searchable native Settings app with overview, live hardware state, appearance, devices, defaults, accounts, integrations and guarded recovery;
 - a compact dark Files profile with tabs, split view, rich previews, network/removable mounts and zero-idle indexing;
@@ -259,6 +264,7 @@ applications keep their own toolkit and license.
 - [Architecture](docs/ARCHITECTURE.md)
 - [Camera quality and latency](docs/CAMERA.md)
 - [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
+- [Nocturne 1.1 — fifty system upgrades](docs/RELEASE-1.1.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Launch and community plan](docs/LAUNCH.md)
 - [Experimental NØX local agent](agent/README.md) — optional and not installed by default

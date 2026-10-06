@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+
+portal_state() {
+  jq -cn \
+    --arg hypr "$(systemctl --user is-active xdg-desktop-portal-hyprland.service 2>/dev/null || true)" \
+    --arg broker "$(systemctl --user is-active xdg-desktop-portal.service 2>/dev/null || true)" \
+    --arg kde "$(systemctl --user is-active plasma-xdg-desktop-portal-kde.service 2>/dev/null || true)" \
+    '{hyprland:$hypr,broker:$broker,kde:$kde,healthy:($hypr=="active" and $broker=="active")}'
+}
+
+flatpak_apps() {
+  flatpak list --app --columns=application,name 2>/dev/null | while IFS=$'\t' read -r id name; do
+    [[ $id =~ ^[A-Za-z0-9._-]+$ ]] || continue
+    override=$(flatpak override --show "$id" 2>/dev/null | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g')
+    jq -cn --arg id "$id" --arg name "${name:-$id}" --arg override "$override" '{id:$id,name:$name,override:$override,custom:($override!="")}'
+  done | jq -s .
+}
+
+startup_apps() {
+  find "$config_home/autostart" -maxdepth 1 -type f -name '*.desktop' -print0 2>/dev/null | sort -z | while IFS= read -r -d '' file; do
+    local_name=$(sed -n 's/^Name=//p' "$file" | head -1); hidden=$(sed -n 's/^Hidden=//p' "$file" | head -1)
+    jq -cn --arg id "$(basename "$file")" --arg name "${local_name:-$(basename "$file" .desktop)}" --argjson enabled "$([[ $hidden == true ]] && printf false || printf true)" '{id:$id,name:$name,enabled:$enabled}'
+  done | jq -s .
+}
+
+status() {
+  local portals apps startup dynamic
+  portals=$(portal_state); apps=$(flatpak_apps); startup=$(startup_apps)
+  dynamic=$(flatpak permission-list 2>/dev/null | awk 'NF{count++}END{print count+0}')
+  jq -cn --argjson portals "$portals" --argjson apps "$apps" --argjson startup "$startup" --argjson dynamic "$dynamic" \
+    '{format:"nocturne-permissions-v1",portals:$portals,flatpaks:$apps,startup:$startup,dynamicPermissions:$dynamic}'
+}
+
+reset_app() {
+  [[ ${1:-} =~ ^[A-Za-z0-9._-]+$ ]] || exit 2
+  flatpak list --app --columns=application | grep -Fqx -- "$1" || exit 3
+  flatpak permission-reset "$1"; flatpak override --user --reset "$1"
+}
+
+toggle_startup() {
+  local id=${1:-} enabled=${2:-} file temporary
+  [[ $id =~ ^[A-Za-z0-9._-]+\.desktop$ && $enabled =~ ^(true|false)$ ]] || exit 2
+  file="$config_home/autostart/$id"; [[ -f $file ]] || exit 3
+  temporary=$(mktemp "$config_home/autostart/.startup.XXXXXX")
+  awk -v hidden="$([[ $enabled == true ]] && printf false || printf true)" '
+    BEGIN{done=0} /^Hidden=/{if(!done){print "Hidden=" hidden;done=1}next} {print} END{if(!done)print "Hidden=" hidden}' "$file" > "$temporary"
+  mv -f -- "$temporary" "$file"
+}
+
+case ${1:-status} in
+  status) status ;;
+  reset) reset_app "${2:-}" ;;
+  startup) toggle_startup "${2:-}" "${3:-}" ;;
+  portal-restart) systemctl --user restart xdg-desktop-portal.service xdg-desktop-portal-hyprland.service ;;
+  *) printf 'Usage: %s status|reset APP_ID|startup DESKTOP_ID true|false|portal-restart\n' "$0" >&2; exit 2 ;;
+esac

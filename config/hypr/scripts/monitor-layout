@@ -78,12 +78,23 @@ mirror_layout() {
   done < <(monitors | jq -c '.[]')
 }
 
+set_mode() {
+  local output=$1 requested=$2 data x y scale transform rule
+  validate_output "$output"; [[ $requested =~ ^[0-9]+x[0-9]+@[0-9]+([.][0-9]+)?Hz?$ ]] || exit 2
+  data=$(monitor_json "$output")
+  jq -e --arg mode "$requested" '(.availableModes // []) | any(. == $mode or . == ($mode|sub("Hz$";"")))' <<<"$data" >/dev/null || exit 3
+  requested=${requested%Hz}; x=$(jq -r '.x' <<<"$data"); y=$(jq -r '.y' <<<"$data"); scale=$(jq -r '.scale' <<<"$data"); transform=$(jq -r '.transform // 0' <<<"$data")
+  rule="$output,$requested,${x}x${y},$scale,transform,$transform"; hyprctl keyword monitor "$rule" >/dev/null
+}
+
 case ${1:-status} in
   status) monitors ;;
   scale) apply_monitor "${2:?output required}" "${3:?scale required}" ;;
   rotate) apply_monitor "${2:?output required}" '' "${3:?rotation required}" ;;
   extend) extend_layout ;;
   mirror) mirror_layout ;;
+  mode) set_mode "${2:?output required}" "${3:?mode required}" ;;
+  vrr) [[ ${2:-} =~ ^[0-2]$ ]] || exit 2; hyprctl keyword misc:vrr "$2" >/dev/null ;;
   save) save_layout ;;
-  *) printf 'Usage: %s status|scale OUTPUT SCALE|rotate OUTPUT 0..3|extend|mirror|save\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s status|scale OUTPUT SCALE|rotate OUTPUT 0..3|mode OUTPUT MODE|vrr 0..2|extend|mirror|save\n' "$0" >&2; exit 2 ;;
 esac

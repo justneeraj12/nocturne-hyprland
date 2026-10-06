@@ -11,8 +11,10 @@ Rectangle {
     border.color: backend.accent2Color
     border.width: 1
     property var items: backend.clipboardItems("")
+    property var clipboardState: ({sensitiveGuard:true,sensitiveExpiry:90,pins:[]})
     property bool clearArmed: false
-    function refresh() { items = backend.clipboardItems(search.text); list.currentIndex = items.length ? 0 : -1 }
+    readonly property string clipboardTool: backend.home + "/.config/hypr/scripts/clipboard-control"
+    function refresh() { items = backend.clipboardItems(search.text); var next = backend.json([clipboardTool,"status"],1600); if(next && next.pins !== undefined) clipboardState = next; list.currentIndex = items.length ? 0 : -1 }
     function navigate(delta) {
         if (!items.length) return
         list.currentIndex = Math.max(0, Math.min(items.length - 1, list.currentIndex + delta))
@@ -33,6 +35,28 @@ Rectangle {
             PanelHeader { Layout.fillWidth: true; title: "Clipboard"; subtitle: "Recent copied items" }
             Text { text: root.items.length + (root.items.length === 1 ? " ITEM" : " ITEMS"); color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 8 }
             NocturneButton { text: root.clearArmed ? "CONFIRM CLEAR" : "CLEAR"; danger: true; onClicked: root.clearHistory() }
+        }
+        Rectangle {
+            Layout.fillWidth: true; implicitHeight: 39; color: backend.surfaceColor; border.color: backend.lineColor
+            RowLayout { anchors.fill: parent; anchors.margins: 7
+                Text { Layout.fillWidth: true; text: "SENSITIVE GUARD  ·  PRIVATE VALUES EXPIRE IN " + root.clipboardState.sensitiveExpiry + "s"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 8 }
+                NocturneToggle { checked: root.clipboardState.sensitiveGuard; onToggleRequested: function(v) { backend.run([root.clipboardTool,"configure","sensitiveGuard",String(v)],1500); root.refresh() } }
+            }
+        }
+        ColumnLayout {
+            visible: (root.clipboardState.pins || []).length > 0; Layout.fillWidth: true; spacing: 3
+            SectionLabel { text: "PINNED" }
+            Repeater { model: (root.clipboardState.pins || []).slice(0,2)
+                Rectangle {
+                    required property var modelData
+                    Layout.fillWidth: true; implicitHeight: 34; color: backend.surfaceColor; border.color: backend.accent2Color
+                    RowLayout { anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 4
+                        Text { Layout.fillWidth: true; text: modelData.preview; color: backend.textColor; font.family: "monospace"; font.pixelSize: 9; elide: Text.ElideRight }
+                        NocturneButton { text: "COPY"; onClicked: { backend.run([root.clipboardTool,"copy-pin",modelData.id],1200); backend.close() } }
+                        NocturneButton { text: "×"; danger: true; onClicked: { backend.run([root.clipboardTool,"unpin",modelData.id],1200); root.refresh() } }
+                    }
+                }
+            }
         }
         TextField {
             id: search
@@ -70,11 +94,15 @@ Rectangle {
                 width: ListView.view.width; height: 36
                 color: index === list.currentIndex ? backend.overlayColor : backend.surfaceColor
                 border.color: index === list.currentIndex ? backend.accentColor : backend.lineColor
-                Text { anchors.fill: parent; anchors.margins: 9; text: modelData.preview; color: backend.textColor; font.family: "monospace"; font.pixelSize: 10; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
-                MouseArea { anchors.fill: parent; hoverEnabled: true; onEntered: list.currentIndex = index; onClicked: backend.copyClipboardItem(modelData.entry) }
+                RowLayout { anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 4
+                    Text { Layout.fillWidth: true; text: modelData.preview; color: backend.textColor; font.family: "monospace"; font.pixelSize: 10; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
+                    NocturneButton { text: "PIN"; onClicked: { backend.run([root.clipboardTool,"pin",modelData.entry],1800); root.refresh() } }
+                }
+                MouseArea { anchors.fill: parent; anchors.rightMargin: 52; hoverEnabled: true; onEntered: list.currentIndex = index; onClicked: backend.copyClipboardItem(modelData.entry) }
             }
         }
         Text { Layout.fillWidth: true; text: "↑↓/PG SELECT   ↵ COPY   CTRL+L SEARCH   ESC CLEAR/CLOSE"; color: backend.mutedColor; horizontalAlignment: Text.AlignHCenter; font.family: "monospace"; font.pixelSize: 9 }
     }
     Timer { id: clearReset; interval: 5000; onTriggered: root.clearArmed = false }
+    Component.onCompleted: refresh()
 }

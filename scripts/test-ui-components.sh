@@ -16,6 +16,7 @@ pages=(
   PomodoroPage PowerPage LauncherPage DeskPage HabitsPage VaultPage OverviewPage ScenesPage AutomationPage
   PrivacyPage GamingPage OsdPage BackgroundPage NotificationsPage ClipboardPage
   MinimizedPage MediaPage KdeConnectPage MaintenancePage DisplayPage
+  StorageSettingsPage ControlCenterSettingsPage AutomationRulesSettingsPage
 )
 
 for page in "${pages[@]}"; do

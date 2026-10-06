@@ -5,7 +5,7 @@ config_home=${XDG_CONFIG_HOME:-$HOME/.config}
 state_home=${XDG_STATE_HOME:-$HOME/.local/state}
 state_dir=$state_home/nocturne
 version_file=$state_dir/schema-version
-target=7
+target=8
 mkdir -p -- "$config_home/nocturne" "$state_dir"
 current=0
 [[ -r $version_file ]] && read -r current < "$version_file"
@@ -56,6 +56,15 @@ if ((current < 7)); then
   "$config_home/hypr/scripts/habits" status >/dev/null 2>&1 || true
   "$config_home/hypr/scripts/vault" status >/dev/null 2>&1 || true
   printf '7\n' > "$version_file"; current=7
+fi
+if ((current < 8)); then
+  for helper in automation-rules clipboard-control power-lab; do
+    [[ -x $config_home/hypr/scripts/$helper ]] || continue
+    "$config_home/hypr/scripts/$helper" status >/dev/null 2>&1 || true
+  done
+  [[ -x $config_home/hypr/scripts/system-preferences ]] \
+    && "$config_home/hypr/scripts/system-preferences" apply >/dev/null 2>&1 || true
+  printf '8\n' > "$version_file"; current=8
 fi
 
 if [[ ${1:-} == --json ]]; then

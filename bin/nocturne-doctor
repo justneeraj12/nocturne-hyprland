@@ -104,6 +104,41 @@ fi
 [[ -x $HOME/.config/hypr/scripts/efficiency-control ]] \
   && ok 'On-demand efficiency telemetry is installed' \
   || warning 'Efficiency telemetry helper is missing'
+for control_spec in \
+  'storage-control:nocturne-storage-v1:Storage Center' \
+  'permission-control:nocturne-permissions-v1:Permission Center' \
+  'system-guard:nocturne-guard-v1:NOC Guard' \
+  'power-lab:nocturne-power-lab-v1:Power Lab' \
+  'clipboard-control:nocturne-clipboard-v1:clipboard privacy'; do
+  IFS=: read -r helper expected label <<< "$control_spec"
+  control_state=$($HOME/.config/hypr/scripts/$helper status 2>/dev/null || true)
+  if jq -e --arg expected "$expected" '.format == $expected' <<<"$control_state" >/dev/null 2>&1; then
+    ok "$label state is valid"
+  else
+    warning "$label state could not be validated"
+  fi
+done
+rules_state=$($HOME/.config/hypr/scripts/automation-rules status 2>/dev/null || true)
+if jq -e '.format == "nocturne-rules-v1" and (.rules|type == "array")' <<<"$rules_state" >/dev/null 2>&1; then
+  ok 'Bounded automation rules are valid'
+else
+  warning 'Automation rule state could not be validated'
+fi
+if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /\/hypr\/scripts\/(storage-control|permission-control|system-guard|power-lab|automation-rules) / {found=1} END {exit !found}'; then
+  warning 'An on-demand 1.1 control helper is unexpectedly persistent'
+else
+  ok 'Control-center helpers have zero persistent processes'
+fi
+if pgrep -af 'wl-paste --type text --watch .*/clipboard-control watch' >/dev/null 2>&1; then
+  ok 'Sensitive clipboard filter owns text history ingestion'
+else
+  warning 'Sensitive clipboard filter is not watching text copies'
+fi
+for optional in swappy tesseract qrencode; do
+  command -v "$optional" >/dev/null 2>&1 \
+    && ok "Optional workflow command is installed: $optional" \
+    || warning "Optional workflow command is missing: $optional"
+done
 desk_state=$($HOME/.config/hypr/scripts/desk status 2>/dev/null || true)
 if jq -e '.format == "nocturne-desk-status-v1" and (.open|type == "number")' <<<"$desk_state" >/dev/null 2>&1; then
   ok 'NOC Desk local data is valid'

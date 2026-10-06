@@ -24,6 +24,8 @@ Rectangle {
     property bool metered: false
     property string activeWifiDevice: ""
     property string activeWifiProfile: ""
+    property var tools: ({hotspotActive:false,hotspot:"",qrAvailable:false})
+    property string qrPath: ""
 
     onInitialPageChanged: {
         tab = initialPage
@@ -48,6 +50,8 @@ Rectangle {
     }
 
     function refresh() {
+        var nextTools = backend.json([backend.home + "/.config/hypr/scripts/connectivity-tools", "status"], 2500)
+        if (nextTools && nextTools.hotspotActive !== undefined) tools = nextTools
         wifiEnabled = backend.run(["nmcli", "-t", "-f", "WIFI", "general"]) === "enabled"
         connectivity = backend.run(["nmcli", "-t", "networking", "connectivity"]) || "unknown"
         var connectedWifi = backend.run(["nmcli", "-t", "--escape", "no", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"]).split("\n").filter(function(line) {
@@ -93,10 +97,16 @@ Rectangle {
             if (!bluetoothEnabled) { bluetooth = []; return }
             var devices = backend.run(["bluetoothctl", "devices"]).split("\n")
             var connected = backend.run(["bluetoothctl", "devices", "Connected"])
+            var cards = backend.json(["pactl", "-f", "json", "list", "cards"], 1500) || []
             bluetooth = devices.filter(function(line) { return line.indexOf("Device ") === 0 }).map(function(line) {
                 var fields = line.split(" ")
                 var mac = fields[1]
-                return {mac:mac, name:fields.slice(2).join(" "), active:connected.indexOf(mac) >= 0}
+                var info = backend.run(["bluetoothctl", "info", mac], 1200)
+                var battery = (info.match(/Battery Percentage:.*\((\d+)\)/) || [])[1] || ""
+                var cardName = "bluez_card." + mac.replace(/:/g, "_")
+                var found = cards.filter(function(x){ return x.name === cardName })[0]
+                var codec = found ? String(found.active_profile || "").replace(/^a2dp-sink-?/, "").replace(/^a2dp-sink$/, "A2DP") : ""
+                return {mac:mac, name:fields.slice(2).join(" "), active:connected.indexOf(mac) >= 0,battery:battery,codec:codec}
             }).sort(function(a, b) { return a.active ? -1 : (b.active ? 1 : a.name.localeCompare(b.name)) })
         }
     }
@@ -193,6 +203,19 @@ Rectangle {
             }
         }
 
+        RowLayout {
+            visible: root.tab === "wifi" && root.wifiEnabled
+            Layout.fillWidth: true; spacing: 5
+            NocturneButton {
+                Layout.fillWidth: true; text: root.tools.hotspotActive ? "STOP HOTSPOT" : "START HOTSPOT"
+                onClicked: { backend.start([backend.home + "/.config/hypr/scripts/connectivity-tools", root.tools.hotspotActive ? "hotspot-off" : "hotspot-on", root.activeWifiDevice]); delayed.restart() }
+            }
+            NocturneButton {
+                Layout.fillWidth: true; text: "SHARE WI-FI QR"; enabled: root.tools.qrAvailable
+                onClicked: { root.qrPath = backend.run([backend.home + "/.config/hypr/scripts/connectivity-tools", "qr"], 4000).trim(); qrDialog.open() }
+            }
+        }
+
         Rectangle {
             visible: root.tab === "wifi" && root.wifiEnabled
             Layout.fillWidth: true
@@ -253,7 +276,7 @@ Rectangle {
                             spacing: 1
                             Text { Layout.fillWidth: true; text: root.tab === "wifi" ? modelData.ssid : modelData.name; color: backend.textColor; font.family: "monospace"; font.bold: true; elide: Text.ElideRight }
                             Text {
-                                text: modelData.active ? "CONNECTED" : (root.tab === "wifi" ? modelData.signal + "% · " + modelData.security : (root.tab === "bluetooth" ? modelData.mac : modelData.type.toUpperCase()))
+                                text: modelData.active ? (root.tab === "bluetooth" ? "CONNECTED" + (modelData.codec ? " · " + modelData.codec.toUpperCase() : "") + (modelData.battery ? " · " + modelData.battery + "%" : "") : "CONNECTED") : (root.tab === "wifi" ? modelData.signal + "% · " + modelData.security : (root.tab === "bluetooth" ? modelData.mac : modelData.type.toUpperCase()))
                                 color: backend.mutedColor
                                 font.family: "Inter"
                                 font.pixelSize: 9
@@ -275,4 +298,13 @@ Rectangle {
 
     Timer { interval: 3000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     Timer { id: delayed; interval: 1200; onTriggered: root.refresh() }
+    Popup {
+        id: qrDialog; parent: root; x: Math.round((root.width - width) / 2); y: Math.round((root.height - height) / 2); modal: true; width: 260; height: 300
+        background: Rectangle { color: backend.surfaceColor; border.color: backend.accent2Color }
+        contentItem: ColumnLayout { spacing: 8
+            Text { Layout.fillWidth: true; text: "SHARE CURRENT WI-FI"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 10; font.bold: true; horizontalAlignment: Text.AlignHCenter }
+            Image { Layout.alignment: Qt.AlignHCenter; Layout.preferredWidth: 220; Layout.preferredHeight: 220; source: root.qrPath ? "file://" + root.qrPath : ""; fillMode: Image.PreserveAspectFit; cache: false }
+            Text { Layout.fillWidth: true; text: "PASSWORD IS ENCODED LOCALLY"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 7; horizontalAlignment: Text.AlignHCenter }
+        }
+    }
 }

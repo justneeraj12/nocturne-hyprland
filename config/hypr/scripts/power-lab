@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+config_file="$config_home/nocturne/power-lab.json"
+state_file="$state_home/power-lab.state"
+mkdir -p -- "$config_home/nocturne" "$state_home"
+[[ -s $config_file ]] || printf '%s\n' '{"format":"nocturne-power-lab-v1","adaptiveSaver":false,"lowBattery":20}' > "$config_file"
+
+battery_path() { find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' -print -quit; }
+threshold_path() { local battery; battery=$(battery_path); [[ -n $battery ]] && find "$battery" -maxdepth 1 -type f \( -name charge_control_end_threshold -o -name charge_stop_threshold \) -print -quit; }
+
+status() {
+  local battery threshold_file threshold=-1 capacity=-1 cycles=-1 status=unknown health=-1 modes='' current='' adaptive low
+  battery=$(battery_path || true); threshold_file=$(threshold_path || true)
+  if [[ -n $battery ]]; then
+    [[ -r $battery/capacity ]] && capacity=$(<$battery/capacity); [[ -r $battery/status ]] && status=$(<$battery/status)
+    [[ -r $battery/cycle_count ]] && cycles=$(<$battery/cycle_count)
+    if [[ -r $battery/energy_full && -r $battery/energy_full_design ]]; then health=$(awk -v a="$(<$battery/energy_full)" -v b="$(<$battery/energy_full_design)" 'BEGIN{if(b>0)printf "%d",100*a/b;else print -1}')
+    elif [[ -r $battery/charge_full && -r $battery/charge_full_design ]]; then health=$(awk -v a="$(<$battery/charge_full)" -v b="$(<$battery/charge_full_design)" 'BEGIN{if(b>0)printf "%d",100*a/b;else print -1}'); fi
+  fi
+  [[ -n $threshold_file && -r $threshold_file ]] && threshold=$(<$threshold_file)
+  if [[ -r /sys/power/mem_sleep ]]; then modes=$(</sys/power/mem_sleep); current=$(grep -o '\[[^]]*\]' /sys/power/mem_sleep | tr -d '[]'); fi
+  adaptive=$(jq -r '.adaptiveSaver' "$config_file"); low=$(jq -r '.lowBattery' "$config_file")
+  jq -cn --argjson capacity "$capacity" --arg status "$status" --argjson health "$health" --argjson cycles "$cycles" --argjson threshold "$threshold" \
+    --arg thresholdPath "$threshold_file" --arg modes "$modes" --arg current "$current" --argjson adaptive "$adaptive" --argjson low "$low" \
+    '{format:"nocturne-power-lab-v1",battery:{capacity:$capacity,status:$status,health:$health,cycles:$cycles},charge:{supported:($thresholdPath!=""),threshold:$threshold},sleep:{modes:$modes,current:$current,deepAvailable:($modes|contains("deep"))},adaptiveSaver:$adaptive,lowBattery:$low}'
+}
+
+set_threshold() {
+  local value=${1:-} path; [[ $value =~ ^(60|70|80|90|100)$ ]] || exit 2; path=$(threshold_path); [[ -n $path ]] || exit 3
+  pkexec sh -c "printf '%s\\n' '$value' > '$path'"
+}
+
+configure() {
+  local key=$1 value=$2 temp; temp=$(mktemp "$config_home/nocturne/.power-lab.XXXXXX")
+  case $key in
+    adaptiveSaver) [[ $value =~ ^(true|false)$ ]] || exit 2; jq --argjson v "$value" '.adaptiveSaver=$v' "$config_file" > "$temp" ;;
+    lowBattery) [[ $value =~ ^([1-4][0-9]|50)$ ]] || exit 2; jq --argjson v "$value" '.lowBattery=$v' "$config_file" > "$temp" ;;
+    *) rm -f "$temp"; exit 2 ;;
+  esac
+  chmod 600 "$temp"; mv -f -- "$temp" "$config_file"
+  if [[ $key == adaptiveSaver && $value == true ]]; then systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+  elif [[ $key == adaptiveSaver && $value == false ]] \
+    && [[ $(jq -r '.enabled' "$config_home/nocturne/context.json" 2>/dev/null || printf false) != true ]] \
+    && [[ $(jq -r '.enabled' "$config_home/nocturne/rules.json" 2>/dev/null || printf false) != true ]]; then
+    systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+  fi
+}
+
+evaluate() {
+  [[ $(jq -r '.adaptiveSaver' "$config_file") == true ]] || exit 0
+  local battery capacity state low profile; battery=$(battery_path || true); [[ -n $battery && -r $battery/capacity && -r $battery/status ]] || exit 0
+  capacity=$(<$battery/capacity); state=$(<$battery/status); low=$(jq -r '.lowBattery' "$config_file"); profile=$(powerprofilesctl get 2>/dev/null || printf balanced)
+  if [[ $state == Discharging && $capacity -le $low ]]; then
+    if [[ ! -s $state_file ]]; then printf '%s\n' "$profile" > "$state_file"; chmod 600 "$state_file"; fi
+    [[ $profile == power-saver ]] || powerprofilesctl set power-saver >/dev/null 2>&1 || true
+  elif [[ -s $state_file ]]; then
+    profile=$(cat "$state_file"); [[ $profile =~ ^(performance|balanced|power-saver)$ ]] && powerprofilesctl set "$profile" >/dev/null 2>&1 || true; rm -f "$state_file"
+  fi
+}
+
+case ${1:-status} in
+  status) status ;;
+  threshold) set_threshold "${2:-}" ;;
+  configure) configure "${2:-}" "${3:-}" ;;
+  evaluate) evaluate ;;
+  *) printf 'Usage: %s status|threshold 60|70|80|90|100|configure adaptiveSaver true|false|configure lowBattery N|evaluate\n' "$0" >&2; exit 2 ;;
+esac

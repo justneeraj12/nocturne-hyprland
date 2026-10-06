@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cache_home=${XDG_CACHE_HOME:-"$HOME/.cache"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+mkdir -p -- "$state_home"
+
+bytes() { du -sb -- "$1" 2>/dev/null | awk '{print $1+0}' || printf '0\n'; }
+fs_json() {
+  df -B1 --output=size,used,avail,pcent "$HOME" | tail -1 |
+    awk '{gsub("%","",$4); printf "{\"total\":%s,\"used\":%s,\"free\":%s,\"percent\":%s}", $1,$2,$3,$4}'
+}
+
+status() {
+  local filesystem cache trash downloads steam models thumbnails builds browser
+  filesystem=$(fs_json)
+  cache=$(bytes "$cache_home")
+  trash=$(bytes "$HOME/.local/share/Trash/files")
+  downloads=$(bytes "$HOME/Downloads")
+  steam=$(bytes "$HOME/.local/share/Steam/steamapps")
+  models=$(bytes "$HOME/.local/share/nocturne-agent-models")
+  thumbnails=$(bytes "$cache_home/thumbnails")
+  builds=$(( $(bytes "$cache_home/go-build") + $(bytes "$cache_home/ccache") + $(bytes "$cache_home/JetBrains") ))
+  browser=$(( $(bytes "$cache_home/BraveSoftware") + $(bytes "$cache_home/google-chrome") + $(bytes "$cache_home/chromium") ))
+  jq -cn --argjson filesystem "$filesystem" --argjson cache "$cache" --argjson trash "$trash" \
+    --argjson downloads "$downloads" --argjson steam "$steam" --argjson models "$models" \
+    --argjson thumbnails "$thumbnails" --argjson builds "$builds" --argjson browser "$browser" \
+    '{format:"nocturne-storage-v1",filesystem:$filesystem,categories:{cache:$cache,trash:$trash,downloads:$downloads,steam:$steam,models:$models},
+      cleanup:[{id:"thumbnails",label:"Thumbnails",bytes:$thumbnails,safe:true},{id:"build-caches",label:"Rebuildable developer caches",bytes:$builds,safe:true},
+      {id:"browser-cache",label:"Browser cache",bytes:$browser,safe:true},{id:"trash",label:"Trash",bytes:$trash,safe:false}],
+      protected:["Steam libraries","Downloads and documents","Nocturne rollback backups","Codex runtimes","active application data"]}'
+}
+
+clean() {
+  case ${1:-} in
+    thumbnails)
+      rm -rf -- "$cache_home/thumbnails"; mkdir -p -- "$cache_home/thumbnails" ;;
+    build-caches)
+      rm -rf -- "$cache_home/go-build" "$cache_home/ccache" "$cache_home/JetBrains" ;;
+    browser-cache)
+      if pgrep -f 'brave-browser|google-chrome|chromium' >/dev/null 2>&1; then
+        printf 'Close Chromium-based browsers before clearing their cache.\n' >&2; exit 4
+      fi
+      rm -rf -- "$cache_home/BraveSoftware" "$cache_home/google-chrome" "$cache_home/chromium" ;;
+    trash)
+      gio trash --empty ;;
+    flatpak-unused)
+      flatpak uninstall --unused --noninteractive ;;
+    admin)
+      exec kitty --hold --class nocturne-maintenance --title 'Nocturne · Admin cleanup' -e bash -lc \
+        'sudo apt-get clean; sudo journalctl --vacuum-size=100M; printf "\nAdmin cleanup complete.\n"' ;;
+    *) printf 'Usage: %s clean thumbnails|build-caches|browser-cache|trash|flatpak-unused|admin\n' "$0" >&2; exit 2 ;;
+  esac
+}
+
+duplicates() {
+  local root=${2:-"$HOME/Downloads"}
+  [[ $root == "$HOME/Downloads" || $root == "$HOME/Documents" ]] || exit 2
+  temporary=$(mktemp "$state_home/.duplicates.XXXXXX"); trap 'rm -f -- "$temporary"' EXIT
+  find "$root" -xdev -type f -size +50M -printf '%s\t%p\n' 2>/dev/null | sort -n |
+    awk -F '\t' 'count[$1]++ {print $0} {line[$1]=$0} END {for (size in count) if (count[size]) print line[size]}' |
+    sort -n | while IFS=$'\t' read -r size path; do
+      [[ -r $path ]] || continue
+      printf '%s\t%s\t%s\n' "$size" "$(sha256sum -- "$path" | cut -d' ' -f1)" "$path"
+    done > "$temporary"
+  jq -Rn '[inputs|split("\t")|{bytes:(.[0]|tonumber),hash:.[1],path:.[2]}] | group_by(.hash) | map(select(length>1)) | {format:"nocturne-duplicates-v1",groups:.,reclaimable:([.[]|.[1:][]?.bytes]|add//0)}' < "$temporary"
+}
+
+case ${1:-status} in
+  status) status ;;
+  clean) clean "${2:-}" ;;
+  duplicates) duplicates "$@" ;;
+  *) printf 'Usage: %s status|clean TARGET|duplicates [Downloads|Documents]\n' "$0" >&2; exit 2 ;;
+esac

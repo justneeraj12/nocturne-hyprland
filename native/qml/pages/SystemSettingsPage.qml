@@ -7,7 +7,7 @@ Rectangle {
     id: root
     color: backend.baseColor
     property bool active: false
-    property var state: ({input:{kbLayout:"us",repeatRate:35,repeatDelay:350,sensitivity:0,naturalScroll:true,tapToClick:true,disableWhileTyping:true},devices:{keyboards:0,mice:0,touchpads:0},time:{timezone:"",ntp:false},defaults:[]})
+    property var state: ({input:{kbLayout:"us",repeatRate:35,repeatDelay:350,sensitivity:0,naturalScroll:true,tapToClick:true,disableWhileTyping:true,workspaceSwipe:true,accelProfile:"adaptive"},devices:{keyboards:0,mice:0,touchpads:0},time:{timezone:"",ntp:false},defaults:[]})
     readonly property string helper: backend.home + "/.config/hypr/scripts/system-preferences"
 
     function refresh() { state = backend.json([helper, "status"], 8000) || state }
@@ -76,6 +76,16 @@ Rectangle {
                         }
                         NocturneSlider { Layout.fillWidth: true; from: -1; to: 1; stepSize: 0.1; value: root.state.input.sensitivity; onPressedChanged: if (!pressed) root.setInput("sensitivity", value.toFixed(1)) }
                     }
+                }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 10
+                    Rectangle { Layout.fillWidth: true; implicitHeight: 52; color: backend.baseColor; border.color: backend.lineColor
+                        RowLayout { anchors.fill: parent; anchors.margins: 9
+                            ColumnLayout { Layout.fillWidth: true; spacing: 2; Text { text: "WORKSPACE SWIPE"; color: backend.textColor; font.family: "Inter"; font.pixelSize: 9; font.bold: true } Text { text: "Three-finger native workspace navigation"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8 } }
+                            NocturneToggle { checked: root.state.input.workspaceSwipe; onToggleRequested: function(v) { root.setInput("workspaceSwipe", v) } }
+                        }
+                    }
+                    RowLayout { Layout.fillWidth: true; Text { Layout.fillWidth: true; text: "POINTER ACCELERATION"; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; font.bold: true } NocturneComboBox { model: ["adaptive","flat"]; currentIndex: root.state.input.accelProfile === "flat" ? 1 : 0; onActivated: root.setInput("accelProfile", model[currentIndex]) } }
                 }
             }
 

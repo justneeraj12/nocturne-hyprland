@@ -27,7 +27,7 @@ jq -e '.format == "nocturne-context-v2" and .contexts.docked == "desk" and .prof
 "$XDG_CONFIG_HOME/hypr/scripts/context-engine" decision \
   | jq -e '.enabled == false and .context == "mobile" and .selectedScene == "commute" and .reason == "context:mobile"' >/dev/null
 
-"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 7' >/dev/null
+"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 8' >/dev/null
 trace="$root/config/hypr/scripts/automation-trace"
 "$trace" record context scene-applied profile:meeting calls 'Settings only.'
 "$trace" record context baseline-restored no-matching-scene calls 'Reversed.'
@@ -116,6 +116,73 @@ printf '%s\n' 'work_seconds=60' 'break_seconds=60' 'mode=work' 'running=1' 'rema
   > "$XDG_STATE_HOME/nocturne/pomodoro.state"
 timeout 3s "$desk" start 1
 "$desk" status | jq -e '.focusMinutesToday == 2 and .sessionsToday == 2' >/dev/null
+
+# The 1.1 control centers remain command driven, bounded and private. Exercise
+# their persistent state without touching the live user session.
+for helper in automation-rules clipboard-control power-lab system-preferences; do
+  cp -- "$root/config/hypr/scripts/$helper" "$XDG_CONFIG_HOME/hypr/scripts/$helper"
+  chmod +x "$XDG_CONFIG_HOME/hypr/scripts/$helper"
+done
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$test_root/bin/systemctl"
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$test_root/bin/hyprctl"
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$test_root/bin/notify-send"
+printf '%s\n' '#!/bin/sh' \
+  'case "$1" in' \
+  '  decode) cat ;;' \
+  '  store) cat > "$MOCK_CLIPHIST_STORE" ;;' \
+  '  list) printf "" ;;' \
+  'esac' > "$test_root/bin/cliphist"
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$test_root/bin/systemd-run"
+chmod +x "$test_root/bin/systemctl" "$test_root/bin/hyprctl" "$test_root/bin/notify-send" "$test_root/bin/cliphist" "$test_root/bin/systemd-run"
+
+rules="$XDG_CONFIG_HOME/hypr/scripts/automation-rules"
+"$rules" add 'Saver away from dock' mobile power power-saver
+"$rules" add 'Quiet meetings' meeting dnd-on
+"$rules" status | jq -e '.format == "nocturne-rules-v1" and .count == 2 and .active == 2' >/dev/null
+"$rules" toggle 2
+"$rules" enable
+"$rules" status | jq -e '.enabled == true and .active == 1 and .rules[1].enabled == false' >/dev/null
+[[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/rules.json") == 600 ]]
+
+clipboard="$XDG_CONFIG_HOME/hypr/scripts/clipboard-control"
+export MOCK_CLIPHIST_STORE="$test_root/cliphist-store"
+"$clipboard" configure sensitiveExpiry 60
+printf 'ordinary clipboard value' | "$clipboard" watch
+[[ $(cat "$MOCK_CLIPHIST_STORE") == 'ordinary clipboard value' ]]
+rm -f -- "$MOCK_CLIPHIST_STORE"
+printf 'password=correct-horse-battery-staple' | "$clipboard" watch
+[[ ! -e $MOCK_CLIPHIST_STORE ]]
+"$clipboard" pin $'17\tPinned release note'
+"$clipboard" status | jq -e '.format == "nocturne-clipboard-v1" and .sensitiveGuard == true and .sensitiveExpiry == 60 and (.pins|length) == 1' >/dev/null
+[[ $(stat -c %a "$XDG_DATA_HOME/nocturne/clipboard/pins.json") == 600 ]]
+
+power_lab="$XDG_CONFIG_HOME/hypr/scripts/power-lab"
+"$power_lab" configure adaptiveSaver true
+"$power_lab" configure lowBattery 25
+"$power_lab" status | jq -e '.format == "nocturne-power-lab-v1" and .adaptiveSaver == true and .lowBattery == 25 and (.sleep.deepAvailable|type == "boolean")' >/dev/null
+
+preferences="$XDG_CONFIG_HOME/hypr/scripts/system-preferences"
+"$preferences" set-input workspaceSwipe true
+"$preferences" set-input accelProfile flat
+grep -Fq 'hl.gesture({' "$XDG_CONFIG_HOME/nocturne/input.lua"
+grep -Fq 'accel_profile = "flat"' "$XDG_CONFIG_HOME/nocturne/input.lua"
+
+"$root/config/hypr/scripts/storage-control" status \
+  | jq -e '.format == "nocturne-storage-v1" and (.cleanup|length) == 4 and (.protected|length) >= 4' >/dev/null
+printf '%s\n' '#!/bin/sh' \
+  'case "$*" in' \
+  '  "list --app --columns=application,name") printf "org.example.App\tExample App\n" ;;' \
+  '  "list --app --columns=application") printf "org.example.App\n" ;;' \
+  '  "permission-list") exit 0 ;;' \
+  '  "override --show org.example.App") exit 0 ;;' \
+  'esac' > "$test_root/bin/flatpak"
+chmod +x "$test_root/bin/flatpak"
+mkdir -p "$XDG_CONFIG_HOME/autostart"
+printf '%s\n' '[Desktop Entry]' 'Name=Example startup' 'Exec=true' > "$XDG_CONFIG_HOME/autostart/example.desktop"
+permissions="$root/config/hypr/scripts/permission-control"
+"$permissions" status | jq -e '.format == "nocturne-permissions-v1" and (.portals.healthy|type == "boolean") and (.flatpaks|length) == 1 and (.startup|length) == 1' >/dev/null
+"$permissions" startup example.desktop false
+grep -Fq 'Hidden=true' "$XDG_CONFIG_HOME/autostart/example.desktop"
 
 NOCTURNE_CAMERA_DEVICE="$test_root/missing-camera" \
   "$root/config/hypr/scripts/camera-control" status \

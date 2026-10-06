@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+store="$config_home/nocturne/rules.json"
+state_file="$state_home/rules.state.json"
+lock="$state_home/rules.lock"
+scripts="$config_home/hypr/scripts"
+mkdir -p -- "$config_home/nocturne" "$state_home"
+exec 9>"$lock"; flock -n 9 || exit 0
+
+empty='{"format":"nocturne-rules-v1","enabled":false,"nextId":1,"rules":[]}'
+ensure_store() { [[ -s $store ]] || { printf '%s\n' "$empty" > "$store"; chmod 600 "$store"; }; jq -e '.format=="nocturne-rules-v1" and (.rules|type=="array")' "$store" >/dev/null; }
+save() { local temp; temp=$(mktemp "$config_home/nocturne/.rules.XXXXXX"); jq . > "$temp"; chmod 600 "$temp"; mv -f -- "$temp" "$store"; }
+valid_trigger() { [[ $1 =~ ^(docked|mobile|ac|battery|meeting|focus|gaming)$ ]]; }
+valid_action() { [[ $1 =~ ^(dnd-on|dnd-off|caffeine-on|caffeine-off|power|scene)$ ]]; }
+exists() { jq -e --argjson id "$1" 'any(.rules[];.id==$id)' "$store" >/dev/null; }
+
+status() { jq '{format,enabled,count:(.rules|length),active:([.rules[]|select(.enabled)]|length),rules}' "$store"; }
+
+add_rule() {
+  local name=${1:-} trigger=${2:-} action=${3:-} value=${4:-}
+  [[ $name =~ [^[:space:]] ]] && ((${#name}<=100)) && valid_trigger "$trigger" && valid_action "$action" || exit 2
+  case $action in power) [[ $value =~ ^(performance|balanced|power-saver)$ ]] || exit 2;; scene) [[ $value =~ ^[A-Za-z0-9._-]+$ ]] || exit 2;; *) value='';; esac
+  jq --arg name "$name" --arg trigger "$trigger" --arg action "$action" --arg value "$value" '
+    .nextId as $id|.nextId+=1|.rules += [{id:$id,name:$name,trigger:$trigger,action:$action,value:$value,enabled:true}]' "$store" | save
+}
+
+toggle_rule() { local id=${1:-}; [[ $id =~ ^[1-9][0-9]*$ ]] && exists "$id" || exit 3; jq --argjson id "$id" '.rules|=map(if .id==$id then .enabled=(.enabled|not) else . end)' "$store" | save; }
+delete_rule() { local id=${1:-}; [[ $id =~ ^[1-9][0-9]*$ ]] && exists "$id" || exit 3; jq --argjson id "$id" '.rules|=map(select(.id!=$id))' "$store" | save; }
+
+set_enabled() {
+  local value=$1; jq --argjson value "$value" '.enabled=$value' "$store" | save
+  if [[ $value == true ]]; then systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+  elif [[ $(jq -r '.enabled' "$config_home/nocturne/context.json" 2>/dev/null || printf false) != true ]]; then systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true; fi
+}
+
+matches() {
+  local trigger=$1 live=$2
+  case $trigger in
+    docked|mobile) [[ $(jq -r '.context' <<<"$live") == "$trigger" ]] ;;
+    ac|battery) [[ $(jq -r '.power' <<<"$live") == "$trigger" ]] ;;
+    meeting|focus|gaming) [[ $(jq -r '.profile' <<<"$live") == "$trigger" ]] ;;
+  esac
+}
+
+execute_action() {
+  local action=$1 value=$2
+  case $action in
+    dnd-on) makoctl mode -a do-not-disturb >/dev/null ;;
+    dnd-off) makoctl mode -r do-not-disturb >/dev/null 2>&1 || true ;;
+    caffeine-on) pgrep -x hypridle >/dev/null && pkill -x hypridle || true ;;
+    caffeine-off) pgrep -x hypridle >/dev/null || setsid -f hypridle >/dev/null 2>&1 ;;
+    power) "$scripts/power-profile" set "$value" ;;
+    scene) "$scripts/scene-manager" apply "$value" settings-only ;;
+  esac
+}
+
+evaluate() {
+  [[ $(jq -r '.enabled' "$store") == true ]] || exit 0
+  local live previous='[]' current='[]' id trigger action value name
+  live=$("$scripts/context-engine" status)
+  [[ -s $state_file ]] && previous=$(cat "$state_file")
+  while IFS=$'\t' read -r id trigger action value name; do
+    if matches "$trigger" "$live"; then
+      current=$(jq -c --argjson id "$id" '.+[$id]|unique' <<<"$current")
+      if ! jq -e --argjson id "$id" 'index($id)!=null' <<<"$previous" >/dev/null; then
+        execute_action "$action" "$value" || true
+        [[ -x $scripts/automation-trace ]] && "$scripts/automation-trace" record rule rule-triggered "$trigger:$action" "$name" 'User-authored rule executed.' || true
+      fi
+    fi
+  done < <(jq -r '.rules[]|select(.enabled)|[.id,.trigger,.action,.value,.name]|@tsv' "$store")
+  printf '%s\n' "$current" > "$state_file"; chmod 600 "$state_file"
+}
+
+ensure_store
+case ${1:-status} in
+  status|list) status ;;
+  add) add_rule "${2:-}" "${3:-}" "${4:-}" "${5:-}" ;;
+  toggle) toggle_rule "${2:-}" ;;
+  delete) delete_rule "${2:-}" ;;
+  enable) set_enabled true ;;
+  disable) set_enabled false ;;
+  evaluate) evaluate ;;
+  *) printf 'Usage: %s status|add NAME TRIGGER ACTION [VALUE]|toggle ID|delete ID|enable|disable|evaluate\n' "$0" >&2; exit 2 ;;
+esac

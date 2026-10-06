@@ -29,6 +29,7 @@ Nocturne renders controls but does not invent parallel services:
 | Power policy | power-profiles-daemon |
 | Notifications | Mako |
 | Clipboard history | Cliphist |
+| Sensitive clipboard filtering and pins | Nocturne on-demand helper + systemd transient expiry |
 | Screenshots | Hyprshot, grim and slurp |
 | Screen recording | Kooha and the XDG ScreenCast portal |
 | Meeting screen sharing | Hyprland XDG ScreenCast portal + PipeWire |
@@ -37,6 +38,8 @@ Nocturne renders controls but does not invent parallel services:
 | Existing Google mounts | GVfs / GNOME Online Accounts backend |
 | Phone integration | KDE Connect daemon |
 | Nocturne Files | Dolphin with scoped KDE styling and Baloo disabled |
+| Storage accounting | `df`, `du` and explicit user-selected cleanup targets |
+| System automation | Existing Nocturne context timer + bounded local rules |
 
 This is why hardware keys and external changes remain authoritative while a
 card is open.
@@ -72,6 +75,10 @@ browsers and editor windows are not reimplemented inside the shell.
   visible. Its safe cleanup is explicit and limited to old regenerable
   thumbnails, old user journal entries and failed-unit state.
 - Cava and the dashboard are user-launched, never idle background services.
+- Storage, permissions, Guard, Meeting Mode, Power Lab, clipboard pins and NOC
+  Pulse are short-lived commands. Automation and adaptive battery policy reuse
+  `nocturne-context.timer`. Clipboard privacy replaces the existing Cliphist
+  text watcher; the release adds no second watcher or permanent daemon.
 
 Nocturne avoids marketing a fixed RAM number because GPU drivers, Flatpak
 portals, connected displays and tray applications dominate real-world variance.

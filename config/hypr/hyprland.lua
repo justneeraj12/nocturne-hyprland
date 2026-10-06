@@ -69,7 +69,7 @@ hl.on("hyprland.start", function()
         scripts .. "bar",
         hardware .. " touchpad init",
         "/usr/libexec/hyprpolkitagent",
-        "wl-paste --type text --watch cliphist store",
+        "wl-paste --type text --watch " .. scripts .. "clipboard-control watch",
         "wl-paste --type image --watch cliphist store",
     }
     for _, command in ipairs(commands) do hl.exec_cmd(command) end
@@ -150,8 +150,6 @@ hl.animation({ leaf = "windowsOut", enabled = true, speed = 2, bezier = "quick",
 hl.animation({ leaf = "border", enabled = true, speed = 5, bezier = "nocturne" })
 hl.animation({ leaf = "fade", enabled = true, speed = 3, bezier = "quick" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 4, bezier = "nocturne", style = "slide" })
-hl.gesture({ fingers = 3, direction = "horizontal", action = "workspace" })
-
 local function run(command) return hl.dsp.exec_cmd(command) end
 local mod = "SUPER"
 

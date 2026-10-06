@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne/clipboard
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+config_file="$config_home/nocturne/clipboard.json"
+index_file="$data_home/pins.json"
+script_path="$config_home/hypr/scripts/clipboard-control"
+
+ensure_state() {
+  mkdir -p "$config_home/nocturne" "$data_home/pins" "$state_home"
+  [[ -s $config_file ]] || printf '%s\n' '{"sensitiveGuard":true,"sensitiveExpiry":90}' > "$config_file"
+  [[ -s $index_file ]] || printf '%s\n' '[]' > "$index_file"
+  chmod 600 "$config_file" "$index_file"
+}
+
+is_sensitive() {
+  LC_ALL=C grep -Eiq \
+    '(^|[^[:alnum:]_])(password|passwd|passcode|api[_ -]?key|access[_ -]?token|refresh[_ -]?token|auth[_ -]?token|bearer|private[_ -]?key|secret)[[:space:]]*[:=][[:space:]]*[^[:space:]]{4,}|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|(^|[^0-9])([0-9][ -]?){15,19}([^0-9]|$)'
+}
+
+status() {
+  ensure_state
+  jq -cn --slurpfile config "$config_file" --slurpfile pins "$index_file" \
+    '{format:"nocturne-clipboard-v1",sensitiveGuard:$config[0].sensitiveGuard,sensitiveExpiry:$config[0].sensitiveExpiry,pins:$pins[0]}'
+}
+
+watch_clipboard() {
+  ensure_state
+  local hash expiry
+  temporary=$(mktemp "$state_home/.clipboard.XXXXXX")
+  trap 'rm -f -- "$temporary"' EXIT
+  head -c 4194304 > "$temporary"
+  [[ -s $temporary ]] || exit 0
+  if [[ $(jq -r '.sensitiveGuard' "$config_file") == true ]] && is_sensitive < "$temporary"; then
+    hash=$(sha256sum "$temporary" | awk '{print $1}')
+    printf '%s\n' "$hash" > "$state_home/sensitive-clipboard.sha256"
+    chmod 600 "$state_home/sensitive-clipboard.sha256"
+    expiry=$(jq -r '.sensitiveExpiry' "$config_file")
+    systemd-run --user --quiet --collect --unit="nocturne-clipboard-expire-${hash:0:10}" \
+      --on-active="${expiry}s" "$script_path" expire "$hash" >/dev/null 2>&1 || true
+    notify-send -a Nocturne -u low 'Sensitive clipboard protected' "Not saved to history · expires in ${expiry}s" >/dev/null 2>&1 || true
+    exit 0
+  fi
+  cliphist store < "$temporary"
+}
+
+expire_clipboard() {
+  local expected=${1:?hash required} current
+  [[ $expected =~ ^[0-9a-f]{64}$ ]] || exit 2
+  current=$(wl-paste --no-newline 2>/dev/null | sha256sum | awk '{print $1}')
+  if [[ $current == "$expected" ]]; then
+    wl-copy --clear
+    rm -f -- "$state_home/sensitive-clipboard.sha256"
+  fi
+}
+
+pin_entry() {
+  ensure_state
+  local entry=${1:?clipboard entry required} id preview updated
+  temporary=$(mktemp "$state_home/.clipboard-pin.XXXXXX")
+  trap 'rm -f -- "$temporary"' EXIT
+  printf '%s' "$entry" | cliphist decode > "$temporary"
+  [[ -s $temporary ]] || exit 1
+  LC_ALL=C grep -Iq . "$temporary" || { printf 'Only text items can be pinned.\n' >&2; exit 3; }
+  id=$(sha256sum "$temporary" | awk '{print $1}')
+  install -m 600 "$temporary" "$data_home/pins/$id"
+  preview=$(tr '\n\t' '  ' < "$temporary" | head -c 100)
+  updated=$(mktemp "$data_home/.pins.XXXXXX")
+  jq --arg id "$id" --arg preview "$preview" 'map(select(.id != $id)) + [{id:$id,preview:$preview}]' "$index_file" > "$updated"
+  chmod 600 "$updated"; mv -f -- "$updated" "$index_file"
+}
+
+copy_pin() {
+  ensure_state
+  local id=${1:?pin id required}
+  [[ $id =~ ^[0-9a-f]{64}$ && -f $data_home/pins/$id ]] || exit 2
+  wl-copy < "$data_home/pins/$id"
+}
+
+remove_pin() {
+  ensure_state
+  local id=${1:?pin id required} updated
+  [[ $id =~ ^[0-9a-f]{64}$ ]] || exit 2
+  updated=$(mktemp "$data_home/.pins.XXXXXX")
+  jq --arg id "$id" 'map(select(.id != $id))' "$index_file" > "$updated"
+  chmod 600 "$updated"; mv -f -- "$updated" "$index_file"
+  rm -f -- "$data_home/pins/$id"
+}
+
+configure() {
+  ensure_state
+  local key=${1:?key required} value=${2:?value required} updated
+  updated=$(mktemp "$config_home/nocturne/.clipboard.XXXXXX")
+  case $key in
+    sensitiveGuard)
+      [[ $value == true || $value == false ]] || exit 2
+      jq --argjson value "$value" '.sensitiveGuard=$value' "$config_file" > "$updated" ;;
+    sensitiveExpiry)
+      [[ $value =~ ^[0-9]+$ ]] && ((value >= 30 && value <= 600)) || exit 2
+      jq --argjson value "$value" '.sensitiveExpiry=$value' "$config_file" > "$updated" ;;
+    *) rm -f -- "$updated"; exit 2 ;;
+  esac
+  chmod 600 "$updated"; mv -f -- "$updated" "$config_file"
+}
+
+case ${1:-status} in
+  status) status ;;
+  watch) watch_clipboard ;;
+  expire) expire_clipboard "${2:-}" ;;
+  pin) pin_entry "${2:-}" ;;
+  copy-pin) copy_pin "${2:-}" ;;
+  unpin) remove_pin "${2:-}" ;;
+  configure) configure "${2:-}" "${3:-}" ;;
+  *) printf 'Usage: %s status|watch|expire HASH|pin ENTRY|copy-pin ID|unpin ID|configure sensitiveGuard BOOL|sensitiveExpiry SECONDS\n' "$0" >&2; exit 2 ;;
+esac

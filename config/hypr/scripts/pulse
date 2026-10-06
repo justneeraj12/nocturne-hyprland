@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+scripts="$config_home/hypr/scripts"
+
+safe_json() { local fallback=$1; shift; "$@" 2>/dev/null || printf '%s\n' "$fallback"; }
+
+status() {
+  local desk habits timer guard meeting
+  desk=$(safe_json '{}' "$scripts/desk" status)
+  habits=$(safe_json '{}' "$scripts/habits" status)
+  timer=$(safe_json '{}' "$scripts/pomodoro" inspect)
+  guard=$(safe_json '{"healthy":false,"issues":[]}' "$scripts/system-guard" status)
+  meeting=$(safe_json '{}' "$scripts/meeting-mode" status)
+  jq -cn --argjson desk "$desk" --argjson habits "$habits" --argjson timer "$timer" --argjson guard "$guard" --argjson meeting "$meeting" \
+    '{format:"nocturne-pulse-v1",desk:$desk,habits:$habits,timer:$timer,guard:{healthy:$guard.healthy,issues:($guard.issues|length)},meeting:$meeting}'
+}
+
+timeline() {
+  local limit=${1:-30}; [[ $limit =~ ^[0-9]+$ ]] && ((limit>=1 && limit<=100)) || exit 2
+  {
+    [[ -s $data_home/desk.json ]] && jq -c '.sessions[]? | {time:.time,kind:"focus",title:((.minutes|tostring)+" minute focus session"),detail:(if .taskId>0 then "Desk task linked" else "Unlinked focus" end)}' "$data_home/desk.json"
+    [[ -s $data_home/desk.json ]] && jq -c '.tasks[]?|select(.done and .completedAt != null)|{time:.completedAt,kind:"task",title:"Desk task completed",detail:.text}' "$data_home/desk.json"
+    [[ -s $data_home/habits.json ]] && jq -c '.habits[] as $h | $h.checks[]? | {time:(. + "T12:00:00Z"),kind:"habit",title:"Habit checked",detail:$h.name}' "$data_home/habits.json"
+    [[ -s $state_home/automation-trace.json ]] && jq -c '.events[]?|{time:.time,kind:"automation",title:(.event|gsub("-";" ")),detail:(.detail // .scene // "")}' "$state_home/automation-trace.json"
+  } | jq -sc --argjson limit "$limit" 'sort_by(.time)|reverse|.[0:$limit]'
+}
+
+case ${1:-status} in
+  status) status ;;
+  timeline) timeline "${2:-30}" ;;
+  *) printf 'Usage: %s status|timeline [1-100]\n' "$0" >&2; exit 2 ;;
+esac

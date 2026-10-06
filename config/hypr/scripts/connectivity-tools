@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+qr_file="$state_dir/wifi-share.png"
+mkdir -p -- "$state_dir"
+
+active_wifi() { nmcli -t --escape no -f NAME,TYPE connection show --active | awk -F: '$NF=="802-11-wireless"{sub(/:802-11-wireless$/,"");print;exit}'; }
+active_hotspot() { nmcli -t --escape no -f NAME,TYPE connection show --active | while IFS=: read -r name type; do [[ $type == 802-11-wireless ]] || continue; [[ $(nmcli -g 802-11-wireless.mode connection show "$name" 2>/dev/null) == ap ]] && { printf '%s\n' "$name"; break; }; done; }
+
+status() {
+  local wifi hotspot
+  wifi=$(active_wifi || true); hotspot=$(active_hotspot || true)
+  jq -cn --arg wifi "$wifi" --arg hotspot "$hotspot" '{format:"nocturne-connectivity-tools-v1",wifi:$wifi,hotspot:$hotspot,hotspotActive:($hotspot!=""),qrAvailable:($wifi!="")}'
+}
+
+qr() {
+  local profile ssid security password payload
+  profile=$(active_wifi); [[ -n $profile ]] || exit 3
+  ssid=$(nmcli -g 802-11-wireless.ssid connection show "$profile")
+  security=$(nmcli -g 802-11-wireless-security.key-mgmt connection show "$profile" 2>/dev/null || true)
+  password=$(nmcli --show-secrets -g 802-11-wireless-security.psk connection show "$profile" 2>/dev/null || true)
+  if [[ -z $security || $security == '--' ]]; then payload="WIFI:T:nopass;S:${ssid//;/\\;};P:;;"
+  else payload="WIFI:T:WPA;S:${ssid//;/\\;};P:${password//;/\\;};;"; fi
+  qrencode -o "$qr_file" -s 7 -m 2 "$payload"; chmod 600 "$qr_file"; printf '%s\n' "$qr_file"
+}
+
+hotspot_on() {
+  local device=${2:-}
+  if [[ -n $device ]]; then nmcli device wifi hotspot ifname "$device" con-name Nocturne-Hotspot ssid Nocturne-Hotspot
+  else nmcli device wifi hotspot con-name Nocturne-Hotspot ssid Nocturne-Hotspot; fi
+}
+hotspot_off() { local hotspot; hotspot=$(active_hotspot); [[ -n $hotspot ]] && nmcli connection down id "$hotspot" || true; }
+
+case ${1:-status} in
+  status) status ;;
+  qr) qr ;;
+  hotspot-on) hotspot_on "$@" ;;
+  hotspot-off) hotspot_off ;;
+  *) printf 'Usage: %s status|qr|hotspot-on [DEVICE]|hotspot-off\n' "$0" >&2; exit 2 ;;
+esac

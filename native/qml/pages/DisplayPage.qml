@@ -60,6 +60,11 @@ Rectangle {
                             Text { text: "×" + modelData.scale; color: backend.textColor; font.family: "monospace"; font.bold: true }
                         }
                         RowLayout {
+                            Layout.fillWidth: true; spacing: 5
+                            Text { Layout.fillWidth: true; text: "VRR " + (modelData.vrr ? "ACTIVE" : "AVAILABLE WHEN SUPPORTED") + " · " + (modelData.wideColorGamut ? "WIDE GAMUT" : "SDR") + " · " + ((modelData.availableModes || []).length) + " MODES"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 7 }
+                            NocturneButton { text: "MAX REFRESH"; enabled: (modelData.availableModes || []).length > 0; onClicked: { var modes=modelData.availableModes||[]; if(modes.length) root.action(["mode",modelData.name,modes[modes.length-1]]) } }
+                        }
+                        RowLayout {
                             Layout.fillWidth: true; spacing: 4
                             Repeater {
                                 model: [1, 1.25, 1.5, 2]

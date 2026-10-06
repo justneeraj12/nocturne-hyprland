@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+screenshots="$HOME/Pictures/Screenshots"
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+mkdir -p -- "$screenshots" "$state_dir"
+
+region_png() {
+  local output=$1 geometry
+  geometry=$(slurp) || exit 0
+  [[ $geometry =~ ^-?[0-9]+,-?[0-9]+[[:space:]][0-9]+x[0-9]+$ ]] || exit 2
+  grim -g "$geometry" "$output"
+}
+
+annotate() {
+  local destination
+  raw=$(mktemp "$state_dir/.capture.XXXXXX.png")
+  trap 'rm -f -- "$raw"' EXIT
+  region_png "$raw"
+  destination="$screenshots/Nocturne-$(date +%Y%m%d-%H%M%S).png"
+  swappy -f "$raw" -o "$destination"
+  [[ -s $destination ]] && wl-copy --type image/png < "$destination" && notify-send -a Nocturne 'Annotated screenshot saved' "$destination" || true
+}
+
+ocr() {
+  command -v tesseract >/dev/null 2>&1 || { notify-send -a Nocturne -u normal 'OCR component is not installed' 'Install tesseract-ocr from Update Center.'; exit 4; }
+  raw=$(mktemp "$state_dir/.ocr.XXXXXX.png"); text=$(mktemp "$state_dir/.ocr.XXXXXX")
+  trap 'rm -f -- "$raw" "$text" "$text.txt"' EXIT
+  region_png "$raw"; tesseract "$raw" "$text" >/dev/null 2>&1
+  [[ -s $text.txt ]] || exit 3; wl-copy < "$text.txt"; notify-send -a Nocturne 'Text copied from screen' "$(wc -w < "$text.txt") words placed on the clipboard."
+}
+
+case ${1:-} in
+  annotate) annotate ;;
+  ocr) ocr ;;
+  *) printf 'Usage: %s annotate|ocr\n' "$0" >&2; exit 2 ;;
+esac

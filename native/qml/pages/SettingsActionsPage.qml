@@ -21,6 +21,10 @@ Rectangle {
             backend.start([backend.home + "/.local/bin/hyprshot", "-m", "region", "-o", backend.home + "/Pictures/Screenshots"])
         } else if (item.command === "recorder") {
             backend.start(["flatpak", "run", "io.github.seadve.Kooha"])
+        } else if (item.command === "annotate") {
+            backend.start([backend.home + "/.config/hypr/scripts/capture-tools", "annotate"])
+        } else if (item.command === "ocr") {
+            backend.start([backend.home + "/.config/hypr/scripts/capture-tools", "ocr"])
         } else if (item.command === "keys") {
             backend.start([backend.home + "/.config/hypr/scripts/help"])
         } else if (item.command === "lock") {

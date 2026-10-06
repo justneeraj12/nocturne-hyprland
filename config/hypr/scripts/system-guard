@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+recovery="$state_home/recovery/last-good.tar.gz"
+
+service_active() { systemctl --user is-active --quiet "$1"; }
+add_issue() { jq -cn --arg id "$1" --arg severity "$2" --arg title "$3" --arg detail "$4" --argjson fixable "$5" '{id:$id,severity:$severity,title:$title,detail:$detail,fixable:$fixable}'; }
+
+status() {
+  local lines='' failed audio_sink audio_source config_errors=0
+  service_active nocturne-bar.service || pgrep -f '/nocturne-native bar($| )' >/dev/null 2>&1 \
+    || lines+=$(add_issue bar critical 'Native bar is not running' 'The shell bar can be restarted safely.' true)$'\n'
+  service_active xdg-desktop-portal-hyprland.service || lines+=$(add_issue portal critical 'Hyprland portal is offline' 'Screen sharing and file dialogs may fail.' true)$'\n'
+  service_active xdg-desktop-portal.service || lines+=$(add_issue portal-base warning 'Desktop portal broker is offline' 'Applications may not reach portal backends.' true)$'\n'
+  failed=$(systemctl --user --failed --no-legend 2>/dev/null | awk 'NF{count++}END{print count+0}')
+  ((failed == 0)) || lines+=$(add_issue failed warning "$failed failed user services" 'Reset failures after inspecting the maintenance view.' true)$'\n'
+  audio_sink=$(pactl get-default-sink 2>/dev/null || true); audio_source=$(pactl get-default-source 2>/dev/null || true)
+  [[ -n $audio_sink ]] || lines+=$(add_issue audio critical 'No default audio output' 'WirePlumber default routing needs recovery.' true)$'\n'
+  [[ -n $audio_source ]] || lines+=$(add_issue microphone warning 'No default microphone' 'Restore the preferred laptop microphone.' true)$'\n'
+  pgrep -x hyprpaper >/dev/null 2>&1 || lines+=$(add_issue wallpaper warning 'Wallpaper service is offline' 'Restart the compositor-owned wallpaper service.' true)$'\n'
+  if hyprctl configerrors 2>/dev/null | grep -q '[^[:space:]]'; then config_errors=1; lines+=$(add_issue config critical 'Hyprland configuration error' 'Open diagnostics before reloading configuration.' false)$'\n'; fi
+  jq -sc --arg sink "$audio_sink" --arg source "$audio_source" --argjson failed "$failed" --argjson configErrors "$config_errors" \
+    '{format:"nocturne-guard-v1",issues:.,healthy:(length==0),summary:{failedServices:$failed,configErrors:$configErrors,sink:$sink,source:$source}}' <<<"$lines"
+}
+
+fix() {
+  case ${1:-} in
+    bar)
+      if systemctl --user cat nocturne-bar.service >/dev/null 2>&1; then systemctl --user restart nocturne-bar.service
+      else "$config_home/hypr/scripts/bar" >/dev/null 2>&1 & fi ;;
+    portal|portal-base) systemctl --user restart xdg-desktop-portal-hyprland.service xdg-desktop-portal.service ;;
+    failed) systemctl --user reset-failed ;;
+    audio) systemctl --user restart wireplumber.service pipewire.service pipewire-pulse.service ;;
+    microphone) "$config_home/hypr/scripts/audio-route" prefer-laptop-mic yes ;;
+    wallpaper) systemctl --user restart nocturne-wallpaper-cycle.service ;;
+    all)
+      for id in bar portal failed audio microphone wallpaper; do fix "$id" >/dev/null 2>&1 || true; done ;;
+    *) printf 'Usage: %s fix bar|portal|failed|audio|microphone|wallpaper|all\n' "$0" >&2; exit 2 ;;
+  esac
+}
+
+diff_checkpoint() {
+  [[ -s $recovery ]] || { jq -cn '{format:"nocturne-config-diff-v1",exists:false,files:[],count:0}'; return; }
+  temporary=$(mktemp -d); trap 'rm -rf -- "$temporary"' EXIT
+  tar -C "$temporary" -xzf "$recovery" --wildcards '.config/hypr/*' '.config/nocturne/*' '.config/mako/*' 2>/dev/null || true
+  local changes path
+  changes=$(
+    for path in hypr nocturne mako; do
+      [[ -d $temporary/.config/$path || -d $HOME/.config/$path ]] || continue
+      diff -qr "$temporary/.config/$path" "$HOME/.config/$path" --exclude='*.log' --exclude='settings-last-page' 2>/dev/null || true
+    done | sed -E "s#${temporary}/\.config/##g; s#${HOME}/\.config/##g" | head -100 | jq -Rsc 'split("\n")|map(select(length>0))'
+  )
+  jq -cn --argjson files "$changes" '{format:"nocturne-config-diff-v1",exists:true,files:$files,count:($files|length)}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  fix) fix "${2:-}" ;;
+  diff) diff_checkpoint ;;
+  *) printf 'Usage: %s status|fix ID|diff\n' "$0" >&2; exit 2 ;;
+esac

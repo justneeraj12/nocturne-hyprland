@@ -31,6 +31,8 @@ grep -Fq 'Local workflow memory' "$root/docs/RELEASE-0.9.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.9.md") -eq 44 ]]
 grep -Fq 'Fifty workflow upgrades' "$root/docs/RELEASE-1.0.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.0.md") -eq 50 ]]
+grep -Fq 'Fifty system upgrades' "$root/docs/RELEASE-1.1.md"
+[[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.1.md") -eq 50 ]]
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
 grep -Fq '~/.local/state/nocturne/backups/' "$root/docs/INSTALL.md"
@@ -49,6 +51,8 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/noc-desk.webp ]]
 [[ -s $root/docs/screenshots/noc-habits.webp ]]
 [[ -s $root/docs/screenshots/noc-vault.webp ]]
+[[ -s $root/docs/screenshots/storage-center.webp ]]
+[[ -s $root/docs/screenshots/system-command.webp ]]
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
@@ -74,6 +78,9 @@ grep -Fq 'qml/pages/AutomationPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/DeskPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/HabitsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/VaultPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/StorageSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/ControlCenterSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/AutomationRulesSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'ADAPTIVE SENSOR PROFILE' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'camera-control' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'PRIVATE BY DESIGN' "$root/native/qml/pages/AutomationPage.qml"
@@ -96,6 +103,7 @@ grep -Fq 'SAFETY + PORTABILITY' "$root/native/qml/pages/SetupSettingsPage.qml"
 grep -Fq 'Accessible.role: Accessible.Button' "$root/native/qml/components/BarButton.qml"
 grep -Fq 'Accessible.role: Accessible.CheckBox' "$root/native/qml/components/NocturneToggle.qml"
 grep -Fq 'CONFIRM CLEAR' "$root/native/qml/pages/ClipboardPage.qml"
+grep -Fq 'SENSITIVE GUARD' "$root/native/qml/pages/ClipboardPage.qml"
 grep -Fq 'pendingSessionAction' "$root/native/qml/pages/PowerPage.qml"
 grep -Fq 'LayerShellQt.Window.AnchorTop' "$root/native/qml/Shell.qml"
 grep -Fq 'LayerShellQt.Window.scope: "nocturne-bar"' "$root/native/qml/BarWindow.qml"
@@ -240,6 +248,13 @@ grep -Fq 'baseline_name=.context-baseline' "$root/config/hypr/scripts/context-en
 grep -Fq 'invisible=1' "$root/config/hypr/scripts/notification-rules"
 grep -Fq 'last-good.tar.gz' "$root/bin/nocturne-recovery"
 grep -Fq 'schema-version' "$root/bin/nocturne-migrate"
+grep -Fq 'nocturne-storage-v1' "$root/config/hypr/scripts/storage-control"
+grep -Fq 'nocturne-meeting-v1' "$root/config/hypr/scripts/meeting-mode"
+grep -Fq 'nocturne-permissions-v1' "$root/config/hypr/scripts/permission-control"
+grep -Fq 'nocturne-guard-v1' "$root/config/hypr/scripts/system-guard"
+grep -Fq 'nocturne-rules-v1' "$root/config/hypr/scripts/automation-rules"
+grep -Fq 'nocturne-clipboard-v1' "$root/config/hypr/scripts/clipboard-control"
+grep -Fq 'nocturne-power-lab-v1' "$root/config/hypr/scripts/power-lab"
 grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
 grep -Fq 'nocturne-session-health.service' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-session-health.timer' "$root/apply-hyprland.sh"

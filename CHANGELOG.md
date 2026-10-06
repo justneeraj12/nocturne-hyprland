@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0 - 2026-10-06
+
+- Added Storage Center with bounded cleanup, protected-data declarations and on-demand large-duplicate discovery.
+- Added reversible Meeting Mode, Permission Center, startup ownership, NOC Guard, scoped checkpoint diff and private NOC Pulse.
+- Added a bounded trigger/action Automation Builder that reuses the existing context timer and records explainable trace events.
+- Added Power Lab, monitor refresh/VRR controls, Hyprland 0.56 input gestures, Wi-Fi sharing, hotspot and richer Bluetooth detail.
+- Added sensitive clipboard filtering and expiry, private pinned text, screenshot annotation and local screen OCR.
+- Added schema 8 migration, zero-idle diagnostics and end-to-end contracts for the new native controls.
+- Published a precise [fifty-feature release manifest](docs/RELEASE-1.1.md).
+
 ## 1.0.0 - 2026-10-06
 
 - Added NOC Habits, a native private weekly habit and streak tracker with pacing, filtering, archive, undo, export, and keyboard control.

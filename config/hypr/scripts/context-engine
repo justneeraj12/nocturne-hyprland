@@ -81,6 +81,8 @@ decision() {
 refresh() {
   local live enabled scene reason previous=''
   ensure_config; enabled=$(jq -r '.enabled' "$config_file")
+  [[ -x $config_home/hypr/scripts/automation-rules ]] && "$config_home/hypr/scripts/automation-rules" evaluate >/dev/null 2>&1 || true
+  [[ -x $config_home/hypr/scripts/power-lab ]] && "$config_home/hypr/scripts/power-lab" evaluate >/dev/null 2>&1 || true
   [[ $enabled == true ]] || exit 0
   live=$(snapshot)
   IFS='|' read -r scene reason < <(select_scene "$live")

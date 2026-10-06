@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+state_file="$state_dir/meeting-mode.json"
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+mkdir -p -- "$state_dir"
+
+dnd() { makoctl mode 2>/dev/null | grep -qx do-not-disturb; }
+caffeinated() { ! pgrep -x hypridle >/dev/null 2>&1; }
+
+status() {
+  local active=false started='' source sink profile camera=false mic=false
+  [[ -s $state_file ]] && active=true && started=$(jq -r '.started // ""' "$state_file")
+  source=$(pactl get-default-source 2>/dev/null || printf unavailable)
+  sink=$(pactl get-default-sink 2>/dev/null || printf unavailable)
+  profile=$(powerprofilesctl get 2>/dev/null || printf unavailable)
+  pw-dump 2>/dev/null | jq -e 'any(.[]; .type == "PipeWire:Interface:Node" and (.info.props["media.class"] // "") == "Video/Source" and (.info.state // "") == "running")' >/dev/null && camera=true || true
+  pactl -f json list source-outputs 2>/dev/null | jq -e 'length > 0' >/dev/null && mic=true || true
+  jq -cn --argjson active "$active" --arg started "$started" --arg source "$source" --arg sink "$sink" --arg profile "$profile" \
+    --argjson dnd "$(dnd && printf true || printf false)" --argjson caffeine "$(caffeinated && printf true || printf false)" \
+    --argjson camera "$camera" --argjson mic "$mic" \
+    '{format:"nocturne-meeting-v1",active:$active,started:$started,dnd:$dnd,caffeine:$caffeine,source:$source,sink:$sink,power:$profile,cameraInUse:$camera,micInUse:$mic}'
+}
+
+start_mode() {
+  [[ -s $state_file ]] && exit 0
+  local temporary dnd_before=false caffeine_before=false source sink profile
+  dnd && dnd_before=true || true; caffeinated && caffeine_before=true || true
+  source=$(pactl get-default-source 2>/dev/null || true)
+  sink=$(pactl get-default-sink 2>/dev/null || true)
+  profile=$(powerprofilesctl get 2>/dev/null || printf balanced)
+  temporary=$(mktemp "$state_dir/.meeting.XXXXXX")
+  jq -cn --arg started "$(date --iso-8601=seconds)" --arg source "$source" --arg sink "$sink" --arg profile "$profile" \
+    --argjson dnd "$dnd_before" --argjson caffeine "$caffeine_before" \
+    '{format:"nocturne-meeting-state-v1",started:$started,source:$source,sink:$sink,power:$profile,dnd:$dnd,caffeine:$caffeine}' > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$state_file"
+  makoctl mode -a do-not-disturb >/dev/null 2>&1 || true
+  pgrep -x hypridle >/dev/null 2>&1 && pkill -x hypridle || true
+  "$script_dir/audio-route" prefer-laptop-mic no >/dev/null 2>&1 || true
+  powerprofilesctl set balanced >/dev/null 2>&1 || true
+  notify-send -a Nocturne 'Meeting mode active' 'DND, caffeine, laptop microphone and balanced power are ready.' >/dev/null 2>&1 || true
+}
+
+stop_mode() {
+  [[ -s $state_file ]] || exit 0
+  local before source sink profile
+  before=$(cat "$state_file")
+  source=$(jq -r '.source // ""' <<<"$before"); sink=$(jq -r '.sink // ""' <<<"$before"); profile=$(jq -r '.power // "balanced"' <<<"$before")
+  [[ $(jq -r '.dnd' <<<"$before") == true ]] || makoctl mode -r do-not-disturb >/dev/null 2>&1 || true
+  if [[ $(jq -r '.caffeine' <<<"$before") == false ]] && ! pgrep -x hypridle >/dev/null 2>&1; then setsid -f hypridle >/dev/null 2>&1; fi
+  [[ -n $sink ]] && pactl set-default-sink "$sink" >/dev/null 2>&1 || true
+  [[ -n $source ]] && pactl set-default-source "$source" >/dev/null 2>&1 || true
+  [[ $profile =~ ^(performance|balanced|power-saver)$ ]] && powerprofilesctl set "$profile" >/dev/null 2>&1 || true
+  rm -f -- "$state_file"
+  notify-send -a Nocturne 'Meeting mode ended' 'Audio, notifications, idle behavior and power were restored.' >/dev/null 2>&1 || true
+}
+
+launch() {
+  start_mode
+  case ${1:-meet} in
+    meet) xdg-open 'https://meet.google.com/' >/dev/null 2>&1 & ;;
+    discord) flatpak run com.discordapp.Discord >/dev/null 2>&1 & ;;
+    *) exit 2 ;;
+  esac
+}
+
+case ${1:-status} in
+  status) status ;;
+  start) start_mode ;;
+  stop) stop_mode ;;
+  toggle) [[ -s $state_file ]] && stop_mode || start_mode ;;
+  launch) launch "${2:-meet}" ;;
+  *) printf 'Usage: %s status|start|stop|toggle|launch meet|discord\n' "$0" >&2; exit 2 ;;
+esac
