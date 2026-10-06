@@ -95,6 +95,89 @@ ApplicationWindow {
     Shortcut { sequence: "Ctrl+0"; onActivated: root.selectSection("overview") }
     Shortcut { sequence: "Escape"; onActivated: { if (search.text !== "") search.clear(); else root.close() } }
 
+    readonly property var pageComponents: [
+        overviewPage, appearancePage, barPage, connectivityPage, soundPage,
+        inputPage, systemPage, workflowPage, automationPage, privacyPage,
+        efficiencyPage, powerPage, setupPage, aboutPage
+    ]
+    Component { id: overviewPage; OverviewSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
+    Component { id: appearancePage; AppearanceSettingsPage { active: true } }
+    Component { id: barPage; BarSettingsPage { active: true } }
+    Component { id: connectivityPage; SettingsActionsPage {
+        pageEyebrow: "DEVICES"; pageTitle: "Connectivity"
+        pageDescription: "Wi-Fi, Bluetooth and VPN use the standard Linux backends with one compact Nocturne interface."
+        pageBadge: "NETWORKMANAGER + BLUEZ"
+        actions: [
+            {icon:"network-wireless",glyph:"⌁",label:"Wi-Fi",detail:"Networks, signal, connection state and live throughput.",button:"MANAGE",surface:"connectivity",page:"wifi"},
+            {icon:"preferences-system-bluetooth",glyph:"ᛒ",label:"Bluetooth",detail:"Radio state, discovered devices and active connections.",button:"MANAGE",surface:"connectivity",page:"bluetooth"},
+            {icon:"network-vpn",glyph:"◇",label:"VPN",detail:"Start and stop saved NetworkManager VPN profiles.",button:"MANAGE",surface:"connectivity",page:"vpn"}
+        ]
+    } }
+    Component { id: soundPage; SettingsActionsPage {
+        pageEyebrow: "HARDWARE"; pageTitle: "Sound & displays"
+        pageDescription: "Live PipeWire routing, hardware-synced brightness and persistent monitor layouts."
+        pageBadge: "LIVE HARDWARE STATE"
+        actions: [
+            {icon:"audio-volume-high",glyph:"♪",label:"Output & app mixer",detail:"Master volume, device routing and every active audio stream.",button:"OPEN",surface:"audio"},
+            {icon:"display-brightness",glyph:"☼",label:"Brightness & night shift",detail:"Backlight control plus scheduled native color temperature.",button:"OPEN",surface:"brightness"},
+            {icon:"camera-web",glyph:"󰄀",label:"Camera quality",detail:"Zero-idle hardware exposure, white balance, anti-flicker and low-light profiles.",button:"TUNE",surface:"camera"},
+            {icon:"video-display",glyph:"▣",label:"Display layout",detail:"Scale, rotate, mirror, extend and save connected monitors.",button:"OPEN",surface:"display"}
+        ]
+    } }
+    Component { id: inputPage; SystemSettingsPage { active: true } }
+    Component { id: systemPage; IntegrationsPage { active: true } }
+    Component { id: workflowPage; SettingsActionsPage {
+        pageEyebrow: "DAILY USE"; pageTitle: "Workflow"
+        pageDescription: "Focused tools for work, capture and keyboard-first navigation."
+        actions: [
+            {icon:"chronometer",glyph:"◷",label:"Focus timer",detail:"Pomodoro presets, pause, skip and cycle progress.",button:"OPEN",surface:"pomodoro"},
+            {icon:"spectacle",glyph:"⌗",label:"Screenshot",detail:"Capture an area with Hyprshot and copy it to the clipboard.",button:"CAPTURE",command:"screenshot"},
+            {icon:"media-record",glyph:"●",label:"Screen recorder",detail:"Record an area or display with desktop and microphone audio.",button:"OPEN",command:"recorder"},
+            {icon:"input-keyboard",glyph:"⌨",label:"Shortcut guide",detail:"Open the complete keyboard and mouse reference.",button:"SHOW",command:"keys"}
+        ]
+    } }
+    Component { id: automationPage; SettingsActionsPage {
+        pageEyebrow: "CONTEXT"; pageTitle: "Scenes & automation"
+        pageDescription: "Save complete working contexts or safely react to dock and power changes without launching apps unexpectedly."
+        actions: [
+            {icon:"view-grid",glyph:"▦",label:"Workspace overview",detail:"Inspect all workspaces and move, focus or close windows.",button:"OPEN",surface:"overview"},
+            {icon:"document-save",glyph:"◫",label:"Session & audio scenes",detail:"Save applications, monitor layout, wallpaper, power and routing.",button:"MANAGE",surface:"scenes"},
+            {icon:"preferences-system-time",glyph:"◎",label:"Context engine",detail:"Assign settings-only scenes to docked, mobile, AC and battery states.",button:"CONFIGURE",surface:"scenes"},
+            {icon:"view-history",glyph:"↶",label:"Nocturne Trace",detail:"See why the desktop adapted, inspect its private decision history and reverse automatic settings.",button:"EXPLAIN",surface:"automation"}
+        ]
+    } }
+    Component { id: privacyPage; SettingsActionsPage {
+        pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
+        pageDescription: "Inspect live privacy clients and GPU behavior only when the dashboard is open."
+        actions: [
+            {icon:"security-high",glyph:"◉",label:"Privacy dashboard",detail:"Identify apps using the microphone or camera and stop a client.",button:"INSPECT",surface:"privacy"},
+            {icon:"applications-games",glyph:"◆",label:"Gaming dashboard",detail:"GPU telemetry, automatic rollback and optional MangoHud.",button:"OPEN",surface:"gaming"},
+            {icon:"preferences-desktop-notification",glyph:"◌",label:"Notification control",detail:"Focus modes, grouped history and timed app muting.",button:"OPEN",surface:"notifications"}
+        ]
+    } }
+    Component { id: efficiencyPage; EfficiencySettingsPage { active: true } }
+    Component { id: powerPage; SettingsActionsPage {
+        pageEyebrow: "ENERGY + SESSION"; pageTitle: "Power & session"
+        pageDescription: "Hardware power profiles, reversible gaming boosts and guarded session actions."
+        pageBadge: "DEEP SLEEP ENABLED"
+        actions: [
+            {icon:"battery",glyph:"⚡",label:"Power & gaming",detail:"Performance profiles and automatic Steam game detection.",button:"OPEN",surface:"power"},
+            {icon:"system-software-update",glyph:"↻",label:"System maintenance",detail:"System packages, Flatpaks, firmware and failed-service health.",button:"OPEN",surface:"maintenance"},
+            {icon:"system-lock-screen",glyph:"■",label:"Lock this session",detail:"Lock immediately with the themed Hyprlock session.",button:"LOCK",command:"lock",danger:true}
+        ]
+    } }
+    Component { id: setupPage; SetupSettingsPage { active: true } }
+    Component { id: aboutPage; SettingsActionsPage {
+        pageEyebrow: "NOCTURNE 0.8.0"; pageTitle: "About"
+        pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
+        pageBadge: "OPEN SOURCE"
+        actions: [
+            {icon:"dialog-ok",glyph:"✓",label:"System check",detail:"Run the complete read-only Nocturne diagnostics.",button:"RUN",command:"doctor"},
+            {icon:"document-send",glyph:"⇧",label:"Private support report",detail:"Generate a small diagnostics archive without configs, logs, SSIDs, clipboard or personal files.",button:"CREATE",command:"support"},
+            {icon:"applications-development",glyph:"<>",label:"Source & documentation",detail:"Configuration, native shell, installer and validation pipeline.",button:"GITHUB",command:"source"}
+        ]
+    } }
+
     header: Rectangle {
         implicitHeight: 56
         color: backend.surfaceColor
@@ -237,84 +320,11 @@ ApplicationWindow {
 
         Rectangle {
             Layout.fillWidth: true; Layout.fillHeight: true; color: backend.baseColor
-            StackLayout {
-                anchors.fill: parent; currentIndex: root.section; visible: search.text === ""
-                OverviewSettingsPage { active: root.section === 0; onSectionRequested: function(key) { root.selectSection(key) } }
-                AppearanceSettingsPage { active: root.section === 1 }
-                BarSettingsPage { active: root.section === 2 }
-                SettingsActionsPage {
-                    pageEyebrow: "DEVICES"; pageTitle: "Connectivity"
-                    pageDescription: "Wi-Fi, Bluetooth and VPN use the standard Linux backends with one compact Nocturne interface."
-                    pageBadge: "NETWORKMANAGER + BLUEZ"
-                    actions: [
-                        {icon:"network-wireless",glyph:"⌁",label:"Wi-Fi",detail:"Networks, signal, connection state and live throughput.",button:"MANAGE",surface:"connectivity",page:"wifi"},
-                        {icon:"preferences-system-bluetooth",glyph:"ᛒ",label:"Bluetooth",detail:"Radio state, discovered devices and active connections.",button:"MANAGE",surface:"connectivity",page:"bluetooth"},
-                        {icon:"network-vpn",glyph:"◇",label:"VPN",detail:"Start and stop saved NetworkManager VPN profiles.",button:"MANAGE",surface:"connectivity",page:"vpn"}
-                    ]
-                }
-                SettingsActionsPage {
-                    pageEyebrow: "HARDWARE"; pageTitle: "Sound & displays"
-                    pageDescription: "Live PipeWire routing, hardware-synced brightness and persistent monitor layouts."
-                    pageBadge: "LIVE HARDWARE STATE"
-                    actions: [
-                        {icon:"audio-volume-high",glyph:"♪",label:"Output & app mixer",detail:"Master volume, device routing and every active audio stream.",button:"OPEN",surface:"audio"},
-                        {icon:"display-brightness",glyph:"☼",label:"Brightness & night shift",detail:"Backlight control plus scheduled native color temperature.",button:"OPEN",surface:"brightness"},
-                        {icon:"camera-web",glyph:"󰄀",label:"Camera quality",detail:"Zero-idle hardware exposure, white balance, anti-flicker and low-light profiles.",button:"TUNE",surface:"camera"},
-                        {icon:"video-display",glyph:"▣",label:"Display layout",detail:"Scale, rotate, mirror, extend and save connected monitors.",button:"OPEN",surface:"display"}
-                    ]
-                }
-                SystemSettingsPage { active: root.section === 5 }
-                IntegrationsPage { active: root.section === 6 }
-                SettingsActionsPage {
-                    pageEyebrow: "DAILY USE"; pageTitle: "Workflow"
-                    pageDescription: "Focused tools for work, capture and keyboard-first navigation."
-                    actions: [
-                        {icon:"chronometer",glyph:"◷",label:"Focus timer",detail:"Pomodoro presets, pause, skip and cycle progress.",button:"OPEN",surface:"pomodoro"},
-                        {icon:"spectacle",glyph:"⌗",label:"Screenshot",detail:"Capture an area with Hyprshot and copy it to the clipboard.",button:"CAPTURE",command:"screenshot"},
-                        {icon:"media-record",glyph:"●",label:"Screen recorder",detail:"Record an area or display with desktop and microphone audio.",button:"OPEN",command:"recorder"},
-                        {icon:"input-keyboard",glyph:"⌨",label:"Shortcut guide",detail:"Open the complete keyboard and mouse reference.",button:"SHOW",command:"keys"}
-                    ]
-                }
-                SettingsActionsPage {
-                    pageEyebrow: "CONTEXT"; pageTitle: "Scenes & automation"
-                    pageDescription: "Save complete working contexts or safely react to dock and power changes without launching apps unexpectedly."
-                    actions: [
-                        {icon:"view-grid",glyph:"▦",label:"Workspace overview",detail:"Inspect all workspaces and move, focus or close windows.",button:"OPEN",surface:"overview"},
-                        {icon:"document-save",glyph:"◫",label:"Session & audio scenes",detail:"Save applications, monitor layout, wallpaper, power and routing.",button:"MANAGE",surface:"scenes"},
-                        {icon:"preferences-system-time",glyph:"◎",label:"Context engine",detail:"Assign settings-only scenes to docked, mobile, AC and battery states.",button:"CONFIGURE",surface:"scenes"}
-                    ]
-                }
-                SettingsActionsPage {
-                    pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
-                    pageDescription: "Inspect live privacy clients and GPU behavior only when the dashboard is open."
-                    actions: [
-                        {icon:"security-high",glyph:"◉",label:"Privacy dashboard",detail:"Identify apps using the microphone or camera and stop a client.",button:"INSPECT",surface:"privacy"},
-                        {icon:"applications-games",glyph:"◆",label:"Gaming dashboard",detail:"GPU telemetry, automatic rollback and optional MangoHud.",button:"OPEN",surface:"gaming"},
-                        {icon:"preferences-desktop-notification",glyph:"◌",label:"Notification control",detail:"Focus modes, grouped history and timed app muting.",button:"OPEN",surface:"notifications"}
-                    ]
-                }
-                EfficiencySettingsPage { active: root.section === 10 }
-                SettingsActionsPage {
-                    pageEyebrow: "ENERGY + SESSION"; pageTitle: "Power & session"
-                    pageDescription: "Hardware power profiles, reversible gaming boosts and guarded session actions."
-                    pageBadge: "DEEP SLEEP ENABLED"
-                    actions: [
-                        {icon:"battery",glyph:"⚡",label:"Power & gaming",detail:"Performance profiles and automatic Steam game detection.",button:"OPEN",surface:"power"},
-                        {icon:"system-software-update",glyph:"↻",label:"System maintenance",detail:"System packages, Flatpaks, firmware and failed-service health.",button:"OPEN",surface:"maintenance"},
-                        {icon:"system-lock-screen",glyph:"■",label:"Lock this session",detail:"Lock immediately with the themed Hyprlock session.",button:"LOCK",command:"lock",danger:true}
-                    ]
-                }
-                SetupSettingsPage { active: root.section === 12 }
-                SettingsActionsPage {
-                    pageEyebrow: "NOCTURNE 0.7.0"; pageTitle: "About"
-                    pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
-                    pageBadge: "OPEN SOURCE"
-                    actions: [
-                        {icon:"dialog-ok",glyph:"✓",label:"System check",detail:"Run the complete read-only Nocturne diagnostics.",button:"RUN",command:"doctor"},
-                        {icon:"document-send",glyph:"⇧",label:"Private support report",detail:"Generate a small diagnostics archive without configs, logs, SSIDs, clipboard or personal files.",button:"CREATE",command:"support"},
-                        {icon:"applications-development",glyph:"<>",label:"Source & documentation",detail:"Configuration, native shell, installer and validation pipeline.",button:"GITHUB",command:"source"}
-                    ]
-                }
+            Loader {
+                anchors.fill: parent
+                visible: search.text === ""
+                asynchronous: true
+                sourceComponent: root.pageComponents[root.section]
             }
             Rectangle {
                 anchors.fill: parent; visible: search.text !== ""; color: backend.baseColor

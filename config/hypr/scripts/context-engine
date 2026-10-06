@@ -7,6 +7,7 @@ config_file="$config_home/nocturne/context.json"
 state_file="$state_dir/context.state"
 baseline_name=.context-baseline
 scene_manager="$config_home/hypr/scripts/scene-manager"
+trace="$config_home/hypr/scripts/automation-trace"
 
 ensure_config() {
   mkdir -p "$config_home/nocturne" "$state_dir"
@@ -52,27 +53,51 @@ status() {
     <(snapshot) "$config_file"
 }
 
+select_scene() {
+  local live=$1
+  local context power profile
+  context=$(jq -r '.context' <<<"$live")
+  power=$(jq -r '.power' <<<"$live")
+  profile=$(jq -r '.profile' <<<"$live")
+  jq -r --arg context "$context" --arg power "$power" --arg profile "$profile" '
+    (.profiles[$profile] // "") as $special | (.contexts[$context] // "") as $primary
+    | if $special != "" then [$special,("profile:" + $profile)]
+      elif $primary != "" then [$primary,("context:" + $context)]
+      elif (.contexts[$power] // "") != "" then [.contexts[$power],("power:" + $power)]
+      else ["","no-matching-scene"] end | join("|")' "$config_file"
+}
+
+decision() {
+  local live selected reason previous=''
+  ensure_config
+  live=$(snapshot)
+  IFS='|' read -r selected reason < <(select_scene "$live")
+  [[ -r $state_file ]] && previous=$(<"$state_file")
+  jq -cn --argjson live "$live" --argjson enabled "$(jq -r '.enabled' "$config_file")" \
+    --arg selected "$selected" --arg reason "$reason" --arg previous "$previous" \
+    '$live + {enabled:$enabled,selectedScene:$selected,reason:$reason,previousScene:$previous,changed:($selected != $previous)}'
+}
+
 refresh() {
-  local live enabled context power profile scene previous=''
+  local live enabled scene reason previous=''
   ensure_config; enabled=$(jq -r '.enabled' "$config_file")
   [[ $enabled == true ]] || exit 0
   live=$(snapshot)
-  context=$(jq -r '.context' <<<"$live"); power=$(jq -r '.power' <<<"$live"); profile=$(jq -r '.profile' <<<"$live")
-  scene=$(jq -r --arg context "$context" --arg power "$power" --arg profile "$profile" '
-    (.profiles[$profile] // "") as $special | (.contexts[$context] // "") as $primary
-    | if $special != "" then $special elif $primary != "" then $primary else (.contexts[$power] // "") end' "$config_file")
+  IFS='|' read -r scene reason < <(select_scene "$live")
   [[ -r $state_file ]] && previous=$(<"$state_file")
   [[ $scene != "$previous" ]] || exit 0
   if [[ -z $scene ]]; then
     if [[ -n $previous && -s $config_home/nocturne/scenes/$baseline_name.json ]]; then
       "$scene_manager" apply "$baseline_name" settings-only
       "$scene_manager" delete "$baseline_name"
+      [[ -x $trace ]] && "$trace" record context baseline-restored "$reason" "$previous" 'Automatic settings were reversed.'
     fi
     printf '\n' > "$state_file"; exit 0
   fi
   if [[ -z $previous ]]; then "$scene_manager" save "$baseline_name"; fi
   "$scene_manager" apply "$scene" settings-only
   printf '%s\n' "$scene" > "$state_file"
+  [[ -x $trace ]] && "$trace" record context scene-applied "$reason" "$scene" 'Settings-only scene applied; applications were not launched.'
 }
 
 set_enabled() {
@@ -80,14 +105,19 @@ set_enabled() {
   local value=$1 temp
   temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
   jq --argjson value "$value" '.enabled=$value' "$config_file" > "$temp"; mv -f "$temp" "$config_file"
-  if [[ $value == true ]]; then refresh
+  if [[ $value == true ]]; then
+    systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+    refresh
   else
+    systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
     if [[ -s $config_home/nocturne/scenes/$baseline_name.json ]]; then
       "$scene_manager" apply "$baseline_name" settings-only
       "$scene_manager" delete "$baseline_name"
+      [[ -x $trace ]] && "$trace" record context baseline-restored manual '' 'Automatic settings were reversed before pausing.'
     fi
     rm -f "$state_file"
   fi
+  [[ -x $trace ]] && "$trace" record context "automation-$([[ $value == true ]] && printf enabled || printf paused)" manual '' 'Context automation state changed by the user.'
 }
 
 assign() {
@@ -104,9 +134,10 @@ assign() {
 
 case ${1:-status} in
   status) status ;;
+  decision) decision ;;
   refresh) refresh ;;
   enable) set_enabled true ;;
   disable) set_enabled false ;;
   assign) assign "${2:?context required}" "${3:-}" ;;
-  *) printf 'Usage: %s status|refresh|enable|disable|assign CONTEXT SCENE\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s status|decision|refresh|enable|disable|assign CONTEXT SCENE\n' "$0" >&2; exit 2 ;;
 esac

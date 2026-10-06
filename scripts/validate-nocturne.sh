@@ -17,12 +17,16 @@ done < <(
 )
 printf '[ OK ] shell scripts\n'
 
+"$root/scripts/test-install-contracts.sh" >/dev/null
+printf '[ OK ] installer + rollback symmetry\n'
+
 jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" "$root/config/nocturne/bar.json" >/dev/null
 jq -e . "$root/agent/config/profile.default.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
 grep -Fq 'docs/screenshots/noc-banner.webp' "$root/README.md"
-grep -Fq 'fifty practical upgrades' "$root/README.md"
+grep -Fq 'Nocturne Trace' "$root/README.md"
+grep -Fq 'Explainable continuity' "$root/docs/RELEASE-0.8.md"
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
 grep -Fq '~/.local/state/nocturne/backups/' "$root/docs/INSTALL.md"
@@ -43,8 +47,11 @@ printf '[ OK ] public documentation + showcase assets\n'
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
 cmake --build "$temporary/native" --parallel >/dev/null
 "$temporary/native/nocturne-native" --self-test >/dev/null
+"$root/scripts/test-ui-components.sh" "$temporary/native/nocturne-native" >/dev/null
 grep -Fq -- '--tray-menu-test' "$root/native/src/main.cpp"
 grep -Fq -- '--capture-test' "$root/native/src/main.cpp"
+grep -Fq -- '--component-test' "$root/native/src/main.cpp"
+grep -Fq -- '--settings-test' "$root/native/src/main.cpp"
 ! rg -q 'import gi|from gi|Gtk' "$root/native" "$root/bin"
 grep -Fq 'backend.audioStreams()' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'interval: 200' "$root/native/qml/pages/BrightnessPage.qml"
@@ -55,8 +62,11 @@ grep -Fq 'SAVE LAYOUT' "$root/native/qml/pages/DisplayPage.qml"
 grep -Fq 'qml/pages/SetupSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/EfficiencySettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/CameraPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/AutomationPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'ADAPTIVE SENSOR PROFILE' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'camera-control' "$root/native/qml/pages/CameraPage.qml"
+grep -Fq 'PRIVATE BY DESIGN' "$root/native/qml/pages/AutomationPage.qml"
+grep -Fq 'Nocturne Trace' "$root/native/qml/pages/AutomationPage.qml"
 grep -Fq 'TOP MEMORY CONSUMERS' "$root/native/qml/pages/EfficiencySettingsPage.qml"
 grep -Fq 'find "$thumbnail_root" -type f -mtime +30 -delete' "$root/config/hypr/scripts/efficiency-control"
 grep -Fq 'barRssMiB' "$root/config/hypr/scripts/efficiency-control"
@@ -205,6 +215,8 @@ for page in OverviewPage ScenesPage PrivacyPage GamingPage; do
 done
 grep -Fq 'hl.bind(mod .. " + Tab"' "$root/config/hypr/hyprland.lua"
 grep -Fq 'nocturne-scene-v1' "$root/config/hypr/scripts/scene-manager"
+grep -Fq 'nocturne-trace-v1' "$root/config/hypr/scripts/automation-trace"
+grep -Fq 'context scene-applied' "$root/config/hypr/scripts/context-engine"
 grep -Fq 'nocturne-audio-scene-v1' "$root/config/hypr/scripts/audio-scene"
 grep -Fq 'OnUnitActiveSec=30s' "$root/config/systemd/user/nocturne-context.timer"
 grep -Fq 'baseline_name=.context-baseline' "$root/config/hypr/scripts/context-engine"

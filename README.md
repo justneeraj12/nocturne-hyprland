@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-0.7.0-cb8d62?style=flat-square" alt="Nocturne 0.7.0">
+  <img src="https://img.shields.io/badge/release-0.8.0-cb8d62?style=flat-square" alt="Nocturne 0.8.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -32,16 +32,21 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
-## Current release // 0.7.0
+## Current release // 0.8.0
 
-- full keyboard and accessibility contracts across the native controls;
-- safer clipboard, power and recovery interactions with expiring confirmation;
-- faster launcher, notification and minimized-window navigation;
-- structured diagnostics and a privacy-limited support-report generator;
-- zero-idle UVC camera profiles for exposure, white balance and anti-flicker;
-- the efficiency, capture-safety and event-cost work introduced in 0.6.
+- **Nocturne Trace** explains exactly why the desktop adapted and keeps a
+  privacy-limited local decision history;
+- scene restore now previews applications, window placements, displays and
+  settings before anything changes;
+- disabling context automation disables its timer too, giving the feature zero
+  idle polling cost;
+- the release gate now instantiates every on-demand QML card and verifies that
+  installer and rollback manifests remain symmetric;
+- saved scenes now restore their design preset as well as wallpaper, power and
+  audio routing.
 
-The complete, auditable list is [fifty practical upgrades](docs/RELEASE-0.7.md).
+Read the [0.8 release notes](docs/RELEASE-0.8.md) or the complete
+[0.7 hardening record](docs/RELEASE-0.7.md).
 
 The images below show the native shell layout on an isolated
 workspace. They contain no browser pages, messages, SSIDs, clipboard entries or
@@ -59,6 +64,7 @@ personal file names.
 | **One searchable control center** | Appearance, hardware, defaults, accounts, automation and recovery live in one responsive Settings app with no dead control-center duplicates. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
+| **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Trace tells you why, shows what changed and preserves a direct reversal path. |
 
 ## The desktop
 

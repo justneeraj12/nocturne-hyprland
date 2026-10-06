@@ -424,7 +424,11 @@ systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || tr
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-notification-rules.timer >/dev/null 2>&1 || true
-systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+if jq -e '.enabled == true' "$CONFIG_HOME/nocturne/context.json" >/dev/null 2>&1; then
+  systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+else
+  systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+fi
 systemctl --user disable nocturne-session-health.service >/dev/null 2>&1 || true
 systemctl --user enable nocturne-session-health.timer >/dev/null 2>&1 || true
 systemctl --user mask --now \

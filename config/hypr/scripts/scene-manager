@@ -5,6 +5,7 @@ config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
 scene_dir="$config_home/nocturne/scenes"
 last_file="$state_home/last-scene"
+trace="$config_home/hypr/scripts/automation-trace"
 
 slugify() {
   local value
@@ -68,7 +69,10 @@ save_scene() {
   jq -e '.format == "nocturne-scene-v1" and (.windows | type == "array")' "$temporary" >/dev/null
   mv -f -- "$temporary" "$file"
   count=$(jq 'length' <<<"$enriched")
-  [[ $name == .* ]] || notify-send -a Nocturne 'Scene saved' "$name · $count windows"
+  if [[ $name != .* ]]; then
+    notify-send -a Nocturne 'Scene saved' "$name · $count windows"
+    [[ -x $trace ]] && "$trace" record scenes scene-saved manual "$(slugify "$name")" "$count window placements captured."
+  fi
 }
 
 apply_monitors() {
@@ -84,7 +88,7 @@ apply_monitors() {
 }
 
 apply_scene() {
-  local name=${1:?scene name required} mode=${2:-full} file desktop settings profile sink source wallpaper
+  local name=${1:?scene name required} mode=${2:-full} file desktop settings profile sink source wallpaper theme
   local window class title workspace address deadline current seen='[]' needed_count current_count ready
   file=$(scene_path "$name")
   jq -e '.format == "nocturne-scene-v1"' "$file" >/dev/null
@@ -93,10 +97,12 @@ apply_scene() {
   profile=$(jq -r '.profile // empty' <<<"$settings")
   sink=$(jq -r '.sink // empty' <<<"$settings"); source=$(jq -r '.source // empty' <<<"$settings")
   wallpaper=$(jq -r '.wallpaper // empty' <<<"$settings")
+  theme=$(jq -r '.theme // empty' <<<"$settings")
   [[ $profile =~ ^(performance|balanced|power-saver)$ ]] && powerprofilesctl set "$profile" >/dev/null 2>&1 || true
   [[ -z $sink ]] || pactl set-default-sink "$sink" >/dev/null 2>&1 || true
   [[ -z $source ]] || "$config_home/hypr/scripts/audio-route" set-mic "$source" "$source" >/dev/null 2>&1 || true
   [[ -z $wallpaper || ! -f $wallpaper ]] || "$HOME/.local/bin/nocturne-wallpaper-cycle" apply-file "$wallpaper" >/dev/null 2>&1 || true
+  [[ -z $theme ]] || "$config_home/hypr/scripts/theme-preset" "$theme" >/dev/null 2>&1 || true
 
   if [[ $mode != settings-only ]]; then
     while IFS= read -r desktop; do
@@ -134,7 +140,38 @@ apply_scene() {
   if [[ $name != .* ]]; then
     printf '%s\n' "$(slugify "$name")" > "$last_file"
     notify-send -a Nocturne 'Scene restored' "$(jq -r '.name' "$file") · applications and workspace layout"
+    [[ $mode == full && -x $trace ]] && "$trace" record scenes scene-restored manual "$(slugify "$name")" 'Applications and workspace layout restored.'
   fi
+}
+
+preview_scene() {
+  local name=${1:?scene name required} file clients current_profile current_sink current_source current_wallpaper current_theme
+  file=$(scene_path "$name")
+  jq -e '.format == "nocturne-scene-v1"' "$file" >/dev/null
+  clients=$(hyprctl clients -j 2>/dev/null || printf '[]')
+  current_profile=$(powerprofilesctl get 2>/dev/null || printf unknown)
+  current_sink=$(pactl get-default-sink 2>/dev/null || true)
+  current_source=$(pactl get-default-source 2>/dev/null || true)
+  current_wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null | jq -r '.current // empty' || true)
+  current_theme=$(jq -r '.name // "Custom"' "$config_home/nocturne/theme.json" 2>/dev/null || printf Custom)
+  jq -n --slurpfile scenes "$file" --argjson clients "$clients" \
+    --arg profile "$current_profile" --arg sink "$current_sink" --arg source "$current_source" \
+    --arg wallpaper "$current_wallpaper" --arg theme "$current_theme" '
+    $scenes[0] as $scene
+    | ($scene.windows | map(.desktop) | map(select(. != "")) | unique) as $apps
+    | ($scene.windows | map(.workspace) | unique) as $workspaces
+    | ($scene.windows | map(. as $saved | select(.desktop != "" and ([ $clients[] | select(.mapped == true) | .class ] | index($saved.class)) == null)) | map(.desktop) | unique) as $missing
+    | [
+        {key:"power",changed:(($scene.settings.profile // "") != "" and $scene.settings.profile != $profile)},
+        {key:"output",changed:(($scene.settings.sink // "") != "" and $scene.settings.sink != $sink)},
+        {key:"microphone",changed:(($scene.settings.source // "") != "" and $scene.settings.source != $source)},
+        {key:"wallpaper",changed:(($scene.settings.wallpaper // "") != "" and $scene.settings.wallpaper != $wallpaper)},
+        {key:"theme",changed:(($scene.settings.theme // "") != "" and $scene.settings.theme != $theme)}
+      ] as $settings
+    | {format:"nocturne-scene-preview-v1",name:$scene.name,created:$scene.created,
+       windows:($scene.windows|length),apps:($apps|length),appsToLaunch:($missing|length),
+       workspaces:($workspaces|length),displays:($scene.monitors|length),
+       settingsChanges:([$settings[]|select(.changed)]|length),changes:[$settings[]|select(.changed)|.key]}'
 }
 
 list_scenes() {
@@ -148,15 +185,18 @@ list_scenes() {
 }
 
 delete_scene() {
-  local file
+  local file slug
+  slug=$(slugify "${1:?scene name required}")
   file=$(scene_path "${1:?scene name required}")
   rm -f -- "$file"
+  [[ ${1} == .* || ! -x $trace ]] || "$trace" record scenes scene-deleted manual "$slug" 'Saved scene removed.'
 }
 
 case ${1:-list} in
   list|status) list_scenes ;;
   save) save_scene "${2:?scene name required}" ;;
+  preview) preview_scene "${2:?scene name required}" ;;
   apply) apply_scene "${2:?scene name required}" "${3:-full}" ;;
   delete) delete_scene "${2:?scene name required}" ;;
-  *) printf 'Usage: %s list|save NAME|apply NAME [full|settings-only]|delete NAME\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s list|save NAME|preview NAME|apply NAME [full|settings-only]|delete NAME\n' "$0" >&2; exit 2 ;;
 esac

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+event_file="$state_home/automation-events.jsonl"
+max_events=80
+
+ensure_store() {
+  mkdir -p -- "$state_home"
+  touch "$event_file"
+  chmod 600 "$event_file"
+}
+
+record_event() {
+  local source=${1:?source required} event=${2:?event required} trigger=${3:-manual}
+  local scene=${4:-} detail=${5:-} temporary
+  [[ $source =~ ^[a-z0-9._-]{1,32}$ && $event =~ ^[a-z0-9._-]{1,48}$ ]] || exit 2
+  ensure_store
+  temporary=$(mktemp "$state_home/.automation-events.XXXXXX")
+  tail -n $((max_events - 1)) "$event_file" > "$temporary" 2>/dev/null || true
+  jq -cn \
+    --arg time "$(date --iso-8601=seconds)" --argjson epoch "$(date +%s)" \
+    --arg source "$source" --arg event "$event" --arg trigger "${trigger:0:80}" \
+    --arg scene "${scene:0:80}" --arg detail "${detail:0:180}" \
+    '{time:$time,epoch:$epoch,source:$source,event:$event,trigger:$trigger,scene:$scene,detail:$detail}' \
+    >> "$temporary"
+  chmod 600 "$temporary"
+  mv -f -- "$temporary" "$event_file"
+}
+
+list_events() {
+  local limit=${1:-20}
+  [[ $limit =~ ^[0-9]+$ ]] || exit 2
+  ((limit >= 1 && limit <= max_events)) || exit 2
+  ensure_store
+  jq -s --argjson limit "$limit" 'reverse | .[:$limit]' "$event_file"
+}
+
+status() {
+  ensure_store
+  jq -s '{format:"nocturne-trace-v1",count:length,latest:(last // null),privacy:{windowTitles:false,applicationNames:false,networkNames:false,content:false}}' "$event_file"
+}
+
+clear_events() {
+  ensure_store
+  : > "$event_file"
+  chmod 600 "$event_file"
+}
+
+case ${1:-list} in
+  record) record_event "${2:?source required}" "${3:?event required}" "${4:-manual}" "${5:-}" "${6:-}" ;;
+  list) list_events "${2:-20}" ;;
+  status) status ;;
+  clear) clear_events ;;
+  *) printf 'Usage: %s record SOURCE EVENT [TRIGGER] [SCENE] [DETAIL]|list [LIMIT]|status|clear\n' "$0" >&2; exit 2 ;;
+esac

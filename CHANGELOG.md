@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.0 - 2026-10-05
+
+- Added Nocturne Trace, a privacy-limited local timeline that explains context
+  decisions without recording applications, window titles, networks or content.
+- Added two-stage scene previews and confirmations showing application launches,
+  window placements, displays and settings impact before restore.
+- Restored saved design presets as part of scenes and recorded manual or automatic
+  scene changes through the same explainable history.
+- Eliminated context polling while automation is paused and made diagnostics
+  distinguish intentional zero-cost state from a failed timer.
+- Added runtime instantiation coverage for 23 on-demand QML pages plus permanent
+  installer/rollback manifest symmetry checks.
+- Changed Settings to instantiate only its visible section, releasing inactive
+  wallpaper, hardware and diagnostics pages instead of retaining all 14 at once.
+- Fixed rollback coverage for the `nocturne-support` helper and made the context
+  engine's decision interface explicit and testable.
+
 ## 0.7.0 - 2026-10-05
 
 - Shipped fifty interaction, accessibility, safety and navigation improvements

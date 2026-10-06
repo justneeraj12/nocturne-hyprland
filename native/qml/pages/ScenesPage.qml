@@ -8,22 +8,52 @@ Rectangle {
     implicitWidth: 610; implicitHeight: 530
     color: backend.baseColor; border.color: backend.accent2Color
     property var scenes: []; property var audioScenes: []; property var context: ({enabled:false,mappings:{}})
+    property var preview: ({})
+    property string pendingScene: ""
+    property string pendingDelete: ""
     function refresh() {
         scenes = backend.json([backend.home + "/.config/hypr/scripts/scene-manager", "list"], 2500) || []
         audioScenes = backend.json([backend.home + "/.config/hypr/scripts/audio-scene", "list"], 2500) || []
         context = backend.json([backend.home + "/.config/hypr/scripts/context-engine", "status"], 2500) || context
     }
+    function requestRestore(scene) {
+        if (pendingScene !== scene.slug) {
+            preview = backend.json([backend.home + "/.config/hypr/scripts/scene-manager", "preview", scene.slug], 3500) || ({})
+            pendingScene = scene.slug; pendingDelete = ""; confirmReset.restart(); return
+        }
+        backend.start([backend.home + "/.config/hypr/scripts/scene-manager", "apply", scene.slug])
+        pendingScene = ""; preview = ({})
+    }
+    function requestDelete(scene) {
+        if (pendingDelete !== scene.slug) { pendingDelete = scene.slug; pendingScene = ""; preview = ({}); confirmReset.restart(); return }
+        backend.run([backend.home + "/.config/hypr/scripts/scene-manager", "delete", scene.slug])
+        pendingDelete = ""; refresh()
+    }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: 12; spacing: 8
-        PanelHeader { Layout.fillWidth: true; title: "Session Scenes"; subtitle: "Applications, workspaces, displays, wallpaper and audio" }
+        RowLayout {
+            Layout.fillWidth: true
+            PanelHeader { Layout.fillWidth: true; title: "Session Scenes"; subtitle: "Applications, workspaces, displays, wallpaper and audio" }
+            NocturneButton { text: "WHY DID IT CHANGE?"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-native", "automation"]) }
+        }
         RowLayout {
             Layout.fillWidth: true
             TextField { id: sceneName; Layout.fillWidth: true; placeholderText: "Scene name"; color: backend.textColor; font.family: "monospace"; background: Rectangle { color: backend.surfaceColor; border.color: sceneName.activeFocus ? backend.accentColor : backend.lineColor } }
             NocturneButton { text: "SAVE CURRENT"; selected: true; enabled: sceneName.text.trim().length > 0; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/scene-manager", "save", sceneName.text], 15000); sceneName.clear(); root.refresh() } }
         }
         SectionLabel { text: "DESKTOP SCENES" }
+        Rectangle {
+            visible: root.pendingScene !== "" && root.preview.format === "nocturne-scene-preview-v1"
+            Layout.fillWidth: true; implicitHeight: 34
+            color: backend.overlayColor; border.color: backend.accent2Color
+            RowLayout { anchors.fill: parent; anchors.leftMargin: 9; anchors.rightMargin: 9; spacing: 8
+                Text { text: "PREVIEW"; color: backend.accentColor; font.family: "monospace"; font.bold: true; font.pixelSize: 8 }
+                Text { Layout.fillWidth: true; text: root.preview.appsToLaunch + " APPS TO LAUNCH  ·  " + root.preview.windows + " WINDOW PLACEMENTS  ·  " + root.preview.displays + " DISPLAYS  ·  " + root.preview.settingsChanges + " SETTINGS"; color: backend.textColor; font.family: "Inter"; font.pixelSize: 8; elide: Text.ElideRight }
+                Text { text: "CLICK CONFIRM TO RESTORE"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 7 }
+            }
+        }
         ScrollView {
-            Layout.fillWidth: true; Layout.preferredHeight: 180; clip: true; contentWidth: availableWidth
+            Layout.fillWidth: true; Layout.preferredHeight: root.pendingScene !== "" ? 142 : 180; clip: true; contentWidth: availableWidth
             ColumnLayout {
                 width: parent.width; spacing: 4
                 Repeater { model: root.scenes; Rectangle {
@@ -33,8 +63,8 @@ Rectangle {
                             Text { text: modelData.name.toUpperCase(); color: backend.textColor; font.family: "monospace"; font.bold: true; font.pixelSize: 10 }
                             Text { text: modelData.windows + " WINDOWS · " + modelData.created; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8 }
                         }
-                        NocturneButton { text: "RESTORE"; selected: true; onClicked: backend.start([backend.home + "/.config/hypr/scripts/scene-manager", "apply", modelData.slug]) }
-                        NocturneButton { text: "×"; danger: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/scene-manager", "delete", modelData.slug]); root.refresh() } }
+                        NocturneButton { text: root.pendingScene === modelData.slug ? "CONFIRM" : "PREVIEW"; selected: root.pendingScene === modelData.slug; onClicked: root.requestRestore(modelData) }
+                        NocturneButton { text: root.pendingDelete === modelData.slug ? "CONFIRM ×" : "×"; danger: true; onClicked: root.requestDelete(modelData) }
                     }
                 } }
             }
@@ -71,5 +101,6 @@ Rectangle {
         }
         Item { Layout.fillHeight: true }
     }
+    Timer { id: confirmReset; interval: 7000; onTriggered: { root.pendingScene = ""; root.pendingDelete = ""; root.preview = ({}) } }
     Component.onCompleted: refresh()
 }

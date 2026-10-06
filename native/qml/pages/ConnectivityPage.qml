@@ -5,7 +5,7 @@ import "../components"
 
 Rectangle {
     id: root
-    required property string initialPage
+    property string initialPage: "wifi"
     implicitWidth: 410
     implicitHeight: panel.implicitHeight + 20
     color: backend.baseColor

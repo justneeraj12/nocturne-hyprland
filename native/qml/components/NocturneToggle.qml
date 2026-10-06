@@ -4,11 +4,12 @@ Rectangle {
     id: root
     property bool checked: false
     property bool available: true
+    property string accessibleName: ""
     signal toggleRequested(bool enabled)
 
     activeFocusOnTab: available
     Accessible.role: Accessible.CheckBox
-    Accessible.name: checked ? "Enabled" : "Disabled"
+    Accessible.name: accessibleName !== "" ? accessibleName : (checked ? "Enabled" : "Disabled")
     Accessible.checked: checked
     Accessible.focusable: available
 

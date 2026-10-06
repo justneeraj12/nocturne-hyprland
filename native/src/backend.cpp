@@ -592,6 +592,8 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
                 {"generic", "See every workspace and move windows"}, {"icon", "view-grid-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "scenes"}, {"name", "Session Scenes"},
                 {"generic", "Save and restore an application layout"}, {"icon", "document-save-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "automation"}, {"name", "Explain Desktop Changes"},
+                {"generic", "Nocturne Trace context decisions and history"}, {"icon", "view-history-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "privacy"}, {"name", "Privacy Dashboard"},
                 {"generic", "See applications using microphones and cameras"}, {"icon", "security-high-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "gaming"}, {"name", "Gaming Dashboard"},
@@ -687,6 +689,7 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
     else if (id == QStringLiteral("lock")) command = {home() + QStringLiteral("/.config/hypr/scripts/lock-screen")};
     else if (id == QStringLiteral("overview")) command = {home() + QStringLiteral("/.config/hypr/scripts/overview")};
     else if (id == QStringLiteral("scenes")) { dispatch(QStringLiteral("scenes"), {}); return true; }
+    else if (id == QStringLiteral("automation")) { dispatch(QStringLiteral("automation"), {}); return true; }
     else if (id == QStringLiteral("privacy")) { dispatch(QStringLiteral("privacy"), {}); return true; }
     else if (id == QStringLiteral("gaming")) { dispatch(QStringLiteral("gaming"), {}); return true; }
     else return false;

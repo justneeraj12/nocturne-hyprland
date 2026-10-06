@@ -180,8 +180,15 @@ systemctl --user is-active --quiet nocturne-game-session.service \
   && ok 'Automatic gaming-session controller is active' || warning 'Automatic gaming-session controller is inactive'
 systemctl --user is-active --quiet nocturne-notification-rules.timer \
   && ok 'Timed notification rules are scheduled' || warning 'Timed notification rules are not scheduled'
-systemctl --user is-active --quiet nocturne-context.timer \
-  && ok 'Dock/power context checks are scheduled' || warning 'Dock/power context checks are not scheduled'
+context_enabled=$(jq -r '.enabled // false' "$HOME/.config/nocturne/context.json" 2>/dev/null || printf false)
+if [[ $context_enabled == true ]]; then
+  systemctl --user is-active --quiet nocturne-context.timer \
+    && ok 'Dock/power context checks are scheduled' || warning 'Context automation is enabled but its timer is inactive'
+elif systemctl --user is-active --quiet nocturne-context.timer; then
+  warning 'Context automation is disabled but its timer is still active'
+else
+  ok 'Disabled context automation has zero polling cost'
+fi
 if pgrep -f '/context-engine (refresh|status)' >/dev/null 2>&1; then warning 'Context helper is unexpectedly persistent'; else ok 'Context automation has zero persistent processes'; fi
 brightnessctl -m >/dev/null 2>&1 && ok 'Hardware backlight responds' || warning 'No controllable backlight was found'
 if command -v v4l2-ctl >/dev/null 2>&1; then

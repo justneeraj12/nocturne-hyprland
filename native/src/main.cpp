@@ -11,6 +11,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickImageProvider>
+#include <QRegularExpression>
 #include <QTimer>
 #include <QUrl>
 #include <iostream>
@@ -62,12 +63,35 @@ int main(int argc, char *argv[])
     qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
     const QString surface = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("audio");
     const QString page = argc > 2 ? QString::fromLocal8Bit(argv[2]) : QString();
-    const bool settings = surface == QStringLiteral("settings");
+    const bool componentTest = surface == QStringLiteral("--component-test");
+    const bool settingsTest = surface == QStringLiteral("--settings-test");
+    const bool settings = surface == QStringLiteral("settings") || settingsTest;
     const bool bar = surface == QStringLiteral("bar");
     QCoreApplication::setApplicationName(QStringLiteral("Nocturne Native"));
     QCoreApplication::setOrganizationName(QStringLiteral("Nocturne"));
     QGuiApplication::setDesktopFileName(settings ? QStringLiteral("nocturne-settings") : QStringLiteral("nocturne-native"));
     QGuiApplication application(argc, argv);
+    if (componentTest) {
+        if (!QRegularExpression(QStringLiteral("^[A-Za-z]+Page$")).match(page).hasMatch()) {
+            std::cerr << "Usage: nocturne-native --component-test PageName\n";
+            return 2;
+        }
+        Backend backend(QStringLiteral("component-test"), {});
+        QQmlApplicationEngine engine;
+        engine.addImageProvider(QStringLiteral("theme"), new ThemeIconProvider);
+        engine.rootContext()->setContextProperty(QStringLiteral("backend"), &backend);
+        bool failed = false;
+        QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &application, [&]() {
+            failed = true;
+            application.exit(3);
+        }, Qt::QueuedConnection);
+        engine.load(QUrl(QStringLiteral("qrc:/qt/qml/Nocturne/Native/qml/pages/%1.qml").arg(page)));
+        if (engine.rootObjects().isEmpty()) return 3;
+        QTimer::singleShot(160, &application, &QCoreApplication::quit);
+        application.exec();
+        if (!failed) std::cout << "NOCTURNE // " << page.toStdString() << " instantiated\n";
+        return failed ? 3 : 0;
+    }
     if (surface == QStringLiteral("--tray-menu-test")) {
         Backend diagnostic(surface, page);
         const auto menu = diagnostic.trayMenu(page);
@@ -88,22 +112,22 @@ int main(int argc, char *argv[])
                                                  : (bar ? QStringLiteral("bar") : QStringLiteral("shell")))
                                    .arg(getuid());
 
-    QLocalSocket client;
-    client.connectToServer(socketName);
-    if (client.waitForConnected(120)) {
-        if (bar) return 0;
-        client.write((surface + QLatin1Char('\t') + page + QLatin1Char('\n')).toUtf8());
-        client.waitForBytesWritten(500);
-        return 0;
-    }
-
-    QLocalServer::removeServer(socketName);
     QLocalServer server;
-    if (!server.listen(socketName)) {
-        return 2;
+    if (!settingsTest) {
+        QLocalSocket client;
+        client.connectToServer(socketName);
+        if (client.waitForConnected(120)) {
+            if (bar) return 0;
+            client.write((surface + QLatin1Char('\t') + page + QLatin1Char('\n')).toUtf8());
+            client.waitForBytesWritten(500);
+            return 0;
+        }
+
+        QLocalServer::removeServer(socketName);
+        if (!server.listen(socketName)) return 2;
     }
 
-    Backend backend(surface, page);
+    Backend backend(settings ? QStringLiteral("settings") : surface, page);
     QObject::connect(&server, &QLocalServer::newConnection, &application, [&]() {
         while (auto *connection = server.nextPendingConnection()) {
             if (connection->waitForReadyRead(300)) {
@@ -126,5 +150,9 @@ int main(int argc, char *argv[])
         QCoreApplication::exit(3);
     }, Qt::QueuedConnection);
     engine.load(source);
+    if (settingsTest) {
+        if (engine.rootObjects().isEmpty()) return 3;
+        QTimer::singleShot(350, &application, &QCoreApplication::quit);
+    }
     return application.exec();
 }
