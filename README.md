@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-0.8.0-cb8d62?style=flat-square" alt="Nocturne 0.8.0">
+  <img src="https://img.shields.io/badge/release-0.9.0-cb8d62?style=flat-square" alt="Nocturne 0.9.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -32,21 +32,19 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
-## Current release // 0.8.0
+## Current release // 0.9.0
 
-- **Nocturne Trace** explains exactly why the desktop adapted and keeps a
-  privacy-limited local decision history;
-- scene restore now previews applications, window placements, displays and
-  settings before anything changes;
-- disabling context automation disables its timer too, giving the feature zero
-  idle polling cost;
-- the release gate now instantiates every on-demand QML card and verifies that
-  installer and rollback manifests remain symmetric;
-- saved scenes now restore their design preset as well as wallpaper, power and
-  audio routing.
+- **NOC Desk** adds a native local task inbox, due/priority views, focus target,
+  autosaved scratch note, guarded undo and Markdown export;
+- task focus links to the persistent Pomodoro timer, notification focus and
+  automatic focus-minute/session history;
+- Command Center now previews deterministic local controls such as `volume 35`,
+  `brightness 60`, `timer 50/10`, `power saver`, `wifi off` and `mute mic`;
+- `+ task`, `+! important` and `+!^ important today` capture work without
+  leaving the launcher;
+- the event-driven bar shows Desk state without adding another resident process.
 
-Read the [0.8 release notes](docs/RELEASE-0.8.md) or the complete
-[0.7 hardening record](docs/RELEASE-0.7.md).
+Read the complete [0.9 release notes](docs/RELEASE-0.9.md).
 
 The images below show the native shell layout on an isolated
 workspace. They contain no browser pages, messages, SSIDs, clipboard entries or
@@ -64,7 +62,9 @@ personal file names.
 | **One searchable control center** | Appearance, hardware, defaults, accounts, automation and recovery live in one responsive Settings app with no dead control-center duplicates. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
-| **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Trace tells you why, shows what changed and preserves a direct reversal path. |
+| **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Nocturne Trace tells you why, shows what changed and preserves a direct reversal path. |
+| **Local workflow memory** | NOC Desk ties tasks, notes, focus blocks and the bar together in one private file with no account, cloud dependency or resident task daemon. |
+| **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
 
 ## The desktop
 
@@ -88,6 +88,8 @@ The shell includes:
 - hardware-synchronized brightness and microphone state;
 - zero-idle hardware camera profiles with busy-client protection and regional anti-flicker;
 - a command-center launcher for apps, running windows and safe desktop actions;
+- NOC Desk for tasks, due dates, priority, daily focus, quick notes, undo and private Markdown export;
+- deterministic Command Center controls for volume, brightness, power, radios, Night Shift, focus and timer setup;
 - a nine-workspace overview plus restorable desktop and audio scenes;
 - launcher favorites, recent apps, local file search and inline calculations;
 - searchable notification history, timed focus modes, clipboard history, minimized apps and a DBusMenu-aware background-app switcher;
@@ -95,7 +97,7 @@ The shell includes:
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
-- calendar, world clocks/weather, Pomodoro, caffeine and power/session controls;
+- calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
 - Hyprshot screenshots and Kooha screen recording;
 - compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
 - reliable background-app controls with native DBusMenu actions on ordinary left-click;
@@ -110,6 +112,13 @@ The shell includes:
 - native-Wayland Brave launching with VA-API hardware video decode and a complete FFmpeg/GStreamer codec stack;
 - dock, power, meeting, focus and gaming context automation, guarded theme previews and last-known-good recovery;
 - coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
+
+<details>
+<summary><strong>See NOC Desk</strong></summary>
+
+![NOC Desk local workflow card](docs/screenshots/noc-desk.webp)
+
+</details>
 
 More images are in the [showcase](docs/SHOWCASE.md).
 

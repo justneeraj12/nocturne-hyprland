@@ -1,0 +1,274 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+store="$data_home/desk.json"
+undo_store="$state_home/desk-undo.json"
+lock="$state_home/desk.lock"
+mkdir -p -- "$data_home" "$state_home"
+exec 9>"$lock"
+flock -x 9
+
+empty_store='{"format":"nocturne-desk-v1","nextId":1,"note":"","tasks":[],"sessions":[]}'
+
+ensure_store() {
+  if [[ ! -s $store ]]; then
+    printf '%s\n' "$empty_store" > "$store"
+    chmod 600 "$store"
+  fi
+  if ! jq -e '.format == "nocturne-desk-v1" and (.nextId|type == "number") and (.note|type == "string") and (.tasks|type == "array")' "$store" >/dev/null 2>&1; then
+    printf 'NOC Desk data is invalid: %s\n' "$store" >&2
+    exit 1
+  fi
+  if ! jq -e '.sessions|type == "array"' "$store" >/dev/null 2>&1; then
+    jq '.sessions=[]' "$store" | save_json
+  fi
+}
+
+save_json() {
+  local temporary
+  temporary=$(mktemp "$data_home/.desk.XXXXXX")
+  jq . > "$temporary"
+  chmod 600 "$temporary"
+  mv -f -- "$temporary" "$store"
+}
+
+remember() {
+  mkdir -p -- "$state_home"
+  cp -f -- "$store" "$undo_store"
+  chmod 600 "$undo_store"
+}
+
+valid_id() { [[ ${1:-} =~ ^[1-9][0-9]*$ ]]; }
+
+normal_due() {
+  case ${1:-none} in
+    none|'') printf '' ;;
+    today) date +%F ;;
+    tomorrow) date -d tomorrow +%F ;;
+    *) date -d "${1}" +%F 2>/dev/null || return 1 ;;
+  esac
+}
+
+list_tasks() {
+  local filter=${1:-open} query=${2:-} today
+  [[ $filter =~ ^(open|today|done|all)$ ]] || exit 2
+  today=$(date +%F)
+  jq --arg filter "$filter" --arg query "${query,,}" --arg today "$today" '
+    [.tasks[]
+      | select(
+          ($filter == "all") or
+          ($filter == "open" and (.done|not)) or
+          ($filter == "done" and .done) or
+          ($filter == "today" and (.done|not) and (.due != "") and (.due <= $today))
+        )
+      | select($query == "" or ((.text|ascii_downcase)|contains($query)))
+    ]
+    | sort_by(
+        if .focus then 0 else 1 end,
+        if .pinned then 0 else 1 end,
+        if .priority == "high" then 0 elif .priority == "normal" then 1 else 2 end,
+        if .due == "" then "9999-12-31" else .due end,
+        .id
+      )' "$store"
+}
+
+status() {
+  local today week_start
+  today=$(date +%F); week_start=$(date -d '6 days ago' +%F)
+  jq -c --arg today "$today" --arg weekStart "$week_start" '
+    (.tasks | map(select(.done|not)) | length) as $open
+    | (.tasks | map(select((.done|not) and .due == $today)) | length) as $todayCount
+    | (.tasks | map(select((.done|not) and .due != "" and .due < $today)) | length) as $overdue
+    | (.tasks | map(select(.completedAt != "" and (.completedAt|startswith($today)))) | length) as $completedToday
+    | (.tasks | map(select(.focus and (.done|not))) | first // null) as $focus
+    | ([.sessions[] | select(.date == $today) | .minutes] | add // 0) as $focusMinutesToday
+    | ([.sessions[] | select(.date >= $weekStart) | .minutes] | add // 0) as $focusMinutesWeek
+    | ([.sessions[] | select(.date == $today)] | length) as $sessionsToday
+    | {format:"nocturne-desk-status-v1",open:$open,today:$todayCount,overdue:$overdue,
+       completedToday:$completedToday,focus:$focus,focusMinutesToday:$focusMinutesToday,
+       focusMinutesWeek:$focusMinutesWeek,sessionsToday:$sessionsToday,
+       text:(if $focus then "󰄱 " + ($focus.text[0:18]) elif $open > 0 then "󰄱 " + ($open|tostring) else "󰄲" end),
+       tooltip:(if $focus then "NOC Desk · focusing: " + $focus.text
+                elif $open == 0 then "NOC Desk · inbox clear"
+                else "NOC Desk · " + ($open|tostring) + " open · " + ($todayCount|tostring) + " today · " + ($overdue|tostring) + " overdue · " + ($focusMinutesToday|tostring) + " focus min" end)}' "$store"
+}
+
+add_task() {
+  local text=${1:-} priority=${2:-normal} due now
+  [[ $text =~ [^[:space:]] ]] && ((${#text} <= 240)) || { printf 'Task text must be 1–240 characters.\n' >&2; exit 2; }
+  [[ $priority =~ ^(low|normal|high)$ ]] || exit 2
+  due=$(normal_due "${3:-none}") || { printf 'Invalid due date.\n' >&2; exit 2; }
+  now=$(date --iso-8601=seconds)
+  remember
+  jq --arg text "$text" --arg priority "$priority" --arg due "$due" --arg now "$now" '
+    .nextId as $id | .nextId += 1
+    | .tasks += [{id:$id,text:$text,priority:$priority,due:$due,done:false,pinned:false,focus:false,createdAt:$now,completedAt:""}]' \
+    "$store" | save_json
+}
+
+toggle_task() {
+  local id=${1:-} now
+  valid_id "$id" || exit 2
+  jq -e --argjson id "$id" 'any(.tasks[]; .id == $id)' "$store" >/dev/null || exit 3
+  now=$(date --iso-8601=seconds); remember
+  jq --argjson id "$id" --arg now "$now" '
+    .tasks |= map(if .id == $id then
+      .done = (.done|not) | .completedAt = (if .done then $now else "" end) | if .done then .focus=false else . end
+      else . end)' "$store" | save_json
+}
+
+pin_task() {
+  local id=${1:-}; valid_id "$id" || exit 2
+  jq -e --argjson id "$id" 'any(.tasks[]; .id == $id)' "$store" >/dev/null || exit 3
+  remember
+  jq --argjson id "$id" '.tasks |= map(if .id == $id then .pinned=(.pinned|not) else . end)' "$store" | save_json
+}
+
+focus_task() {
+  local id=${1:-}; valid_id "$id" || exit 2
+  jq -e --argjson id "$id" 'any(.tasks[]; .id == $id and (.done|not))' "$store" >/dev/null || exit 3
+  remember
+  jq --argjson id "$id" '.tasks |= map(.focus=(.id == $id and (.done|not)))' "$store" | save_json
+}
+
+clear_focus() {
+  remember
+  jq '.tasks |= map(.focus=false)' "$store" | save_json
+}
+
+snooze_task() {
+  local id=${1:-} due; valid_id "$id" || exit 2
+  jq -e --argjson id "$id" 'any(.tasks[]; .id == $id)' "$store" >/dev/null || exit 3
+  due=$(normal_due "${2:-tomorrow}") || exit 2; remember
+  jq --argjson id "$id" --arg due "$due" '.tasks |= map(if .id == $id then .due=$due else . end)' "$store" | save_json
+}
+
+edit_task() {
+  local id=${1:-} text=${2:-}; valid_id "$id" || exit 2
+  [[ $text =~ [^[:space:]] ]] && ((${#text} <= 240)) || exit 2
+  jq -e --argjson id "$id" 'any(.tasks[]; .id == $id)' "$store" >/dev/null || exit 3
+  remember
+  jq --argjson id "$id" --arg text "$text" '.tasks |= map(if .id == $id then .text=$text else . end)' "$store" | save_json
+}
+
+delete_task() {
+  local id=${1:-}; valid_id "$id" || exit 2
+  jq -e --argjson id "$id" 'any(.tasks[]; .id == $id)' "$store" >/dev/null || exit 3
+  remember
+  jq --argjson id "$id" '.tasks |= map(select(.id != $id))' "$store" | save_json
+}
+
+clear_completed() {
+  remember
+  jq '.tasks |= map(select(.done|not))' "$store" | save_json
+}
+
+undo() {
+  [[ -s $undo_store ]] || exit 3
+  jq -e '.format == "nocturne-desk-v1"' "$undo_store" >/dev/null
+  local temporary
+  temporary=$(mktemp "$state_home/.desk-undo.XXXXXX")
+  cp -f -- "$store" "$temporary"
+  cp -f -- "$undo_store" "$store"
+  mv -f -- "$temporary" "$undo_store"
+  chmod 600 "$store" "$undo_store"
+}
+
+set_note() {
+  local note=${1:-}
+  ((${#note} <= 12000)) || { printf 'Note must be at most 12,000 characters.\n' >&2; exit 2; }
+  remember
+  jq --arg note "$note" '.note=$note' "$store" | save_json
+}
+
+export_markdown() {
+  local destination=${1:-"$HOME/Documents/NOC Desk $(date +%F).md"} directory
+  directory=${destination%/*}; [[ $directory != "$destination" ]] || directory=.
+  mkdir -p -- "$directory"
+  {
+    printf '# NOC Desk // %s\n\n' "$(date +%F)"
+    jq -r '.tasks[] | "- [" + (if .done then "x" else " " end) + "] " + .text
+      + (if .priority == "high" then " **[HIGH]**" elif .priority == "low" then " [LOW]" else "" end)
+      + (if .due != "" then " — due " + .due else "" end)' "$store"
+    printf '\n## Quick note\n\n'
+    jq -r '.note' "$store"
+  } > "$destination"
+  chmod 600 "$destination"
+  printf '%s\n' "$destination"
+}
+
+start_focus() {
+  local id=${1:-} tool_dir work_minutes running
+  focus_task "$id"
+  # Pomodoro may observe an elapsed phase and record it back into Desk. Release
+  # our data lock before crossing that boundary to avoid a lock-order cycle.
+  flock -u 9
+  tool_dir=${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/scripts
+  if [[ -x $tool_dir/pomodoro ]]; then
+    work_minutes=$($tool_dir/pomodoro inspect | jq -r '(.work / 60 | floor)')
+    running=$($tool_dir/pomodoro inspect | jq -r '.running')
+    [[ $running == true ]] || "$tool_dir/pomodoro" toggle
+    [[ -x $tool_dir/focus-mode ]] && "$tool_dir/focus-mode" on "$work_minutes" >/dev/null 2>&1 || true
+  fi
+  notify-send -a Nocturne 'Focus block started' 'Timer and notification focus are now linked to your selected task.' >/dev/null 2>&1 || true
+}
+
+record_session() {
+  local seconds=${1:-} minutes today now focus_id
+  [[ $seconds =~ ^[0-9]+$ ]] && ((seconds >= 60 && seconds <= 21600)) || exit 2
+  minutes=$(( (seconds + 30) / 60 )); today=$(date +%F); now=$(date --iso-8601=seconds)
+  focus_id=$(jq -r '[.tasks[] | select(.focus and (.done|not)) | .id] | first // 0' "$store")
+  jq --arg date "$today" --arg now "$now" --argjson minutes "$minutes" --argjson focusId "$focus_id" '
+    .sessions += [{date:$date,time:$now,minutes:$minutes,taskId:$focusId}]
+    | .sessions = (.sessions | if length > 500 then .[-500:] else . end)
+    | .tasks |= map(if .id == $focusId then
+        .focusMinutes=((.focusMinutes // 0) + $minutes) | .focusSessions=((.focusSessions // 0) + 1)
+      else . end)' "$store" | save_json
+  rm -f -- "$undo_store"
+}
+
+stats() {
+  local today week_start
+  today=$(date +%F); week_start=$(date -d '6 days ago' +%F)
+  jq --arg today "$today" --arg weekStart "$week_start" '
+    {format:"nocturne-desk-stats-v1",
+     todayMinutes:([.sessions[]|select(.date == $today)|.minutes]|add // 0),
+     weekMinutes:([.sessions[]|select(.date >= $weekStart)|.minutes]|add // 0),
+     totalMinutes:([.sessions[].minutes]|add // 0),
+     sessionsToday:([.sessions[]|select(.date == $today)]|length),
+     recent:(.sessions[-14:]|reverse)}' "$store"
+}
+
+brief() {
+  local data message
+  data=$(status)
+  message=$(jq -r '(.open|tostring) + " open · " + (.today|tostring) + " due today · " + (.overdue|tostring) + " overdue · " + (.focusMinutesToday|tostring) + " focus minutes"' <<<"$data")
+  notify-send -a Nocturne 'NOC Desk // daily brief' "$message" >/dev/null 2>&1 || true
+  printf '%s\n' "$data"
+}
+
+ensure_store
+case ${1:-status} in
+  status) status ;;
+  list) list_tasks "${2:-open}" "${3:-}" ;;
+  add|capture) add_task "${2:-}" "${3:-normal}" "${4:-none}" ;;
+  toggle) toggle_task "${2:-}" ;;
+  pin) pin_task "${2:-}" ;;
+  focus) focus_task "${2:-}" ;;
+  start) start_focus "${2:-}" ;;
+  record-session) record_session "${2:-}" ;;
+  stats) stats ;;
+  clear-focus) clear_focus ;;
+  snooze) snooze_task "${2:-}" "${3:-tomorrow}" ;;
+  edit) edit_task "${2:-}" "${3:-}" ;;
+  delete) delete_task "${2:-}" ;;
+  clear-completed) clear_completed ;;
+  undo) undo ;;
+  note) jq -r '.note' "$store" ;;
+  note-set) set_note "${2:-}" ;;
+  export) export_markdown "${2:-}" ;;
+  brief) brief ;;
+  *) printf 'Usage: %s status|brief|list [open|today|done|all] [QUERY]|add TEXT [PRIORITY] [DUE]|toggle ID|pin ID|edit ID TEXT|focus ID|start ID|record-session SECONDS|stats|clear-focus|snooze ID [DUE]|delete ID|clear-completed|undo|note|note-set TEXT|export [PATH]\n' "$0" >&2; exit 2 ;;
+esac

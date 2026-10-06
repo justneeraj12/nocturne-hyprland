@@ -8,6 +8,7 @@ Item {
     property var monitors: []
     property var minimized: ({})
     property var pomodoro: ({})
+    property var desk: ({})
     property var caffeine: ({})
     property var connectivity: ({})
     property var systemState: ({})
@@ -43,6 +44,7 @@ Item {
     function refreshActivity() {
         pomodoro = scriptJson("pomodoro", ["status"])
     }
+    function refreshDesk() { desk = scriptJson("desk", ["status"]) }
     function refreshMinimized() { minimized = scriptJson("minimize", ["status"]) }
     function refreshAudio() {
         var sink = parseVolume("@DEFAULT_AUDIO_SINK@")
@@ -83,6 +85,7 @@ Item {
         target: backend
         function onShellEvent(topic) {
             if (topic === "workspace") root.refreshWorkspace()
+            else if (topic === "desk") root.refreshDesk()
             else if (topic === "windows") root.refreshMinimized()
             else if (topic === "audio" || topic === "brightness" || topic === "media") root.refreshAudio()
             else if (topic === "connectivity") root.refreshConnectivity()
@@ -95,6 +98,7 @@ Item {
     // Hyprland, PipeWire, MPRIS, NetworkManager, UPower and file-system events.
     Timer { interval: 15000; running: true; repeat: true; onTriggered: root.now = new Date() }
     Timer { interval: root.pomodoro.running ? 1000 : 60000; running: true; repeat: true; onTriggered: root.refreshActivity() }
+    Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshDesk() }
     Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshWorkspace() }
     Timer { interval: 300000; running: true; repeat: true; onTriggered: root.refreshAudio() }
     Timer { interval: 10000; running: true; repeat: true; onTriggered: root.refreshNotifications() }
@@ -118,6 +122,7 @@ Item {
     Component.onCompleted: {
         refreshWorkspace()
         refreshActivity()
+        refreshDesk()
         refreshMinimized()
         refreshAudio()
         refreshCaffeine()

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.0 - 2026-10-06
+
+- Added NOC Desk: a zero-daemon native task inbox with priority, due dates,
+  filters, search, pinning, inline editing, guarded deletion, undo and clear.
+- Added an autosaved private scratch note, Markdown export and a count-only daily
+  brief without introducing an account, sync backend or content telemetry.
+- Linked a selected task to Pomodoro and notification focus, persisted the timer
+  across shell restarts, and recorded local focus blocks/minutes automatically.
+- Added event-driven Desk state to the adaptive bar, a `Super+Shift+N` shortcut,
+  Bar Studio control and Settings integration.
+- Added safe `+` task capture and deterministic Command Center controls for
+  volume, brightness, focus, timer, power, Wi-Fi, Bluetooth, Night Shift and mute.
+- Added schema migration, private-file and zero-process diagnostics, shell data
+  contracts and runtime query coverage for the new workflow surfaces.
+
 ## 0.8.0 - 2026-10-05
 
 - Added Nocturne Trace, a privacy-limited local timeline that explains context

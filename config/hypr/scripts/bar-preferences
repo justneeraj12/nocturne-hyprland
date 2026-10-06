@@ -6,7 +6,7 @@ config=$config_home/nocturne/bar.json
 default=$config_home/nocturne/bar.default.json
 mkdir -p -- "${config%/*}"
 
-fallback='{"format":"nocturne-bar-v1","density":"auto","iconScale":1,"separators":true,"trayCount":true,"modules":{"pomodoro":true,"media":true,"caffeine":true,"tray":true,"kdeconnect":true,"audio":true,"microphone":true,"brightness":true,"system":true,"connectivity":true,"notifications":true,"power":true},"monitors":{}}'
+fallback='{"format":"nocturne-bar-v1","density":"auto","iconScale":1,"separators":true,"trayCount":true,"modules":{"desk":true,"pomodoro":true,"media":true,"caffeine":true,"tray":true,"kdeconnect":true,"audio":true,"microphone":true,"brightness":true,"system":true,"connectivity":true,"notifications":true,"power":true},"monitors":{}}'
 [[ -s $config ]] || printf '%s\n' "$fallback" > "$config"
 
 restart_bar() {

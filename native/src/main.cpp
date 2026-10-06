@@ -64,6 +64,7 @@ int main(int argc, char *argv[])
     const QString surface = argc > 1 ? QString::fromLocal8Bit(argv[1]) : QStringLiteral("audio");
     const QString page = argc > 2 ? QString::fromLocal8Bit(argv[2]) : QString();
     const bool componentTest = surface == QStringLiteral("--component-test");
+    const bool launcherQueryTest = surface == QStringLiteral("--launcher-query-test");
     const bool settingsTest = surface == QStringLiteral("--settings-test");
     const bool settings = surface == QStringLiteral("settings") || settingsTest;
     const bool bar = surface == QStringLiteral("bar");
@@ -71,6 +72,12 @@ int main(int argc, char *argv[])
     QCoreApplication::setOrganizationName(QStringLiteral("Nocturne"));
     QGuiApplication::setDesktopFileName(settings ? QStringLiteral("nocturne-settings") : QStringLiteral("nocturne-native"));
     QGuiApplication application(argc, argv);
+    if (launcherQueryTest) {
+        Backend diagnostic(QStringLiteral("launcher"), {});
+        const auto results = diagnostic.launcherResults(page, QStringLiteral("all"));
+        std::cout << QJsonDocument::fromVariant(results).toJson(QJsonDocument::Compact).constData() << '\n';
+        return results.isEmpty() ? 1 : 0;
+    }
     if (componentTest) {
         if (!QRegularExpression(QStringLiteral("^[A-Za-z]+Page$")).match(page).hasMatch()) {
             std::cerr << "Usage: nocturne-native --component-test PageName\n";

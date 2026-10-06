@@ -11,7 +11,7 @@ Rectangle {
     property var state: ({density:"auto", iconScale:1, separators:true, trayCount:true, modules:{}, displays:[]})
     readonly property string tool: backend.home + "/.config/hypr/scripts/bar-preferences"
     readonly property var moduleOptions: [
-        {key:"pomodoro", label:"Focus timer", glyph:"◷"}, {key:"media", label:"Media", glyph:"♪"},
+        {key:"desk", label:"NOC Desk", glyph:"󰄱"}, {key:"pomodoro", label:"Focus timer", glyph:"◷"}, {key:"media", label:"Media", glyph:"♪"},
         {key:"caffeine", label:"Caffeine", glyph:"☕"}, {key:"tray", label:"Background apps", glyph:"•••"},
         {key:"kdeconnect", label:"KDE Connect", glyph:"◇"}, {key:"audio", label:"Audio", glyph:"◖"},
         {key:"microphone", label:"Microphone", glyph:"●"}, {key:"brightness", label:"Brightness", glyph:"☼"},
@@ -46,7 +46,7 @@ Rectangle {
                         Item { Layout.fillWidth: true }
                         Text { text: "SUN 05 OCT  ·  5:24−"; color: backend.accentColor; font.family: "monospace"; font.pixelSize: 10 * Number(root.state.iconScale || 1) }
                         Item { Layout.fillWidth: true }
-                        Text { text: "◷  ♪  ☕  •••  ◖  ☼  ⌁  ◌  ⚡"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 10 * Number(root.state.iconScale || 1) }
+                        Text { text: "󰄱  ◷  ♪  ☕  •••  ◖  ☼  ⌁  ◌  ⚡"; color: backend.textColor; font.family: "monospace"; font.pixelSize: 10 * Number(root.state.iconScale || 1) }
                     }
                 }
             }

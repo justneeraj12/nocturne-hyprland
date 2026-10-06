@@ -18,6 +18,7 @@ EVERYDAY APPS
   Super + D               VS Code
   Super + T               Steam
   Super + N               Notification history
+  Super + Shift + N       NOC Desk tasks, focus, and quick note
   Super + Shift + V       Clipboard history
   Print Screen            Select an area to screenshot
   Shift + Print Screen    Select a window to screenshot
@@ -26,6 +27,22 @@ EVERYDAY APPS
   Super + W               Choose or restore a wallpaper
   Super + Escape          Lock screen
   Super + P               Power / log out
+
+COMMAND CENTER POWER INPUTS
+  + write release notes   Add a normal task to NOC Desk
+  +!^ ship release        Add a high-priority task due today
+  volume 35               Preview setting master output to 35%
+  brightness 60           Preview setting hardware brightness to 60%
+  focus 45                Preview 45 minutes of notification focus
+  timer 50/10             Set focus / recovery timer lengths
+  power saver             Switch the hardware power profile
+  wifi off                Toggle Wi-Fi only after pressing Enter
+  bluetooth on            Toggle Bluetooth only after pressing Enter
+  night on                Enable scheduled Night Shift
+  mute mic                Set the PipeWire microphone mute state
+
+  These are deterministic local controls, not shell commands. Search previews
+  the exact action first; nothing changes until you press Enter.
 
 QUICK PANELS
   Super + Ctrl + A        Master volume, outputs, and per-app mixer

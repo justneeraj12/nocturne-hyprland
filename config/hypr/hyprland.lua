@@ -170,6 +170,7 @@ hl.bind(mod .. " + X", run("kitty --class nox --title 'NØX // LOCAL OPERATOR' -
 hl.bind(mod .. " + D", run("code"))
 hl.bind(mod .. " + T", run(steam))
 hl.bind(mod .. " + N", run(home .. "/.local/bin/nocturne-native notifications"))
+hl.bind(mod .. " + SHIFT + N", run(home .. "/.local/bin/nocturne-native desk"))
 hl.bind(mod .. " + CTRL + W", run(home .. "/.local/bin/nocturne-native connectivity wifi"))
 hl.bind(mod .. " + CTRL + B", run(home .. "/.local/bin/nocturne-native connectivity bluetooth"))
 hl.bind(mod .. " + CTRL + A", run(home .. "/.local/bin/nocturne-native audio"))

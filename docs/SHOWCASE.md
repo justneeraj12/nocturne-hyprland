@@ -1,7 +1,7 @@
 # Showcase
 
-UI images below were captured from Nocturne 0.6.1 on an empty Hyprland
-workspace on 5 October 2026, or from an isolated nested Hyprland session for
+UI images below were captured from Nocturne 0.6.1–0.9.0 on an empty Hyprland
+workspace on 5–6 October 2026, or from an isolated nested Hyprland session for
 the lock screen. Browser windows, messages, clipboard content, account names,
 Wi-Fi SSIDs and personal files are excluded. The NOC banner is editable
 project artwork rather than a desktop screenshot.
@@ -46,6 +46,14 @@ dismissed. `@` jumps directly to windows and `>` jumps to actions.
 ## Focus timer
 
 ![Nocturne Pomodoro timer](screenshots/pomodoro.webp)
+
+## NOC Desk
+
+![NOC Desk local workflow card](screenshots/noc-desk.webp)
+
+Tasks, priorities, due views, focus targeting and quick notes live in one
+on-demand native card. The screenshot uses a fresh private store and therefore
+contains no task or note content.
 
 ## Connectivity
 

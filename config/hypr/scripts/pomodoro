@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-runtime_dir=${XDG_RUNTIME_DIR:-/tmp}/nocturne-pomodoro-$UID
-state_file=$runtime_dir/state
-lock_file=$runtime_dir/lock
-mkdir -p "$runtime_dir"
+state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+state_file=$state_dir/pomodoro.state
+lock_file=$state_dir/pomodoro.lock
+legacy_state=${XDG_RUNTIME_DIR:-/tmp}/nocturne-pomodoro-$UID/state
+mkdir -p "$state_dir"
+if [[ ! -s $state_file && -s $legacy_state ]]; then cp -f -- "$legacy_state" "$state_file"; fi
 exec 9>"$lock_file"
 flock -x 9
 
@@ -39,20 +41,23 @@ save_state() {
   local temporary=$state_file.tmp
   printf 'work_seconds=%q\nbreak_seconds=%q\nmode=%q\nrunning=%q\nremaining=%q\nend=%q\ncycles=%q\nauto=%q\n' \
     "$work_seconds" "$break_seconds" "$mode" "$running" "$remaining" "$end" "$cycles" "$auto" > "$temporary"
+  chmod 600 "$temporary"
   mv -f -- "$temporary" "$state_file"
 }
 
 transition() {
-  local now=${1:-$(date +%s)}
+  local now=${1:-$(date +%s)} desk
   if [[ $mode == work ]]; then
+    desk=${XDG_CONFIG_HOME:-"$HOME/.config"}/hypr/scripts/desk
+    [[ -x $desk ]] && "$desk" record-session "$work_seconds" >/dev/null 2>&1 || true
     mode=break
     remaining=$break_seconds
     cycles=$((cycles + 1))
-    notify-send -a Nocturne 'Focus complete' 'Take a proper break.'
+    notify-send -a Nocturne 'Focus complete' 'Take a proper break.' >/dev/null 2>&1 || true
   else
     mode=work
     remaining=$work_seconds
-    notify-send -a Nocturne 'Break complete' 'Ready for the next focus block.'
+    notify-send -a Nocturne 'Break complete' 'Ready for the next focus block.' >/dev/null 2>&1 || true
   fi
   running=$auto
   if ((running)); then end=$((now + remaining)); else end=0; fi
@@ -115,7 +120,7 @@ case "${1:-status}" in
     load_state
     mode=work; running=0; remaining=$work_seconds; end=0; cycles=0
     save_state
-    notify-send -a Nocturne 'Pomodoro reset' "Focus timer reset to $((work_seconds / 60)) minutes."
+    notify-send -a Nocturne 'Pomodoro reset' "Focus timer reset to $((work_seconds / 60)) minutes." >/dev/null 2>&1 || true
     ;;
   skip) load_state; transition ;;
   preset)

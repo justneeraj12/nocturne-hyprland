@@ -27,7 +27,7 @@ jq -e '.format == "nocturne-context-v2" and .contexts.docked == "desk" and .prof
 "$XDG_CONFIG_HOME/hypr/scripts/context-engine" decision \
   | jq -e '.enabled == false and .context == "mobile" and .selectedScene == "commute" and .reason == "context:mobile"' >/dev/null
 
-"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 5' >/dev/null
+"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 6' >/dev/null
 trace="$root/config/hypr/scripts/automation-trace"
 "$trace" record context scene-applied profile:meeting calls 'Settings only.'
 "$trace" record context baseline-restored no-matching-scene calls 'Reversed.'
@@ -47,6 +47,40 @@ printf '%s\n' '#!/bin/sh' 'printf '\''{"current":"/wallpapers/current.png"}\n'\'
 chmod +x "$test_root/bin/hyprctl" "$test_root/bin/powerprofilesctl" "$test_root/bin/pactl" "$HOME/.local/bin/nocturne-wallpaper-cycle"
 PATH="$test_root/bin:$PATH" "$root/config/hypr/scripts/scene-manager" preview focus \
   | jq -e '.format == "nocturne-scene-preview-v1" and .apps == 2 and .appsToLaunch == 1 and .windows == 2 and .settingsChanges == 4' >/dev/null
+
+export XDG_DATA_HOME=$HOME/.local/share
+desk="$root/config/hypr/scripts/desk"
+cp -- "$root/config/hypr/scripts/desk" "$XDG_CONFIG_HOME/hypr/scripts/desk"
+cp -- "$root/config/hypr/scripts/pomodoro" "$XDG_CONFIG_HOME/hypr/scripts/pomodoro"
+chmod +x "$XDG_CONFIG_HOME/hypr/scripts/desk" "$XDG_CONFIG_HOME/hypr/scripts/pomodoro"
+"$desk" add 'Ship the next release' high today
+"$desk" add 'Write the migration notes' normal tomorrow
+"$desk" focus 1
+"$desk" status | jq -e '.format == "nocturne-desk-status-v1" and .open == 2 and .today == 1 and .focus.id == 1' >/dev/null
+"$desk" edit 2 'Write tested migration notes'
+"$desk" list open tested | jq -e 'length == 1 and .[0].id == 2' >/dev/null
+"$desk" list today release | jq -e 'length == 1 and .[0].priority == "high"' >/dev/null
+"$desk" toggle 1
+"$desk" status | jq -e '.open == 1 and .completedToday == 1 and .focus == null' >/dev/null
+"$desk" undo
+"$desk" status | jq -e '.open == 2 and .completedToday == 0 and .focus.id == 1' >/dev/null
+"$desk" note-set $'Local notes\nremain private.'
+[[ $("$desk" note) == $'Local notes\nremain private.' ]]
+desk_export="$test_root/desk.md"
+[[ $("$desk" export "$desk_export") == "$desk_export" ]]
+grep -Fq 'Ship the next release' "$desk_export"
+[[ $(stat -c %a "$XDG_DATA_HOME/nocturne/desk.json") == 600 ]]
+printf '%s\n' 'work_seconds=60' 'break_seconds=60' 'mode=work' 'running=1' 'remaining=1' 'end=1' 'cycles=0' 'auto=0' \
+  > "$XDG_STATE_HOME/nocturne/pomodoro.state"
+"$XDG_CONFIG_HOME/hypr/scripts/pomodoro" inspect | jq -e '.mode == "break" and .cycles == 1' >/dev/null
+"$desk" status | jq -e '.focusMinutesToday == 1 and .sessionsToday == 1' >/dev/null
+"$desk" stats | jq -e '.format == "nocturne-desk-stats-v1" and .todayMinutes == 1 and .weekMinutes == 1' >/dev/null
+"$desk" brief | jq -e '.open == 2 and .focusMinutesToday == 1' >/dev/null
+[[ $(stat -c %a "$XDG_STATE_HOME/nocturne/pomodoro.state") == 600 ]]
+printf '%s\n' 'work_seconds=60' 'break_seconds=60' 'mode=work' 'running=1' 'remaining=1' 'end=1' 'cycles=1' 'auto=0' \
+  > "$XDG_STATE_HOME/nocturne/pomodoro.state"
+timeout 3s "$desk" start 1
+"$desk" status | jq -e '.focusMinutesToday == 2 and .sessionsToday == 2' >/dev/null
 
 NOCTURNE_CAMERA_DEVICE="$test_root/missing-camera" \
   "$root/config/hypr/scripts/camera-control" status \

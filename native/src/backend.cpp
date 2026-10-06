@@ -113,9 +113,17 @@ void Backend::startShellEvents()
         const auto path = backlights.filePath(device + QStringLiteral("/brightness"));
         if (QFileInfo::exists(path)) m_fileEvents->addPath(path);
     }
+    const auto dataHome = qEnvironmentVariable("XDG_DATA_HOME", home() + QStringLiteral("/.local/share"));
+    const auto nocturneData = QDir(dataHome).filePath(QStringLiteral("nocturne"));
+    QDir().mkpath(nocturneData);
+    m_fileEvents->addPath(nocturneData);
     connect(m_fileEvents.get(), &QFileSystemWatcher::fileChanged, this, [this](const QString &path) {
-        queueShellEvent(QStringLiteral("brightness"));
+        queueShellEvent(path.startsWith(QStringLiteral("/sys/class/backlight/"))
+            ? QStringLiteral("brightness") : QStringLiteral("desk"));
         if (QFileInfo::exists(path) && !m_fileEvents->files().contains(path)) m_fileEvents->addPath(path);
+    });
+    connect(m_fileEvents.get(), &QFileSystemWatcher::directoryChanged, this, [this](const QString &) {
+        queueShellEvent(QStringLiteral("desk"));
     });
 }
 
@@ -513,7 +521,25 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
 {
     auto mode = requestedMode.toLower();
     auto needle = query.simplified();
-    if (needle.startsWith(QLatin1Char('='))) {
+    if (needle.startsWith(QLatin1Char('+'))) {
+        auto text = needle.mid(1).trimmed();
+        QString priority = QStringLiteral("normal");
+        QString due = QStringLiteral("none");
+        bool marker = true;
+        while (marker && !text.isEmpty()) {
+            marker = false;
+            if (text.startsWith(QLatin1Char('!'))) {
+                priority = QStringLiteral("high"); text = text.mid(1).trimmed(); marker = true;
+            }
+            if (text.startsWith(QLatin1Char('^'))) {
+                due = QStringLiteral("today"); text = text.mid(1).trimmed(); marker = true;
+            }
+        }
+        if (text.isEmpty()) return {};
+        return {QVariantMap{{"kind", "desk-capture"}, {"name", text},
+            {"generic", QStringLiteral("NOC Desk · %1 · %2").arg(priority, due)},
+            {"priority", priority}, {"due", due}, {"icon", "view-task-symbolic"}}};
+    } else if (needle.startsWith(QLatin1Char('='))) {
         auto expression = needle.mid(1).trimmed();
         if (expression.isEmpty() || expression.size() > 100
             || !QRegularExpression(QStringLiteral("^[0-9+\\-*/%().\\s^]+$")).match(expression).hasMatch()) return {};
@@ -565,6 +591,53 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
     };
 
     if (mode == QStringLiteral("all") || mode == QStringLiteral("actions")) {
+        const auto lower = needle.toLower();
+        auto addControl = [&result](const QString &id, const QString &name, const QString &value,
+                                   const QString &detail, const QString &icon) {
+            result.push_back(QVariantMap{{"kind", "control-action"}, {"id", id}, {"name", name},
+                {"value", value}, {"generic", detail}, {"icon", icon}});
+        };
+        QRegularExpressionMatch controlMatch;
+        controlMatch = QRegularExpression(QStringLiteral("^(?:volume|vol)\\s+(\\d{1,3})%?$")).match(lower);
+        if (controlMatch.hasMatch() && controlMatch.captured(1).toInt() <= 100)
+            addControl(QStringLiteral("set-volume"), QStringLiteral("Set volume to %1%").arg(controlMatch.captured(1)),
+                controlMatch.captured(1), QStringLiteral("PipeWire master output"), QStringLiteral("audio-volume-high-symbolic"));
+        controlMatch = QRegularExpression(QStringLiteral("^(?:brightness|bright)\\s+(\\d{1,3})%?$")).match(lower);
+        if (controlMatch.hasMatch() && controlMatch.captured(1).toInt() >= 5 && controlMatch.captured(1).toInt() <= 100)
+            addControl(QStringLiteral("set-brightness"), QStringLiteral("Set brightness to %1%").arg(controlMatch.captured(1)),
+                controlMatch.captured(1), QStringLiteral("Hardware backlight"), QStringLiteral("display-brightness-symbolic"));
+        controlMatch = QRegularExpression(QStringLiteral("^focus\\s+(\\d{1,4})(?:m|min)?$")).match(lower);
+        if (controlMatch.hasMatch() && controlMatch.captured(1).toInt() >= 5 && controlMatch.captured(1).toInt() <= 1440)
+            addControl(QStringLiteral("start-focus"), QStringLiteral("Focus for %1 minutes").arg(controlMatch.captured(1)),
+                controlMatch.captured(1), QStringLiteral("Timed notification silence"), QStringLiteral("notifications-disabled-symbolic"));
+        controlMatch = QRegularExpression(QStringLiteral("^timer\\s+(\\d{1,3})\\s*[/ :]\\s*(\\d{1,2})$")).match(lower);
+        if (controlMatch.hasMatch() && controlMatch.captured(1).toInt() >= 1 && controlMatch.captured(1).toInt() <= 180
+            && controlMatch.captured(2).toInt() >= 1 && controlMatch.captured(2).toInt() <= 60)
+            addControl(QStringLiteral("set-timer"), QStringLiteral("Set timer to %1 / %2").arg(controlMatch.captured(1), controlMatch.captured(2)),
+                controlMatch.captured(1) + QLatin1Char(':') + controlMatch.captured(2), QStringLiteral("Focus / recovery minutes"), QStringLiteral("chronometer-symbolic"));
+        controlMatch = QRegularExpression(QStringLiteral("^power\\s+(performance|balanced|saver|power[ -]saver)$")).match(lower);
+        if (controlMatch.hasMatch()) {
+            auto profile = controlMatch.captured(1);
+            if (profile == QStringLiteral("saver") || profile.startsWith(QStringLiteral("power"))) profile = QStringLiteral("power-saver");
+            addControl(QStringLiteral("set-power"), QStringLiteral("Use %1 power").arg(profile), profile,
+                QStringLiteral("Hardware power profile"), QStringLiteral("battery-symbolic"));
+        }
+        controlMatch = QRegularExpression(QStringLiteral("^(wifi|bluetooth)\\s+(on|off)$")).match(lower);
+        if (controlMatch.hasMatch())
+            addControl(QStringLiteral("radio-") + controlMatch.captured(1),
+                QStringLiteral("Turn %1 %2").arg(controlMatch.captured(1), controlMatch.captured(2)), controlMatch.captured(2),
+                QStringLiteral("Hardware radio control"), controlMatch.captured(1) == QStringLiteral("wifi") ? QStringLiteral("network-wireless-symbolic") : QStringLiteral("preferences-system-bluetooth-symbolic"));
+        controlMatch = QRegularExpression(QStringLiteral("^night(?: light)?\\s+(on|off)$")).match(lower);
+        if (controlMatch.hasMatch())
+            addControl(QStringLiteral("night-light"), QStringLiteral("Turn Night Shift %1").arg(controlMatch.captured(1)),
+                controlMatch.captured(1), QStringLiteral("Hyprsunset color temperature"), QStringLiteral("weather-clear-night-symbolic"));
+        controlMatch = QRegularExpression(QStringLiteral("^(mute|unmute)\\s+(audio|mic|microphone)$")).match(lower);
+        if (controlMatch.hasMatch())
+            addControl(QStringLiteral("set-mute-") + controlMatch.captured(2),
+                QStringLiteral("%1 %2").arg(controlMatch.captured(1), controlMatch.captured(2)),
+                controlMatch.captured(1) == QStringLiteral("mute") ? QStringLiteral("1") : QStringLiteral("0"),
+                QStringLiteral("PipeWire mute state"), QStringLiteral("audio-input-microphone-symbolic"));
+
         const QVariantList actions = {
             QVariantMap{{"kind", "action"}, {"id", "settings"}, {"name", "Open Nocturne Settings"},
                 {"generic", "Appearance, displays and system controls"}, {"icon", "preferences-system-symbolic"}},
@@ -594,6 +667,10 @@ QVariantList Backend::launcherResults(const QString &query, const QString &reque
                 {"generic", "Save and restore an application layout"}, {"icon", "document-save-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "automation"}, {"name", "Explain Desktop Changes"},
                 {"generic", "Nocturne Trace context decisions and history"}, {"icon", "view-history-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "desk"}, {"name", "Open NOC Desk"},
+                {"generic", "Tasks, daily focus, quick note and export"}, {"icon", "view-task-symbolic"}},
+            QVariantMap{{"kind", "action"}, {"id", "desk-brief"}, {"name", "Show NOC Desk Daily Brief"},
+                {"generic", "Open, due, overdue and focus-minute summary"}, {"icon", "view-calendar-day-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "privacy"}, {"name", "Privacy Dashboard"},
                 {"generic", "See applications using microphones and cameras"}, {"icon", "security-high-symbolic"}},
             QVariantMap{{"kind", "action"}, {"id", "gaming"}, {"name", "Gaming Dashboard"},
@@ -657,6 +734,45 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
         return launchApplication(result.value(QStringLiteral("path")).toString());
     }
     if (kind == QStringLiteral("calculation")) return copyText(result.value(QStringLiteral("name")).toString());
+    if (kind == QStringLiteral("desk-capture")) {
+        const auto text = result.value(QStringLiteral("name")).toString();
+        if (text.isEmpty() || text.size() > 240) return false;
+        const bool launched = QProcess::startDetached(home() + QStringLiteral("/.config/hypr/scripts/desk"),
+            {QStringLiteral("add"), text, result.value(QStringLiteral("priority"), QStringLiteral("normal")).toString(),
+             result.value(QStringLiteral("due"), QStringLiteral("none")).toString()});
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
+    if (kind == QStringLiteral("control-action")) {
+        const auto id = result.value(QStringLiteral("id")).toString();
+        const auto value = result.value(QStringLiteral("value")).toString();
+        QString program;
+        QStringList arguments;
+        if (id == QStringLiteral("set-volume") && QRegularExpression(QStringLiteral("^(?:[0-9]|[1-9][0-9]|100)$")).match(value).hasMatch()) {
+            program = QStringLiteral("wpctl"); arguments = {QStringLiteral("set-volume"), QStringLiteral("@DEFAULT_AUDIO_SINK@"), value + QLatin1Char('%')};
+        } else if (id == QStringLiteral("set-brightness") && QRegularExpression(QStringLiteral("^(?:[5-9]|[1-9][0-9]|100)$")).match(value).hasMatch()) {
+            program = home() + QStringLiteral("/.config/hypr/scripts/brightness"); arguments = {QStringLiteral("set"), value};
+        } else if (id == QStringLiteral("start-focus") && QRegularExpression(QStringLiteral("^[0-9]{1,4}$")).match(value).hasMatch()) {
+            program = home() + QStringLiteral("/.config/hypr/scripts/focus-mode"); arguments = {QStringLiteral("on"), value};
+        } else if (id == QStringLiteral("set-timer") && QRegularExpression(QStringLiteral("^[0-9]{1,3}:[0-9]{1,2}$")).match(value).hasMatch()) {
+            const auto fields = value.split(QLatin1Char(':'));
+            program = home() + QStringLiteral("/.config/hypr/scripts/pomodoro"); arguments = {QStringLiteral("preset"), fields.value(0), fields.value(1)};
+        } else if (id == QStringLiteral("set-power") && (value == QStringLiteral("performance") || value == QStringLiteral("balanced") || value == QStringLiteral("power-saver"))) {
+            program = home() + QStringLiteral("/.config/hypr/scripts/power-profile"); arguments = {QStringLiteral("set"), value};
+        } else if (id == QStringLiteral("radio-wifi") && (value == QStringLiteral("on") || value == QStringLiteral("off"))) {
+            program = QStringLiteral("nmcli"); arguments = {QStringLiteral("radio"), QStringLiteral("wifi"), value};
+        } else if (id == QStringLiteral("radio-bluetooth") && (value == QStringLiteral("on") || value == QStringLiteral("off"))) {
+            program = QStringLiteral("bluetoothctl"); arguments = {QStringLiteral("power"), value};
+        } else if (id == QStringLiteral("night-light") && (value == QStringLiteral("on") || value == QStringLiteral("off"))) {
+            program = home() + QStringLiteral("/.config/hypr/scripts/night-light"); arguments = {value == QStringLiteral("on") ? QStringLiteral("auto") : QStringLiteral("off")};
+        } else if (id.startsWith(QStringLiteral("set-mute-")) && (value == QStringLiteral("0") || value == QStringLiteral("1"))) {
+            const bool microphone = id.contains(QStringLiteral("mic"));
+            program = QStringLiteral("wpctl"); arguments = {QStringLiteral("set-mute"), microphone ? QStringLiteral("@DEFAULT_AUDIO_SOURCE@") : QStringLiteral("@DEFAULT_AUDIO_SINK@"), value};
+        } else return false;
+        const bool launched = QProcess::startDetached(program, arguments);
+        if (launched) QCoreApplication::quit();
+        return launched;
+    }
     if (kind == QStringLiteral("file")) {
         const bool launched = QProcess::startDetached(QStringLiteral("xdg-open"), {result.value(QStringLiteral("path")).toString()});
         if (launched) QCoreApplication::quit();
@@ -690,6 +806,8 @@ bool Backend::activateLauncherResult(const QVariantMap &result)
     else if (id == QStringLiteral("overview")) command = {home() + QStringLiteral("/.config/hypr/scripts/overview")};
     else if (id == QStringLiteral("scenes")) { dispatch(QStringLiteral("scenes"), {}); return true; }
     else if (id == QStringLiteral("automation")) { dispatch(QStringLiteral("automation"), {}); return true; }
+    else if (id == QStringLiteral("desk")) { dispatch(QStringLiteral("desk"), {}); return true; }
+    else if (id == QStringLiteral("desk-brief")) command = {home() + QStringLiteral("/.config/hypr/scripts/desk"), QStringLiteral("brief")};
     else if (id == QStringLiteral("privacy")) { dispatch(QStringLiteral("privacy"), {}); return true; }
     else if (id == QStringLiteral("gaming")) { dispatch(QStringLiteral("gaming"), {}); return true; }
     else return false;

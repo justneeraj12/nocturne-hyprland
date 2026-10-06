@@ -50,6 +50,8 @@ Rectangle {
         if (kind === "action") return "ACTION"
         if (kind === "file") return "FILE"
         if (kind === "calculation") return "COPY RESULT"
+        if (kind === "desk-capture") return "ADD TO DESK"
+        if (kind === "control-action") return "CONTROL"
         return "APP"
     }
 
@@ -73,7 +75,7 @@ Rectangle {
             id: search
             Layout.fillWidth: true
             implicitHeight: 42
-            placeholderText: "Search…   @ windows   > actions   ~ files   = calculate"
+            placeholderText: "Search…   @ windows   > actions   ~ files   = calculate   + task"
             color: backend.textColor
             placeholderTextColor: backend.mutedColor
             font.family: "monospace"

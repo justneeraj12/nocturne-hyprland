@@ -134,6 +134,16 @@ ApplicationWindow {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 2
             BarButton {
+                visible: root.moduleEnabled("desk") && (root.fullBar || (shell.desk.open || 0) > 0)
+                text: shell.desk.text || "󰄲"
+                tooltip: shell.desk.tooltip || "NOC Desk"
+                selected: (shell.desk.overdue || 0) > 0 || shell.desk.focus !== null
+                selectedColor: (shell.desk.overdue || 0) > 0 ? "#c75c66" : backend.accent2Color
+                onLeftClicked: root.nativeCard("desk", "")
+                onMiddleClicked: root.run([backend.home + "/.config/hypr/scripts/desk", "brief"])
+                onRightClicked: root.run([backend.home + "/.config/hypr/scripts/desk", "undo"])
+            }
+            BarButton {
                 visible: root.standardBar && root.moduleEnabled("pomodoro")
                 text: shell.pomodoro.text || "󰔟"
                 tooltip: "Focus timer"

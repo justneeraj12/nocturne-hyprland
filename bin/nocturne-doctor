@@ -104,6 +104,23 @@ fi
 [[ -x $HOME/.config/hypr/scripts/efficiency-control ]] \
   && ok 'On-demand efficiency telemetry is installed' \
   || warning 'Efficiency telemetry helper is missing'
+desk_state=$($HOME/.config/hypr/scripts/desk status 2>/dev/null || true)
+if jq -e '.format == "nocturne-desk-status-v1" and (.open|type == "number")' <<<"$desk_state" >/dev/null 2>&1; then
+  ok 'NOC Desk local data is valid'
+else
+  warning 'NOC Desk data could not be validated'
+fi
+desk_file=${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne/desk.json
+if [[ -e $desk_file && $(stat -c %a "$desk_file" 2>/dev/null) != 600 ]]; then
+  warning 'NOC Desk data permissions are broader than 0600'
+else
+  ok 'NOC Desk content is private to the current user'
+fi
+if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /\/hypr\/scripts\/desk (status|list|brief)/ {found=1} END {exit !found}'; then
+  warning 'NOC Desk helper is unexpectedly persistent'
+else
+  ok 'NOC Desk has zero persistent processes'
+fi
 
 for legacy in waybar swaync wofi nm-applet blueman-applet; do
   if pgrep -x "$legacy" >/dev/null 2>&1; then warning "Legacy shell process is running: $legacy"; else ok "Legacy shell process is absent: $legacy"; fi

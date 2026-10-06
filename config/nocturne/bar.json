@@ -5,6 +5,7 @@
   "separators": true,
   "trayCount": true,
   "modules": {
+    "desk": true,
     "pomodoro": true,
     "media": true,
     "caffeine": true,

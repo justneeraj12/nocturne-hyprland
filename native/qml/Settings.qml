@@ -27,7 +27,7 @@ ApplicationWindow {
         {key:"sound", label:"Sound & displays", group:"DEVICES", icon:"audio-volume-high", glyph:"♪", keywords:"audio volume mixer brightness monitor night shift"},
         {key:"input", label:"Input & defaults", group:"DEVICES", icon:"input-keyboard", glyph:"⌨", keywords:"keyboard mouse touchpad default apps time timezone"},
         {key:"system", label:"System & accounts", group:"SYSTEM", icon:"computer", glyph:"▣", keywords:"google account hardware integration portal phone"},
-        {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"pomodoro screenshot recorder shortcuts"},
+        {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"tasks focus notes pomodoro screenshot recorder shortcuts"},
         {key:"automation", label:"Scenes & automation", group:"SYSTEM", icon:"view-calendar-timeline", glyph:"◎", keywords:"workspace scenes context dock automation"},
         {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
         {key:"efficiency", label:"Efficiency", group:"SYSTEM", icon:"utilities-system-monitor", glyph:"≋", keywords:"memory ram cpu startup resources optimize cleanup performance"},
@@ -131,6 +131,7 @@ ApplicationWindow {
         pageDescription: "Focused tools for work, capture and keyboard-first navigation."
         actions: [
             {icon:"chronometer",glyph:"◷",label:"Focus timer",detail:"Pomodoro presets, pause, skip and cycle progress.",button:"OPEN",surface:"pomodoro"},
+            {icon:"view-task",glyph:"󰄱",label:"NOC Desk",detail:"Local task inbox, daily focus, quick note, undo and Markdown export.",button:"OPEN",surface:"desk"},
             {icon:"spectacle",glyph:"⌗",label:"Screenshot",detail:"Capture an area with Hyprshot and copy it to the clipboard.",button:"CAPTURE",command:"screenshot"},
             {icon:"media-record",glyph:"●",label:"Screen recorder",detail:"Record an area or display with desktop and microphone audio.",button:"OPEN",command:"recorder"},
             {icon:"input-keyboard",glyph:"⌨",label:"Shortcut guide",detail:"Open the complete keyboard and mouse reference.",button:"SHOW",command:"keys"}
@@ -168,7 +169,7 @@ ApplicationWindow {
     } }
     Component { id: setupPage; SetupSettingsPage { active: true } }
     Component { id: aboutPage; SettingsActionsPage {
-        pageEyebrow: "NOCTURNE 0.8.0"; pageTitle: "About"
+        pageEyebrow: "NOCTURNE 0.9.0"; pageTitle: "About"
         pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
         pageBadge: "OPEN SOURCE"
         actions: [
