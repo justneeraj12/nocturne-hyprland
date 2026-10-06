@@ -9,6 +9,8 @@ Button {
     property string label: ""
     property bool selected: false
     property bool expanded: true
+    Accessible.name: label
+    Accessible.description: selected ? "Current settings section" : "Open settings section"
 
     implicitHeight: 38
     leftPadding: 10

@@ -52,6 +52,7 @@ Rectangle {
         }
         NocturneSlider {
             id: slider
+            accessibleName: "Display brightness"
             Layout.fillWidth: true
             from: 5; to: 100; value: root.brightness
             onMoved: root.queueBrightness(value)

@@ -15,8 +15,10 @@ ApplicationWindow {
     color: backend.baseColor
 
     property bool navExpanded: width >= 920
+    property bool initialized: false
     property int section: 0
     property var filteredNavigation: []
+    readonly property string statePath: backend.home + "/.config/nocturne/settings-last-page"
     readonly property var navigation: [
         {key:"overview", label:"Overview", group:"HOME", icon:"go-home", glyph:"⌂", keywords:"status health dashboard machine"},
         {key:"appearance", label:"Appearance", group:"HOME", icon:"preferences-desktop-theme", glyph:"◈", keywords:"wallpaper theme color accent day cycle"},
@@ -63,15 +65,33 @@ ApplicationWindow {
         var requested = backend.page || ""
         if (requested) section = indexForKey(requested)
     }
+    function restoreSection() {
+        var requested = backend.page || ""
+        if (requested) section = indexForKey(requested)
+        else {
+            var saved = backend.readText(root.statePath).trim()
+            if (saved) section = indexForKey(saved)
+        }
+        initialized = true
+    }
     Connections { target: backend; function onPageChanged() { root.applyBackendPage() } }
     Timer { id: navRevealTimer; interval: 100; onTriggered: root.revealSelectedSection() }
-    Component.onCompleted: { applyBackendPage(); navRevealTimer.restart() }
-    onSectionChanged: navRevealTimer.restart()
+    Component.onCompleted: { restoreSection(); navRevealTimer.restart() }
+    onSectionChanged: {
+        navRevealTimer.restart()
+        if (initialized && section >= 0 && section < navigation.length)
+            backend.writeText(statePath, navigation[section].key + "\n")
+    }
 
     Shortcut { sequence: "Ctrl+K"; onActivated: search.forceActiveFocus() }
     Shortcut { sequence: "Ctrl+F"; onActivated: search.forceActiveFocus() }
     Shortcut { sequence: "Alt+Down"; onActivated: root.section = (root.section + 1) % root.navigation.length }
     Shortcut { sequence: "Alt+Up"; onActivated: root.section = (root.section + root.navigation.length - 1) % root.navigation.length }
+    Shortcut { sequence: "Alt+Right"; onActivated: root.section = (root.section + 1) % root.navigation.length }
+    Shortcut { sequence: "Alt+Left"; onActivated: root.section = (root.section + root.navigation.length - 1) % root.navigation.length }
+    Shortcut { sequence: "Ctrl+Home"; onActivated: root.section = 0 }
+    Shortcut { sequence: "Ctrl+End"; onActivated: root.section = root.navigation.length - 1 }
+    Shortcut { sequence: "Ctrl+B"; onActivated: root.navExpanded = !root.navExpanded }
     Shortcut { sequence: "Ctrl+0"; onActivated: root.selectSection("overview") }
     Shortcut { sequence: "Escape"; onActivated: { if (search.text !== "") search.clear(); else root.close() } }
 
@@ -120,12 +140,19 @@ ApplicationWindow {
                     placeholderText: "Search settings   Ctrl+K"
                     color: backend.textColor; placeholderTextColor: backend.mutedColor
                     font.family: "Inter"; font.pixelSize: 10
-                    leftPadding: 34; rightPadding: 10
+                    leftPadding: 34; rightPadding: search.text === "" ? 10 : 34
                     onTextChanged: root.refreshSearch()
                     background: Rectangle {
                         color: backend.baseColor
                         border.color: search.activeFocus ? backend.accentColor : backend.lineColor
                         Text { anchors.left: parent.left; anchors.leftMargin: 11; anchors.verticalCenter: parent.verticalCenter; text: "⌕"; color: backend.mutedColor; font.family: "MesloLGS Nerd Font Mono"; font.pixelSize: 14 }
+                    }
+                    Text {
+                        visible: search.text !== ""
+                        anchors.right: parent.right; anchors.rightMargin: 11; anchors.verticalCenter: parent.verticalCenter
+                        text: "×"; color: clearSearch.containsMouse ? backend.accentColor : backend.mutedColor
+                        font.family: "Inter"; font.pixelSize: 14
+                        MouseArea { id: clearSearch; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { search.clear(); search.forceActiveFocus() } }
                     }
                 }
                 Rectangle {
@@ -196,6 +223,7 @@ ApplicationWindow {
                     Layout.fillWidth: true; Layout.leftMargin: 8; Layout.rightMargin: 8
                     implicitHeight: 38; hoverEnabled: true
                     onClicked: root.navExpanded = !root.navExpanded
+                    Accessible.name: root.navExpanded ? "Collapse settings sidebar" : "Expand settings sidebar"
                     contentItem: RowLayout {
                         spacing: 11
                         Text { Layout.preferredWidth: 18; text: root.navExpanded ? "‹" : "›"; color: backend.accentColor; font.family: "Inter"; font.pixelSize: 20; horizontalAlignment: Text.AlignHCenter }
@@ -231,6 +259,7 @@ ApplicationWindow {
                     actions: [
                         {icon:"audio-volume-high",glyph:"♪",label:"Output & app mixer",detail:"Master volume, device routing and every active audio stream.",button:"OPEN",surface:"audio"},
                         {icon:"display-brightness",glyph:"☼",label:"Brightness & night shift",detail:"Backlight control plus scheduled native color temperature.",button:"OPEN",surface:"brightness"},
+                        {icon:"camera-web",glyph:"󰄀",label:"Camera quality",detail:"Zero-idle hardware exposure, white balance, anti-flicker and low-light profiles.",button:"TUNE",surface:"camera"},
                         {icon:"video-display",glyph:"▣",label:"Display layout",detail:"Scale, rotate, mirror, extend and save connected monitors.",button:"OPEN",surface:"display"}
                     ]
                 }
@@ -277,11 +306,12 @@ ApplicationWindow {
                 }
                 SetupSettingsPage { active: root.section === 12 }
                 SettingsActionsPage {
-                    pageEyebrow: "NOCTURNE 0.6.1"; pageTitle: "About"
+                    pageEyebrow: "NOCTURNE 0.7.0"; pageTitle: "About"
                     pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
                     pageBadge: "OPEN SOURCE"
                     actions: [
                         {icon:"dialog-ok",glyph:"✓",label:"System check",detail:"Run the complete read-only Nocturne diagnostics.",button:"RUN",command:"doctor"},
+                        {icon:"document-send",glyph:"⇧",label:"Private support report",detail:"Generate a small diagnostics archive without configs, logs, SSIDs, clipboard or personal files.",button:"CREATE",command:"support"},
                         {icon:"applications-development",glyph:"<>",label:"Source & documentation",detail:"Configuration, native shell, installer and validation pipeline.",button:"GITHUB",command:"source"}
                     ]
                 }

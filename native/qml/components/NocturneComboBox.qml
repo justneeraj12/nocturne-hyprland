@@ -3,11 +3,13 @@ import QtQuick.Controls
 
 ComboBox {
     id: control
+    property string accessibleName: "Choose an option"
     implicitHeight: 34
     leftPadding: 10
     rightPadding: 28
     font.family: "Inter"
     font.pixelSize: 9
+    Accessible.name: accessibleName
 
     contentItem: Text {
         leftPadding: control.leftPadding

@@ -11,6 +11,9 @@ Button {
     font.family: "Inter"
     font.pixelSize: 11
     font.bold: selected
+    hoverEnabled: true
+    Accessible.name: text
+    Accessible.description: danger ? "Destructive action" : ""
     contentItem: Text {
         text: control.text
         color: control.danger ? "#ff8c96" : (control.selected ? backend.baseColor : backend.textColor)

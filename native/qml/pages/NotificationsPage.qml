@@ -33,6 +33,13 @@ Rectangle {
         refresh()
     }
     function navigate(delta) { if (shownItems.length > 0) currentIndex = (currentIndex + delta + shownItems.length) % shownItems.length }
+    function first() { if (shownItems.length) currentIndex = 0 }
+    function last() { if (shownItems.length) currentIndex = shownItems.length - 1 }
+    function page(delta) {
+        if (!shownItems.length) return
+        currentIndex = Math.max(0, Math.min(shownItems.length - 1, currentIndex + delta * 5))
+    }
+    function clearQuery() { query = ""; notificationSearch.clear(); notificationSearch.forceActiveFocus() }
     function activateCurrent() {
         if (currentIndex < 0 || currentIndex >= shownItems.length) return
         var item = shownItems[currentIndex]
@@ -59,10 +66,21 @@ Rectangle {
         }
 
         TextField {
+            id: notificationSearch
             Layout.fillWidth: true; implicitHeight: 30; placeholderText: "Filter apps and messages"; text: root.query
             color: backend.textColor; placeholderTextColor: backend.mutedColor; font.family: "Inter"; font.pixelSize: 9
             onTextChanged: { root.query = text; root.currentIndex = 0 }
             background: Rectangle { color: backend.surfaceColor; border.color: parent.activeFocus ? backend.accentColor : backend.lineColor }
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Down) { root.navigate(1); event.accepted = true }
+                else if (event.key === Qt.Key_Up) { root.navigate(-1); event.accepted = true }
+                else if (event.key === Qt.Key_PageDown) { root.page(1); event.accepted = true }
+                else if (event.key === Qt.Key_PageUp) { root.page(-1); event.accepted = true }
+                else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_Home) { root.first(); event.accepted = true }
+                else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_End) { root.last(); event.accepted = true }
+                else if (event.key === Qt.Key_Escape && text !== "") { root.clearQuery(); event.accepted = true }
+            }
+            Component.onCompleted: forceActiveFocus()
         }
 
         RowLayout {
@@ -75,7 +93,7 @@ Rectangle {
                 font.family: "Inter"; font.pixelSize: 9; font.bold: true
             }
             NocturneButton { text: "30M"; selected: root.focusState.active && root.focusState.remaining > 0 && root.focusState.remaining <= 30; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "on", "30"], 1500); root.refresh() } }
-            NocturneButton { text: "1H"; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "on", "60"], 1500); root.refresh() } }
+            NocturneButton { text: "1H"; selected: root.focusState.active && root.focusState.remaining > 30 && root.focusState.remaining <= 60; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "on", "60"], 1500); root.refresh() } }
             NocturneButton { text: "MORNING"; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "morning"], 1500); root.refresh() } }
             NocturneButton { visible: root.dnd; text: "OFF"; danger: true; onClicked: { backend.run([backend.home + "/.config/hypr/scripts/focus-mode", "off"], 1200); root.refresh() } }
         }
@@ -113,7 +131,7 @@ Rectangle {
                     visible: root.shownItems.length === 0
                     Text {
                         anchors.centerIn: parent
-                        text: root.tab === "current" ? "NO NEW NOTIFICATIONS" : "HISTORY IS EMPTY"
+                        text: root.query !== "" ? "NO NOTIFICATION MATCHES THIS FILTER" : (root.tab === "current" ? "NO NEW NOTIFICATIONS" : "HISTORY IS EMPTY")
                         color: backend.mutedColor
                         font.family: "monospace"
                         font.pixelSize: 10
@@ -245,7 +263,7 @@ Rectangle {
             Layout.fillWidth: true
             Text {
                 Layout.fillWidth: true
-                text: root.tab === "current" ? "Dismissed alerts move to history" : "Mako keeps recent dismissed alerts"
+                text: root.query !== "" ? root.shownItems.length + " matching alert" + (root.shownItems.length === 1 ? "" : "s") : (root.tab === "current" ? "Dismissed alerts move to history" : "Mako keeps recent dismissed alerts")
                 color: backend.mutedColor
                 font.family: "Inter"
                 font.pixelSize: 8
@@ -266,5 +284,7 @@ Rectangle {
     }
 
     Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
+    Shortcut { sequence: "Ctrl+F"; onActivated: { notificationSearch.forceActiveFocus(); notificationSearch.selectAll() } }
+    onShownItemsChanged: currentIndex = Math.max(0, Math.min(currentIndex, shownItems.length - 1))
     Component.onCompleted: refresh()
 }

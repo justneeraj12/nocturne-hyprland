@@ -1,15 +1,41 @@
 #!/usr/bin/env bash
 set -u
 
+mode=human
+case ${1:-} in
+  '') ;;
+  --json) mode=json ;;
+  --summary) mode=summary ;;
+  -h|--help)
+    printf 'Usage: nocturne-doctor [--json|--summary]\n'
+    exit 0
+    ;;
+  *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
+esac
+
 pass=0
 warn=0
 fail=0
-ok() { printf '[ OK ] %s\n' "$1"; pass=$((pass + 1)); }
-warning() { printf '[WARN] %s\n' "$1"; warn=$((warn + 1)); }
-bad() { printf '[FAIL] %s\n' "$1"; fail=$((fail + 1)); }
+records=$(mktemp)
+trap 'rm -f -- "$records"' EXIT
+record() {
+  jq -cn --arg status "$1" --arg message "$2" '{status:$status,message:$message}' >> "$records"
+  if [[ $mode == human ]]; then
+    case $1 in
+      OK) printf '[ OK ] %s\n' "$2" ;;
+      WARN) printf '[WARN] %s\n' "$2" ;;
+      FAIL) printf '[FAIL] %s\n' "$2" ;;
+    esac
+  fi
+}
+ok() { record OK "$1"; pass=$((pass + 1)); }
+warning() { record WARN "$1"; warn=$((warn + 1)); }
+bad() { record FAIL "$1"; fail=$((fail + 1)); }
 
-printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
-printf '%s\n\n' '────────────────────────────────────────'
+if [[ $mode == human ]]; then
+  printf 'NOCTURNE // READ-ONLY NATIVE HEALTH CHECK\n'
+  printf '%s\n\n' '────────────────────────────────────────'
+fi
 
 required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qpdfview qalculate-qt convert upower)
 missing=()
@@ -158,6 +184,14 @@ systemctl --user is-active --quiet nocturne-context.timer \
   && ok 'Dock/power context checks are scheduled' || warning 'Dock/power context checks are not scheduled'
 if pgrep -f '/context-engine (refresh|status)' >/dev/null 2>&1; then warning 'Context helper is unexpectedly persistent'; else ok 'Context automation has zero persistent processes'; fi
 brightnessctl -m >/dev/null 2>&1 && ok 'Hardware backlight responds' || warning 'No controllable backlight was found'
+if command -v v4l2-ctl >/dev/null 2>&1; then
+  camera_state=$($HOME/.config/hypr/scripts/camera-control status 2>/dev/null || true)
+  jq -e '.available == true' >/dev/null 2>&1 <<<"$camera_state" \
+    && ok 'Camera sensor controls are available' \
+    || warning 'Camera controls are installed but no sensor is available'
+else
+  warning 'Install v4l-utils to enable Nocturne camera profiles'
+fi
 profile=$(powerprofilesctl get 2>/dev/null || true)
 [[ -n $profile ]] && ok "Power profile: $profile" || warning 'Power profile service is unavailable'
 
@@ -206,6 +240,14 @@ for file in \
   [[ -r $file ]] && ok "Readable config: ${file#$HOME/}" || bad "Missing config: ${file#$HOME/}"
 done
 
-printf '\n────────────────────────────────────────\n'
-printf 'RESULT  %d passed · %d warnings · %d failed\n' "$pass" "$warn" "$fail"
+if [[ $mode == json ]]; then
+  jq -s --argjson passed "$pass" --argjson warnings "$warn" --argjson failed "$fail" \
+    '{format:"nocturne-doctor-v1",ready:($failed == 0),summary:{passed:$passed,warnings:$warnings,failed:$failed},checks:.}' \
+    "$records"
+elif [[ $mode == summary ]]; then
+  printf 'NOCTURNE  %d passed · %d warnings · %d failed\n' "$pass" "$warn" "$fail"
+else
+  printf '\n────────────────────────────────────────\n'
+  printf 'RESULT  %d passed · %d warnings · %d failed\n' "$pass" "$warn" "$fail"
+fi
 ((fail == 0))

@@ -41,6 +41,8 @@ Rectangle {
             spacing: 8
             NocturneButton {
                 text: root.masterMuted ? "MUTED" : "VOL"
+                selected: root.masterMuted
+                danger: root.masterMuted
                 onClicked: { backend.run(["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]); root.refresh() }
             }
             ColumnLayout {
@@ -61,6 +63,7 @@ Rectangle {
         }
         NocturneSlider {
             id: master
+            accessibleName: "Master output volume"
             Layout.fillWidth: true
             from: 0; to: 150; value: root.masterVolume
             onMoved: backend.run(["wpctl", "set-volume", "--limit", "1.5", "@DEFAULT_AUDIO_SINK@", Math.round(value) + "%"])
@@ -91,7 +94,7 @@ Rectangle {
                 }
             }
         }
-        SectionLabel { text: "APPLICATIONS · " + root.streams.length + " PLAYING" }
+        SectionLabel { text: "APPLICATIONS · " + root.streams.length + " ACTIVE" }
         Text {
             visible: root.streams.length === 0
             text: "No active audio streams · start playback to add an app"
@@ -120,12 +123,15 @@ Rectangle {
                         }
                         NocturneButton {
                             text: modelData.muted ? "MUTED" : "VOL"
+                            selected: Boolean(modelData.muted)
+                            danger: Boolean(modelData.muted)
                             onClicked: { backend.run(["wpctl", "set-mute", String(modelData.id), "toggle"]); root.refresh() }
                         }
                         Text { text: modelData.volume + "%"; color: backend.mutedColor; font.family: "monospace" }
                     }
                     NocturneSlider {
                         Layout.fillWidth: true
+                        accessibleName: (modelData.name || "Application") + " volume"
                         from: 0; to: 150; value: modelData.volume
                         onPressedChanged: root.streamDragging = pressed
                         onMoved: backend.run(["wpctl", "set-volume", "--limit", "1.5", String(modelData.id), Math.round(value) + "%"])

@@ -76,6 +76,30 @@ Run `brightnessctl -m`. If it reports no device, the kernel is not exposing a
 supported backlight. If it reports the right percentage, close and reopen the
 card and include `nocturne-doctor` output in a bug report.
 
+## Camera quality controls are unavailable or busy
+
+Run the read-only status command first:
+
+```bash
+~/.config/hypr/scripts/camera-control status | jq
+```
+
+Install `v4l-utils` if `controller` is false. If `busy` is true, close the
+listed meeting or browser camera session before applying a profile; Nocturne
+will not steal the device from an active call. A profile can adjust only the
+controls that the webcam advertises, so unsupported focus, backlight or
+low-light switches are skipped safely.
+
+For the current sensor modes and frame rates:
+
+```bash
+v4l2-ctl --device /dev/video0 --list-formats-ext
+```
+
+Nocturne does not install an always-running virtual camera or AI enhancement
+pipeline. That keeps idle memory and GPU use at zero and avoids adding latency
+to Meet, Discord and other PipeWire clients.
+
 ## Hyprlock rejects every password
 
 Check that `/etc/pam.d/hyprlock` exists and that `hyprpolkitagent` is running.

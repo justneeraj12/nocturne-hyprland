@@ -3,9 +3,11 @@ import QtQuick.Controls
 
 Slider {
     id: control
+    property string accessibleName: "Value"
     from: 0
     to: 100
     implicitHeight: 24
+    Accessible.name: accessibleName
     background: Rectangle {
         x: control.leftPadding
         y: control.topPadding + control.availableHeight / 2 - height / 2

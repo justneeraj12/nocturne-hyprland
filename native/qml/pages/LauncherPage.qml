@@ -22,6 +22,15 @@ Rectangle {
         results = backend.launcherResults(search.text, mode)
         entries.currentIndex = results.length > 0 ? 0 : -1
     }
+    function navigate(delta) {
+        if (results.length === 0) return
+        entries.currentIndex = Math.max(0, Math.min(results.length - 1, entries.currentIndex + delta))
+        entries.positionViewAtIndex(entries.currentIndex, ListView.Contain)
+    }
+    function first() { if (results.length) { entries.currentIndex = 0; entries.positionViewAtBeginning() } }
+    function last() { if (results.length) { entries.currentIndex = results.length - 1; entries.positionViewAtEnd() } }
+    function page(delta) { navigate(delta * 6) }
+    function clearQuery() { search.clear(); search.forceActiveFocus() }
     function setMode(nextMode) {
         mode = nextMode
         refresh()
@@ -53,7 +62,7 @@ Rectangle {
             Layout.fillWidth: true
             PanelHeader { Layout.fillWidth: true; title: "Command Center"; subtitle: "Apps, windows, files, calculator and desktop actions" }
             Text {
-                text: root.results.length + " RESULTS"
+                text: root.results.length + (root.results.length === 1 ? " RESULT" : " RESULTS")
                 color: backend.mutedColor
                 font.family: "monospace"
                 font.pixelSize: 9
@@ -70,7 +79,7 @@ Rectangle {
             font.family: "monospace"
             font.pixelSize: 13
             leftPadding: 13
-            rightPadding: 13
+            rightPadding: text === "" ? 13 : 38
             selectByMouse: true
             background: Rectangle {
                 color: backend.surfaceColor
@@ -80,13 +89,21 @@ Rectangle {
             onTextChanged: root.refresh()
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_Down) {
-                    entries.currentIndex = Math.min(entries.count - 1, entries.currentIndex + 1)
-                    entries.positionViewAtIndex(entries.currentIndex, ListView.Contain)
+                    root.navigate(1)
                     event.accepted = true
                 } else if (event.key === Qt.Key_Up) {
-                    entries.currentIndex = Math.max(0, entries.currentIndex - 1)
-                    entries.positionViewAtIndex(entries.currentIndex, ListView.Contain)
+                    root.navigate(-1)
                     event.accepted = true
+                } else if (event.key === Qt.Key_PageDown) {
+                    root.page(1); event.accepted = true
+                } else if (event.key === Qt.Key_PageUp) {
+                    root.page(-1); event.accepted = true
+                } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_Home) {
+                    root.first(); event.accepted = true
+                } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_End) {
+                    root.last(); event.accepted = true
+                } else if ((event.modifiers & Qt.ControlModifier) && event.key === Qt.Key_L) {
+                    search.selectAll(); event.accepted = true
                 } else if (event.key === Qt.Key_Tab) {
                     root.cycleMode()
                     event.accepted = true
@@ -98,9 +115,16 @@ Rectangle {
                     if (quickIndex < root.results.length) backend.activateLauncherResult(root.results[quickIndex])
                     event.accepted = true
                 } else if (event.key === Qt.Key_Escape) {
-                    backend.close()
+                    if (search.text !== "") root.clearQuery(); else backend.close()
                     event.accepted = true
                 }
+            }
+            Text {
+                visible: search.text !== ""
+                anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter
+                text: "×"; color: clearMouse.containsMouse ? backend.accentColor : backend.mutedColor
+                font.family: "Inter"; font.pixelSize: 16
+                MouseArea { id: clearMouse; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.clearQuery() }
             }
             Component.onCompleted: forceActiveFocus()
         }
@@ -129,6 +153,12 @@ Rectangle {
             spacing: 3
             currentIndex: count > 0 ? 0 : -1
             highlightMoveDuration: 70
+            Text {
+                anchors.centerIn: parent
+                visible: root.results.length === 0
+                text: search.text === "" ? "NO ITEMS IN THIS FILTER" : "NO MATCHES · TRY A SHORTER QUERY"
+                color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 10; font.letterSpacing: 0.7
+            }
             delegate: Rectangle {
                 required property var modelData
                 required property int index
@@ -193,6 +223,8 @@ Rectangle {
                         font.bold: true
                     }
                     NocturneButton {
+                        id: favoriteButton
+                        z: 2
                         visible: modelData.kind === "application"
                         text: modelData.favorite ? "★" : "☆"
                         selected: Boolean(modelData.favorite)
@@ -201,7 +233,9 @@ Rectangle {
                 }
                 MouseArea {
                     anchors.fill: parent
+                    anchors.rightMargin: modelData.kind === "application" ? favoriteButton.width + 18 : 0
                     hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
                     onEntered: entries.currentIndex = index
                     onClicked: backend.activateLauncherResult(modelData)
                 }
@@ -211,7 +245,7 @@ Rectangle {
 
         Text {
             Layout.fillWidth: true
-            text: "TAB FILTER   ↑↓ NAVIGATE   ALT+1…9 QUICK OPEN   ↵ OPEN   ESC CLOSE"
+            text: "TAB FILTER   ↑↓/PG NAVIGATE   ALT+1…9 OPEN   CTRL+L SEARCH   ESC CLEAR/CLOSE"
             color: backend.mutedColor
             horizontalAlignment: Text.AlignHCenter
             font.family: "monospace"

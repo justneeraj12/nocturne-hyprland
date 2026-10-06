@@ -25,4 +25,8 @@ jq -e '.format == "nocturne-context-v2" and .contexts.docked == "desk" and .prof
   "$XDG_CONFIG_HOME/nocturne/context.json" >/dev/null
 
 "$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 5' >/dev/null
+NOCTURNE_CAMERA_DEVICE="$test_root/missing-camera" \
+  "$root/config/hypr/scripts/camera-control" status \
+  | jq -e '.available == false and .idleCost == "0 processes · hardware controls persist in sensor"' >/dev/null
+"$root/bin/nocturne-doctor" --help | grep -Fq -- '--json'
 printf 'NOCTURNE // shell interaction contracts passed\n'

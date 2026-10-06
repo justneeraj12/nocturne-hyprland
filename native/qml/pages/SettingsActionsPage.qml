@@ -27,6 +27,8 @@ Rectangle {
             backend.start([backend.home + "/.config/hypr/scripts/lock-screen"])
         } else if (item.command === "doctor") {
             backend.start(["kitty", "--class", "nocturne-doctor", "-e", backend.home + "/.local/bin/nocturne-doctor"])
+        } else if (item.command === "support") {
+            backend.start([backend.home + "/.local/bin/nocturne-support"])
         } else if (item.command === "source") {
             backend.start(["xdg-open", "https://github.com/justneeraj12/nocturne-hyprland"])
         }

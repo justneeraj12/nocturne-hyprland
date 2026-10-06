@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(nocturne-native VERSION 0.6.1 LANGUAGES CXX)
+project(nocturne-native VERSION 0.7.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -32,6 +32,7 @@ qt_add_qml_module(nocturne-native
         qml/components/NocturneComboBox.qml
         qml/pages/AudioPage.qml
         qml/pages/BrightnessPage.qml
+        qml/pages/CameraPage.qml
         qml/pages/CalendarPage.qml
         qml/pages/WorldPage.qml
         qml/pages/ConnectivityPage.qml

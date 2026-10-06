@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_file="$config_home/nocturne/camera-profile"
+device=${NOCTURNE_CAMERA_DEVICE:-/dev/video0}
+control_list=''
+
+camera_name() {
+  local node=${device##*/}
+  [[ -r /sys/class/video4linux/$node/name ]] && tr -d '\n' < "/sys/class/video4linux/$node/name" || printf 'Camera'
+}
+
+holder_pid() { { fuser "$device" 2>/dev/null || true; } | awk '{print $1}' | head -n 1; }
+holder_name() {
+  local pid
+  pid=$(holder_pid)
+  [[ $pid =~ ^[0-9]+$ ]] && ps -p "$pid" -o comm= 2>/dev/null | sed -n '1p' || true
+}
+
+status() {
+  local available=false controller=false busy=false pid='' holder='' profile='default' format='1280×720 MJPEG · 30 FPS target'
+  [[ -c $device ]] && available=true
+  command -v v4l2-ctl >/dev/null 2>&1 && controller=true
+  pid=$(holder_pid)
+  holder=$(holder_name)
+  [[ -n $pid ]] && busy=true
+  [[ -r $state_file ]] && read -r profile < "$state_file"
+  jq -cn --argjson available "$available" --argjson controller "$controller" --argjson busy "$busy" \
+    --arg device "$device" --arg name "$(camera_name)" --arg pid "$pid" --arg holder "$holder" \
+    --arg profile "$profile" --arg format "$format" \
+    '{available:$available,controller:$controller,busy:$busy,device:$device,name:$name,pid:$pid,holder:$holder,profile:$profile,format:$format,idleCost:"0 processes · hardware controls persist in sensor"}'
+}
+
+controls() { v4l2-ctl --device "$device" --list-ctrls-menus 2>/dev/null || true; }
+supported() { grep -Eq "^[[:space:]]*$1[[:space:]]" <<< "$control_list"; }
+set_control() {
+  local name=$1 value=$2
+  supported "$name" || return 0
+  v4l2-ctl --device "$device" --set-ctrl "$name=$value" >/dev/null
+}
+
+line_frequency() {
+  local zone
+  zone=$(timedatectl show -p Timezone --value 2>/dev/null || true)
+  case $zone in America/*|Canada/*|Mexico/*|Asia/Seoul|Asia/Taipei) printf 2 ;; *) printf 1 ;; esac
+}
+
+automatic_controls() {
+  set_control exposure_auto 3
+  set_control auto_exposure 3
+  set_control white_balance_temperature_auto 1
+  set_control white_balance_automatic 1
+  set_control focus_auto 1
+  set_control focus_automatic_continuous 1
+  # Preserve smooth cadence by default. LOW LIGHT opts back into the sensor's
+  # dynamic frame-rate tradeoff below when that control exists.
+  set_control exposure_dynamic_framerate 0
+  set_control power_line_frequency "$(line_frequency)"
+}
+
+apply_profile() {
+  local profile=${1:-smart} pid
+  [[ -c $device ]] || { jq -cn '{ready:false,error:"camera-unavailable"}'; return 1; }
+  command -v v4l2-ctl >/dev/null 2>&1 || { jq -cn '{ready:false,error:"v4l-utils-missing"}'; return 1; }
+  pid=$(holder_pid)
+  [[ -z $pid ]] || { jq -cn --arg holder "$(holder_name)" --arg pid "$pid" '{ready:false,error:"camera-busy",holder:$holder,pid:$pid}'; return 1; }
+  control_list=$(controls)
+  automatic_controls
+  case $profile in
+    smart)
+      set_control backlight_compensation 1
+      ;;
+    natural)
+      set_control backlight_compensation 0
+      ;;
+    low-light)
+      set_control backlight_compensation 1
+      set_control exposure_dynamic_framerate 1
+      ;;
+    *) jq -cn --arg profile "$profile" '{ready:false,error:"unknown-profile",profile:$profile}'; return 2 ;;
+  esac
+  v4l2-ctl --device "$device" --set-parm 30 >/dev/null 2>&1 || true
+  mkdir -p -- "$(dirname -- "$state_file")"
+  printf '%s\n' "$profile" > "$state_file"
+  notify-send -a Nocturne 'Camera profile applied' "${profile^^} · automatic exposure and white balance · local anti-flicker"
+  status
+}
+
+case ${1:-status} in
+  status) status ;;
+  controls) command -v v4l2-ctl >/dev/null 2>&1 && controls || true ;;
+  apply) apply_profile "${2:-smart}" ;;
+  *) printf 'Usage: %s status|controls|apply smart|natural|low-light\n' "$0" >&2; exit 2 ;;
+esac

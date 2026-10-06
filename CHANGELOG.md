@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.0 - 2026-10-05
+
+- Shipped fifty interaction, accessibility, safety and navigation improvements
+  across shared controls, Command Center, clipboard, notifications, minimized
+  windows, power and Settings.
+- Added structured and one-line diagnostics plus a privacy-limited support
+  archive that deliberately excludes configs, logs, networks and user content.
+- Added zero-idle UVC camera profiles with sensor ownership protection,
+  automatic exposure/white balance/focus, backlight modes and local anti-flicker.
+- Added accessible audio state, persistent Settings navigation and global card
+  refresh/help shortcuts.
+
 ## 0.6.1 - 2026-10-05
 
 - Gave brightness a dedicated sun/radiance glyph across the bar, OSD and

@@ -6,11 +6,17 @@ Rectangle {
     property bool available: true
     signal toggleRequested(bool enabled)
 
+    activeFocusOnTab: available
+    Accessible.role: Accessible.CheckBox
+    Accessible.name: checked ? "Enabled" : "Disabled"
+    Accessible.checked: checked
+    Accessible.focusable: available
+
     implicitWidth: 58
     implicitHeight: 25
     color: checked ? backend.accentColor : backend.surfaceColor
-    border.width: 1
-    border.color: !available ? backend.lineColor : (checked ? backend.accentColor : backend.mutedColor)
+    border.width: activeFocus ? 2 : 1
+    border.color: !available ? backend.lineColor : (activeFocus ? backend.textColor : (checked ? backend.accentColor : backend.mutedColor))
     opacity: available ? 1 : 0.45
 
     Rectangle {
@@ -37,5 +43,11 @@ Rectangle {
         enabled: root.available
         cursorShape: Qt.PointingHandCursor
         onClicked: root.toggleRequested(!root.checked)
+    }
+    Keys.onPressed: function(event) {
+        if (root.available && (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter)) {
+            root.toggleRequested(!root.checked)
+            event.accepted = true
+        }
     }
 }

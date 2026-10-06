@@ -13,9 +13,9 @@ ApplicationWindow {
     screen: backend.targetScreen
 
     readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "osd" || backend.surface === "overview" || backend.surface === "scenes" || backend.surface === "privacy" || backend.surface === "gaming"
-    readonly property int cardWidth: backend.surface === "overview" ? Math.min(1080, width - 48) : (backend.surface === "scenes" ? 610 : (backend.surface === "gaming" ? 510 : (backend.surface === "privacy" ? 460 : (backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
+    readonly property int cardWidth: backend.surface === "overview" ? Math.min(1080, width - 48) : (backend.surface === "scenes" ? 610 : (backend.surface === "gaming" ? 510 : (backend.surface === "privacy" ? 460 : (backend.surface === "camera" ? 430 : (backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
         : (backend.surface === "display" ? 460
-            : ((backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "notifications") ? (backend.surface === "clipboard" ? 520 : (backend.surface === "notifications" ? 480 : 500)) : 410)))))))
+            : ((backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "notifications") ? (backend.surface === "clipboard" ? 520 : (backend.surface === "notifications" ? 480 : 500)) : 410))))))))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     function dismiss() { backend.close() }
@@ -69,6 +69,7 @@ ApplicationWindow {
                 if (backend.surface === "kdeconnect") return kdeConnectPage
                 if (backend.surface === "power") return powerPage
                 if (backend.surface === "brightness") return brightnessPage
+                if (backend.surface === "camera") return cameraPage
                 if (backend.surface === "calendar") return calendarPage
                 if (backend.surface === "world") return worldPage
                 if (backend.surface === "pomodoro") return pomodoroPage
@@ -82,6 +83,7 @@ ApplicationWindow {
 
     Component { id: audioPage; AudioPage {} }
     Component { id: brightnessPage; BrightnessPage {} }
+    Component { id: cameraPage; CameraPage {} }
     Component { id: calendarPage; CalendarPage {} }
     Component { id: worldPage; WorldPage {} }
     Component { id: connectivityPage; ConnectivityPage { initialPage: backend.page || "wifi" } }
@@ -105,10 +107,16 @@ ApplicationWindow {
     Shortcut { sequence: "Escape"; onActivated: root.dismiss() }
     Shortcut { sequence: "Down"; onActivated: root.callPage("navigate", 1) }
     Shortcut { sequence: "Up"; onActivated: root.callPage("navigate", -1) }
+    Shortcut { sequence: "PageDown"; onActivated: root.callPage("page", 1) }
+    Shortcut { sequence: "PageUp"; onActivated: root.callPage("page", -1) }
+    Shortcut { sequence: "Ctrl+Home"; onActivated: root.callPage("first") }
+    Shortcut { sequence: "Ctrl+End"; onActivated: root.callPage("last") }
     Shortcut { sequence: "Return"; onActivated: root.callPage("activateCurrent") }
     Shortcut { sequence: "Enter"; onActivated: root.callPage("activateCurrent") }
     Shortcut { sequence: "Delete"; onActivated: root.callPage("deleteCurrent") }
     Shortcut { sequence: "Menu"; onActivated: root.callPage("contextCurrent") }
+    Shortcut { sequence: "Ctrl+R"; onActivated: root.callPage("refresh") }
+    Shortcut { sequence: "F1"; onActivated: { backend.start([backend.home + "/.config/hypr/scripts/help"]); root.dismiss() } }
     Shortcut { sequence: "Ctrl+W"; onActivated: root.dismiss() }
     onClosing: backend.close()
 }

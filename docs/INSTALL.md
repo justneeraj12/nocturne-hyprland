@@ -26,7 +26,9 @@ cd nocturne-hyprland
 
 The command installs Ubuntu packages, checksum-verifies Hyprshot, installs
 Kooha from Flathub, installs Hyprsunset and fwupd support, builds the Qt shell
-in release mode and applies the config.
+in release mode and applies the config. It also installs `v4l-utils`, which
+lets Nocturne tune controls exposed by a standard UVC webcam without keeping a
+camera service running in the background.
 
 Already have every dependency?
 
@@ -120,3 +122,22 @@ optional background services and never removes the core shell. The same page
 exports a portable preferences bundle under `~/Documents/Nocturne-Backups`.
 Bundles intentionally exclude passwords, network credentials, browser data and
 wallpaper files.
+
+## Optional camera profiles
+
+Open **Nocturne Settings → Sound & displays → Camera quality** to choose
+Smart, Natural or Low-light processing. The controller operates only when you
+press Apply, refuses to interrupt a camera already owned by a meeting or
+browser, and exits immediately afterward. There is no always-on virtual camera
+or GPU process.
+
+If dependencies were installed separately, add the standard control utility:
+
+```bash
+sudo apt install v4l-utils
+```
+
+The camera page reports the device's real capture limit. Software cannot turn a
+720p sensor into native 1080p detail; these profiles instead improve stable
+frame pacing, exposure, white balance and local power-line flicker handling
+where the webcam firmware exposes those controls.

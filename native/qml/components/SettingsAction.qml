@@ -10,6 +10,8 @@ Button {
     property string description: ""
     property string actionText: "OPEN"
     property bool danger: false
+    Accessible.name: title
+    Accessible.description: description
 
     implicitHeight: 88
     hoverEnabled: true

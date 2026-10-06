@@ -12,6 +12,7 @@ Rectangle {
     property string detail: ""
     property int battery: -1
     property string batteryState: "EXTERNAL POWER"
+    property string pendingSessionAction: ""
     property var gaming: ({active:false, enabled:false, games:0, title:"Waiting for a Steam game"})
     function refresh() {
         var status = backend.run([backend.home + "/.config/hypr/scripts/power-profile", "status"]).split("\t")
@@ -26,11 +27,21 @@ Rectangle {
         else backend.start([backend.home + "/.config/hypr/scripts/power-profile", "set", name])
         delayed.restart()
     }
+    function armSessionAction(action) { pendingSessionAction = action; confirmTimeout.restart() }
+    function performSessionAction() {
+        if (pendingSessionAction === "restart") backend.start(["systemctl", "reboot"])
+        else if (pendingSessionAction === "poweroff") backend.start(["systemctl", "poweroff"])
+        pendingSessionAction = ""
+    }
     ColumnLayout {
         id: panel; x: 10; y: 10; width: parent.width - 20; spacing: 8
         PanelHeader { Layout.fillWidth: true; title: "Power"; subtitle: "Battery, performance and session" }
-        Text { text: root.battery >= 0 ? root.battery + "%" : "AC POWER"; color: backend.textColor; font.family: "Inter"; font.pixelSize: 18; font.bold: true }
-        Text { text: root.batteryState; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 10 }
+        RowLayout {
+            Layout.fillWidth: true; spacing: 8
+            Text { text: root.batteryState.indexOf("CHARG") >= 0 ? "󰂄" : (root.battery >= 0 && root.battery <= 15 ? "󰁺" : "󰁹"); color: root.battery >= 0 && root.battery <= 15 && root.batteryState.indexOf("CHARG") < 0 ? "#ff8c96" : backend.accentColor; font.family: "MesloLGS Nerd Font Mono"; font.pixelSize: 20 }
+            Text { text: root.battery >= 0 ? root.battery + "%" : "AC POWER"; color: root.battery >= 0 && root.battery <= 15 && root.batteryState.indexOf("CHARG") < 0 ? "#ff8c96" : backend.textColor; font.family: "Inter"; font.pixelSize: 18; font.bold: true }
+            Text { Layout.fillWidth: true; text: root.batteryState; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 10; horizontalAlignment: Text.AlignRight }
+        }
         SectionLabel { text: "POWER MODE" }
         RowLayout {
             Layout.fillWidth: true; spacing: 5
@@ -76,18 +87,20 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true; spacing: 5
-            NocturneButton { Layout.fillWidth: true; text: "RESTART"; danger: true; onClicked: confirmRestart.visible = true }
-            NocturneButton { Layout.fillWidth: true; text: "SHUT DOWN"; danger: true; onClicked: confirmShutdown.visible = true }
+            NocturneButton { Layout.fillWidth: true; text: "RESTART"; danger: true; onClicked: root.armSessionAction("restart") }
+            NocturneButton { Layout.fillWidth: true; text: "SHUT DOWN"; danger: true; onClicked: root.armSessionAction("poweroff") }
         }
-        NocturneButton {
-            id: confirmRestart; visible: false; Layout.fillWidth: true; text: "CONFIRM RESTART"; danger: true
-            onClicked: backend.start(["systemctl", "reboot"])
-        }
-        NocturneButton {
-            id: confirmShutdown; visible: false; Layout.fillWidth: true; text: "CONFIRM SHUT DOWN"; danger: true
-            onClicked: backend.start(["systemctl", "poweroff"])
+        RowLayout {
+            visible: root.pendingSessionAction !== ""; Layout.fillWidth: true; spacing: 5
+            NocturneButton {
+                Layout.fillWidth: true
+                text: root.pendingSessionAction === "restart" ? "CONFIRM RESTART" : "CONFIRM SHUT DOWN"
+                danger: true; onClicked: root.performSessionAction()
+            }
+            NocturneButton { text: "CANCEL"; onClicked: root.pendingSessionAction = "" }
         }
     }
     Timer { interval: 3000; running: true; repeat: true; triggeredOnStart: true; onTriggered: root.refresh() }
     Timer { id: delayed; interval: 1200; onTriggered: root.refresh() }
+    Timer { id: confirmTimeout; interval: 6000; onTriggered: root.pendingSessionAction = "" }
 }

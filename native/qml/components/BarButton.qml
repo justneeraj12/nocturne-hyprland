@@ -13,11 +13,17 @@ Rectangle {
     signal rightClicked()
     signal scrolled(int direction)
 
+    activeFocusOnTab: true
+    Accessible.role: Accessible.Button
+    Accessible.name: root.tooltip !== "" ? root.tooltip.split(" · ")[0] : root.text
+    Accessible.description: root.tooltip
+    Accessible.focusable: true
+
     implicitWidth: Math.max(24, label.implicitWidth + 12)
     implicitHeight: 27
     color: selected ? selectedColor : (mouse.pressed ? backend.overlayColor : (mouse.containsMouse ? backend.surfaceColor : "transparent"))
-    border.width: selected || mouse.containsMouse ? 1 : 0
-    border.color: selected ? backend.accent2Color : (mouse.containsMouse ? backend.lineColor : "transparent")
+    border.width: selected || mouse.containsMouse || activeFocus ? 1 : 0
+    border.color: activeFocus ? backend.accentColor : (selected ? backend.accent2Color : (mouse.containsMouse ? backend.lineColor : "transparent"))
     Behavior on color { ColorAnimation { duration: 90 } }
 
     Rectangle {
@@ -44,12 +50,19 @@ Rectangle {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
         onClicked: function(mouse) {
             if (mouse.button === Qt.RightButton) root.rightClicked()
             else if (mouse.button === Qt.MiddleButton) root.middleClicked()
             else root.leftClicked()
         }
         onWheel: function(wheel) { root.scrolled(wheel.angleDelta.y > 0 ? 1 : -1) }
+    }
+    Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+            root.leftClicked()
+            event.accepted = true
+        }
     }
     // The bar itself is only 29 px tall.  An attached ToolTip is constrained to
     // that window and Qt consequently places it over the button.  A window-backed
@@ -59,7 +72,7 @@ Rectangle {
         parent: root
         x: Math.round((root.width - implicitWidth) / 2)
         y: root.height + 4
-        visible: mouse.containsMouse && root.tooltip !== ""
+        visible: mouse.containsMouse && !mouse.pressed && root.tooltip !== ""
         delay: 750
         timeout: 4000
         text: root.tooltip

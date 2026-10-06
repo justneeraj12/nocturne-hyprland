@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-0.6.1-cb8d62?style=flat-square" alt="Nocturne 0.6.1">
+  <img src="https://img.shields.io/badge/release-0.7.0-cb8d62?style=flat-square" alt="Nocturne 0.7.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -32,16 +32,18 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
-## Current release // 0.6.1
+## Current release // 0.7.0
 
-- a distinct sun/radiance brightness icon across the bar, OSD and controls;
-- a compact, pinned XDG screen-share chooser plus a live red sharing indicator;
-- accurate capture privacy state without reporting an idle camera as active;
-- an Efficiency Center that separates proportional shell cost from shared RSS;
-- native left-click DBusMenu controls for background applications;
-- quieter event handling and lazy indexing for a lower-cost idle shell.
+- full keyboard and accessibility contracts across the native controls;
+- safer clipboard, power and recovery interactions with expiring confirmation;
+- faster launcher, notification and minimized-window navigation;
+- structured diagnostics and a privacy-limited support-report generator;
+- zero-idle UVC camera profiles for exposure, white balance and anti-flicker;
+- the efficiency, capture-safety and event-cost work introduced in 0.6.
 
-The images below were captured from the installed 0.6.1 session on an isolated
+The complete, auditable list is [fifty practical upgrades](docs/RELEASE-0.7.md).
+
+The images below show the native shell layout on an isolated
 workspace. They contain no browser pages, messages, SSIDs, clipboard entries or
 personal file names.
 
@@ -61,7 +63,7 @@ personal file names.
 ## The desktop
 
 <p align="center">
-  <img src="docs/screenshots/quick-controls.webp" alt="Nocturne 0.6.1 launcher, system overview, brightness and efficiency center" width="100%">
+  <img src="docs/screenshots/quick-controls.webp" alt="Nocturne launcher, system overview, brightness and efficiency center" width="100%">
 </p>
 
 <details>
@@ -78,6 +80,7 @@ The shell includes:
 - Wi-Fi, Bluetooth and VPN control through NetworkManager and BlueZ;
 - master volume, output routing and live per-application PipeWire streams;
 - hardware-synchronized brightness and microphone state;
+- zero-idle hardware camera profiles with busy-client protection and regional anti-flicker;
 - a command-center launcher for apps, running windows and safe desktop actions;
 - a nine-workspace overview plus restorable desktop and audio scenes;
 - launcher favorites, recent apps, local file search and inline calculations;
@@ -210,6 +213,13 @@ wallpapers and location privacy.
 
 # read-only live desktop health check
 nocturne-doctor
+
+# structured or compact health output
+nocturne-doctor --json
+nocturne-doctor --summary
+
+# privacy-limited archive for a bug report
+nocturne-support
 ```
 
 The local validator performs a clean Qt build and verifies the live Hyprland
@@ -224,6 +234,8 @@ applications keep their own toolkit and license.
 - [NOC identity](branding/README.md)
 - [Customization](docs/CUSTOMIZATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [Camera quality and latency](docs/CAMERA.md)
+- [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Launch and community plan](docs/LAUNCH.md)
 - [Experimental NØX local agent](agent/README.md) — optional and not installed by default

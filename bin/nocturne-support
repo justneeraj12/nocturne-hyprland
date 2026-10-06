@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output_dir=${XDG_DOCUMENTS_DIR:-"$HOME/Documents"}/Nocturne-Support
+quiet=false
+
+usage() {
+  printf '%s\n' \
+    'Usage: nocturne-support [--output DIRECTORY] [--quiet]' \
+    '' \
+    'Create a privacy-limited support archive. The report includes generated' \
+    'health results, component versions, monitor geometry and selected service' \
+    'state. It never copies configuration files, logs, SSIDs, application' \
+    'content, clipboard history, account names or personal files.'
+}
+
+while (($#)); do
+  case $1 in
+    --output) output_dir=${2:?directory required}; shift 2 ;;
+    --quiet) quiet=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf 'Unknown option: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+mkdir -p -- "$output_dir"
+work=$(mktemp -d /tmp/nocturne-support.XXXXXX)
+trap 'rm -rf -- "$work"' EXIT
+stamp=$(date +%Y%m%d-%H%M%S)
+archive="$output_dir/nocturne-support-$stamp.tar.gz"
+
+doctor=${NOCTURNE_DOCTOR:-"$HOME/.local/bin/nocturne-doctor"}
+if [[ ! -x $doctor ]]; then
+  doctor=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/nocturne-doctor
+fi
+"$doctor" --json > "$work/health.json" 2>/dev/null || true
+
+monitor_json=$(hyprctl monitors -j 2>/dev/null \
+  | jq '[.[] | {name,width,height,refreshRate,scale,position:{x,y},activeWorkspace:.activeWorkspace.id}]' \
+  2>/dev/null || printf '[]')
+service_json=$(for unit in \
+  xdg-desktop-portal-hyprland.service plasma-xdg-desktop-portal-kde.service \
+  nocturne-wallpaper-cycle.service nocturne-audio-autoswitch.service \
+  nocturne-game-session.service nocturne-context.timer nocturne-session-health.timer; do
+    state=$(systemctl --user is-active "$unit" 2>/dev/null || true)
+    jq -cn --arg unit "$unit" --arg state "${state:-unknown}" '{unit:$unit,state:$state}'
+  done | jq -s '.')
+
+jq -n \
+  --arg format 'nocturne-support-v1' \
+  --arg created "$(date --iso-8601=seconds)" \
+  --arg os "$(. /etc/os-release 2>/dev/null; printf '%s' "${PRETTY_NAME:-Linux}")" \
+  --arg kernel "$(uname -r)" \
+  --arg hyprland "$(hyprctl version 2>/dev/null | sed -n '1p')" \
+  --arg native "$("$HOME/.local/bin/nocturne-native" --self-test 2>/dev/null | sed -n '1p')" \
+  --argjson monitors "$monitor_json" \
+  --argjson services "$service_json" \
+  '{format:$format,created:$created,system:{os:$os,kernel:$kernel,hyprland:$hyprland,native:$native},monitors:$monitors,services:$services,privacy:{personalFiles:false,logs:false,clipboard:false,networks:false,accounts:false}}' \
+  > "$work/system.json"
+
+printf '%s\n' \
+  'This archive is generated diagnostics only.' \
+  'It contains no copied configs, journals, browser content, SSIDs, clipboard data, accounts or personal files.' \
+  > "$work/README.txt"
+
+tar -C "$work" -czf "$archive" README.txt health.json system.json
+chmod 0600 "$archive"
+size=$(du -h "$archive" | awk '{print $1}')
+"$quiet" || notify-send -a Nocturne 'Support report ready' "$archive · $size"
+jq -cn --arg path "$archive" --arg size "$size" '{ready:true,path:$path,size:$size,files:["README.txt","health.json","system.json"]}'
