@@ -64,6 +64,7 @@ grep -Fq 'Type RESTORE to continue' "$root/uninstall.sh"
 grep -Fq 'branding/noc-terminal.txt' "$root/apply-hyprland.sh"
 grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/hero.webp ]]
+[[ -s $root/assets/nocturne-grid.png ]]
 [[ -s $root/docs/screenshots/noc-banner.webp ]]
 [[ -s $root/docs/screenshots/lockscreen.webp ]]
 [[ -s $root/docs/screenshots/terminal.webp ]]
