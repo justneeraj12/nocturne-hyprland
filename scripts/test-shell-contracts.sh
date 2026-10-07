@@ -225,6 +225,38 @@ for template in "$XDG_CONFIG_HOME/hypr/lockstyles/"*.conf.in; do
   grep -Fq 'check_color =' "$template"
 done
 
+printf '%s\n' '#!/bin/sh' \
+  'if [ "${1:-}" = "-y" ]; then printf "age1nocturnetestrecipient000000000000000000000000000000000000\n"; exit 0; fi' \
+  'while [ "$#" -gt 0 ]; do case "$1" in -o) printf "AGE-SECRET-KEY-TEST-ONLY\n" > "$2"; exit 0 ;; *) shift ;; esac; done' \
+  'exit 2' > "$test_root/bin/age-keygen"
+printf '%s\n' '#!/bin/sh' \
+  'output=""; input=""' \
+  'while [ "$#" -gt 0 ]; do case "$1" in -o) output=$2; shift 2 ;; -r|-i) shift 2 ;; -d) shift ;; *) input=$1; shift ;; esac; done' \
+  'cp -- "$input" "$output"' > "$test_root/bin/age"
+chmod +x "$test_root/bin/age" "$test_root/bin/age-keygen"
+continuity="$root/bin/nocturne-continuity"
+shared="$test_root/shared-continuity"
+PATH="$test_root/bin:$PATH" "$continuity" init "$shared" | jq -e '.configured == true and .encrypted == true and .analytics == false' >/dev/null
+printf '%s\n' '{"format":"test-theme","name":"Copper Deep Green"}' > "$XDG_CONFIG_HOME/nocturne/theme.json"
+PATH="$test_root/bin:$PATH" "$continuity" push | jq -e '.bundleAvailable == true and .inSync == true and .lastAction == "push"' >/dev/null
+printf '%s\n' '{"format":"test-theme","name":"Changed Locally"}' > "$XDG_CONFIG_HOME/nocturne/theme.json"
+PATH="$test_root/bin:$PATH" "$continuity" pull | jq -e '.inSync == true and .lastAction == "pull"' >/dev/null
+jq -e '.name == "Copper Deep Green"' "$XDG_CONFIG_HOME/nocturne/theme.json" >/dev/null
+mkdir -p "$test_root/malicious/payload/config"
+printf '%s\n' '{"format":"nocturne-continuity-v1","encrypted":true}' > "$test_root/malicious/payload/manifest.json"
+ln -s /tmp "$test_root/malicious/payload/config/themes"
+tar -C "$test_root/malicious" -czf "$shared/nocturne-continuity.age" payload
+if PATH="$test_root/bin:$PATH" "$continuity" pull >/dev/null 2>&1; then
+  printf 'Continuity pull should reject archive links.\n' >&2
+  exit 1
+fi
+PATH="$test_root/bin:$PATH" "$continuity" push --force >/dev/null
+printf 'remote-change' >> "$shared/nocturne-continuity.age"
+if PATH="$test_root/bin:$PATH" "$continuity" push >/dev/null 2>&1; then
+  printf 'Continuity push should refuse an unseen remote change.\n' >&2
+  exit 1
+fi
+
 NOCTURNE_CAMERA_DEVICE="$test_root/missing-camera" \
   "$root/config/hypr/scripts/camera-control" status \
   | jq -e '.available == false and .idleCost == "0 processes · hardware controls persist in sensor"' >/dev/null

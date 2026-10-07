@@ -79,7 +79,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -199,6 +199,7 @@ if [[ ! -e "$CONFIG_HOME/nocturne/bar.json" ]]; then
 fi
 install -m 0644 "$ROOT_DIR/config/nocturne/bar.json" "$CONFIG_HOME/nocturne/bar.default.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/performance-budget.json" "$CONFIG_HOME/nocturne/performance-budget.json"
+install -m 0644 "$ROOT_DIR/config/nocturne/edition.json" "$CONFIG_HOME/nocturne/edition.json"
 if [[ ! -e "$CONFIG_HOME/nocturne/game-mode.conf" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/game-mode.conf" "$CONFIG_HOME/nocturne/game-mode.conf"
 fi
@@ -233,6 +234,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wal
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-benchmark" "$BIN_HOME/nocturne-benchmark"
 install -m 0755 "$ROOT_DIR/bin/nocturne-banner" "$BIN_HOME/nocturne-banner"
+install -m 0755 "$ROOT_DIR/bin/nocturne-continuity" "$BIN_HOME/nocturne-continuity"
 install -m 0755 "$ROOT_DIR/bin/nocturne-support" "$BIN_HOME/nocturne-support"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
 install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"

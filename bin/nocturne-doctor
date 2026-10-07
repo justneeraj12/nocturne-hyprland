@@ -37,7 +37,7 @@ if [[ $mode == human ]]; then
   printf '%s\n\n' '────────────────────────────────────────'
 fi
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qpdfview qalculate-qt convert upower)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qpdfview qalculate-qt convert upower age age-keygen)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -124,6 +124,18 @@ if jq -e '.current as $current | .format == "nocturne-lock-style-v2" and (.style
   ok 'Lock screen style registry is valid'
 else
   warning 'Lock screen style registry could not be validated'
+fi
+edition_state=$(cat "$HOME/.config/nocturne/edition.json" 2>/dev/null || true)
+if jq -e '.format == "nocturne-edition-v1" and .edition == "community" and .analytics == false and .telemetryEndpoint == null and .operatorOverlay == false' <<<"$edition_state" >/dev/null 2>&1; then
+  ok 'Community edition has no desktop telemetry endpoint'
+else
+  bad 'Community edition privacy manifest is missing or invalid'
+fi
+continuity_state=$($HOME/.local/bin/nocturne-continuity status 2>/dev/null || true)
+if jq -e '.format == "nocturne-continuity-status-v1" and .analytics == false and ((.configured == false) or (.encrypted == true))' <<<"$continuity_state" >/dev/null 2>&1; then
+  ok 'Continuity is local, encrypted when configured and telemetry-free'
+else
+  bad 'Continuity privacy or encryption state could not be validated'
 fi
 for control_spec in \
   'storage-control:nocturne-storage-v1:Storage Center' \

@@ -9,16 +9,19 @@ Rectangle {
     property bool active: false
     property var hardware: ({current:"unconfigured",recommended:"desktop",battery:false,bluetooth:false,displays:0})
     property var backup: ({latest:"",exists:false})
+    property var continuity: ({configured:false,encrypted:false,bundleAvailable:false,inSync:false,root:"",lastAction:"never",lastActionAt:""})
     property var recovery: ({exists:false,size:0,modified:"",failures:0})
     property bool confirmPortableRestore: false
     property bool confirmRecoveryRestore: false
     readonly property string profileHelper: backend.home + "/.config/hypr/scripts/setup-profile"
     readonly property string portable: backend.home + "/.local/bin/nocturne-portable"
+    readonly property string continuityTool: backend.home + "/.local/bin/nocturne-continuity"
     readonly property string recoveryTool: backend.home + "/.local/bin/nocturne-recovery"
 
     function refresh() {
         hardware = backend.json([profileHelper, "status"], 2500) || hardware
         backup = backend.json([portable, "status"], 2500) || backup
+        continuity = backend.json([continuityTool, "status"], 2500) || continuity
         recovery = backend.json([recoveryTool, "status"], 2500) || recovery
     }
     function applyProfile(name) {
@@ -161,6 +164,40 @@ Rectangle {
                 SettingsCard {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    title: "ENCRYPTED CONTINUITY"
+                    description: "Roam preferences, tasks, habits and vault data while display and hardware state remain local to each machine."
+                    icon: "folder-sync"
+                    glyph: "⇄"
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 50
+                        color: backend.baseColor
+                        border.color: root.continuity.inSync ? backend.accentColor : backend.lineColor
+                        Column { anchors.fill: parent; anchors.margins: 8; spacing: 3
+                            Text { text: root.continuity.inSync ? "ENCRYPTED · IN SYNC" : (root.continuity.configured ? "ENCRYPTED · ACTION NEEDED" : "NOT CONFIGURED"); color: root.continuity.inSync ? backend.accentColor : backend.textColor; font.family: "monospace"; font.pixelSize: 9; font.bold: true }
+                            Text { width: parent.width; text: root.continuity.configured ? root.continuity.root : "Choose a shared folder; plaintext never enters it."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; elide: Text.ElideMiddle }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        NocturneButton {
+                            Layout.fillWidth: true
+                            text: root.continuity.configured ? "PUSH" : "SET UP"
+                            selected: true
+                            onClicked: {
+                                backend.run([root.continuityTool, root.continuity.configured ? "push" : "init"], 20000)
+                                continuityRefresh.restart()
+                            }
+                        }
+                        NocturneButton { Layout.fillWidth: true; text: "PULL"; enabled: root.continuity.bundleAvailable; onClicked: { backend.run([root.continuityTool, "pull"], 20000); continuityRefresh.restart() } }
+                        NocturneButton { text: "FOLDER"; enabled: root.continuity.configured; onClicked: backend.start([backend.home + "/.local/bin/nocturne-files", root.continuity.root]) }
+                    }
+                    Text { Layout.fillWidth: true; text: "NO TELEMETRY · AGE ENCRYPTED · CONFLICT-SAFE"; color: backend.accent2Color; font.family: "monospace"; font.pixelSize: 8; horizontalAlignment: Text.AlignHCenter }
+                }
+
+                SettingsCard {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     title: "LAST-KNOWN-GOOD"
                     description: "A local rollback point for shell configuration. Personal files are outside the checkpoint."
                     icon: "edit-undo"
@@ -195,6 +232,7 @@ Rectangle {
         }
     }
     Timer { id: refreshDelay; interval: 900; onTriggered: root.refresh() }
+    Timer { id: continuityRefresh; interval: 1200; onTriggered: root.refresh() }
     Timer { id: portableConfirmTimeout; interval: 6000; onTriggered: root.confirmPortableRestore = false }
     Timer { id: recoveryConfirmTimeout; interval: 6000; onTriggered: root.confirmRecoveryRestore = false }
     onActiveChanged: if (active) Qt.callLater(refresh)

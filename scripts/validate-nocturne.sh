@@ -20,7 +20,12 @@ printf '[ OK ] shell scripts\n'
 "$root/scripts/test-install-contracts.sh" >/dev/null
 printf '[ OK ] installer + rollback symmetry\n'
 
-jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" "$root/config/nocturne/bar.json" >/dev/null
+[[ -x $root/scripts/build-release-bundle.sh ]]
+grep -Fq 'gzip -n -9' "$root/scripts/build-release-bundle.sh"
+grep -Fq 'gh release upload' "$root/.github/workflows/release.yml"
+
+jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" "$root/config/nocturne/bar.json" "$root/config/nocturne/edition.json" >/dev/null
+jq -e '.edition == "community" and .analytics == false and .telemetryEndpoint == null and .operatorOverlay == false' "$root/config/nocturne/edition.json" >/dev/null
 jq -e . "$root/agent/config/profile.default.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
@@ -34,6 +39,9 @@ grep -Fq 'Fifty workflow upgrades' "$root/docs/RELEASE-1.0.md"
 grep -Fq 'Fifty system upgrades' "$root/docs/RELEASE-1.1.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.1.md") -eq 50 ]]
 grep -Fq 'Nocturne 1.2 — NOC Core' "$root/docs/RELEASE-1.2.md"
+grep -Fq '# NOC 2.0 product architecture' "$root/docs/NOC-2.0.md"
+grep -Fq 'Nocturne Community does not phone home' "$root/PRIVACY.md"
+grep -Fq 'NOC 2.0 is in development' "$root/README.md"
 grep -Fq 'nocturne-benchmark --summary' "$root/README.md"
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
@@ -197,6 +205,11 @@ grep -Fq 'hyprctl hyprsunset temperature' "$root/config/hypr/scripts/night-light
 grep -Fq 'hyprctl keyword monitor' "$root/config/hypr/scripts/monitor-layout"
 grep -Fq 'fwupdmgr get-updates' "$root/config/hypr/scripts/system-maintenance"
 grep -Fq 'nocturne-portable-v1' "$root/bin/nocturne-portable"
+[[ -x $root/bin/nocturne-continuity ]]
+grep -Fq 'nocturne-continuity-v1' "$root/bin/nocturne-continuity"
+grep -Fq 'analytics:false' "$root/bin/nocturne-continuity"
+grep -Fq 'install -m 0755 "$ROOT_DIR/bin/nocturne-continuity"' "$root/apply-hyprland.sh"
+grep -Fq 'ENCRYPTED CONTINUITY' "$root/native/qml/pages/SetupSettingsPage.qml"
 HOME="$temporary/portable-home" XDG_CONFIG_HOME="$temporary/portable-config" \
   "$root/bin/nocturne-portable" status | jq -e '.exists == false' >/dev/null
 printf '[ OK ] night shift, display, maintenance and portable setup controls\n'

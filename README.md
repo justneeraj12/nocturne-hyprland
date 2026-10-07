@@ -32,6 +32,11 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
+> **NOC 2.0 is in development.** The next generation turns this shell into an
+> installable desktop platform with encrypted multi-device continuity, packages,
+> transactional updates and a public hardware matrix. Follow the
+> [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
+
 ## Current release // 1.3.0
 
 Nocturne 1.3 expands the visual identity without forking critical system behavior. The [release notes](docs/RELEASE-1.3.md) describe the complete lock and terminal system.
@@ -274,6 +279,11 @@ applications keep their own toolkit and license.
 - [NOC identity](branding/README.md)
 - [Customization](docs/CUSTOMIZATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [NOC 2.0 architecture](docs/NOC-2.0.md)
+- [Roadmap](ROADMAP.md)
+- [Community](docs/COMMUNITY.md)
+- [Support matrix](docs/SUPPORT-MATRIX.md)
+- [Privacy](PRIVACY.md)
 - [Camera quality and latency](docs/CAMERA.md)
 - [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
 - [Nocturne 1.1 — fifty system upgrades](docs/RELEASE-1.1.md)

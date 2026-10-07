@@ -6,10 +6,10 @@ stay available for support after publishing.
 
 ## Positioning
 
-**Name:** Nocturne Hyprland
+**Name:** NOC // Nocturne Desktop
 
-**One line:** A sharp, native control plane for Hyprland—tiling speed with the
-desktop controls people miss when they leave GNOME.
+**One line:** An installable desktop platform powered by Hyprland—tiling speed
+with the controls, continuity and recovery people expect from a full desktop.
 
 **Three proof points:**
 
@@ -32,6 +32,17 @@ tested on Ubuntu 26.04, Hyprland 0.56.2, two displays and an NVIDIA laptop.
 - [ ] verify install, update and rollback docs;
 - [ ] create a signed `v0.1.0` release with a short changelog;
 - [ ] enable Discussions if support traffic warrants it.
+
+NOC 2.0 keeps stable releases and development milestones separate. Market the
+current stable version as usable software; describe 2.0 as a community beta
+until the gates in `ROADMAP.md` and `SUPPORT-MATRIX.md` are satisfied.
+
+## Measurement boundary
+
+Repository traffic and download redirects may be aggregated for launch planning.
+The public desktop does not report installs, activity or device identity. The
+private Operator view stores only timestamp, country, release and asset, so all
+public copy must say **downloads**, never users or active installations.
 
 Suggested GitHub topics:
 
@@ -76,6 +87,9 @@ releases rather than every commit.
 > and the installer snapshots the previous config for rollback. The first
 > supported target is Ubuntu 26.04 + Hyprland 0.56. Feedback on other hardware
 > and display layouts is very welcome.
+
+For the 2.0 beta, replace “desktop layer” with “installable desktop platform”
+only after the package/update milestone is available to testers.
 
 Attach `docs/screenshots/hero.webp`, then link the repository and installation
 guide. Do not attach screenshots containing the developer's browser, messages,

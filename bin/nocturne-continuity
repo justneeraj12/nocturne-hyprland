@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+config_dir="$config_home/nocturne/continuity"
+settings_file="$config_dir/config.json"
+identity_file="$config_dir/identity.txt"
+state_dir="$state_home/nocturne/continuity"
+state_file="$state_dir/state.json"
+device_file="$state_dir/device-id"
+temp_dir=''
+
+cleanup() {
+  [[ -z $temp_dir || ! -d $temp_dir ]] || rm -rf -- "$temp_dir"
+}
+trap cleanup EXIT
+
+usage() {
+  cat <<'EOF'
+Usage: nocturne-continuity COMMAND
+
+  status                         Show continuity state as JSON
+  init [DIRECTORY]               Create an encrypted continuity profile
+  push [--force]                 Publish this device's roaming profile
+  pull                           Safely apply the latest roaming profile
+  export-key FILE                Export the continuity identity for another device
+  import-key FILE [DIRECTORY]    Import an identity transferred out-of-band
+
+The shared directory may be synced by Syncthing, Nextcloud, Drive or a private
+Git checkout. The bundle is encrypted before it enters that directory.
+EOF
+}
+
+atomic_json() {
+  local target=$1 expression=$2 temporary
+  mkdir -p -- "$(dirname -- "$target")"
+  temporary=$(mktemp "$(dirname -- "$target")/.continuity.XXXXXX")
+  jq -cn "$expression" > "$temporary"
+  chmod 600 "$temporary"
+  mv -f -- "$temporary" "$target"
+}
+
+ensure_device() {
+  mkdir -p -- "$state_dir"
+  if [[ ! -s $device_file ]]; then
+    if [[ -r /proc/sys/kernel/random/uuid ]]; then
+      tr -d '\n' < /proc/sys/kernel/random/uuid > "$device_file"
+    else
+      printf '%s' "$(date +%s%N)-$$-$RANDOM" | sha256sum | cut -c1-32 > "$device_file"
+    fi
+    chmod 600 "$device_file"
+  fi
+}
+
+require_age() {
+  command -v age >/dev/null 2>&1 || { printf 'Install age to use encrypted continuity.\n' >&2; exit 3; }
+  command -v age-keygen >/dev/null 2>&1 || { printf 'age-keygen is required.\n' >&2; exit 3; }
+}
+
+configured_root() {
+  jq -er '.root | select(type == "string" and length > 0)' "$settings_file" 2>/dev/null
+}
+
+recipient() {
+  jq -er '.recipient | select(type == "string" and startswith("age1"))' "$settings_file" 2>/dev/null
+}
+
+write_settings() {
+  local root=$1 recipient_value=$2 temporary
+  mkdir -p -- "$config_dir"
+  temporary=$(mktemp "$config_dir/.config.XXXXXX")
+  jq -cn --arg root "$root" --arg recipient "$recipient_value" \
+    '{format:"nocturne-continuity-config-v1",edition:"community",root:$root,recipient:$recipient,include:{preferences:true,workflow:true,wallpapers:false}}' \
+    > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$settings_file"
+}
+
+write_state() {
+  local hash=$1 action=$2 temporary
+  ensure_device
+  temporary=$(mktemp "$state_dir/.state.XXXXXX")
+  jq -cn --arg hash "$hash" --arg action "$action" --arg at "$(date --iso-8601=seconds)" \
+    '{format:"nocturne-continuity-state-v1",lastSeenHash:$hash,lastAction:$action,lastActionAt:$at}' > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$state_file"
+}
+
+bundle_hash() {
+  local bundle=$1
+  [[ -f $bundle ]] && sha256sum "$bundle" | awk '{print $1}' || true
+}
+
+copy_if_present() {
+  local source=$1 destination=$2
+  [[ -f $source && ! -L $source ]] || return 0
+  mkdir -p -- "$(dirname -- "$destination")"
+  cp -a -- "$source" "$destination"
+}
+
+collect_payload() {
+  local payload=$1 device=$2
+  local preferences=(
+    accent.conf accent.css bar.json clipboard.json context.json game-profiles.json
+    input.lua launcher-favorites.json locations.json lock-style.json muted-apps.json
+    palette.css power-lab.json rules.json settings.json system-preferences.json
+    theme.conf theme.json wallpaper.json zsh.zsh
+  )
+  local workflows=(clipboard/pins.json desk.json habits.json vault.json)
+  local item
+  mkdir -p -- "$payload/config" "$payload/data"
+  for item in "${preferences[@]}"; do
+    copy_if_present "$config_home/nocturne/$item" "$payload/config/$item"
+  done
+  if [[ -d $config_home/nocturne/themes ]]; then
+    mkdir -p -- "$payload/config/themes"
+    cp -a -- "$config_home/nocturne/themes/." "$payload/config/themes/"
+  fi
+  for item in "${workflows[@]}"; do
+    copy_if_present "$data_home/nocturne/$item" "$payload/data/$item"
+  done
+  jq -cn --arg device "$device" --arg created "$(date --iso-8601=seconds)" \
+    '{format:"nocturne-continuity-v1",created:$created,device:$device,edition:"community",encrypted:true,sections:["preferences","workflow"],excluded:["credentials","networks","browser data","machine hardware","display layout","wallpaper files","logs","telemetry"]}' \
+    > "$payload/manifest.json"
+}
+
+validate_archive() {
+  local archive=$1 entry member_type
+  while IFS= read -r entry; do
+    [[ $entry == payload/* && $entry != /* && $entry != *'../'* && $entry != '..' ]] || {
+      printf 'Unsafe continuity archive entry: %s\n' "$entry" >&2
+      return 1
+    }
+  done < <(tar -tzf "$archive")
+  while IFS= read -r member_type; do
+    [[ $member_type == '-' || $member_type == d ]] || {
+      printf 'Continuity archive contains a link or unsupported member type.\n' >&2
+      return 1
+    }
+  done < <(tar -tvzf "$archive" | cut -c1)
+}
+
+status() {
+  ensure_device
+  local root='' bundle='' hash='' last_hash='' configured=false identity=false available=false
+  root=$(configured_root 2>/dev/null || true)
+  [[ -n $root ]] && configured=true
+  [[ -s $identity_file ]] && identity=true
+  if [[ -n $root ]]; then
+    bundle="$root/nocturne-continuity.age"
+    [[ -f $bundle ]] && available=true
+    hash=$(bundle_hash "$bundle")
+  fi
+  last_hash=$(jq -r '.lastSeenHash // ""' "$state_file" 2>/dev/null || true)
+  jq -cn --argjson configured "$configured" --argjson identity "$identity" --argjson available "$available" \
+    --arg root "$root" --arg device "$(cat "$device_file")" --arg hash "$hash" --arg last "$last_hash" \
+    --arg action "$(jq -r '.lastAction // "never"' "$state_file" 2>/dev/null || printf never)" \
+    --arg at "$(jq -r '.lastActionAt // ""' "$state_file" 2>/dev/null || true)" \
+    '{format:"nocturne-continuity-status-v1",edition:"community",analytics:false,configured:$configured,encrypted:$identity,bundleAvailable:$available,root:$root,device:$device,currentHash:$hash,lastSeenHash:$last,inSync:($available and $hash==$last),lastAction:$action,lastActionAt:$at}'
+}
+
+initialize() {
+  require_age; ensure_device
+  local root=${1:-"$HOME/Documents/Nocturne-Continuity"} recipient_value
+  mkdir -p -- "$root" "$config_dir"
+  if [[ ! -s $identity_file ]]; then
+    age-keygen -o "$identity_file" >/dev/null
+    chmod 600 "$identity_file"
+  fi
+  recipient_value=$(age-keygen -y "$identity_file")
+  write_settings "$(realpath -m -- "$root")" "$recipient_value"
+  status
+}
+
+push_profile() {
+  require_age; ensure_device
+  local force=${1:-} root recipient_value bundle remote_hash last_hash archive temporary_bundle hash
+  root=$(configured_root) || { printf 'Run nocturne-continuity init first.\n' >&2; exit 2; }
+  recipient_value=$(recipient)
+  [[ -s $identity_file ]] || { printf 'Continuity identity is missing.\n' >&2; exit 2; }
+  mkdir -p -- "$root"
+  bundle="$root/nocturne-continuity.age"
+  remote_hash=$(bundle_hash "$bundle")
+  last_hash=$(jq -r '.lastSeenHash // ""' "$state_file" 2>/dev/null || true)
+  if [[ -n $remote_hash && $remote_hash != "$last_hash" && $force != --force ]]; then
+    printf 'A newer or unknown remote bundle exists. Pull first, or use push --force after reviewing it.\n' >&2
+    exit 4
+  fi
+  temp_dir=$(mktemp -d)
+  collect_payload "$temp_dir/payload" "$(cat "$device_file")"
+  archive="$temp_dir/profile.tar.gz"
+  tar -C "$temp_dir" -czf "$archive" payload
+  temporary_bundle=$(mktemp "$root/.nocturne-continuity.XXXXXX")
+  age -r "$recipient_value" -o "$temporary_bundle" "$archive"
+  chmod 600 "$temporary_bundle"; mv -f -- "$temporary_bundle" "$bundle"
+  hash=$(bundle_hash "$bundle"); write_state "$hash" push
+  notify-send -a Nocturne 'Continuity profile published' 'Encrypted preferences and workflow data are ready for your other devices.' >/dev/null 2>&1 || true
+  status
+}
+
+pull_profile() {
+  require_age; ensure_device
+  local root bundle archive payload hash backup
+  root=$(configured_root) || { printf 'Run nocturne-continuity init or import-key first.\n' >&2; exit 2; }
+  bundle="$root/nocturne-continuity.age"
+  [[ -f $bundle ]] || { printf 'No encrypted continuity bundle exists in %s.\n' "$root" >&2; exit 2; }
+  [[ -s $identity_file ]] || { printf 'Continuity identity is missing.\n' >&2; exit 2; }
+  temp_dir=$(mktemp -d); archive="$temp_dir/profile.tar.gz"
+  age -d -i "$identity_file" -o "$archive" "$bundle"
+  validate_archive "$archive"
+  tar -C "$temp_dir" -xzf "$archive"
+  payload="$temp_dir/payload"
+  jq -e '.format == "nocturne-continuity-v1" and .encrypted == true' "$payload/manifest.json" >/dev/null
+  backup="$state_dir/before-pull-$(date +%Y%m%d-%H%M%S)"
+  collect_payload "$backup/payload" "$(cat "$device_file")"
+  chmod -R go-rwx "$backup"
+  if [[ -d $payload/config ]]; then
+    mkdir -p -- "$config_home/nocturne"
+    cp -a -- "$payload/config/." "$config_home/nocturne/"
+  fi
+  if [[ -d $payload/data ]]; then
+    mkdir -p -- "$data_home/nocturne"
+    cp -a -- "$payload/data/." "$data_home/nocturne/"
+  fi
+  hash=$(bundle_hash "$bundle"); write_state "$hash" pull
+  hyprctl reload >/dev/null 2>&1 || true
+  notify-send -a Nocturne 'Continuity profile applied' 'Roaming preferences are active; machine-specific settings were preserved.' >/dev/null 2>&1 || true
+  status
+}
+
+export_key() {
+  local destination=${1:?destination required}
+  [[ -s $identity_file ]] || { printf 'Create or import a continuity identity first.\n' >&2; exit 2; }
+  install -m 0600 "$identity_file" "$destination"
+  printf 'Sensitive identity exported to %s. Transfer it out-of-band and delete the copy afterward.\n' "$destination"
+}
+
+import_key() {
+  require_age; ensure_device
+  local source=${1:?identity file required} root=${2:-"$HOME/Documents/Nocturne-Continuity"} recipient_value
+  [[ -f $source ]] || { printf 'Identity file not found: %s\n' "$source" >&2; exit 2; }
+  mkdir -p -- "$config_dir" "$root"
+  install -m 0600 "$source" "$identity_file"
+  recipient_value=$(age-keygen -y "$identity_file")
+  write_settings "$(realpath -m -- "$root")" "$recipient_value"
+  status
+}
+
+case ${1:-status} in
+  status) status ;;
+  init) initialize "${2:-}" ;;
+  push) push_profile "${2:-}" ;;
+  pull) pull_profile ;;
+  export-key) export_key "${2:-}" ;;
+  import-key) import_key "${2:-}" "${3:-}" ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

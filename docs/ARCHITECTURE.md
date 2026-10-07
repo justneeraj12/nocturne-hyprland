@@ -1,7 +1,8 @@
 # Architecture
 
-Nocturne is a desktop layer, not a replacement operating system and not a
-private Hyprland fork.
+Nocturne is an installable desktop platform, not a replacement operating system
+and not a private Hyprland fork. The NOC 2.0 product boundary is documented in
+[`NOC-2.0.md`](NOC-2.0.md).
 
 ## Process model
 
@@ -104,3 +105,11 @@ actual machine.
 - Put hardware- or distribution-specific behavior in an optional script, not
   in the portable UI.
 - Add every invariant to `scripts/validate-nocturne.sh` and CI.
+
+## Edition and analytics boundary
+
+Every public install receives `edition.json` with `edition: community`,
+`analytics: false` and no telemetry endpoint. Distribution download aggregation
+lives in a separate private Operator deployment and is never linked into the
+desktop process. Encrypted Continuity is transport-agnostic and runs only when
+the user explicitly pushes or pulls.

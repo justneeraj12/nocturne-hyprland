@@ -120,6 +120,36 @@ Open **Nocturne Settings → Setup + Recovery** after the first login. Hardware
 detection recommends a desktop or laptop profile; the choice changes only
 optional background services and never removes the core shell. The same page
 exports a portable preferences bundle under `~/Documents/Nocturne-Backups`.
+
+## Encrypted multi-device continuity
+
+NOC 2.0 can roam preferences and encrypted Desk, Habits and Vault data through
+any directory synchronized by Syncthing, Nextcloud, Drive or a private Git
+checkout. No background sync daemon is added by Nocturne.
+
+```bash
+nocturne-continuity init ~/Documents/Nocturne-Continuity
+nocturne-continuity push
+```
+
+On the first device, export the `age` identity to removable media or another
+out-of-band channel:
+
+```bash
+nocturne-continuity export-key /path/to/removable/nocturne-identity.txt
+```
+
+On another device, point at the same synchronized directory:
+
+```bash
+nocturne-continuity import-key /path/to/nocturne-identity.txt ~/Documents/Nocturne-Continuity
+nocturne-continuity pull
+```
+
+Delete the exported identity copy after onboarding. A push refuses to overwrite
+an unseen remote change; pull it first and review the local rollback under
+`~/.local/state/nocturne/continuity` if necessary. Monitor geometry, hardware
+profile, credentials, browser data, logs and wallpaper files never roam.
 Bundles intentionally exclude passwords, network credentials, browser data and
 wallpaper files.
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0.0-alpha.1 - Development
+
+- Established explicit Community and private Operator trust domains with a machine-readable zero-telemetry edition manifest.
+- Added age-encrypted multi-device continuity for roaming preferences and workflow data with device-local hardware state, safe pull backups and remote-conflict refusal.
+- Added the private download-edge contract for country/date/release aggregation without client telemetry or device identifiers.
+- Added Discussions, structured bug/hardware/feature intake, public roadmap, support matrix, privacy policy and community guidance.
+- Added deterministic source bundles, checksums and release-asset automation for future public builds.
+
 ## 1.3.0 - 2026-10-06
 
 - Expanded the lock system to ten production-safe compositions with a shared PAM authentication path.
