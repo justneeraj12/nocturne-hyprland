@@ -39,10 +39,25 @@ fi
 
 if [[ -t 1 && $plain == false ]]; then
   red=$((16#${accent:0:2})); green=$((16#${accent:2:2})); blue=$((16#${accent:4:2}))
-  printf '\033[38;2;%s;%s;%sm' "$red" "$green" "$blue"
+  shade_red=$((red * 72 / 100)); shade_green=$((green * 72 / 100)); shade_blue=$((blue * 72 / 100))
+  colors=(
+    ''
+    $'\033[38;2;255;244;220m'
+    "$(printf '\033[38;2;%s;%s;%sm' "$red" "$green" "$blue")"
+    "$(printf '\033[38;2;%s;%s;%sm' "$shade_red" "$shade_green" "$shade_blue")"
+    $'\033[38;2;122;165;139m'
+    $'\033[38;2;52;93;80m'
+    $'\033[38;2;225;119;128m'
+  )
+  while IFS= read -r line || [[ -n $line ]]; do
+    for index in 1 2 3 4 5 6; do
+      line=${line//\$$index/${colors[$index]}}
+    done
+    printf '%s\033[0m\n' "$line"
+  done < "$art"
+else
+  sed -E 's/\$[1-9]//g' "$art"
 fi
-cat -- "$art"
-[[ -t 1 && $plain == false ]] && printf '\033[0m'
 
 if [[ $plain == false ]]; then
   state=READY

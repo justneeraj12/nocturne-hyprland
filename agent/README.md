@@ -115,6 +115,14 @@ daemon:
 - `:metrics` reports privacy-safe success, latency, route, and verification
   counts. `:eval` runs a side-effect-free routing regression suite.
 
+NØX repair questions now read **NOX DOC** live-session evidence and its curated
+Linux recovery plan. Diagnosis and explanation are read-only. An explicit fix
+request may select one confirmation-gated user-session repair from a fixed enum;
+NOX DOC executes and verifies it without exposing shell or root to the model.
+When the graphical desktop cannot start, the system-level NOX DOC runs
+independently on a systemd recovery target without loading NØX or its model. See
+[`docs/NOX-DOC.md`](../docs/NOX-DOC.md).
+
 ## Design goals
 
 - Stay asleep unless a request actually requires language inference.

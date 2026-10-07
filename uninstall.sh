@@ -60,7 +60,8 @@ systemctl --user disable --now \
   nocturne-agenda-refresh.timer \
   nocturne-agenda-refresh.service \
   nocturne-session-health.timer \
-  nocturne-session-health.service >/dev/null 2>&1 || true
+  nocturne-session-health.service \
+  nocturne-welcome.service >/dev/null 2>&1 || true
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
 pkill -f '^.*/nocturne-(dashboard|visualizer)( |$)' 2>/dev/null || true
 
@@ -187,7 +188,7 @@ systemctl --user unmask \
 systemctl --user unmask kde-baloo.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions nocturne-welcome nox-doc steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"
@@ -199,6 +200,15 @@ for binary in "${bin_targets[@]}"; do
     cp -a -- "$backup/bin/$binary" "$current"
   fi
 done
+
+mkdir -p "$rollback/dbus-services" "$DATA_HOME/dbus-1/services"
+dbus_service="$DATA_HOME/dbus-1/services/fr.emersion.mako.service"
+[[ -e $dbus_service ]] && cp -a -- "$dbus_service" "$rollback/dbus-services/"
+rm -f -- "$dbus_service"
+if [[ -e $backup/dbus-services/fr.emersion.mako.service ]]; then
+  cp -a -- "$backup/dbus-services/fr.emersion.mako.service" "$dbus_service"
+fi
+busctl --user call org.freedesktop.DBus / org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || true
 
 if [[ -f $HOME/.zshrc ]] && grep -Fq '# >>> Nocturne desktop >>>' "$HOME/.zshrc"; then
   zshrc_tmp=$(mktemp "${TMPDIR:-/tmp}/nocturne-zshrc.XXXXXX")
@@ -245,6 +255,25 @@ if [[ -e /usr/share/wayland-sessions/nocturne-recovery.desktop || -e /usr/local/
   else
     printf 'Root-owned recovery login files remain; remove them later with:\n'
     printf '  sudo rm -f /usr/share/wayland-sessions/nocturne-recovery.desktop /usr/local/bin/nocturne-recovery-session\n'
+  fi
+fi
+
+nox_doc_system_files=(
+  /usr/local/sbin/nox-doc
+  /usr/share/nocturne/nox-doc-knowledge.json
+  /etc/nocturne/nox-doc.conf
+  /etc/systemd/system/nox-doc.service
+  /etc/systemd/system/nox-doc.target
+)
+nox_doc_installed=false
+for target in "${nox_doc_system_files[@]}"; do [[ -e $target ]] && nox_doc_installed=true; done
+if "$nox_doc_installed"; then
+  if sudo -n true 2>/dev/null; then
+    sudo -n systemctl stop nox-doc.service nox-doc.target >/dev/null 2>&1 || true
+    sudo -n rm -f -- "${nox_doc_system_files[@]}"
+    sudo -n systemctl daemon-reload
+  else
+    printf 'Root-owned NOX DOC files remain. Remove the paths documented in docs/NOX-DOC.md with sudo.\n'
   fi
 fi
 

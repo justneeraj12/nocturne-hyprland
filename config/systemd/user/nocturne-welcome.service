@@ -1,0 +1,9 @@
+[Unit]
+Description=NOC one-shot terminal welcome
+After=nocturne-bar.service graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/nocturne-welcome launch-first-run
+

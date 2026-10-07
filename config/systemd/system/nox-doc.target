@@ -1,0 +1,7 @@
+[Unit]
+Description=NOX DOC offline recovery environment
+Documentation=https://github.com/justneeraj12/nocturne-hyprland/blob/main/docs/NOX-DOC.md
+Requires=local-fs.target nox-doc.service
+After=local-fs.target systemd-remount-fs.service
+Conflicts=graphical.target
+AllowIsolate=yes

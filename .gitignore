@@ -27,5 +27,5 @@ agent-models/
 *.tmp
 nocturne-*.png
 
-# Keep the generated wallpaper out of Git; the SVG source is tracked.
-assets/nocturne-grid.png
+# The SVG master and its ready-to-install PNG export are both release assets.
+!assets/nocturne-grid.png

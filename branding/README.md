@@ -24,7 +24,9 @@ The ready-to-publish banner export lives at
 
 `nocturne-banner` selects between the two terminal marks from the available
 column width, follows the active accent and can append live node/session state
-without a resident process.
+without a resident process. The text assets use Fastfetch's `$1`…`$6` color
+placeholders, so the dimensional face, copper extrusion, phosphor shell and
+live signal remain colorful without embedding terminal-specific escape codes.
 
 Palette:
 

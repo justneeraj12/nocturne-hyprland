@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-1.3.0-cb8d62?style=flat-square" alt="Nocturne 1.3.0">
+  <img src="https://img.shields.io/badge/release-2.0.0-cb8d62?style=flat-square" alt="NOC 2.0.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
   <img src="https://img.shields.io/badge/Arch-CI%20validated-6d9578?style=flat-square" alt="CI validated on Arch Linux">
@@ -33,11 +33,9 @@ history, power modes, screenshots and screen recording to behave normally.
 > is package-resolved and native-build tested in clean CI. Both require
 > Hyprland 0.56+ and Qt 6.6+.
 
-> **NOC 2.0 is in development.** The next generation turns this shell into an
-> installable desktop platform with encrypted multi-device continuity, packages,
-> transactional updates and a public hardware matrix. Follow the
-> [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
-> Community testers can start with the [Alpha 2 notes](docs/RELEASE-2.0-ALPHA2.md).
+> **NOC 2.0 is stable.** The supported contract covers Ubuntu 26.04 on the
+> reference laptop and current Arch package resolution/native builds in CI.
+> Hardware reports remain welcome through [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
 
 <p align="center">
   <a href="docs/media/noc-2-community-labs.mp4">
@@ -47,17 +45,23 @@ history, power modes, screenshots and screen recording to behave normally.
   <sub>Click the frame for the 25-second NOC 2.0 showcase reel.</sub>
 </p>
 
-## Current release // 1.3.0
+## Current release // 2.0.0
 
-Nocturne 1.3 expands the visual identity without forking critical system behavior. The [release notes](docs/RELEASE-1.3.md) describe the complete lock and terminal system.
+NOC 2.0 turns the original rice into a reversible desktop platform. The
+[release notes](docs/RELEASE-2.0.md) describe the complete stability and support contract.
 
-- **Ten lock compositions** range from sparse Dead Channel to dense Mainframe while sharing one PAM path;
-- **independent treatments** control wallpaper intensity and Operator, 12-hour or 24-hour clock notation;
-- **safe previews and migration** preserve the active style and restore previews after one successful unlock;
-- **grand and compact NOC marks** give Fastfetch, terminal splits and project screenshots one adaptive identity;
-- `nocturne-banner` adds live node state only on demand, with no new resident process.
+- **guided installation and first signal** provide a terminal preflight,
+  automatic backup, first-login checklist, shortcut coaching and direct rollback;
+- **NOX DOC** provides model-independent boot recovery plus confirmation-gated,
+  verified repairs for a working session;
+- **continuity and workflow tools** cover encrypted multi-device state, agenda,
+  Desk, Habits, Vault, scenes and explainable automation without telemetry;
+- **laptop and campus support** cover displays, power, audio routing, camera,
+  driverless printing, scanning and pressure-aware performance;
+- **clean-profile install/rollback CI** exercises the exact public manifests,
+  while Ubuntu and Arch jobs compile and validate the native shell.
 
-Read the complete [1.3 release notes](docs/RELEASE-1.3.md).
+Read the complete [2.0 release notes](docs/RELEASE-2.0.md).
 
 <p align="center">
   <img src="docs/screenshots/storage-center.webp" alt="Nocturne Storage Center" width="47%">
@@ -88,6 +92,9 @@ personal file names.
 | **Local workflow memory** | Desk, Habits and Vault connect tasks, notes, focus blocks, weekly pacing and reusable snippets through private files with no account, cloud dependency or resident workflow daemon. |
 | **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
 | **Explainable system control** | Storage, permissions, startup, power and recovery expose their real source of truth and keep destructive or privileged actions explicit. |
+| **Pressure-aware performance** | An opt-in, reversible zram profile absorbs memory bursts while Linux keeps ownership of page cache, NVMe scheduling and thermal safety. |
+| **Campus-ready peripherals** | CUPS/IPP Everywhere, AirScan/SANE, enterprise Wi-Fi guidance and bounded discovery make shared printers and scanners first-class. |
+| **NOX DOC recovery agent** | A model-independent tty recovery target plus working-session doctor: evidence first, confirmation-gated allow-listed repairs, verification afterward and no model-to-root path. |
 
 ## The desktop
 
@@ -127,6 +134,9 @@ The shell includes:
 - a live NOC Operations Deck with node health, resource, thermal, network, power and service telemetry;
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
+- a reversible Performance Lab with zram readiness, kernel-cache visibility, NVMe policy and pressure-aware recommendations;
+- a Campus compatibility hub for driverless IPP printing, AirScan/SANE devices, eduroam-safe setup and standard identity hardware;
+- NOX DOC, a headless systemd recovery target with an inspectable Linux knowledge pack, offline checkpoint restore and no model-to-root path;
 - calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
 - a private read-only Connected Agenda for local, Google, Outlook, iCloud, Nextcloud and other ICS feeds;
 - Window Rules Studio with open-app discovery, escaped exact matches and isolated generated Lua;
@@ -196,13 +206,17 @@ the desktop around Hyprland; it does not install the compositor itself.
 ```bash
 git clone https://github.com/justneeraj12/nocturne-hyprland.git
 cd nocturne-hyprland
-./install.sh --install-packages
+./install.sh
 ```
+
+The terminal wizard recommends the full setup, explains every privileged step
+and creates a rollback snapshot before touching the live desktop. Automation
+and experienced users can still use `./install.sh --install-packages`.
 
 If the runtime and build dependencies are already installed:
 
 ```bash
-./install.sh
+./install.sh --user-only
 ```
 
 Then log out once and select **Hyprland (uwsm-managed)**. On later updates,
@@ -314,6 +328,9 @@ applications keep their own toolkit and license.
 - [Customization](docs/CUSTOMIZATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [NOC 2.0 architecture](docs/NOC-2.0.md)
+- [NOC 2.0 stable release](docs/RELEASE-2.0.md)
+- [NOC 2.0 release-candidate gate](docs/RELEASE-2.0-RC-CHECKLIST.md)
+- [NOX DOC recovery and live repair](docs/NOX-DOC.md)
 - [2026 community demand scan](docs/COMMUNITY-DEMAND-2026.md)
 - [Security Hub design](docs/SECURITY-HUB.md)
 - [Declarative extension contract](docs/EXTENSIONS.md)
@@ -326,7 +343,6 @@ applications keep their own toolkit and license.
 - [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
 - [Nocturne 1.1 — fifty system upgrades](docs/RELEASE-1.1.md)
 - [Nocturne 1.3 — signal identity](docs/RELEASE-1.3.md)
-- [NOC 2.0 Alpha 1 — foundation](docs/RELEASE-2.0-ALPHA1.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Launch and community plan](docs/LAUNCH.md)
 - [Experimental NØX local agent](agent/README.md) — optional and not installed by default

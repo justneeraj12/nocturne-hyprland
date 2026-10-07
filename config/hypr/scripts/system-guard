@@ -14,7 +14,7 @@ status() {
     || lines+=$(add_issue bar critical 'Native bar is not running' 'The shell bar can be restarted safely.' true)$'\n'
   service_active xdg-desktop-portal-hyprland.service || lines+=$(add_issue portal critical 'Hyprland portal is offline' 'Screen sharing and file dialogs may fail.' true)$'\n'
   service_active xdg-desktop-portal.service || lines+=$(add_issue portal-base warning 'Desktop portal broker is offline' 'Applications may not reach portal backends.' true)$'\n'
-  failed=$(systemctl --user --failed --no-legend 2>/dev/null | awk 'NF{count++}END{print count+0}')
+  failed=$({ systemctl --user --failed --no-legend 2>/dev/null || true; } | awk 'NF{count++}END{print count+0}')
   ((failed == 0)) || lines+=$(add_issue failed warning "$failed failed user services" 'Reset failures after inspecting the maintenance view.' true)$'\n'
   audio_sink=$(pactl get-default-sink 2>/dev/null || true); audio_source=$(pactl get-default-source 2>/dev/null || true)
   [[ -n $audio_sink ]] || lines+=$(add_issue audio critical 'No default audio output' 'WirePlumber default routing needs recovery.' true)$'\n'

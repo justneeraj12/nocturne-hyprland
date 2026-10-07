@@ -83,8 +83,12 @@ mkdir -p "$snapshot/environment.d"
 if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
+mkdir -p "$snapshot/dbus-services"
+if [[ -e "$DATA_HOME/dbus-1/services/fr.emersion.mako.service" ]]; then
+  cp -a -- "$DATA_HOME/dbus-1/services/fr.emersion.mako.service" "$snapshot/dbus-services/"
+fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions nocturne-welcome nox-doc steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -115,6 +119,7 @@ mkdir -p "$CONFIG_HOME/hypr" "$CONFIG_HOME/mako" "$CONFIG_HOME/xdg-desktop-porta
   "$CONFIG_HOME/nocturne" "$DATA_HOME/backgrounds" \
   "$HOME/Pictures/Wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Videos/Screenrecords" \
   "$DATA_HOME/applications" "$DATA_HOME/color-schemes" \
+  "$DATA_HOME/dbus-1/services" \
   "$DATA_HOME/file-manager/actions" "$DATA_HOME/thumbnailers" \
   "$DATA_HOME/dolphin/view_properties/global" \
   "$CONFIG_HOME/pcmanfm-qt/default" \
@@ -186,7 +191,7 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
-for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-security-update.service nocturne-security-update.timer nocturne-security-scan.service nocturne-security-scan.timer nocturne-agenda-refresh.service nocturne-agenda-refresh.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-security-update.service nocturne-security-update.timer nocturne-security-scan.service nocturne-security-scan.timer nocturne-agenda-refresh.service nocturne-agenda-refresh.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service nocturne-welcome.service; do
   install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
 done
 rm -f -- "$CONFIG_HOME/systemd/user/nocturne-notifications.service"
@@ -260,7 +265,11 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-polkit-agent" "$BIN_HOME/nocturne-polkit
 install -m 0755 "$ROOT_DIR/bin/nocturne-agenda" "$BIN_HOME/nocturne-agenda"
 install -m 0755 "$ROOT_DIR/bin/nocturne-window-rules" "$BIN_HOME/nocturne-window-rules"
 install -m 0755 "$ROOT_DIR/bin/nocturne-extensions" "$BIN_HOME/nocturne-extensions"
+install -m 0755 "$ROOT_DIR/bin/nocturne-welcome" "$BIN_HOME/nocturne-welcome"
+install -m 0755 "$ROOT_DIR/bin/nox-doc" "$BIN_HOME/nox-doc"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
+install -m 0644 "$ROOT_DIR/config/dbus-1/services/fr.emersion.mako.service" \
+  "$DATA_HOME/dbus-1/services/fr.emersion.mako.service"
 if [[ -f /usr/share/applications/brave-browser.desktop ]]; then
   sed -e "s|/usr/bin/brave-browser-stable|$BIN_HOME/nocturne-browser|g" \
     -e "s|/opt/brave.com/brave/brave-browser|$BIN_HOME/nocturne-browser|g" \
@@ -442,6 +451,7 @@ systemctl --user stop \
   evolution-calendar-factory.service \
   evolution-source-registry.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
+busctl --user call org.freedesktop.DBus / org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || true
 # The compositor starts the complete supervised target only after importing the
 # Wayland environment. Historical default.target enablement races login.
 systemctl --user disable nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true

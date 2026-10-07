@@ -3,7 +3,14 @@
   "logo": {
     "type": "file",
     "source": "~/.config/fastfetch/noc.txt",
-    "color": { "1": "#cb8d62" },
+    "color": {
+      "1": "#fff4dc",
+      "2": "#d9b086",
+      "3": "#b96e47",
+      "4": "#7aa58b",
+      "5": "#345d50",
+      "6": "#e17780"
+    },
     "padding": { "top": 1, "right": 3 }
   },
   "display": {

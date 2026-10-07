@@ -11,18 +11,23 @@ Rectangle {
     property var backup: ({latest:"",exists:false})
     property var continuity: ({configured:false,encrypted:false,bundleAvailable:false,inSync:false,root:"",lastAction:"never",lastActionAt:""})
     property var recovery: ({exists:false,size:0,modified:"",failures:0})
+    property var noxDoc: ({available:false,critical:0,repairable:0,checkpoint:{valid:false},safety:{modelHasRoot:false}})
     property bool confirmPortableRestore: false
     property bool confirmRecoveryRestore: false
     readonly property string profileHelper: backend.home + "/.config/hypr/scripts/setup-profile"
     readonly property string portable: backend.home + "/.local/bin/nocturne-portable"
     readonly property string continuityTool: backend.home + "/.local/bin/nocturne-continuity"
     readonly property string recoveryTool: backend.home + "/.local/bin/nocturne-recovery"
+    readonly property string noxDocTool: "/usr/local/sbin/nox-doc"
 
     function refresh() {
         hardware = backend.json([profileHelper, "status"], 2500) || hardware
         backup = backend.json([portable, "status"], 2500) || backup
         continuity = backend.json([continuityTool, "status"], 2500) || continuity
         recovery = backend.json([recoveryTool, "status"], 2500) || recovery
+        var doc = backend.json([noxDocTool, "diagnose", "--json"], 5000)
+        if (doc) { doc.available = true; noxDoc = doc }
+        else noxDoc = {available:false,critical:0,repairable:0,checkpoint:{valid:false},safety:{modelHasRoot:false}}
     }
     function applyProfile(name) {
         backend.start([profileHelper, "apply", name])
@@ -226,6 +231,31 @@ Rectangle {
                             }
                         }
                     }
+                }
+
+                SettingsCard {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    title: "NOX DOC // BOOT RECOVERY"
+                    description: "A model-independent tty recovery controller for failures below the graphical desktop."
+                    icon: "tools-report-bug"
+                    glyph: "DOC"
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 50
+                        color: backend.baseColor
+                        border.color: root.noxDoc.available && root.noxDoc.critical === 0 ? backend.accentColor : "#8d4b54"
+                        Column { anchors.fill: parent; anchors.margins: 8; spacing: 3
+                            Text { text: !root.noxDoc.available ? "SYSTEM INTEGRATION NOT INSTALLED" : (root.noxDoc.critical === 0 ? "RECOVERY PATH VERIFIED" : root.noxDoc.critical + " CRITICAL CONDITION(S)"); color: root.noxDoc.available && root.noxDoc.critical === 0 ? backend.accentColor : "#ff8c96"; font.family: "monospace"; font.pixelSize: 9; font.bold: true }
+                            Text { width: parent.width; text: (root.noxDoc.checkpoint.valid ? "CHECKPOINT VALID" : "CHECKPOINT NEEDS ATTENTION") + " · MODEL ROOT ACCESS: NEVER"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 8; elide: Text.ElideRight }
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        NocturneButton { Layout.fillWidth: true; text: "DIAGNOSE"; selected: true; enabled: root.noxDoc.available; onClicked: backend.start(["kitty", "--title", "NOX DOC // Diagnosis", "-e", root.noxDocTool, "diagnose"]) }
+                        NocturneButton { Layout.fillWidth: true; text: "ENTER RECOVERY"; danger: true; enabled: root.noxDoc.available; onClicked: backend.start(["kitty", "--title", "NOX DOC // System Recovery", "-e", "sudo", root.noxDocTool, "enter"]) }
+                    }
+                    Text { Layout.fillWidth: true; text: "Entering recovery pauses the graphical target only after terminal confirmation."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; wrapMode: Text.WordWrap }
                 }
             }
             Item { Layout.preferredHeight: 16 }

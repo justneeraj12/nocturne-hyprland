@@ -179,6 +179,50 @@ grep -Fq 'accel_profile = "flat"' "$XDG_CONFIG_HOME/nocturne/input.lua"
 
 "$root/config/hypr/scripts/storage-control" status \
   | jq -e '.format == "nocturne-storage-v1" and (.cleanup|length) == 4 and (.protected|length) >= 4' >/dev/null
+"$root/config/hypr/scripts/performance-control" status \
+  | jq -e '.format == "nocturne-performance-lab-v1" and .cache.policy == "KERNEL MANAGED" and (.recommendations|type == "array")' >/dev/null
+"$root/config/hypr/scripts/performance-control" plan \
+  | jq -e '.format == "nocturne-performance-plan-v1" and .rebootRequired == true and (.changes|length) == 2' >/dev/null
+"$root/config/hypr/scripts/campus-control" status \
+  | jq -e '.format == "nocturne-campus-v1" and .privacy == "NO CREDENTIALS STORED" and .print.driverless == "IPP EVERYWHERE"' >/dev/null
+doc_root="$test_root/nox-doc-root"
+doc_home="$doc_root/home/noc"
+mkdir -p "$doc_root/etc" "$doc_home/.config/hypr" "$doc_home/.local/bin" "$doc_home/.local/state/nocturne/recovery"
+printf '%s\n' 'noc:x:1000:1000:NOC:/home/noc:/bin/bash' > "$doc_root/etc/passwd"
+printf '%s\n' 'return {}' > "$doc_home/.config/hypr/hyprland.lua"
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$doc_home/.local/bin/nocturne-native"
+chmod +x "$doc_home/.local/bin/nocturne-native"
+tar -C "$doc_home" -czf "$doc_home/.local/state/nocturne/recovery/last-good.tar.gz" .config/hypr
+doc_env=(NOX_DOC_ROOT="$doc_root" NOX_DOC_USER=noc NOX_DOC_HOME=/home/noc NOX_DOC_KNOWLEDGE="$root/config/nocturne/nox-doc-knowledge.json")
+env "${doc_env[@]}" "$root/bin/nox-doc" diagnose --json \
+  | jq -e '.format == "nox-doc-diagnosis-v1" and .critical == 0 and .safety.modelHasRoot == false and .checkpoint.valid == true' >/dev/null
+env "${doc_env[@]}" "$root/bin/nox-doc" plan \
+  | jq -e '.format == "nox-doc-plan-v1" and (.boundary | contains("language model has no root tool"))' >/dev/null
+mock_guard="$test_root/bin/nox-doc-guard"
+mock_guard_fixed="$test_root/nox-doc-live-fixed"
+printf '%s\n' '#!/bin/sh' \
+  'if [ "${1:-}" = status ]; then' \
+  '  if [ -e "$MOCK_GUARD_FIXED" ]; then' \
+  '    printf '\''%s\n'\'' '\''{"format":"nocturne-guard-v1","healthy":true,"issues":[],"summary":{"tested":1}}'\''' \
+  '  else' \
+  '    printf '\''%s\n'\'' '\''{"format":"nocturne-guard-v1","healthy":false,"issues":[{"id":"audio","severity":"warning","title":"Audio graph unavailable","detail":"Fixture has no default sink.","fixable":true}],"summary":{"tested":1}}'\''' \
+  '  fi' \
+  'elif [ "${1:-}" = fix ] && [ "${2:-}" = audio ]; then' \
+  '  : > "$MOCK_GUARD_FIXED"' \
+  'else' \
+  '  exit 2' \
+  'fi' > "$mock_guard"
+chmod +x "$mock_guard"
+live_doc_env=(NOX_DOC_ROOT="$doc_root" NOX_DOC_USER=noc NOX_DOC_HOME=/home/noc NOX_DOC_GUARD="$mock_guard" NOX_DOC_ASSUME_YES=1 MOCK_GUARD_FIXED="$mock_guard_fixed")
+env "${live_doc_env[@]}" "$root/bin/nox-doc" live-diagnose \
+  | jq -e '.format == "nox-doc-live-v1" and .healthy == false and (.repairable|length) == 1 and .repairable[0].id == "audio" and .policy.modelHasRoot == false' >/dev/null
+env "${live_doc_env[@]}" "$root/bin/nox-doc" live-plan \
+  | jq -e '.format == "nox-doc-live-plan-v1" and (.steps|length) == 1 and .steps[0].scope == "USER SESSION" and (.contract|length) == 5' >/dev/null
+env "${live_doc_env[@]}" "$root/bin/nox-doc" live-repair audio \
+  | jq -e '.format == "nox-doc-live-repair-v1" and .changed == true and .verified == true and (.before.issues|length) == 1 and (.after.issues|length) == 0' >/dev/null
+[[ $(stat -c %a "$XDG_STATE_HOME/nocturne/nox-doc/live-repairs.jsonl") == 600 ]]
+tail -n 1 "$XDG_STATE_HOME/nocturne/nox-doc/live-repairs.jsonl" \
+  | jq -e '.target == "audio" and .beforeIssues == 1 and .afterIssues == 0 and .result == "success" and .verified == true' >/dev/null
 "$root/config/hypr/scripts/noc-state" status \
   | jq -e '.format == "nocturne-operations-v1" and (.score|type == "number") and (.alerts|type == "array")' >/dev/null
 mkdir -p "$XDG_CONFIG_HOME/nocturne"

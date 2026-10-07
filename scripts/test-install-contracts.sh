@@ -24,11 +24,27 @@ grep -Fq 'nocturne-context.timer' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-context.timer' "$root/uninstall.sh"
 grep -Fq 'nocturne-session.target' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-session.target' "$root/uninstall.sh"
+grep -Fq '/usr/local/sbin/nox-doc' "$root/scripts/install-packages.sh"
+grep -Fq '/etc/systemd/system/nox-doc.target' "$root/scripts/install-packages.sh"
+grep -Fq '/usr/local/sbin/nox-doc' "$root/uninstall.sh"
+grep -Fq 'AllowIsolate=yes' "$root/config/systemd/system/nox-doc.target"
+grep -Fq 'StandardInput=tty-force' "$root/config/systemd/system/nox-doc.service"
 grep -Fq '# >>> Nocturne desktop >>>' "$root/apply-hyprland.sh"
 grep -Fq '# >>> Nocturne desktop >>>' "$root/uninstall.sh"
+grep -Fq 'nocturne-welcome' "$root/apply-hyprland.sh"
+grep -Fq 'nocturne-welcome' "$root/uninstall.sh"
+grep -Fq 'SystemdService=mako.service' "$root/config/dbus-1/services/fr.emersion.mako.service"
+grep -Fq 'nocturne-welcome.service' "$root/config/systemd/user/nocturne-session.target"
 
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT
+welcome_root="$test_root/welcome-home"
+mkdir -p "$welcome_root/.config" "$welcome_root/.local/state"
+HOME="$welcome_root" XDG_CONFIG_HOME="$welcome_root/.config" XDG_STATE_HOME="$welcome_root/.local/state" \
+  "$root/bin/nocturne-welcome" status --json \
+  | jq -e '.format == "nocturne-welcome-v1" and .version == "2.0.0" and .privacy.telemetry == false' >/dev/null
+NO_COLOR=1 "$root/bin/nocturne-welcome" hints | grep -Fq 'Super + Space'
+
 printf '%s\n' 'ID=arch' > "$test_root/arch-release"
 printf '%s\n' 'ID=ubuntu' 'ID_LIKE=debian' > "$test_root/ubuntu-release"
 
@@ -47,9 +63,12 @@ arch_plan=$(NOCTURNE_OS_RELEASE_FILE="$test_root/arch-release" "$root/scripts/in
 ubuntu_plan=$(NOCTURNE_OS_RELEASE_FILE="$test_root/ubuntu-release" "$root/scripts/install-packages.sh" --print)
 jq -e '.family == "arch" and (.packages | index("layer-shell-qt")) != null and
   (.packages | index("xdg-desktop-portal-hyprland")) != null and
-  (.packages | index("okular")) != null and (.packages | index("qpdfview")) == null' <<< "$arch_plan" >/dev/null
+  (.packages | index("okular")) != null and (.packages | index("qpdfview")) == null and
+  (.packages | index("cups")) != null and (.packages | index("sane-airscan")) != null and
+  (.packages | index("zram-generator")) != null and (.packages | index("systemd-zram-generator")) == null' <<< "$arch_plan" >/dev/null
 jq -e '.family == "debian" and (.packages | index("qml6-module-org-kde-layershell")) != null and
-  (.packages | index("qpdfview")) != null' <<< "$ubuntu_plan" >/dev/null
+  (.packages | index("qpdfview")) != null and (.packages | index("cups")) != null and
+  (.packages | index("sane-airscan")) != null and (.packages | index("systemd-zram-generator")) != null' <<< "$ubuntu_plan" >/dev/null
 
 grep -Fq 'nocturne-polkit-agent' "$root/config/systemd/user/nocturne-polkit.service"
 grep -Fq "platform upgrade-command" "$root/config/hypr/scripts/system-maintenance"

@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+command_ready() { command -v "$1" >/dev/null 2>&1; }
+
+service_state() {
+  command_ready systemctl || { printf 'unavailable'; return; }
+  systemctl is-active "$1" 2>/dev/null || printf 'inactive'
+}
+
+lines_json() {
+  jq -Rsc 'split("\n") | map(select(length > 0))'
+}
+
+status() {
+  local queues default_queue='' cups_state avahi_state ipp_usb_state queue_json
+  local print_ready=false scan_ready=false network_ready=false scan_app='none'
+  queues=$(lpstat -e 2>/dev/null || true)
+  queue_json=$(printf '%s\n' "$queues" | lines_json)
+  default_queue=$(lpstat -d 2>/dev/null | sed 's/^system default destination: //' || true)
+  [[ $default_queue == 'no system default destination' ]] && default_queue=''
+  cups_state=$(service_state cups.service)
+  [[ $cups_state == inactive ]] && cups_state=$(service_state cups.socket)
+  avahi_state=$(service_state avahi-daemon.service)
+  ipp_usb_state=$(service_state ipp-usb.service)
+  command_ready lpstat && command_ready lpadmin && print_ready=true
+  command_ready scanimage && scan_ready=true
+  command_ready nmcli && network_ready=true
+  if command_ready skanpage; then scan_app=skanpage; elif command_ready simple-scan; then scan_app=simple-scan; fi
+
+  jq -cn \
+    --argjson printReady "$print_ready" --arg cups "$cups_state" --arg avahi "$avahi_state" --arg ippUsb "$ipp_usb_state" \
+    --argjson queues "$queue_json" --arg defaultQueue "$default_queue" \
+    --argjson scanReady "$scan_ready" --arg scanApp "$scan_app" --argjson airscan "$({ compgen -G '/usr/lib*/sane/libsane-airscan.so*' || compgen -G '/usr/lib/*/sane/libsane-airscan.so*'; } >/dev/null && printf true || printf false)" \
+    --argjson networkReady "$network_ready" --argjson vpn "$(command_ready nmcli && nmcli -t -f TYPE connection show 2>/dev/null | grep -qx vpn && printf true || printf false)" \
+    --argjson smartcard "$(command_ready opensc-tool && printf true || printf false)" --argjson fido "$(command_ready fido2-token && printf true || printf false)" \
+    '{format:"nocturne-campus-v1",privacy:"NO CREDENTIALS STORED",
+      print:{ready:$printReady,cups:$cups,avahi:$avahi,ippUsb:$ippUsb,queues:$queues,defaultQueue:$defaultQueue,driverless:"IPP EVERYWHERE"},
+      scan:{ready:$scanReady,application:$scanApp,airscan:$airscan,protocols:["eSCL/AirScan","WSD","USB/SANE"]},
+      network:{ready:$networkReady,enterpriseWifi:$networkReady,vpnProfiles:$vpn,certificatePolicy:"USE UNIVERSITY PROFILE"},
+      identity:{smartcard:$smartcard,fido:$fido},
+      documents:{pdf:true,office:false},
+      guidance:[
+        {label:"University Wi-Fi",detail:"Import the institution-issued eduroam/geteduroam profile. NOC never disables certificate checks."},
+        {label:"Campus printers",detail:"Prefer IPP Everywhere, AirPrint or the university PaperCut/Mobility Print package."},
+        {label:"Scanners",detail:"AirScan/eSCL and WSD devices work without vendor daemons; SANE remains the fallback."}
+      ]}'
+}
+
+discover() {
+  local printers scanners printer_json scanner_json
+  printers=$({ lpstat -e 2>/dev/null || true; timeout 5s driverless 2>/dev/null || true; } | awk 'NF && !seen[$0]++' | head -20)
+  scanners=$(timeout 7s scanimage -L 2>/dev/null | sed -E 's/^device [`'"'"']?//; s/[`'"'"']? is a .*$/ /' | sed 's/[[:space:]]*$//' | head -20 || true)
+  printer_json=$(printf '%s\n' "$printers" | lines_json)
+  scanner_json=$(printf '%s\n' "$scanners" | lines_json)
+  jq -cn --argjson printers "$printer_json" --argjson scanners "$scanner_json" \
+    '{format:"nocturne-campus-discovery-v1",printers:$printers,scanners:$scanners,temporary:true}'
+}
+
+repair() {
+  local answer
+  command_ready sudo || { printf 'sudo is required to start hardware services.\n' >&2; exit 4; }
+  printf 'This enables CUPS socket activation and Avahi discovery. It does not install drivers or store credentials.\nType REPAIR to continue: '
+  read -r answer
+  [[ $answer == REPAIR ]] || { printf 'Cancelled.\n'; exit 1; }
+  sudo systemctl enable --now cups.socket avahi-daemon.service
+  sudo systemctl try-restart cups.service 2>/dev/null || true
+  printf 'Printer and discovery services are ready.\n'
+}
+
+case ${1:-status} in
+  status) status ;;
+  discover) discover ;;
+  repair) repair ;;
+  open-printers) xdg-open http://localhost:631/ ;;
+  open-scanner)
+    if command_ready skanpage; then exec skanpage; elif command_ready simple-scan; then exec simple-scan; else printf 'Install skanpage or simple-scan.\n' >&2; exit 4; fi ;;
+  *) printf 'Usage: %s status|discover|repair|open-printers|open-scanner\n' "$0" >&2; exit 2 ;;
+esac

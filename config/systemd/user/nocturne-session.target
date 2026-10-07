@@ -4,4 +4,4 @@ Documentation=https://github.com/justneeraj12/nocturne-hyprland
 Requires=graphical-session.target
 After=graphical-session.target
 PartOf=graphical-session.target
-Wants=nocturne-bar.service nocturne-idle.service mako.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-wallpaper-cycle.service nocturne-hardware-init.service
+Wants=nocturne-bar.service nocturne-idle.service mako.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-wallpaper-cycle.service nocturne-hardware-init.service nocturne-welcome.service

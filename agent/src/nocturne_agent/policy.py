@@ -201,6 +201,16 @@ POLICIES: dict[str, ToolPolicy] = {
         "Read process, window, service, download, network, audio, or power status",
     ),
     "system_status": ToolPolicy(Risk.SAFE, _keys(set()), "Read CPU, memory, disk and GPU state"),
+    "recovery_advice": ToolPolicy(
+        Risk.SAFE,
+        _choice("view", {"status", "plan"}),
+        "Read NOX DOC recovery evidence and its fixed Linux knowledge pack without root access",
+    ),
+    "recovery_repair": ToolPolicy(
+        Risk.CONFIRM,
+        _choice("target", {"all", "bar", "portal", "failed", "audio", "microphone", "wallpaper"}),
+        "Run one exact NOX DOC live-session repair and verify its observed result",
+    ),
     "find_app": ToolPolicy(Risk.SAFE, _app_query, "Find exact installed app references from a natural name"),
     "launch_app": ToolPolicy(
         Risk.SAFE,
@@ -261,6 +271,18 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "additionalProperties": False,
     },
     "system_status": {"type": "object", "properties": {}, "additionalProperties": False},
+    "recovery_advice": {
+        "type": "object",
+        "properties": {"view": {"type": "string", "enum": ["status", "plan"]}},
+        "required": ["view"],
+        "additionalProperties": False,
+    },
+    "recovery_repair": {
+        "type": "object",
+        "properties": {"target": {"type": "string", "enum": ["all", "bar", "portal", "failed", "audio", "microphone", "wallpaper"]}},
+        "required": ["target"],
+        "additionalProperties": False,
+    },
     "find_app": {
         "type": "object",
         "properties": {"query": {"type": "string", "minLength": 1, "maxLength": 80}},

@@ -1,7 +1,22 @@
 # Changelog
 
-## 2.0.0-alpha.1 - Development
+## 2.0.0 - 2026-10-07
 
+- Added a guided terminal installer with platform preflight, explicit scope,
+  automatic rollback snapshot reporting and deterministic non-interactive flags.
+- Added a one-shot terminal welcome with live readiness, first-ten-minute
+  onboarding, essential shortcuts, workflow habits and recovery guidance.
+- Added a clean-home install/checkpoint/rollback fixture and fixed Mako's D-Bus
+  activation race so the notification daemon is owned by its supervised unit.
+
+- Added Performance Lab with live memory PSI, page-cache, swap, zram, NVMe and workload-profile visibility.
+- Added an opt-in adaptive zram profile with conservative VM policy, visible confirmation, pre-change backup and direct rollback.
+- Added Campus compatibility for IPP Everywhere/CUPS, ipp-usb, Avahi, SANE/AirScan, enterprise Wi-Fi guidance and portable identity readiness.
+- Added matching Ubuntu and Arch printer, scanner and zram dependency plans with bounded zero-idle discovery.
+- Added NOX DOC, an isolatable tty recovery agent with checkpoint verification, offline restore, a curated Linux knowledge pack and no language-model root authority.
+- Connected ordinary NØX repair questions to NOX DOC's read-only evidence and plan while keeping all privileged repair actions outside the model tool manifest.
+- Extended NOX DOC into working sessions with evidence snapshots, explicit confirmation, a fixed user-session repair allowlist, exact timer restoration, post-repair verification and privacy-safe receipts.
+- Rebuilt the NOC terminal identity as a dimensional six-color Fastfetch mark with accent-aware copper depth, phosphor casing and a compact companion.
 - Added the community-demand feature set: private Connected Agenda, exact-match Window Rules Studio, hardware onboarding, capability-gated declarative extensions, Laptop Intelligence and Display Lab profiles.
 - Added read-only Google/Outlook/iCloud/Nextcloud-compatible ICS subscriptions with redacted source URLs, mode-0600 caches, bounded recurrence expansion and zero-resident refresh timers.
 - Added reversible battery refresh limits, shared brightness step/floor controls, Bluetooth startup policy, charge-threshold discovery and exact AC restoration.

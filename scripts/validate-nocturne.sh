@@ -20,6 +20,10 @@ printf '[ OK ] shell scripts\n'
 "$root/scripts/test-install-contracts.sh" >/dev/null
 printf '[ OK ] installer + rollback symmetry\n'
 
+[[ -x $root/scripts/test-clean-home-install.sh ]]
+grep -Fq 'nocturne-welcome' "$root/scripts/test-clean-home-install.sh"
+grep -Fq 'clean-home install and rollback passed' "$root/scripts/test-clean-home-install.sh"
+
 [[ -x $root/scripts/build-release-bundle.sh ]]
 grep -Fq 'gzip -n -9' "$root/scripts/build-release-bundle.sh"
 grep -Fq 'gh release upload' "$root/.github/workflows/release.yml"
@@ -45,7 +49,12 @@ grep -Fq '# NOC 2.0 Alpha 1 — Foundation' "$root/docs/RELEASE-2.0-ALPHA1.md"
 grep -Fq '# NOC 2.0 Alpha 2 — Arch portability' "$root/docs/RELEASE-2.0-ALPHA2.md"
 grep -Fq 'Hyprland speed. Desktop continuity. No phone home.' "$root/docs/LAUNCH-KIT-2.0.md"
 grep -Fq 'Nocturne Community does not phone home' "$root/PRIVACY.md"
-grep -Fq 'NOC 2.0 is in development' "$root/README.md"
+grep -Fq 'NOC 2.0 is stable' "$root/README.md"
+grep -Fq '# NOC 2.0 // First Signal' "$root/docs/RELEASE-2.0.md"
+grep -Fq 'guided terminal installer' "$root/CHANGELOG.md"
+[[ -x $root/bin/nocturne-welcome ]]
+grep -Fq 'nocturne-welcome.service' "$root/config/systemd/user/nocturne-session.target"
+grep -Fq 'SystemdService=mako.service' "$root/config/dbus-1/services/fr.emersion.mako.service"
 grep -Fq 'nocturne-benchmark --summary' "$root/README.md"
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
@@ -55,6 +64,7 @@ grep -Fq 'Type RESTORE to continue' "$root/uninstall.sh"
 grep -Fq 'branding/noc-terminal.txt' "$root/apply-hyprland.sh"
 grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/hero.webp ]]
+[[ -s $root/assets/nocturne-grid.png ]]
 [[ -s $root/docs/screenshots/noc-banner.webp ]]
 [[ -s $root/docs/screenshots/lockscreen.webp ]]
 [[ -s $root/docs/screenshots/terminal.webp ]]
@@ -98,6 +108,8 @@ grep -Fq 'SYSTEM PACKAGES' "$root/native/qml/pages/MaintenancePage.qml"
 grep -Fq 'SAVE LAYOUT' "$root/native/qml/pages/DisplayPage.qml"
 grep -Fq 'qml/pages/SetupSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/EfficiencySettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/PerformanceSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/CampusSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/CameraPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/AutomationPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/OperationsPage.qml' "$root/native/CMakeLists.txt"
@@ -128,6 +140,19 @@ grep -Fq 'vault-capture' "$root/native/src/backend.cpp"
 grep -Fq 'control-action' "$root/native/src/backend.cpp"
 grep -Fq 'SHIFT + N' "$root/config/hypr/hyprland.lua"
 grep -Fq 'TOP MEMORY CONSUMERS' "$root/native/qml/pages/EfficiencySettingsPage.qml"
+grep -Fq 'PRESSURE-AWARE COMPUTE' "$root/native/qml/pages/PerformanceSettingsPage.qml"
+grep -Fq 'UNIVERSITY + SHARED DEVICES' "$root/native/qml/pages/CampusSettingsPage.qml"
+grep -Fq 'NO CREDENTIALS STORED' "$root/config/hypr/scripts/campus-control"
+grep -Fq 'Never purge caches on a timer' "$root/config/hypr/scripts/performance-control"
+grep -Fq 'RECOVERY ASIC' "$root/bin/nox-doc"
+grep -Fq 'modelHasRoot:false' "$root/bin/nox-doc"
+grep -Fq 'restore --offline' "$root/bin/nox-doc"
+grep -Fq 'nox-doc-live-repair-v1' "$root/bin/nox-doc"
+grep -Fq 'recovery_repair' "$root/agent/src/nocturne_agent/policy.py"
+grep -Fq '%h/.local/state/nocturne' "$root/agent/config/systemd/user/nocturne-agent.service"
+grep -Fq 'PATH=%h/.local/bin:' "$root/agent/config/systemd/user/nocturne-agent.service"
+grep -Fq 'nox-doc.target' "$root/scripts/install-packages.sh"
+grep -Fq 'NOX DOC // BOOT RECOVERY' "$root/native/qml/pages/SetupSettingsPage.qml"
 grep -Fq 'find "$thumbnail_root" -type f -mtime +30 -delete' "$root/config/hypr/scripts/efficiency-control"
 grep -Fq 'barRssMiB' "$root/config/hypr/scripts/efficiency-control"
 grep -Fq 'event.contains(" on sink-input #")' "$root/native/src/backend.cpp"
@@ -309,7 +334,9 @@ for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
   grep -Fq 'check_color =' "$lock_style"
 done
 [[ -x $root/bin/nocturne-banner ]]
-grep -Fq 'NOCTURNE OPERATIONS CONTROL' "$root/branding/noc-terminal.txt"
+grep -Fq 'NOCTURNE $2// $1OPERATIONS CONSOLE' "$root/branding/noc-terminal.txt"
+grep -Fq 'SIGNAL $6● $4LIVE' "$root/branding/noc-terminal.txt"
+grep -Fq '"6": "#e17780"' "$root/config/fastfetch/config.jsonc"
 grep -Fq 'noc-terminal-compact.txt' "$root/apply-hyprland.sh"
 grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
 grep -Fq 'lock_dir=' "$root/config/hypr/scripts/bar"

@@ -1,0 +1,19 @@
+[Unit]
+Description=NOX DOC deterministic system recovery controller
+Documentation=https://github.com/justneeraj12/nocturne-hyprland/blob/main/docs/NOX-DOC.md
+After=local-fs.target systemd-remount-fs.service systemd-vconsole-setup.service
+Conflicts=getty@tty1.service
+Before=getty@tty1.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/nox-doc recover
+StandardInput=tty-force
+StandardOutput=tty
+StandardError=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+TimeoutStartSec=infinity
+RemainAfterExit=yes

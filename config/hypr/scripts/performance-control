@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+etc_root=${NOCTURNE_ETC_ROOT:-/etc}
+proc_root=${NOCTURNE_PROC_ROOT:-/proc}
+sys_root=${NOCTURNE_SYS_ROOT:-/sys}
+zram_config="$etc_root/systemd/zram-generator.conf.d/90-nocturne.conf"
+sysctl_config="$etc_root/sysctl.d/90-nocturne-performance.conf"
+backup_root=${NOCTURNE_PERFORMANCE_BACKUP_ROOT:-/var/lib/nocturne/performance-backups}
+
+read_meminfo() {
+  awk -v key="$1:" '$1 == key {print $2 + 0; found=1; exit} END {if (!found) print 0}' "$proc_root/meminfo" 2>/dev/null
+}
+
+read_sysctl() {
+  local key=$1 fallback=${2:-0} path
+  path="$proc_root/sys/${key//./\/}"
+  [[ -r $path ]] && tr -d '[:space:]' < "$path" || printf '%s' "$fallback"
+}
+
+command_ready() { command -v "$1" >/dev/null 2>&1; }
+
+service_state() {
+  command_ready systemctl || { printf 'unavailable'; return; }
+  systemctl is-active "$1" 2>/dev/null || printf 'inactive'
+}
+
+root_block_device() {
+  local source part
+  source=$(findmnt -n -o SOURCE / 2>/dev/null || true)
+  part=${source##*/}
+  [[ -n $part ]] || return 0
+  if [[ -e $sys_root/class/block/$part/partition ]]; then
+    basename -- "$(readlink -f "$sys_root/class/block/$part/..")"
+  else
+    printf '%s' "$part"
+  fi
+}
+
+status() {
+  local mem_total mem_available cached slab dirty writeback swap_total swap_free swap_used pressure
+  local cpu_model threads device disk_model rotational scheduler readahead
+  local zram_available=false zram_active=false zram_size=0 zram_used=0 zram_algorithm='' zram_priority=0
+  local configured=false ready=false profile='unavailable' governor='unknown' epp='unknown'
+  local oomd thermald generator=false nvme=false recommendations
+
+  mem_total=$(read_meminfo MemTotal)
+  mem_available=$(read_meminfo MemAvailable)
+  cached=$(read_meminfo Cached)
+  slab=$(read_meminfo SReclaimable)
+  dirty=$(read_meminfo Dirty)
+  writeback=$(read_meminfo Writeback)
+  swap_total=$(read_meminfo SwapTotal)
+  swap_free=$(read_meminfo SwapFree)
+  swap_used=$((swap_total - swap_free))
+  pressure=$(awk '$1 == "some" {for (i=1;i<=NF;i++) if ($i ~ /^avg10=/) {sub(/^avg10=/,"",$i); print $i; exit}}' "$proc_root/pressure/memory" 2>/dev/null || printf '0')
+  [[ $pressure =~ ^[0-9]+([.][0-9]+)?$ ]] || pressure=0
+
+  cpu_model=$(awk -F: '/model name/ {sub(/^[ \t]+/,"",$2); print $2; exit}' "$proc_root/cpuinfo" 2>/dev/null || true)
+  [[ -n $cpu_model ]] || cpu_model='Unknown CPU'
+  threads=$(grep -c '^processor' "$proc_root/cpuinfo" 2>/dev/null || printf '0')
+  governor=$(cat "$sys_root/devices/system/cpu/cpu0/cpufreq/scaling_governor" 2>/dev/null || printf 'unknown')
+  epp=$(cat "$sys_root/devices/system/cpu/cpu0/cpufreq/energy_performance_preference" 2>/dev/null || printf 'unknown')
+  command_ready powerprofilesctl && profile=$(powerprofilesctl get 2>/dev/null || printf 'unavailable')
+
+  device=$(root_block_device)
+  disk_model=$(cat "$sys_root/class/block/$device/device/model" 2>/dev/null | sed 's/[[:space:]]*$//' || true)
+  [[ -n $disk_model ]] || disk_model='Unknown storage'
+  rotational=$(cat "$sys_root/class/block/$device/queue/rotational" 2>/dev/null || printf '0')
+  scheduler=$(cat "$sys_root/class/block/$device/queue/scheduler" 2>/dev/null | sed -n 's/.*\[\([^]]*\)\].*/\1/p' || true)
+  [[ -n $scheduler ]] || scheduler='unknown'
+  readahead=$(cat "$sys_root/class/block/$device/queue/read_ahead_kb" 2>/dev/null || printf '0')
+  [[ $device == nvme* ]] && nvme=true
+
+  [[ -d $sys_root/block/zram0 ]] && zram_available=true
+  if [[ -r $sys_root/block/zram0/disksize ]]; then
+    zram_size=$(( $(cat "$sys_root/block/zram0/disksize") / 1024 ))
+    ((zram_size > 0)) && zram_active=true
+    zram_used=$(( $(cat "$sys_root/block/zram0/mm_stat" 2>/dev/null | awk '{print $1 + 0}') / 1024 ))
+    zram_algorithm=$(cat "$sys_root/block/zram0/comp_algorithm" 2>/dev/null | sed -n 's/.*\[\([^]]*\)\].*/\1/p' || true)
+    zram_priority=$(swapon --noheadings --show=NAME,PRIO 2>/dev/null | awk '$1 ~ /zram0$/ {print $2 + 0; exit}' || printf '0')
+  fi
+  [[ -f $zram_config && -f $sysctl_config ]] && configured=true
+  command_ready zram-generator && generator=true
+  [[ -x /usr/lib/systemd/system-generators/zram-generator || -x /lib/systemd/system-generators/zram-generator ]] && generator=true
+  $generator && ready=true
+  oomd=$(service_state systemd-oomd.service)
+  thermald=$(service_state thermald.service)
+
+  recommendations=$(jq -cn \
+    --argjson configured "$configured" --argjson ready "$ready" --argjson active "$zram_active" \
+    --argjson nvme "$nvme" --argjson pressure "$pressure" --argjson available "$mem_available" --argjson total "$mem_total" \
+    '[
+      (if $ready and ($configured|not) then {id:"adaptive-memory",label:"Enable adaptive compressed swap",detail:"Prefer fast zram under pressure and keep disk swap as the fallback.",impact:"HIGH",actionable:true,reboot:true} else empty end),
+      (if ($ready|not) then {id:"zram-package",label:"Install the zram generator",detail:"The dependency installer provides the distro-native systemd generator.",impact:"HIGH",actionable:false,reboot:false} else empty end),
+      (if $configured and ($active|not) then {id:"reboot",label:"Restart to activate the memory profile",detail:"NOC does not hot-swap memory devices while your session is running.",impact:"REQUIRED",actionable:false,reboot:true} else empty end),
+      (if $pressure > 5 then {id:"pressure",label:"Sustained memory pressure detected",detail:"Close or suspend a heavy workload before forcing higher clocks.",impact:"LIVE",actionable:false,reboot:false} else empty end),
+      (if $nvme then {id:"nvme",label:"NVMe page cache is kernel managed",detail:"No cache purges or oversized read-ahead; hot files stay in RAM automatically.",impact:"SAFE",actionable:false,reboot:false} else empty end),
+      {id:"profiles",label:"Use workload profiles, not permanent boost",detail:"Balanced for daily use, Performance for plugged-in builds or games, Saver on battery.",impact:"SAFE",actionable:false,reboot:false}
+    ]')
+
+  jq -cn \
+    --arg cpu "$cpu_model" --argjson threads "$threads" --arg profile "$profile" --arg governor "$governor" --arg epp "$epp" \
+    --argjson total "$mem_total" --argjson available "$mem_available" --argjson cached "$cached" --argjson slab "$slab" \
+    --argjson swapTotal "$swap_total" --argjson swapUsed "$swap_used" --argjson pressure "$pressure" \
+    --argjson dirty "$dirty" --argjson writeback "$writeback" \
+    --argjson swappiness "$(read_sysctl vm.swappiness 60)" --argjson pageCluster "$(read_sysctl vm.page-cluster 3)" \
+    --argjson cachePressure "$(read_sysctl vm.vfs_cache_pressure 100)" \
+    --arg device "$device" --arg model "$disk_model" --arg scheduler "$scheduler" --argjson rotational "$rotational" --argjson readahead "$readahead" \
+    --argjson zramAvailable "$zram_available" --argjson zramActive "$zram_active" --argjson zramSize "$zram_size" \
+    --argjson zramUsed "$zram_used" --arg zramAlgorithm "$zram_algorithm" --argjson zramPriority "$zram_priority" \
+    --argjson configured "$configured" --argjson generator "$generator" --arg oomd "$oomd" --arg thermald "$thermald" \
+    --argjson recommendations "$recommendations" \
+    '{format:"nocturne-performance-lab-v1",cpu:{model:$cpu,threads:$threads,profile:$profile,governor:$governor,epp:$epp},
+      memory:{totalKiB:$total,availableKiB:$available,cachedKiB:$cached,reclaimableKiB:$slab,pressureAvg10:$pressure},
+      swap:{totalKiB:$swapTotal,usedKiB:$swapUsed},
+      cache:{policy:"KERNEL MANAGED",swappiness:$swappiness,pageCluster:$pageCluster,vfsCachePressure:$cachePressure,dirtyKiB:$dirty,writebackKiB:$writeback},
+      storage:{device:$device,model:$model,rotational:($rotational == 1),scheduler:$scheduler,readaheadKiB:$readahead},
+      zram:{available:$zramAvailable,active:$zramActive,sizeKiB:$zramSize,usedKiB:$zramUsed,algorithm:$zramAlgorithm,priority:$zramPriority},
+      services:{generator:$generator,oomd:$oomd,thermald:$thermald},adaptive:{installed:$configured,rebootRequired:($configured and ($zramActive|not))},
+      recommendations:$recommendations}'
+}
+
+plan() {
+  jq -cn '{format:"nocturne-performance-plan-v1",profile:"adaptive",
+    principles:["Keep Linux page cache automatic","Prefer compressed RAM before disk swap","Never purge caches on a timer","Never pin maximum clocks"],
+    changes:[
+      {path:"/etc/systemd/zram-generator.conf.d/90-nocturne.conf",change:"Up to half of RAM, capped at 8 GiB logical zram, zstd compression, priority 100"},
+      {path:"/etc/sysctl.d/90-nocturne-performance.conf",change:"swappiness 100, page-cluster 0, metadata cache pressure 75"}
+    ],rollback:"performance-control rollback",rebootRequired:true}'
+}
+
+require_live_root() {
+  [[ $etc_root == /etc ]] || { printf 'Refusing privileged changes against a test root.\n' >&2; exit 4; }
+  command_ready sudo || { printf 'sudo is required for system tuning.\n' >&2; exit 4; }
+}
+
+apply_profile() {
+  require_live_root
+  local answer stamp backup temp
+  (command_ready zram-generator || [[ -x /usr/lib/systemd/system-generators/zram-generator || -x /lib/systemd/system-generators/zram-generator ]]) || {
+    printf 'systemd-zram-generator is missing. Run scripts/install-packages.sh first.\n' >&2; exit 4;
+  }
+  plan | jq .
+  printf '\nType APPLY to install this reversible profile: '
+  read -r answer
+  [[ $answer == APPLY ]] || { printf 'Cancelled.\n'; exit 1; }
+  stamp=$(date +%Y%m%d-%H%M%S)
+  backup="$backup_root/$stamp"
+  temp=$(mktemp -d)
+  trap 'rm -rf -- "$temp"' RETURN
+  cat > "$temp/zram.conf" <<'EOF'
+# NOC 2.0 adaptive memory. Remove through performance-control rollback.
+[zram0]
+zram-size = min(ram / 2, 8192)
+compression-algorithm = zstd
+swap-priority = 100
+EOF
+  cat > "$temp/sysctl.conf" <<'EOF'
+# NOC 2.0 adaptive memory. Conservative and reversible.
+vm.swappiness = 100
+vm.page-cluster = 0
+vm.vfs_cache_pressure = 75
+EOF
+  sudo install -d -m 0755 "$backup" /etc/systemd/zram-generator.conf.d /etc/sysctl.d
+  [[ -f $zram_config ]] && sudo cp -a -- "$zram_config" "$backup/zram.conf.previous"
+  [[ -f $sysctl_config ]] && sudo cp -a -- "$sysctl_config" "$backup/sysctl.conf.previous"
+  [[ -f $zram_config ]] && printf '1\n' | sudo tee "$backup/had-zram" >/dev/null || printf '0\n' | sudo tee "$backup/had-zram" >/dev/null
+  [[ -f $sysctl_config ]] && printf '1\n' | sudo tee "$backup/had-sysctl" >/dev/null || printf '0\n' | sudo tee "$backup/had-sysctl" >/dev/null
+  sudo install -m 0644 "$temp/zram.conf" "$zram_config"
+  sudo install -m 0644 "$temp/sysctl.conf" "$sysctl_config"
+  printf '%s\n' "$backup" | sudo tee "$backup_root/latest" >/dev/null
+  printf '\nInstalled. Restart when convenient; NOC intentionally does not replace active swap devices mid-session.\n'
+}
+
+rollback_profile() {
+  require_live_root
+  local answer backup had_zram=0 had_sysctl=0
+  [[ -r $backup_root/latest ]] || { printf 'No NOC performance backup was found.\n' >&2; exit 4; }
+  backup=$(sudo cat "$backup_root/latest")
+  printf 'This restores the configuration that existed before the latest NOC apply.\nType ROLLBACK to continue: '
+  read -r answer
+  [[ $answer == ROLLBACK ]] || { printf 'Cancelled.\n'; exit 1; }
+  had_zram=$(sudo cat "$backup/had-zram" 2>/dev/null || printf '0')
+  had_sysctl=$(sudo cat "$backup/had-sysctl" 2>/dev/null || printf '0')
+  if [[ $had_zram == 1 ]]; then sudo install -m 0644 "$backup/zram.conf.previous" "$zram_config"; else sudo rm -f -- "$zram_config"; fi
+  if [[ $had_sysctl == 1 ]]; then sudo install -m 0644 "$backup/sysctl.conf.previous" "$sysctl_config"; else sudo rm -f -- "$sysctl_config"; fi
+  printf '\nRestored. Restart to retire the current zram device cleanly.\n'
+}
+
+case ${1:-status} in
+  status) status ;;
+  plan) plan ;;
+  apply) [[ ${2:-} == adaptive ]] || { printf 'Usage: %s apply adaptive\n' "$0" >&2; exit 2; }; apply_profile ;;
+  rollback) rollback_profile ;;
+  *) printf 'Usage: %s status|plan|apply adaptive|rollback\n' "$0" >&2; exit 2 ;;
+esac

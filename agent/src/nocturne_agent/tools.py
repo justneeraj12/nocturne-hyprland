@@ -56,6 +56,20 @@ def _run(command: list[str], timeout: float = 8) -> subprocess.CompletedProcess:
     return subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
 
 
+def _nox_doc_executable() -> str | None:
+    configured = os.environ.get("NOX_DOC_PATH", "")
+    candidates = (
+        configured,
+        shutil.which("nox-doc") or "",
+        str(HOME / ".local/bin/nox-doc"),
+        "/usr/local/sbin/nox-doc",
+    )
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
 def _accessible_browser_command(executable: str, *arguments: str) -> tuple[str, ...]:
     """Expose semantic web controls without changing non-Chromium browsers."""
     command = [executable]
@@ -87,6 +101,8 @@ class ToolExecutor:
             "browser_open": self.browser_open,
             "observe": self.observe,
             "system_status": self.system_status,
+            "recovery_advice": self.recovery_advice,
+            "recovery_repair": self.recovery_repair,
             "find_app": self.find_app,
             "launch_app": self.launch_app,
             "volume": self.volume,
@@ -369,6 +385,66 @@ class ToolExecutor:
             "gpu": gpu,
         }
         return ActionResult(True, "System status collected", data)
+
+    @staticmethod
+    def recovery_advice(arguments: dict) -> ActionResult:
+        executable = _nox_doc_executable()
+        if executable is None:
+            return ActionResult(False, "NOX DOC is not installed or executable")
+        command = [executable, "live-plan"] if arguments["view"] == "plan" else [executable, "live-diagnose"]
+        result = _run(command, timeout=10)
+        if result.returncode != 0:
+            return ActionResult(False, result.stderr.strip() or "NOX DOC could not collect recovery evidence")
+        try:
+            document = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return ActionResult(False, "NOX DOC returned invalid recovery evidence")
+        if arguments["view"] == "plan":
+            diagnosis = document.get("diagnosis", {})
+            steps = document.get("steps", [])
+            critical = sum(
+                1 for item in diagnosis.get("issues", [])
+                if isinstance(item, dict) and item.get("severity") == "critical"
+            )
+            first = steps[0] if steps else None
+            detail = f" First evidence-based step: {first.get('action')}" if isinstance(first, dict) else ""
+            message = f"NOX DOC found {critical} critical recovery condition(s).{detail}"
+        else:
+            critical = sum(
+                1 for item in document.get("issues", [])
+                if isinstance(item, dict) and item.get("severity") == "critical"
+            )
+            repairable = len(document.get("repairable", []))
+            message = f"NOX DOC is ready: {critical} critical and {repairable} allow-listed repairable condition(s)."
+        return ActionResult(True, message, {"recovery": document, "root_access": False})
+
+    @staticmethod
+    def recovery_repair(arguments: dict) -> ActionResult:
+        executable = _nox_doc_executable()
+        if executable is None:
+            return ActionResult(False, "NOX DOC is not installed or executable")
+        result = _run([executable, "live-repair", arguments["target"], "--agent-confirmed"], timeout=35)
+        if result.returncode != 0:
+            return ActionResult(False, result.stderr.strip() or "NOX DOC refused the live repair")
+        try:
+            document = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return ActionResult(False, "NOX DOC returned an invalid repair receipt")
+        before = len(document.get("before", {}).get("issues", []))
+        after = len(document.get("after", {}).get("issues", []))
+        changed = bool(document.get("changed"))
+        verified = bool(document.get("verified", not changed))
+        if changed and not verified:
+            return ActionResult(
+                False,
+                f"NOX DOC attempted the scoped repair, but verification failed: {before} → {after} active condition(s).",
+                {"receipt": document, "root_access": False},
+            )
+        message = (
+            f"NOX DOC repaired and verified the live session: {before} → {after} active condition(s)."
+            if changed else "NOX DOC found no matching repairable live-session condition; nothing changed."
+        )
+        return ActionResult(True, message, {"receipt": document, "root_access": False})
 
     @staticmethod
     def find_app(arguments: dict) -> ActionResult:
