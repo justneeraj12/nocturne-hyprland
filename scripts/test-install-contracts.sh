@@ -47,9 +47,12 @@ arch_plan=$(NOCTURNE_OS_RELEASE_FILE="$test_root/arch-release" "$root/scripts/in
 ubuntu_plan=$(NOCTURNE_OS_RELEASE_FILE="$test_root/ubuntu-release" "$root/scripts/install-packages.sh" --print)
 jq -e '.family == "arch" and (.packages | index("layer-shell-qt")) != null and
   (.packages | index("xdg-desktop-portal-hyprland")) != null and
-  (.packages | index("okular")) != null and (.packages | index("qpdfview")) == null' <<< "$arch_plan" >/dev/null
+  (.packages | index("okular")) != null and (.packages | index("qpdfview")) == null and
+  (.packages | index("cups")) != null and (.packages | index("sane-airscan")) != null and
+  (.packages | index("systemd-zram-generator")) != null' <<< "$arch_plan" >/dev/null
 jq -e '.family == "debian" and (.packages | index("qml6-module-org-kde-layershell")) != null and
-  (.packages | index("qpdfview")) != null' <<< "$ubuntu_plan" >/dev/null
+  (.packages | index("qpdfview")) != null and (.packages | index("cups")) != null and
+  (.packages | index("sane-airscan")) != null and (.packages | index("systemd-zram-generator")) != null' <<< "$ubuntu_plan" >/dev/null
 
 grep -Fq 'nocturne-polkit-agent' "$root/config/systemd/user/nocturne-polkit.service"
 grep -Fq "platform upgrade-command" "$root/config/hypr/scripts/system-maintenance"

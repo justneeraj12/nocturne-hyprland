@@ -37,7 +37,7 @@ history, power modes, screenshots and screen recording to behave normally.
 > installable desktop platform with encrypted multi-device continuity, packages,
 > transactional updates and a public hardware matrix. Follow the
 > [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
-> Community testers can start with the [Alpha 2 notes](docs/RELEASE-2.0-ALPHA2.md).
+> Community testers can start with the [Alpha 3 notes](docs/RELEASE-2.0-ALPHA3.md).
 
 <p align="center">
   <a href="docs/media/noc-2-community-labs.mp4">
@@ -88,6 +88,8 @@ personal file names.
 | **Local workflow memory** | Desk, Habits and Vault connect tasks, notes, focus blocks, weekly pacing and reusable snippets through private files with no account, cloud dependency or resident workflow daemon. |
 | **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
 | **Explainable system control** | Storage, permissions, startup, power and recovery expose their real source of truth and keep destructive or privileged actions explicit. |
+| **Pressure-aware performance** | An opt-in, reversible zram profile absorbs memory bursts while Linux keeps ownership of page cache, NVMe scheduling and thermal safety. |
+| **Campus-ready peripherals** | CUPS/IPP Everywhere, AirScan/SANE, enterprise Wi-Fi guidance and bounded discovery make shared printers and scanners first-class. |
 
 ## The desktop
 
@@ -127,6 +129,8 @@ The shell includes:
 - a live NOC Operations Deck with node health, resource, thermal, network, power and service telemetry;
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
+- a reversible Performance Lab with zram readiness, kernel-cache visibility, NVMe policy and pressure-aware recommendations;
+- a Campus compatibility hub for driverless IPP printing, AirScan/SANE devices, eduroam-safe setup and standard identity hardware;
 - calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
 - a private read-only Connected Agenda for local, Google, Outlook, iCloud, Nextcloud and other ICS feeds;
 - Window Rules Studio with open-app discovery, escaped exact matches and isolated generated Lua;

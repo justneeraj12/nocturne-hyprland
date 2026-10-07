@@ -179,6 +179,12 @@ grep -Fq 'accel_profile = "flat"' "$XDG_CONFIG_HOME/nocturne/input.lua"
 
 "$root/config/hypr/scripts/storage-control" status \
   | jq -e '.format == "nocturne-storage-v1" and (.cleanup|length) == 4 and (.protected|length) >= 4' >/dev/null
+"$root/config/hypr/scripts/performance-control" status \
+  | jq -e '.format == "nocturne-performance-lab-v1" and .cache.policy == "KERNEL MANAGED" and (.recommendations|type == "array")' >/dev/null
+"$root/config/hypr/scripts/performance-control" plan \
+  | jq -e '.format == "nocturne-performance-plan-v1" and .rebootRequired == true and (.changes|length) == 2' >/dev/null
+"$root/config/hypr/scripts/campus-control" status \
+  | jq -e '.format == "nocturne-campus-v1" and .privacy == "NO CREDENTIALS STORED" and .print.driverless == "IPP EVERYWHERE"' >/dev/null
 "$root/config/hypr/scripts/noc-state" status \
   | jq -e '.format == "nocturne-operations-v1" and (.score|type == "number") and (.alerts|type == "array")' >/dev/null
 mkdir -p "$XDG_CONFIG_HOME/nocturne"

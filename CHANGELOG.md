@@ -2,6 +2,10 @@
 
 ## 2.0.0-alpha.1 - Development
 
+- Added Performance Lab with live memory PSI, page-cache, swap, zram, NVMe and workload-profile visibility.
+- Added an opt-in adaptive zram profile with conservative VM policy, visible confirmation, pre-change backup and direct rollback.
+- Added Campus compatibility for IPP Everywhere/CUPS, ipp-usb, Avahi, SANE/AirScan, enterprise Wi-Fi guidance and portable identity readiness.
+- Added matching Ubuntu and Arch printer, scanner and zram dependency plans with bounded zero-idle discovery.
 - Added the community-demand feature set: private Connected Agenda, exact-match Window Rules Studio, hardware onboarding, capability-gated declarative extensions, Laptop Intelligence and Display Lab profiles.
 - Added read-only Google/Outlook/iCloud/Nextcloud-compatible ICS subscriptions with redacted source URLs, mode-0600 caches, bounded recurrence expansion and zero-resident refresh timers.
 - Added reversible battery refresh limits, shared brightness step/floor controls, Bluetooth startup policy, charge-threshold discovery and exact AC restoration.

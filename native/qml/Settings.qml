@@ -28,6 +28,7 @@ ApplicationWindow {
         {key:"sound", label:"Sound & displays", group:"DEVICES", icon:"audio-volume-high", glyph:"♪", keywords:"audio volume mixer brightness monitor night shift"},
         {key:"displaylab", label:"Display Lab", group:"DEVICES", icon:"video-display", glyph:"▣", keywords:"monitor output position scale rotate vrr refresh dock profile hdr"},
         {key:"laptop", label:"Laptop Intelligence", group:"DEVICES", icon:"computer-laptop", glyph:"⚡", keywords:"battery refresh brightness bluetooth charge threshold sleep mobile"},
+        {key:"campus", label:"Campus & devices", group:"DEVICES", icon:"printer", glyph:"UNI", keywords:"university campus printer scanner eduroam ipp cups sane airscan smart card"},
         {key:"input", label:"Input & defaults", group:"DEVICES", icon:"input-keyboard", glyph:"⌨", keywords:"keyboard mouse touchpad default apps time timezone"},
         {key:"system", label:"System & accounts", group:"SYSTEM", icon:"computer", glyph:"▣", keywords:"google account hardware integration portal phone"},
         {key:"command", label:"System Command", group:"SYSTEM", icon:"security-medium", glyph:"✓", keywords:"meeting permissions portal startup guard pulse repair health"},
@@ -40,6 +41,7 @@ ApplicationWindow {
         {key:"security", label:"Security Hub", group:"SYSTEM", icon:"security-high", glyph:"⬡", keywords:"malware antivirus clamav firewall apparmor secure boot encryption scan integrity"},
         {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
         {key:"efficiency", label:"Efficiency", group:"SYSTEM", icon:"utilities-system-monitor", glyph:"≋", keywords:"memory ram cpu startup resources optimize cleanup performance"},
+        {key:"performance", label:"Performance Lab", group:"SYSTEM", icon:"speedometer", glyph:"↯", keywords:"zram cache swap memory pressure nvme scheduler faster performance tuning"},
         {key:"power", label:"Power & session", group:"SYSTEM", icon:"battery", glyph:"⚡", keywords:"performance balanced saver maintenance lock"},
         {key:"setup", label:"Setup & recovery", group:"RECOVERY", icon:"document-save", glyph:"↶", keywords:"backup restore checkpoint profile portable"},
         {key:"about", label:"About", group:"RECOVERY", icon:"help-about", glyph:"?", keywords:"version github source doctor diagnostics"}
@@ -105,9 +107,9 @@ ApplicationWindow {
     Shortcut { sequence: "Escape"; onActivated: { if (search.text !== "") search.clear(); else root.close() } }
 
     readonly property var pageComponents: [
-        welcomePage, overviewPage, appearancePage, barPage, connectivityPage, soundPage, displayLabPage, laptopPage,
+        welcomePage, overviewPage, appearancePage, barPage, connectivityPage, soundPage, displayLabPage, laptopPage, campusPage,
         inputPage, systemPage, commandPage, storagePage, workflowPage, agendaPage, automationPage, windowRulesPage, extensionsPage, securityPage, privacyPage,
-        efficiencyPage, powerPage, setupPage, aboutPage
+        efficiencyPage, performancePage, powerPage, setupPage, aboutPage
     ]
     Component { id: welcomePage; OnboardingSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
     Component { id: overviewPage; OverviewSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
@@ -159,6 +161,7 @@ ApplicationWindow {
     Component { id: extensionsPage; ExtensionsSettingsPage { active: true } }
     Component { id: displayLabPage; DisplayLabSettingsPage { active: true } }
     Component { id: laptopPage; LaptopIntelligenceSettingsPage { active: true } }
+    Component { id: campusPage; CampusSettingsPage { active: true } }
     Component { id: securityPage; SecuritySettingsPage { active: true } }
     Component { id: privacyPage; SettingsActionsPage {
         pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
@@ -170,6 +173,7 @@ ApplicationWindow {
         ]
     } }
     Component { id: efficiencyPage; EfficiencySettingsPage { active: true } }
+    Component { id: performancePage; PerformanceSettingsPage { active: true } }
     Component { id: powerPage; SettingsActionsPage {
         pageEyebrow: "ENERGY + SESSION"; pageTitle: "Power & session"
         pageDescription: "Hardware power profiles, reversible gaming boosts and guarded session actions."

@@ -27,6 +27,8 @@ ubuntu_packages=(
   ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
   gstreamer1.0-plugins-ugly libva2 intel-media-va-driver vainfo intel-gpu-tools
   kdeconnect easyeffects clamav clamav-freshclam debsums apparmor-utils ufw
+  cups cups-client cups-filters cups-browsed ipp-usb avahi-daemon libnss-mdns
+  sane-utils sane-airscan simple-scan skanpage systemd-zram-generator
 )
 
 # Every Arch dependency below is in Core or Extra; the supported path never
@@ -44,6 +46,8 @@ arch_packages=(
   ttf-jetbrains-mono ttf-meslo-nerd ffmpeg gst-libav gst-plugins-good
   gst-plugins-bad gst-plugins-ugly libva intel-media-driver libva-utils
   intel-gpu-tools pacman-contrib kdeconnect easyeffects clamav apparmor ufw
+  cups cups-filters cups-browsed ipp-usb avahi nss-mdns sane sane-airscan
+  simple-scan skanpage systemd-zram-generator
 )
 
 family=$($platform family)
