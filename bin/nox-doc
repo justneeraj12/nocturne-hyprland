@@ -40,6 +40,11 @@ checkpoint=$(user_path .local/state/nocturne/recovery/last-good.tar.gz)
 recovery_tool=$(user_path .local/bin/nocturne-recovery)
 native_tool=$(user_path .local/bin/nocturne-native)
 hypr_config=$(user_path .config/hypr/hyprland.lua)
+guard_tool=${NOX_DOC_GUARD:-$(user_path .config/hypr/scripts/system-guard)}
+if [[ ! -x $guard_tool ]]; then
+  source_guard=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/config/hypr/scripts/system-guard
+  [[ -x $source_guard ]] && guard_tool=$source_guard
+fi
 
 asic() {
   [[ -t 1 && ${NOX_DOC_NO_ANIMATION:-0} != 1 ]] || return 0
@@ -153,6 +158,122 @@ plan_json() {
      boundary:"The knowledge pack explains evidence. Only compiled allow-listed repairs execute; the language model has no root tool."}' <<< "$diagnosis"
 }
 
+live_diagnosis_json() {
+  local guard='{"format":"nocturne-guard-v1","healthy":false,"issues":[{"id":"guard","severity":"critical","title":"Live guard unavailable","detail":"The NOC session guard is not installed.","fixable":false}],"summary":{}}'
+  local pressure=0 available=0 profile='unavailable' performance_tool
+  if [[ -x $guard_tool ]]; then
+    guard=$($guard_tool status 2>/dev/null || printf '%s' "$guard")
+    jq -e '.format == "nocturne-guard-v1" and (.issues|type == "array")' >/dev/null 2>&1 <<< "$guard" || {
+      guard='{"format":"nocturne-guard-v1","healthy":false,"issues":[{"id":"guard","severity":"critical","title":"Live guard returned invalid evidence","detail":"No repair will run.","fixable":false}],"summary":{}}'
+    }
+  fi
+  performance_tool=$(user_path .config/hypr/scripts/performance-control)
+  if [[ -x $performance_tool ]]; then
+    read -r pressure available profile < <(
+      "$performance_tool" status 2>/dev/null | jq -r '[.memory.pressureAvg10 // 0,.memory.availableKiB // 0,.cpu.profile // "unavailable"]|@tsv' 2>/dev/null || printf '0\t0\tunavailable\n'
+    )
+  fi
+  jq -cn --arg user "$doc_user" --argjson guard "$guard" --argjson pressure "$pressure" \
+    --argjson available "$available" --arg profile "$profile" \
+    '{format:"nox-doc-live-v1",mode:"WORKING SESSION",user:$user,healthy:$guard.healthy,
+      issues:$guard.issues,summary:$guard.summary,
+      resources:{memoryPressureAvg10:$pressure,availableMemoryKiB:$available,powerProfile:$profile},
+      repairable:[$guard.issues[]|select(.fixable == true and (.id|IN("bar","portal","portal-base","failed","audio","microphone","wallpaper")))],
+      blocked:[$guard.issues[]|select((.fixable != true) or ((.id|IN("bar","portal","portal-base","failed","audio","microphone","wallpaper"))|not))],
+      policy:{previewRequired:true,confirmationRequired:true,verificationRequired:true,arbitraryShell:false,modelHasRoot:false}}'
+}
+
+live_plan_json() {
+  live_diagnosis_json | jq -c '
+    . as $diagnosis |
+    {format:"nox-doc-live-plan-v1",diagnosis:$diagnosis,
+      steps:[.repairable[] | {
+        id:.id,severity:.severity,title:.title,
+        action:(
+          if .id == "bar" then "Restart only the supervised NOC bar unit."
+          elif (.id == "portal" or .id == "portal-base") then "Restart the Hyprland portal and its broker, then verify screen-share ownership."
+          elif .id == "failed" then "Clear failed user-unit state after preserving the diagnosis."
+          elif .id == "audio" then "Restart the user PipeWire and WirePlumber graph, then verify a default sink."
+          elif .id == "microphone" then "Reapply the configured laptop-microphone preference, then verify a default source."
+          elif .id == "wallpaper" then "Restart only the supervised wallpaper cycle and verify its renderer."
+          else "No allow-listed repair." end),
+        scope:"USER SESSION",automatic:false}],
+      blocked:[.blocked[]|{id,title,reason:"Evidence can be explained, but this condition has no safe live repair."}],
+      contract:["snapshot evidence","pause non-essential NOC timers","execute exact allow-listed repair","re-diagnose","resume the exact timers that were active"]}'
+}
+
+resume_live_timers() {
+  local active_file=${1:-}
+  [[ -r $active_file ]] || return 0
+  while IFS= read -r unit; do
+    [[ $unit =~ ^nocturne-[a-z0-9-]+\.timer$ ]] || continue
+    systemctl --user start "$unit" 2>/dev/null || true
+  done < "$active_file"
+}
+
+live_repair() {
+  local target=${1:-all} confirmation=${2:-} before plan selected selected_json after active_file audit_dir result='success'
+  local remaining=0 verified=true
+  local allowed='^(all|bar|portal|portal-base|failed|audio|microphone|wallpaper)$'
+  [[ $target =~ $allowed ]] || { printf 'Unknown live repair target: %s\n' "$target" >&2; exit 2; }
+  [[ -x $guard_tool ]] || { printf 'NOX DOC live guard is unavailable.\n' >&2; exit 4; }
+  before=$(live_diagnosis_json)
+  plan=$(live_plan_json)
+  if [[ $target == all ]]; then
+    selected=$(jq -r '.steps[].id' <<< "$plan")
+  else
+    selected=$(jq -r --arg target "$target" '.steps[]|select(.id == $target)|.id' <<< "$plan")
+  fi
+  if [[ -z $selected ]]; then
+    jq -cn --arg target "$target" --argjson diagnosis "$before" \
+      '{format:"nox-doc-live-repair-v1",target:$target,changed:false,result:"NO MATCHING REPAIRABLE CONDITION",before:$diagnosis,after:$diagnosis}'
+    return
+  fi
+  if [[ $confirmation != --agent-confirmed && ${NOX_DOC_ASSUME_YES:-0} != 1 ]]; then
+    jq . <<< "$plan"
+    printf '\nNOX DOC will pause non-essential NOC timers while the selected repairs run.\nType REPAIR to continue: '
+    read -r answer
+    [[ $answer == REPAIR ]] || { printf 'Cancelled; no changes made.\n'; exit 1; }
+  fi
+
+  active_file=$(mktemp)
+  trap 'resume_live_timers "$active_file"; rm -f -- "$active_file"' RETURN
+  printf 'NOX DOC // pausing non-essential session operations…\n' >&2
+  for unit in nocturne-context.timer nocturne-notification-rules.timer nocturne-agenda-refresh.timer nocturne-security-update.timer nocturne-security-scan.timer; do
+    if systemctl --user is-active --quiet "$unit" 2>/dev/null; then
+      printf '%s\n' "$unit" >> "$active_file"
+      systemctl --user stop "$unit" 2>/dev/null || true
+    fi
+  done
+  while IFS= read -r issue; do
+    [[ -n $issue ]] || continue
+    "$guard_tool" fix "$issue" >/dev/null 2>&1 || result='partial'
+  done <<< "$selected"
+  sleep 1
+  after=$(live_diagnosis_json)
+  selected_json=$(jq -Rn '[inputs|select(length > 0)]' <<< "$selected")
+  remaining=$(jq -n --argjson after "$after" --argjson selected "$selected_json" \
+    '[$after.issues[].id | select(. as $id | $selected | index($id))] | length')
+  if ((remaining > 0)); then
+    verified=false
+    result='verification-failed'
+  fi
+  resume_live_timers "$active_file"
+
+  audit_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/nox-doc
+  mkdir -p "$audit_dir"; chmod 700 "$audit_dir"
+  jq -cn --arg time "$(date --iso-8601=seconds)" --arg target "$target" --arg result "$result" --argjson verified "$verified" \
+    --argjson beforeCount "$(jq '.issues|length' <<< "$before")" --argjson afterCount "$(jq '.issues|length' <<< "$after")" \
+    '{time:$time,target:$target,result:$result,verified:$verified,beforeIssues:$beforeCount,afterIssues:$afterCount}' >> "$audit_dir/live-repairs.jsonl"
+  chmod 600 "$audit_dir/live-repairs.jsonl"
+  notify-send -a 'NOX DOC' 'Live repair complete' "$(jq -r '.issues|length' <<< "$before") → $(jq -r '.issues|length' <<< "$after") active condition(s)" 2>/dev/null || true
+  trap - RETURN
+  rm -f -- "$active_file"
+  jq -cn --arg target "$target" --arg result "$result" --argjson verified "$verified" --argjson before "$before" --argjson after "$after" \
+    '{format:"nox-doc-live-repair-v1",target:$target,changed:true,result:$result,before:$before,after:$after,
+      verified:$verified}'
+}
+
 pause_noc() {
   printf 'NOX DOC // pausing the user shell control plane…\n'
   [[ -z $doc_user || -n $root_prefix ]] && return 0
@@ -222,6 +343,9 @@ case ${1:-diagnose} in
   diagnose|status)
     if [[ ${2:-} == --json || ! -t 1 ]]; then diagnosis_json; else print_diagnosis "$(diagnosis_json)"; fi ;;
   plan) plan_json ;;
+  live-diagnose) live_diagnosis_json ;;
+  live-plan) live_plan_json ;;
+  live-repair) live_repair "${2:-all}" "${3:-}" ;;
   verify) diagnosis_json | jq -e '.critical == 0' >/dev/null ;;
   repair) safe_repair ;;
   restore) restore_checkpoint ;;
@@ -231,5 +355,5 @@ case ${1:-diagnose} in
     printf 'NOX DOC will pause the graphical target and take over tty1. Type ENTER to continue: '
     read -r answer; [[ $answer == ENTER ]] || { printf 'Cancelled.\n'; exit 1; }
     $systemctl_cmd isolate nox-doc.target ;;
-  *) printf 'Usage: %s diagnose [--json]|plan|verify|repair|restore|recover|enter\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s diagnose [--json]|plan|live-diagnose|live-plan|live-repair [ID]|verify|repair|restore|recover|enter\n' "$0" >&2; exit 2 ;;
 esac

@@ -203,6 +203,45 @@ class ToolTests(unittest.TestCase):
         self.assertFalse(result.data["root_access"])
         self.assertIn("Restore the verified checkpoint", result.message)
 
+    @patch("nocturne_agent.tools.Path.is_file", return_value=True)
+    @patch("nocturne_agent.tools.os.access", return_value=True)
+    @patch("nocturne_agent.tools._run")
+    def test_live_repair_returns_verified_receipt_without_root(self, run, _access, _is_file) -> None:
+        run.return_value = type("Result", (), {
+            "returncode": 0,
+            "stderr": "",
+            "stdout": json.dumps({
+                "format": "nox-doc-live-repair-v1",
+                "changed": True,
+                "verified": True,
+                "before": {"issues": [{"id": "audio"}]},
+                "after": {"issues": []},
+            }),
+        })()
+        result = ToolExecutor.recovery_repair({"target": "audio"})
+        self.assertTrue(result.ok)
+        self.assertFalse(result.data["root_access"])
+        self.assertIn("1 → 0", result.message)
+
+    @patch("nocturne_agent.tools.Path.is_file", return_value=True)
+    @patch("nocturne_agent.tools.os.access", return_value=True)
+    @patch("nocturne_agent.tools._run")
+    def test_live_repair_does_not_claim_success_when_verification_fails(self, run, _access, _is_file) -> None:
+        run.return_value = type("Result", (), {
+            "returncode": 0,
+            "stderr": "",
+            "stdout": json.dumps({
+                "format": "nox-doc-live-repair-v1",
+                "changed": True,
+                "verified": False,
+                "before": {"issues": [{"id": "audio"}]},
+                "after": {"issues": [{"id": "audio"}]},
+            }),
+        })()
+        result = ToolExecutor.recovery_repair({"target": "audio"})
+        self.assertFalse(result.ok)
+        self.assertIn("verification failed", result.message)
+
     @patch("nocturne_agent.tools._run")
     @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/uwsm")
     @patch("nocturne_agent.tools.resolve_reference")

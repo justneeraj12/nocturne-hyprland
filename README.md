@@ -38,6 +38,7 @@ history, power modes, screenshots and screen recording to behave normally.
 > transactional updates and a public hardware matrix. Follow the
 > [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
 > Community testers can start with the [Alpha 3 notes](docs/RELEASE-2.0-ALPHA3.md).
+> Stable promotion is governed by the public [2.0 RC checklist](docs/RELEASE-2.0-RC-CHECKLIST.md).
 
 <p align="center">
   <a href="docs/media/noc-2-community-labs.mp4">
@@ -90,7 +91,7 @@ personal file names.
 | **Explainable system control** | Storage, permissions, startup, power and recovery expose their real source of truth and keep destructive or privileged actions explicit. |
 | **Pressure-aware performance** | An opt-in, reversible zram profile absorbs memory bursts while Linux keeps ownership of page cache, NVMe scheduling and thermal safety. |
 | **Campus-ready peripherals** | CUPS/IPP Everywhere, AirScan/SANE, enterprise Wi-Fi guidance and bounded discovery make shared printers and scanners first-class. |
-| **NOX DOC recovery agent** | A model-independent tty recovery target verifies checkpoints and executes only allow-listed repairs when the graphical desktop cannot start. |
+| **NOX DOC recovery agent** | A model-independent tty recovery target plus working-session doctor: evidence first, confirmation-gated allow-listed repairs, verification afterward and no model-to-root path. |
 
 ## The desktop
 
@@ -320,6 +321,8 @@ applications keep their own toolkit and license.
 - [Customization](docs/CUSTOMIZATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [NOC 2.0 architecture](docs/NOC-2.0.md)
+- [NOC 2.0 release-candidate gate](docs/RELEASE-2.0-RC-CHECKLIST.md)
+- [NOX DOC recovery and live repair](docs/NOX-DOC.md)
 - [2026 community demand scan](docs/COMMUNITY-DEMAND-2026.md)
 - [Security Hub design](docs/SECURITY-HUB.md)
 - [Declarative extension contract](docs/EXTENSIONS.md)

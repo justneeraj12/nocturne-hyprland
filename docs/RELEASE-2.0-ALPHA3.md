@@ -47,3 +47,9 @@ archive, pauses the NOC user control plane and offers only allow-listed repair
 or offline restore operations. Its compact Linux knowledge pack is inspectable;
 the optional NØX model may explain evidence but has no root action. See
 [NOX DOC](NOX-DOC.md).
+
+NOX DOC also has a working-session path for the bar, portals, failed user
+units, audio, microphone preference and wallpaper renderer. Every repair is
+evidence-led, confirmation-gated, re-diagnosed afterward and recorded as a
+privacy-safe receipt. NØX may select an enumerated repair after user
+confirmation, but it cannot generate a privileged command.

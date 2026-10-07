@@ -24,8 +24,46 @@ NOX DOC therefore separates three layers:
    command from the model.
 
 From the ordinary NØX terminal, questions such as “why did my desktop break?”
-route to NOX DOC's read-only diagnosis. The model may explain the result, but
-the response explicitly has `root_access: false`.
+route to NOX DOC's live diagnosis. The model may explain the result, but the
+response explicitly has `root_access: false`.
+
+## Repair a working session
+
+NOX DOC can now operate while Hyprland is running. This path is deliberately
+smaller than boot recovery: it can repair only the user-session components
+that NOC can verify and restore without changing packages, disks, boot state or
+personal data.
+
+```bash
+nox-doc live-diagnose | jq
+nox-doc live-plan | jq
+nox-doc live-repair audio
+```
+
+The live contract is always the same:
+
+1. snapshot structured evidence from NOC Guard;
+2. classify conditions as repairable or explanation-only;
+3. preview the exact bounded repair and require confirmation;
+4. pause only the non-essential NOC timers that were actually active;
+5. execute one compiled, allow-listed repair through NOC Guard;
+6. collect fresh evidence and verify the condition count did not regress;
+7. resume exactly the timers that were active and write a content-free receipt.
+
+The current live allowlist covers the NOC bar, Wayland portals, failed user
+units, PipeWire/WirePlumber audio, microphone preference and wallpaper
+renderer. A request outside that list is explained but not executed. There is
+no arbitrary-command fallback.
+
+From NØX, “show me the recovery plan” stays read-only. A direct request such as
+“fix my audio with NOX DOC” becomes a confirmation-gated action. NØX sends only
+the selected enum (`audio`, `microphone`, `portal`, `wallpaper`, `bar`,
+`failed`, or `all`) to NOX DOC; it cannot supply a shell command or gain root.
+
+Privacy-safe receipts live at
+`~/.local/state/nocturne/nox-doc/live-repairs.jsonl`. They contain time, repair
+target, result and before/after issue counts—not prompts, window titles,
+networks, filenames, audio data or document content.
 
 ## Enter recovery
 
@@ -84,4 +122,3 @@ The dependency installer places:
 
 No password, prompt, SSID, document, browser content or personal identifier is
 stored. The target is installed but not made the default boot target.
-

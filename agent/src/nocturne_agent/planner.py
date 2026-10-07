@@ -46,6 +46,17 @@ class RulePlanner:
             return Action("system_status")
 
         if re.search(r"\b(repair|recover|recovery|boot fail|won't boot|wont boot|desktop broke|system broke)\b", text):
+            if re.search(r"\b(fix|repair|recover)\b", text) and not re.search(r"\b(how|plan|explain|show|what)\b", text):
+                targets = (
+                    ("microphone", r"\b(mic|microphone)\b"),
+                    ("audio", r"\b(audio|sound|speaker|pipewire)\b"),
+                    ("portal", r"\b(portal|screen share|screenshare)\b"),
+                    ("wallpaper", r"\b(wallpaper|background)\b"),
+                    ("bar", r"\b(bar|panel|status bar)\b"),
+                    ("failed", r"\b(failed service|failed unit)\b"),
+                )
+                target = next((name for name, pattern in targets if re.search(pattern, text)), "all")
+                return Action("recovery_repair", {"target": target})
             view = "status" if re.search(r"\b(status|ready|available|checkpoint)\b", text) else "plan"
             return Action("recovery_advice", {"view": view})
 
@@ -210,7 +221,9 @@ class LocalModelPlanner:
             "user explicitly asks about computer health, CPU, RAM, disk, GPU, temperature, or resource usage; "
             "never use it as a generic fallback. For unsupported actions, use respond to explain the limitation. "
             "Use recovery_advice for boot, desktop-recovery, broken-system, checkpoint or repair questions. It is "
-            "read-only evidence from NOX DOC. Never claim to have repaired the machine and never create root commands. "
+            "read-only evidence from NOX DOC. Use recovery_repair only when the user explicitly asks to fix a live-session "
+            "bar, portal, failed-unit state, audio, microphone, wallpaper, or all currently detected safe issues. It requires "
+            "confirmation and re-verifies evidence. Never claim to have repaired the machine and never create root commands. "
             "Use browser_context when asked what is visible, playing, or happening in the browser; do not launch "
             "a browser unless the user explicitly asks to open or launch one. "
             "Use browser_open only when the user explicitly asks to open a URL or search the web; never infer a URL. "

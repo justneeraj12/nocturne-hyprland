@@ -206,6 +206,11 @@ POLICIES: dict[str, ToolPolicy] = {
         _choice("view", {"status", "plan"}),
         "Read NOX DOC recovery evidence and its fixed Linux knowledge pack without root access",
     ),
+    "recovery_repair": ToolPolicy(
+        Risk.CONFIRM,
+        _choice("target", {"all", "bar", "portal", "failed", "audio", "microphone", "wallpaper"}),
+        "Run one exact NOX DOC live-session repair and verify its observed result",
+    ),
     "find_app": ToolPolicy(Risk.SAFE, _app_query, "Find exact installed app references from a natural name"),
     "launch_app": ToolPolicy(
         Risk.SAFE,
@@ -270,6 +275,12 @@ PARAMETER_SCHEMAS: dict[str, dict[str, Any]] = {
         "type": "object",
         "properties": {"view": {"type": "string", "enum": ["status", "plan"]}},
         "required": ["view"],
+        "additionalProperties": False,
+    },
+    "recovery_repair": {
+        "type": "object",
+        "properties": {"target": {"type": "string", "enum": ["all", "bar", "portal", "failed", "audio", "microphone", "wallpaper"]}},
+        "required": ["target"],
         "additionalProperties": False,
     },
     "find_app": {

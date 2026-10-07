@@ -137,6 +137,10 @@ grep -Fq 'Never purge caches on a timer' "$root/config/hypr/scripts/performance-
 grep -Fq 'RECOVERY ASIC' "$root/bin/nox-doc"
 grep -Fq 'modelHasRoot:false' "$root/bin/nox-doc"
 grep -Fq 'restore --offline' "$root/bin/nox-doc"
+grep -Fq 'nox-doc-live-repair-v1' "$root/bin/nox-doc"
+grep -Fq 'recovery_repair' "$root/agent/src/nocturne_agent/policy.py"
+grep -Fq '%h/.local/state/nocturne' "$root/agent/config/systemd/user/nocturne-agent.service"
+grep -Fq 'PATH=%h/.local/bin:' "$root/agent/config/systemd/user/nocturne-agent.service"
 grep -Fq 'nox-doc.target' "$root/scripts/install-packages.sh"
 grep -Fq 'NOX DOC // BOOT RECOVERY' "$root/native/qml/pages/SetupSettingsPage.qml"
 grep -Fq 'find "$thumbnail_root" -type f -mtime +30 -delete' "$root/config/hypr/scripts/efficiency-control"
@@ -320,7 +324,9 @@ for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
   grep -Fq 'check_color =' "$lock_style"
 done
 [[ -x $root/bin/nocturne-banner ]]
-grep -Fq 'NOCTURNE OPERATIONS CONTROL' "$root/branding/noc-terminal.txt"
+grep -Fq 'NOCTURNE $2// $1OPERATIONS CONSOLE' "$root/branding/noc-terminal.txt"
+grep -Fq 'SIGNAL $6● $4LIVE' "$root/branding/noc-terminal.txt"
+grep -Fq '"6": "#e17780"' "$root/config/fastfetch/config.jsonc"
 grep -Fq 'noc-terminal-compact.txt' "$root/apply-hyprland.sh"
 grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
 grep -Fq 'lock_dir=' "$root/config/hypr/scripts/bar"

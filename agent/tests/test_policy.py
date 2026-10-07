@@ -45,6 +45,10 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.risk, Risk.SAFE)
         self.assertFalse(self.policy.evaluate(Action("recovery_advice", {"view": "repair"})).allowed)
+        repair = self.policy.evaluate(Action("recovery_repair", {"target": "audio"}))
+        self.assertTrue(repair.allowed)
+        self.assertEqual(repair.risk, Risk.CONFIRM)
+        self.assertFalse(self.policy.evaluate(Action("recovery_repair", {"target": "shell"})).allowed)
 
     def test_conversational_response_is_bounded(self) -> None:
         decision = self.policy.evaluate(Action("respond", {"text": "Hey. What can I do for you?"}))

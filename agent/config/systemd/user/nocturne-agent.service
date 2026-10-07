@@ -7,6 +7,7 @@ After=graphical-session.target
 Type=simple
 ExecStart=%h/.local/bin/nocturne-agent-service --idle-seconds 300
 Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Nice=5
 CPUWeight=25
 MemoryHigh=256M
@@ -16,7 +17,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=%h/.local/state/nocturne-agent
+ReadWritePaths=%h/.local/state/nocturne-agent %h/.local/state/nocturne
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]
