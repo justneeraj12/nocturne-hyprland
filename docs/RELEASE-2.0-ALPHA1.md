@@ -21,7 +21,15 @@ installed desktops or identify active users.
 
 ## Install the alpha
 
-Download both files from the prerelease:
+Download both files through the project's privacy-minimal release redirect:
+
+- [source bundle](https://noc-operator.noc-operator.workers.dev/download/v2.0.0-alpha.1/nocturne-2.0.0-alpha.1-source.tar.gz)
+- [SHA-256 checksum](https://noc-operator.noc-operator.workers.dev/download/v2.0.0-alpha.1/nocturne-2.0.0-alpha.1-source.tar.gz.sha256)
+
+The redirect records one aggregate download event containing only timestamp,
+two-letter country code, release and asset. It does not run in Nocturne, set a
+cookie or store IP address, user agent, referrer or device identity. Direct
+GitHub assets remain available on the prerelease page.
 
 ```bash
 sha256sum -c nocturne-2.0.0-alpha.1-source.tar.gz.sha256
