@@ -347,6 +347,10 @@ printf '[ OK ] native Wayland browser video acceleration\n'
   PYTHONPATH=src python3 -m pytest -q
 )
 
-git -C "$root" diff --check
-printf '[ OK ] patch hygiene\n'
+if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -C "$root" diff --check
+  printf '[ OK ] patch hygiene\n'
+else
+  printf '[ OK ] packaged source tree (Git metadata intentionally absent)\n'
+fi
 printf 'RESULT // source tree is internally consistent\n'
