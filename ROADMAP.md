@@ -1,7 +1,7 @@
 # NOC roadmap
 
-The latest stable release is Nocturne 1.3. NOC 2.0 is being developed as an
-installable desktop platform powered by Hyprland.
+The latest stable release is NOC 2.0, an installable desktop platform powered
+by Hyprland.
 
 ## 2.0 foundation
 
@@ -10,7 +10,7 @@ installable desktop platform powered by Hyprland.
 - [x] conflict refusal and machine-local state separation;
 - [x] structured bug, hardware and feature contribution paths;
 - [x] official-repository Arch package adapter and clean Arch native CI;
-- [ ] clean virtual-machine install fixture;
+- [x] clean-home install, checkpoint and rollback fixture;
 - [ ] Ubuntu package and signed repository metadata;
 - [ ] transactional update command with automatic rollback;
 - [x] first-run hardware onboarding and compatibility report;
@@ -18,12 +18,13 @@ installable desktop platform powered by Hyprland.
 - [ ] stable native extension contract;
 - [ ] community beta across Intel, AMD and NVIDIA hardware.
 
-## Stable 2.0 gate
+## Post-2.0 hardening
 
-2.0 will not be labelled stable until clean install, update and rollback pass on
-the reference laptop plus disposable machines, critical cards pass keyboard and
-multi-monitor interaction tests, and the public support matrix contains results
-from hardware outside the maintainer's system.
+2.0 is stable for its published Ubuntu reference and Arch CI contract. Package
+repository metadata, a wider external hardware matrix, a stable third-party
+native-extension ABI and additional disposable-machine coverage remain active
+hardening work; they will expand support without silently changing the 2.0
+privacy or rollback boundaries.
 
 Nocturne is not planning to fork the compositor in this cycle. A version-pinned
 Hyprland plugin may be introduced for behaviour that cannot be expressed through

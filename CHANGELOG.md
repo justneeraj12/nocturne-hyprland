@@ -1,6 +1,13 @@
 # Changelog
 
-## 2.0.0-alpha.1 - Development
+## 2.0.0 - 2026-10-07
+
+- Added a guided terminal installer with platform preflight, explicit scope,
+  automatic rollback snapshot reporting and deterministic non-interactive flags.
+- Added a one-shot terminal welcome with live readiness, first-ten-minute
+  onboarding, essential shortcuts, workflow habits and recovery guidance.
+- Added a clean-home install/checkpoint/rollback fixture and fixed Mako's D-Bus
+  activation race so the notification daemon is owned by its supervised unit.
 
 - Added Performance Lab with live memory PSI, page-cache, swap, zram, NVMe and workload-profile visibility.
 - Added an opt-in adaptive zram profile with conservative VM policy, visible confirmation, pre-change backup and direct rollback.

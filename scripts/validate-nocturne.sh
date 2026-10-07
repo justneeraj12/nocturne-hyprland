@@ -20,6 +20,10 @@ printf '[ OK ] shell scripts\n'
 "$root/scripts/test-install-contracts.sh" >/dev/null
 printf '[ OK ] installer + rollback symmetry\n'
 
+[[ -x $root/scripts/test-clean-home-install.sh ]]
+grep -Fq 'nocturne-welcome' "$root/scripts/test-clean-home-install.sh"
+grep -Fq 'clean-home install and rollback passed' "$root/scripts/test-clean-home-install.sh"
+
 [[ -x $root/scripts/build-release-bundle.sh ]]
 grep -Fq 'gzip -n -9' "$root/scripts/build-release-bundle.sh"
 grep -Fq 'gh release upload' "$root/.github/workflows/release.yml"
@@ -45,7 +49,12 @@ grep -Fq '# NOC 2.0 Alpha 1 — Foundation' "$root/docs/RELEASE-2.0-ALPHA1.md"
 grep -Fq '# NOC 2.0 Alpha 2 — Arch portability' "$root/docs/RELEASE-2.0-ALPHA2.md"
 grep -Fq 'Hyprland speed. Desktop continuity. No phone home.' "$root/docs/LAUNCH-KIT-2.0.md"
 grep -Fq 'Nocturne Community does not phone home' "$root/PRIVACY.md"
-grep -Fq 'NOC 2.0 is in development' "$root/README.md"
+grep -Fq 'NOC 2.0 is stable' "$root/README.md"
+grep -Fq '# NOC 2.0 // First Signal' "$root/docs/RELEASE-2.0.md"
+grep -Fq 'guided terminal installer' "$root/CHANGELOG.md"
+[[ -x $root/bin/nocturne-welcome ]]
+grep -Fq 'nocturne-welcome.service' "$root/config/systemd/user/nocturne-session.target"
+grep -Fq 'SystemdService=mako.service' "$root/config/dbus-1/services/fr.emersion.mako.service"
 grep -Fq 'nocturne-benchmark --summary' "$root/README.md"
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]

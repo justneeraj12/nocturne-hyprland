@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}
+state_dir="$state_home/nocturne/welcome"
+marker="$state_dir/completed-v2"
+bin_home="$HOME/.local/bin"
+
+color=true
+[[ -t 1 && -z ${NO_COLOR:-} ]] || color=false
+if $color; then
+  ivory=$'\033[38;2;255;244;220m'; copper=$'\033[38;2;203;141;98m'
+  green=$'\033[38;2;109;149;120m'; red=$'\033[38;2;225;119;128m'
+  dim=$'\033[38;2;120;128;125m'; reset=$'\033[0m'; bold=$'\033[1m'
+else
+  ivory=''; copper=''; green=''; red=''; dim=''; reset=''; bold=''
+fi
+
+rule() { printf '%s\n' '────────────────────────────────────────────────────────────'; }
+header() {
+  printf '%s%sN O C  //  NOCTURNE 2.0%s\n' "$bold" "$ivory" "$reset"
+  printf '%sOPERATIONS CONSOLE // FIRST SIGNAL%s\n' "$green" "$reset"
+  rule
+}
+pause_page() {
+  [[ -t 0 ]] || return 0
+  printf '\n%sEnter%s next  ·  %sq%s leave and resume next login: ' "$copper" "$reset" "$dim" "$reset"
+  IFS= read -r answer
+  [[ ${answer,,} != q ]] || exit 0
+}
+command_ok() { command -v "$1" >/dev/null 2>&1; }
+
+status_json() {
+  local native=false config=false checkpoint=false boot_recovery=false bar=false portal=false notifications=false
+  [[ -x $bin_home/nocturne-native ]] && native=true
+  [[ -r $config_home/hypr/hyprland.lua ]] && config=true
+  [[ -s $state_home/nocturne/recovery/last-good.tar.gz ]] && checkpoint=true
+  [[ -x /usr/local/sbin/nox-doc && -r /etc/systemd/system/nox-doc.target ]] && boot_recovery=true
+  systemctl --user is-active --quiet nocturne-bar.service 2>/dev/null && bar=true
+  systemctl --user is-active --quiet xdg-desktop-portal-hyprland.service 2>/dev/null && portal=true
+  busctl --user --no-pager --list 2>/dev/null | awk '$1 == "org.freedesktop.Notifications" {found=1} END {exit !found}' && notifications=true
+  jq -cn --argjson native "$native" --argjson config "$config" --argjson checkpoint "$checkpoint" \
+    --argjson bootRecovery "$boot_recovery" --argjson bar "$bar" --argjson portal "$portal" \
+    --argjson notifications "$notifications" --argjson completed "$([[ -e $marker ]] && printf true || printf false)" \
+    '{format:"nocturne-welcome-v1",version:"2.0.0",completed:$completed,
+      readiness:{native:$native,config:$config,checkpoint:$checkpoint,bootRecovery:$bootRecovery,bar:$bar,portal:$portal,notifications:$notifications},
+      privacy:{telemetry:false,promptStorage:false}}'
+}
+
+print_status() {
+  local state
+  state=$(status_json)
+  printf '%sINSTALLATION CHECK%s\n' "$copper" "$reset"
+  jq -r '.readiness | to_entries[] | (if .value then "[ OK ] " else "[ .. ] " end) + (.key|ascii_upcase)' <<< "$state"
+  if jq -e '.readiness.native and .readiness.config and .readiness.checkpoint' <<< "$state" >/dev/null; then
+    printf '%sCore desktop and rollback checkpoint are ready.%s\n' "$green" "$reset"
+  else
+    printf '%sFinish the missing items before treating this machine as production-ready.%s\n' "$red" "$reset"
+  fi
+}
+
+print_hints() {
+  cat <<'EOF'
+THE THREE TO REMEMBER
+  Super + Space         find and launch anything
+  Super + R             open NOC Settings
+  Super + /             reopen the complete shortcut guide
+
+EVERYDAY CONTROL
+  Super + Enter         terminal          Super + E       files
+  Super + Q             close window      Super + M       minimize
+  Super + Tab           workspace overview
+  Super + 1…9           switch workspace
+  Super + Shift + 1…9   send a window to a workspace
+  Print                 area screenshot   Super + Print   recorder
+  Super + P             power, profile, logout and suspend
+
+GOOD NOC HABITS
+  • Give workspaces jobs: browser/chat, code, media, games.
+  • Use Super+Shift+number instead of dragging across desktops.
+  • Super+A pulls a strange floating app back into the tiling layout.
+  • Click a bar control again—or click elsewhere—to dismiss its card.
+  • Use Settings → Setup + Recovery before experimenting with the shell.
+  • Run nocturne-doctor after upgrades; use NOX DOC for bounded repair.
+EOF
+}
+
+post_install() {
+  header
+  printf '%sINSTALL COMPLETE%s\n\n' "$green" "$reset"
+  print_status
+  printf '\nNext login: choose %sHyprland (uwsm-managed)%s.\n' "$ivory" "$reset"
+  printf 'The terminal welcome opens once. Reopen it later with: %snocturne-welcome%s\n' "$copper" "$reset"
+  printf 'Rollback remains available with: %s./uninstall.sh%s\n' "$copper" "$reset"
+}
+
+first_run() {
+  header
+  printf '%sWelcome. NOC is a keyboard-fast desktop, not a keyboard-only desktop.%s\n\n' "$ivory" "$reset"
+  print_status
+  pause_page
+
+  header
+  print_hints
+  pause_page
+
+  header
+  cat <<'EOF'
+YOUR FIRST TEN MINUTES
+  1. Open Settings with Super+R and confirm displays, sound and power.
+  2. Open the launcher with Super+Space and pin down your app names.
+  3. Try Super+Tab, then move one window with Super+Shift+2.
+  4. Press Print, capture an area, then paste it from the clipboard.
+  5. Open the bar's network, audio and power cards and dismiss each outside.
+
+RECOVERY
+  • nocturne-doctor             read-only desktop health report
+  • nox-doc live-diagnose       structured working-session evidence
+  • nox-doc live-plan           exact bounded repair preview
+  • Nocturne Recovery login     minimal shell for checkpoint restore
+  • systemd.unit=nox-doc.target headless recovery when graphical boot fails
+
+Nothing in this welcome is uploaded. NOC Community has no telemetry endpoint.
+EOF
+  pause_page
+
+  mkdir -p "$state_dir"
+  printf 'completed=%s\nversion=2.0.0\n' "$(date --iso-8601=seconds)" > "$marker"
+  chmod 600 "$marker"
+  if [[ -x $config_home/hypr/scripts/onboarding-control ]]; then
+    "$config_home/hypr/scripts/onboarding-control" acknowledge-shortcuts >/dev/null 2>&1 || true
+  fi
+  printf '\n%sWELCOME COMPLETE // SIGNAL STABLE%s\n' "$green" "$reset"
+  printf 'Use %snocturne-welcome hints%s or %sSuper+/%s whenever muscle memory slips.\n' "$copper" "$reset" "$copper" "$reset"
+}
+
+launch_first_run() {
+  [[ -e $marker ]] && exit 0
+  [[ -n ${WAYLAND_DISPLAY:-} && -n ${HYPRLAND_INSTANCE_SIGNATURE:-} ]] || exit 0
+  command_ok kitty || exit 0
+  if command_ok uwsm && command_ok systemd-run; then
+    systemd-run --user --collect --unit=nocturne-welcome-ui \
+      --property=Description='NOC first-login welcome' -- \
+      uwsm app -- kitty --class noc-welcome --title 'NOC // Welcome' \
+      -e "$bin_home/nocturne-welcome" first-run >/dev/null
+    exit 0
+  elif command_ok uwsm; then
+    exec uwsm app -- kitty --class noc-welcome --title 'NOC // Welcome' -e "$bin_home/nocturne-welcome" first-run
+  fi
+  exec kitty --class noc-welcome --title 'NOC // Welcome' -e "$bin_home/nocturne-welcome" first-run
+}
+
+case ${1:-home} in
+  home)
+    if [[ -e $marker ]]; then header; print_status; printf '\n'; print_hints; else first_run; fi ;;
+  first-run) first_run ;;
+  launch-first-run) launch_first_run ;;
+  post-install) post_install ;;
+  status)
+    if [[ ${2:-} == --json ]]; then status_json; else header; print_status; fi ;;
+  hints) header; print_hints ;;
+  reset) rm -f -- "$marker"; printf 'NOC welcome will return on the next login.\n' ;;
+  -h|--help)
+    printf 'Usage: nocturne-welcome [first-run|status [--json]|hints|reset]\n' ;;
+  *) printf 'Unknown welcome action: %s\n' "$1" >&2; exit 2 ;;
+esac

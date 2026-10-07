@@ -21,10 +21,13 @@ policy.
 ```bash
 git clone https://github.com/justneeraj12/nocturne-hyprland.git
 cd nocturne-hyprland
-./install.sh --install-packages
+./install.sh
 ```
 
-The command detects `/etc/os-release`, installs packages with apt or pacman,
+In an interactive terminal, `./install.sh` opens the NOC guided installer. It
+shows the detected platform, Hyprland version, free space, privacy boundary and
+rollback policy before offering full setup, user-only setup or validation. The
+full path detects `/etc/os-release`, installs packages with apt or pacman,
 checksum-verifies Hyprshot, installs Kooha from Flathub, installs Hyprsunset and
 fwupd support, builds the Qt shell in release mode and applies the config. On
 Arch it uses only official repositories and enables NetworkManager and BlueZ.
@@ -35,12 +38,21 @@ camera service running in the background.
 Already have every dependency?
 
 ```bash
-./install.sh
+./install.sh --user-only
+```
+
+For automation or a repeatable deployment with no menu:
+
+```bash
+./install.sh --install-packages
 ```
 
 Log out after the first installation and choose **Hyprland (uwsm-managed)**.
 The next login starts the bar, wallpaper engine, notifications, idle manager,
-clipboard watchers and hardware helpers.
+clipboard watchers and hardware helpers. A compact terminal welcome opens once,
+checks the installed control plane and teaches the essential workflow. Reopen
+it any time with `nocturne-welcome`, show only the shortcuts with
+`nocturne-welcome hints`, or reset it with `nocturne-welcome reset`.
 
 The package-assisted install also adds a **Nocturne Recovery** login entry. It
 starts a minimal Hyprland config with no shell panels or effects. Use
@@ -77,7 +89,7 @@ packages or applying config.
 
 ```bash
 git pull --ff-only
-./install.sh
+./install.sh --user-only
 ```
 
 Each application creates another timestamped snapshot. Local wallpaper,

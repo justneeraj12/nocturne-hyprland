@@ -31,9 +31,20 @@ grep -Fq 'AllowIsolate=yes' "$root/config/systemd/system/nox-doc.target"
 grep -Fq 'StandardInput=tty-force' "$root/config/systemd/system/nox-doc.service"
 grep -Fq '# >>> Nocturne desktop >>>' "$root/apply-hyprland.sh"
 grep -Fq '# >>> Nocturne desktop >>>' "$root/uninstall.sh"
+grep -Fq 'nocturne-welcome' "$root/apply-hyprland.sh"
+grep -Fq 'nocturne-welcome' "$root/uninstall.sh"
+grep -Fq 'SystemdService=mako.service' "$root/config/dbus-1/services/fr.emersion.mako.service"
+grep -Fq 'nocturne-welcome.service' "$root/config/systemd/user/nocturne-session.target"
 
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT
+welcome_root="$test_root/welcome-home"
+mkdir -p "$welcome_root/.config" "$welcome_root/.local/state"
+HOME="$welcome_root" XDG_CONFIG_HOME="$welcome_root/.config" XDG_STATE_HOME="$welcome_root/.local/state" \
+  "$root/bin/nocturne-welcome" status --json \
+  | jq -e '.format == "nocturne-welcome-v1" and .version == "2.0.0" and .privacy.telemetry == false' >/dev/null
+NO_COLOR=1 "$root/bin/nocturne-welcome" hints | grep -Fq 'Super + Space'
+
 printf '%s\n' 'ID=arch' > "$test_root/arch-release"
 printf '%s\n' 'ID=ubuntu' 'ID_LIKE=debian' > "$test_root/ubuntu-release"
 
