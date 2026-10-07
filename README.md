@@ -75,6 +75,7 @@ personal file names.
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
 | **Update Guard** | System upgrades can checkpoint the working desktop first, record the exact platform state and verify Hyprland, NOC and portal health afterward. |
 | **Layered Security Hub** | AppArmor, firewall, Secure Boot, encryption, updates, package integrity and on-demand malware scanning share one zero-resident control surface. |
+| **Community-demand workflow** | Connected calendars, visual window rules, onboarding, safe extensions, laptop policies and dock-aware display profiles live in the same control plane. |
 | **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Nocturne Trace tells you why, shows what changed and preserves a direct reversal path. |
 | **Local workflow memory** | Desk, Habits and Vault connect tasks, notes, focus blocks, weekly pacing and reusable snippets through private files with no account, cloud dependency or resident workflow daemon. |
 | **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
@@ -119,6 +120,12 @@ The shell includes:
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
 - calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
+- a private read-only Connected Agenda for local, Google, Outlook, iCloud, Nextcloud and other ICS feeds;
+- Window Rules Studio with open-app discovery, escaped exact matches and isolated generated Lua;
+- first-run hardware onboarding with a reversible seven-step readiness checklist;
+- a declarative extension contract that blocks arbitrary shell, QML and native payloads;
+- Laptop Intelligence for brightness behaviour, charge thresholds, Bluetooth startup and reversible battery refresh limits;
+- Display Lab with live geometry, scaling, rotation and monitor-set profiles for docks;
 - Hyprshot screenshots and Kooha screen recording;
 - compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
 - reliable background-app controls with native DBusMenu actions on ordinary left-click;
@@ -292,6 +299,8 @@ applications keep their own toolkit and license.
 - [NOC 2.0 architecture](docs/NOC-2.0.md)
 - [2026 community demand scan](docs/COMMUNITY-DEMAND-2026.md)
 - [Security Hub design](docs/SECURITY-HUB.md)
+- [Declarative extension contract](docs/EXTENSIONS.md)
+- [Community-demand feature architecture](docs/COMMUNITY-FEATURES.md)
 - [Roadmap](ROADMAP.md)
 - [Community](docs/COMMUNITY.md)
 - [Support matrix](docs/SUPPORT-MATRIX.md)

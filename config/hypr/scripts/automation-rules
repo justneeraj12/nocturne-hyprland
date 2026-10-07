@@ -32,8 +32,7 @@ delete_rule() { local id=${1:-}; [[ $id =~ ^[1-9][0-9]*$ ]] && exists "$id" || e
 
 set_enabled() {
   local value=$1; jq --argjson value "$value" '.enabled=$value' "$store" | save
-  if [[ $value == true ]]; then systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
-  elif [[ $(jq -r '.enabled' "$config_home/nocturne/context.json" 2>/dev/null || printf false) != true ]]; then systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true; fi
+  "$config_home/hypr/scripts/context-timer-state" sync
 }
 
 matches() {

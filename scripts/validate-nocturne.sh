@@ -289,7 +289,7 @@ grep -Fq 'nocturne-permissions-v1' "$root/config/hypr/scripts/permission-control
 grep -Fq 'nocturne-guard-v1' "$root/config/hypr/scripts/system-guard"
 grep -Fq 'nocturne-rules-v1' "$root/config/hypr/scripts/automation-rules"
 grep -Fq 'nocturne-clipboard-v1' "$root/config/hypr/scripts/clipboard-control"
-grep -Fq 'nocturne-power-lab-v1' "$root/config/hypr/scripts/power-lab"
+grep -Fq 'nocturne-power-lab-v2' "$root/config/hypr/scripts/power-lab"
 grep -Fq 'nocturne-lock-style-v2' "$root/config/hypr/scripts/lock-style"
 [[ $(find "$root/config/hypr/lockstyles" -maxdepth 1 -name '*.conf.in' | wc -l) -eq 11 ]]
 for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
@@ -316,6 +316,19 @@ grep -Fq 'install -m 0755 "$ROOT_DIR/bin/nocturne-support"' "$root/apply-hyprlan
 grep -Fq 'theme-studio' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
 printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
+
+for page in AgendaSettingsPage WindowRulesSettingsPage ExtensionsSettingsPage OnboardingSettingsPage LaptopIntelligenceSettingsPage DisplayLabSettingsPage; do
+  grep -Fq "qml/pages/$page.qml" "$root/native/CMakeLists.txt"
+done
+grep -Fq 'nocturne-agenda-v1' "$root/bin/nocturne-agenda"
+grep -Fq 'nocturne-window-rules-v1' "$root/bin/nocturne-window-rules"
+grep -Fq 'arbitraryCode' "$root/bin/nocturne-extensions"
+grep -Fq 'nocturne-display-lab-v1' "$root/config/hypr/scripts/monitor-layout"
+grep -Fq 'brightnessStep' "$root/config/hypr/scripts/power-lab"
+grep -Fq 'nocturne-context-timer-v1' "$root/config/hypr/scripts/context-timer-state"
+grep -Fq 'pcall(dofile, user_window_rules)' "$root/config/hypr/hyprland.lua"
+grep -Fq 'nocturne-agenda-refresh.timer' "$root/apply-hyprland.sh"
+printf '[ OK ] agenda, onboarding, window rules, extensions, laptop intelligence and display lab\n'
 
 grep -Fq 'systemctl --user restart nocturne-session.target' "$root/config/hypr/hyprland.lua"
 grep -Fq 'systemctl --user stop nocturne-session.target' "$root/apply-hyprland.sh"

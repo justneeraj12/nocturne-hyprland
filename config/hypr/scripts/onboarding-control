@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+data_home=${XDG_DATA_HOME:-"$HOME/.local/share"}
+state_file="$config_home/nocturne/onboarding.json"
+
+ensure_state() {
+  mkdir -p -- "$config_home/nocturne"
+  if [[ ! -s $state_file ]]; then
+    printf '%s\n' '{"format":"nocturne-onboarding-v1","shortcutsAcknowledged":false,"finished":false}' > "$state_file"
+    chmod 600 "$state_file"
+  fi
+}
+
+status() {
+  ensure_state
+  local shell=false recovery=false profile=false display=false shortcuts=false agenda=false security=false count=0
+  local battery=false camera=false fingerprint=false touchpad=false bluetooth=false monitors=0 gpu='Unknown GPU'
+  systemctl --user is-active --quiet nocturne-bar.service 2>/dev/null && shell=true
+  [[ -s $state_home/recovery/last-good.tar.gz ]] && recovery=true
+  [[ -s $config_home/nocturne/profile.json ]] && profile=true
+  [[ -s $config_home/nocturne/monitors.lua ]] && grep -Fq 'output = "' "$config_home/nocturne/monitors.lua" && display=true
+  shortcuts=$(jq -r '.shortcutsAcknowledged // false' "$state_file")
+  [[ -s $config_home/nocturne/agenda.json ]] && jq -e '(.sources // []) | length > 0' "$config_home/nocturne/agenda.json" >/dev/null 2>&1 && agenda=true
+  if [[ -r /sys/module/apparmor/parameters/enabled ]] && grep -qi '^Y' /sys/module/apparmor/parameters/enabled; then security=true
+  elif command -v clamscan >/dev/null 2>&1; then security=true; fi
+  for ready in "$shell" "$recovery" "$profile" "$display" "$shortcuts" "$agenda" "$security"; do [[ $ready == true ]] && count=$((count + 1)); done
+  compgen -G '/sys/class/power_supply/BAT*' >/dev/null && battery=true
+  compgen -G '/dev/video*' >/dev/null && camera=true
+  if command -v fprintd-list >/dev/null 2>&1 && timeout 2s fprintd-list "$USER" >/dev/null 2>&1; then
+    fingerprint=true
+  elif grep -Eiq 'finger(print| reader)' /sys/bus/usb/devices/*/product 2>/dev/null; then
+    fingerprint=true
+  fi
+  hyprctl devices -j 2>/dev/null | jq -e '(.mice // []) | any(.name | ascii_downcase | contains("touchpad"))' >/dev/null 2>&1 && touchpad=true
+  if { timeout 2s bluetoothctl show >/dev/null 2>&1; } 2>/dev/null; then bluetooth=true; fi
+  monitors=$(hyprctl -j monitors 2>/dev/null | jq 'length' 2>/dev/null || true)
+  [[ $monitors =~ ^[0-9]+$ ]] || monitors=0
+  gpu=$(lspci 2>/dev/null | sed -nE '/VGA|3D controller/{s/.*: //;p;q}' | cut -c1-100)
+  jq -cn --argjson complete "$count" --argjson shell "$shell" --argjson recovery "$recovery" \
+    --argjson profile "$profile" --argjson display "$display" --argjson shortcuts "$shortcuts" \
+    --argjson agenda "$agenda" --argjson security "$security" --argjson battery "$battery" \
+    --argjson camera "$camera" --argjson fingerprint "$fingerprint" --argjson touchpad "$touchpad" \
+    --argjson bluetooth "$bluetooth" --argjson monitors "$monitors" --arg gpu "${gpu:-Unknown GPU}" \
+    '{format:"nocturne-onboarding-v1",complete:$complete,total:7,steps:{shell:$shell,recovery:$recovery,profile:$profile,display:$display,shortcuts:$shortcuts,agenda:$agenda,security:$security},hardware:{battery:$battery,camera:$camera,fingerprint:$fingerprint,touchpad:$touchpad,bluetooth:$bluetooth,monitors:$monitors,gpu:$gpu}}'
+}
+
+set_flag() {
+  ensure_state
+  local key=$1 value=$2 temporary
+  [[ $key =~ ^(shortcutsAcknowledged|finished)$ && $value =~ ^(true|false)$ ]] || exit 2
+  temporary=$(mktemp "$config_home/nocturne/.onboarding.XXXXXX")
+  jq --arg key "$key" --argjson value "$value" '.[$key]=$value' "$state_file" > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$state_file"
+}
+
+case ${1:-status} in
+  status) status ;;
+  acknowledge-shortcuts) set_flag shortcutsAcknowledged true; status ;;
+  finish) set_flag finished true; status ;;
+  reset) set_flag shortcutsAcknowledged false; set_flag finished false; status ;;
+  *) printf 'Usage: %s status|acknowledge-shortcuts|finish|reset\n' "$0" >&2; exit 2 ;;
+esac

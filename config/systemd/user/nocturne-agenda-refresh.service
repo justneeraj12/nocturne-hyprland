@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Nocturne read-only calendar subscriptions
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/nocturne-agenda refresh
+Nice=10
+IOSchedulingClass=idle
+PrivateTmp=true
+NoNewPrivileges=true

@@ -13,6 +13,8 @@ Rectangle {
     property date shown: new Date()
     property date selected: new Date()
     property date now: new Date()
+    property var events: []
+    readonly property string agendaTool: backend.home + "/.local/bin/nocturne-agenda"
     readonly property int year: shown.getFullYear()
     readonly property int month: shown.getMonth()
     readonly property int firstOffset: (new Date(year, month, 1).getDay() + 6) % 7
@@ -20,6 +22,11 @@ Rectangle {
 
     function sameDay(a, b) { return a.toDateString() === b.toDateString() }
     function shiftMonth(offset) { shown = new Date(year, month + offset, 1); selected = shown }
+    function dayKey(value) { return Qt.formatDate(value, "yyyy-MM-dd") }
+    function refreshAgenda() {
+        var next = backend.json([agendaTool, "events", dayKey(selected), "1"], 2500)
+        events = next || []
+    }
     function clockText(value) {
         var hours = value.getHours()
         var displayHour = hours % 12
@@ -87,10 +94,38 @@ Rectangle {
             text: Qt.formatDate(root.selected, "dddd · dd MMMM")
             color: backend.textColor; font.family: "monospace"; font.bold: true
         }
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: agendaColumn.implicitHeight + 14
+            color: backend.surfaceColor
+            border.color: backend.lineColor
+            ColumnLayout {
+                id: agendaColumn
+                anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+                anchors.margins: 7; spacing: 4
+                RowLayout {
+                    Layout.fillWidth: true
+                    SectionLabel { Layout.fillWidth: true; text: "AGENDA · " + root.events.length + " EVENTS" }
+                    NocturneButton { text: "MANAGE"; onClicked: backend.start([backend.home + "/.local/bin/nocturne-settings", "agenda"]) }
+                }
+                Text { visible: !root.events.length; text: "NO EVENTS"; color: backend.mutedColor; font.family: "monospace"; font.pixelSize: 8 }
+                Repeater {
+                    model: root.events.slice(0, 4)
+                    RowLayout {
+                        required property var modelData; Layout.fillWidth: true; spacing: 6
+                        Rectangle { implicitWidth: 4; implicitHeight: 19; color: modelData.color }
+                        Text { Layout.fillWidth: true; text: modelData.title; color: backend.textColor; font.family: "Inter"; font.pixelSize: 8; font.bold: true; elide: Text.ElideRight }
+                        Text { text: modelData.allDay ? "ALL DAY" : Qt.formatTime(new Date(modelData.start), "h:mm AP"); color: backend.accentColor; font.family: "monospace"; font.pixelSize: 8 }
+                    }
+                }
+            }
+        }
         NocturneButton {
             Layout.fillWidth: true; text: "TODAY"; selected: true
             onClicked: { root.shown = new Date(); root.selected = new Date() }
         }
     }
     Timer { interval: 1000; running: true; repeat: true; onTriggered: root.now = new Date() }
+    onSelectedChanged: Qt.callLater(refreshAgenda)
+    Component.onCompleted: refreshAgenda()
 }

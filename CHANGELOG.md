@@ -2,6 +2,12 @@
 
 ## 2.0.0-alpha.1 - Development
 
+- Added the community-demand feature set: private Connected Agenda, exact-match Window Rules Studio, hardware onboarding, capability-gated declarative extensions, Laptop Intelligence and Display Lab profiles.
+- Added read-only Google/Outlook/iCloud/Nextcloud-compatible ICS subscriptions with redacted source URLs, mode-0600 caches, bounded recurrence expansion and zero-resident refresh timers.
+- Added reversible battery refresh limits, shared brightness step/floor controls, Bluetooth startup policy, charge-threshold discovery and exact AC restoration.
+- Added dock-aware display profiles, monitor-set matching, live geometry controls and explicit deferral of unsafe automatic HDR forcing.
+- Added shared context-timer arbitration so scenes, rules, laptop policy and display profiles cannot disable one another's evaluator.
+- Hardened portable exports against calendar URL, window-title, continuity-key and machine-profile leakage.
 - Added the zero-resident Security Hub: on-demand official ClamAV detection, optional deep heuristics, AppArmor/firewall/Secure Boot/encryption visibility, package verification and opt-in timers.
 - Added NOC Update Guard with pre-upgrade recovery checkpoints, Hyprland/kernel/GPU and critical-package manifests, post-upgrade verification and a local audit trail.
 - Integrated guarded upgrades into the native Maintenance card while keeping every privileged package operation visible.

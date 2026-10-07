@@ -131,7 +131,7 @@ Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     title: "PORTABLE CONFIGURATION"
-                    description: "Preferences and monitor layout—never passwords, Wi-Fi credentials, browser data or wallpapers."
+                    description: "Preferences and login monitor layout—never credentials, continuity keys, calendar URLs, window titles, browser data or wallpapers."
                     icon: "document-save"
                     glyph: "⇩"
                     Rectangle {

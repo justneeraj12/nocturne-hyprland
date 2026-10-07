@@ -13,7 +13,8 @@ installable desktop platform powered by Hyprland.
 - [ ] clean virtual-machine install fixture;
 - [ ] Ubuntu package and signed repository metadata;
 - [ ] transactional update command with automatic rollback;
-- [ ] first-run hardware onboarding and compatibility report;
+- [x] first-run hardware onboarding and compatibility report;
+- [x] capability-gated declarative extension contract with zero arbitrary code;
 - [ ] stable native extension contract;
 - [ ] community beta across Intel, AMD and NVIDIA hardware.
 

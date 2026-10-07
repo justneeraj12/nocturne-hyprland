@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically refresh Nocturne calendar subscriptions
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=30m
+RandomizedDelaySec=3m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

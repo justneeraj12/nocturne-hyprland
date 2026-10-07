@@ -88,9 +88,10 @@ browsers and editor windows are not reimplemented inside the shell.
   thumbnails, old user journal entries and failed-unit state.
 - Cava and the dashboard are user-launched, never idle background services.
 - Storage, permissions, Guard, Meeting Mode, Power Lab, clipboard pins and NOC
-  Pulse are short-lived commands. Automation and adaptive battery policy reuse
-  `nocturne-context.timer`. Clipboard privacy replaces the existing Cliphist
-  text watcher; the release adds no second watcher or permanent daemon.
+  Pulse are short-lived commands. Scenes, automation, adaptive battery policy
+  and display-profile matching share `nocturne-context.timer` through one
+  ownership arbiter. Clipboard privacy replaces the existing Cliphist text
+  watcher; the release adds no second watcher or permanent daemon.
 
 Nocturne avoids marketing a fixed RAM number because GPU drivers, Flatpak
 portals, connected displays and tray applications dominate real-world variance.

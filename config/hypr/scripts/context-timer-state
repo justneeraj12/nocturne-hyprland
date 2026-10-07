@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+nocturne_config="$config_home/nocturne"
+
+json_true() {
+  local file=$1 filter=$2
+  jq -e "$filter" "$file" >/dev/null 2>&1
+}
+
+reasons_json() {
+  local context=false rules=false power=false display=false
+  json_true "$nocturne_config/context.json" '.enabled == true' && context=true
+  json_true "$nocturne_config/rules.json" '.enabled == true' && rules=true
+  json_true "$nocturne_config/power-lab.json" '.adaptiveSaver == true or .lowerRefreshOnBattery == true' && power=true
+  json_true "$nocturne_config/display-lab.json" '.autoSwitch == true' && display=true
+  jq -cn --argjson context "$context" --argjson rules "$rules" \
+    --argjson power "$power" --argjson display "$display" \
+    '{context:$context,rules:$rules,power:$power,display:$display}'
+}
+
+status() {
+  local reasons required=false active=false
+  reasons=$(reasons_json)
+  jq -e 'any(.[]; . == true)' <<< "$reasons" >/dev/null && required=true
+  systemctl --user is-active --quiet nocturne-context.timer 2>/dev/null && active=true
+  jq -cn --argjson reasons "$reasons" --argjson required "$required" --argjson active "$active" \
+    '{format:"nocturne-context-timer-v1",required:$required,active:$active,reasons:$reasons}'
+}
+
+sync_timer() {
+  if reasons_json | jq -e 'any(.[]; . == true)' >/dev/null; then
+    systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+  else
+    systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+  fi
+}
+
+case ${1:-status} in
+  status) status ;;
+  sync) sync_timer ;;
+  *) printf 'Usage: %s status|sync\n' "$0" >&2; exit 2 ;;
+esac

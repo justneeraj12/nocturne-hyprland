@@ -20,17 +20,23 @@ ApplicationWindow {
     property var filteredNavigation: []
     readonly property string statePath: backend.home + "/.config/nocturne/settings-last-page"
     readonly property var navigation: [
+        {key:"welcome", label:"Getting started", group:"HOME", icon:"start-here", glyph:"N", keywords:"welcome setup onboarding hardware migrate tutorial first run"},
         {key:"overview", label:"Overview", group:"HOME", icon:"go-home", glyph:"⌂", keywords:"status health dashboard machine"},
         {key:"appearance", label:"Appearance", group:"HOME", icon:"preferences-desktop-theme", glyph:"◈", keywords:"wallpaper theme color accent day cycle"},
         {key:"bar", label:"Bar Studio", group:"HOME", icon:"video-display", glyph:"▤", keywords:"status bar modules density icons displays layout"},
         {key:"connectivity", label:"Connectivity", group:"DEVICES", icon:"network-wireless", glyph:"⌁", keywords:"wifi bluetooth vpn network internet"},
         {key:"sound", label:"Sound & displays", group:"DEVICES", icon:"audio-volume-high", glyph:"♪", keywords:"audio volume mixer brightness monitor night shift"},
+        {key:"displaylab", label:"Display Lab", group:"DEVICES", icon:"video-display", glyph:"▣", keywords:"monitor output position scale rotate vrr refresh dock profile hdr"},
+        {key:"laptop", label:"Laptop Intelligence", group:"DEVICES", icon:"computer-laptop", glyph:"⚡", keywords:"battery refresh brightness bluetooth charge threshold sleep mobile"},
         {key:"input", label:"Input & defaults", group:"DEVICES", icon:"input-keyboard", glyph:"⌨", keywords:"keyboard mouse touchpad default apps time timezone"},
         {key:"system", label:"System & accounts", group:"SYSTEM", icon:"computer", glyph:"▣", keywords:"google account hardware integration portal phone"},
         {key:"command", label:"System Command", group:"SYSTEM", icon:"security-medium", glyph:"✓", keywords:"meeting permissions portal startup guard pulse repair health"},
         {key:"storage", label:"Storage", group:"SYSTEM", icon:"drive-harddisk", glyph:"▰", keywords:"disk cleanup duplicate cache trash space"},
         {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"tasks focus notes pomodoro screenshot recorder shortcuts"},
+        {key:"agenda", label:"Connected Agenda", group:"SYSTEM", icon:"view-calendar", glyph:"◷", keywords:"calendar google outlook caldav ics events reminders"},
         {key:"automation", label:"Scenes & automation", group:"SYSTEM", icon:"view-calendar-timeline", glyph:"◎", keywords:"workspace scenes context dock automation"},
+        {key:"windowrules", label:"Window Rules", group:"SYSTEM", icon:"window-new", glyph:"▦", keywords:"app class title float tile opacity workspace monitor rules"},
+        {key:"extensions", label:"Extensions", group:"SYSTEM", icon:"preferences-plugin", glyph:"◇", keywords:"plugin extension manifest integration permissions"},
         {key:"security", label:"Security Hub", group:"SYSTEM", icon:"security-high", glyph:"⬡", keywords:"malware antivirus clamav firewall apparmor secure boot encryption scan integrity"},
         {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
         {key:"efficiency", label:"Efficiency", group:"SYSTEM", icon:"utilities-system-monitor", glyph:"≋", keywords:"memory ram cpu startup resources optimize cleanup performance"},
@@ -99,10 +105,11 @@ ApplicationWindow {
     Shortcut { sequence: "Escape"; onActivated: { if (search.text !== "") search.clear(); else root.close() } }
 
     readonly property var pageComponents: [
-        overviewPage, appearancePage, barPage, connectivityPage, soundPage,
-        inputPage, systemPage, commandPage, storagePage, workflowPage, automationPage, securityPage, privacyPage,
+        welcomePage, overviewPage, appearancePage, barPage, connectivityPage, soundPage, displayLabPage, laptopPage,
+        inputPage, systemPage, commandPage, storagePage, workflowPage, agendaPage, automationPage, windowRulesPage, extensionsPage, securityPage, privacyPage,
         efficiencyPage, powerPage, setupPage, aboutPage
     ]
+    Component { id: welcomePage; OnboardingSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
     Component { id: overviewPage; OverviewSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
     Component { id: appearancePage; AppearanceSettingsPage { active: true } }
     Component { id: barPage; BarSettingsPage { active: true } }
@@ -147,6 +154,11 @@ ApplicationWindow {
         ]
     } }
     Component { id: automationPage; AutomationRulesSettingsPage { active: true } }
+    Component { id: agendaPage; AgendaSettingsPage { active: true } }
+    Component { id: windowRulesPage; WindowRulesSettingsPage { active: true } }
+    Component { id: extensionsPage; ExtensionsSettingsPage { active: true } }
+    Component { id: displayLabPage; DisplayLabSettingsPage { active: true } }
+    Component { id: laptopPage; LaptopIntelligenceSettingsPage { active: true } }
     Component { id: securityPage; SecuritySettingsPage { active: true } }
     Component { id: privacyPage; SettingsActionsPage {
         pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
@@ -170,7 +182,7 @@ ApplicationWindow {
     } }
     Component { id: setupPage; SetupSettingsPage { active: true } }
     Component { id: aboutPage; SettingsActionsPage {
-        pageEyebrow: "NOCTURNE 1.1.0"; pageTitle: "About"
+        pageEyebrow: "NOC 2.0 ALPHA"; pageTitle: "About"
         pageDescription: "A coherent Hyprland desktop layer built from standard, replaceable Linux services—with a recovery path."
         pageBadge: "OPEN SOURCE"
         actions: [

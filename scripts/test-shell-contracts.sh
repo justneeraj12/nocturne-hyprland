@@ -119,7 +119,7 @@ timeout 3s "$desk" start 1
 
 # The 1.1 control centers remain command driven, bounded and private. Exercise
 # their persistent state without touching the live user session.
-for helper in automation-rules clipboard-control power-lab system-preferences; do
+for helper in automation-rules clipboard-control context-timer-state power-lab system-preferences; do
   cp -- "$root/config/hypr/scripts/$helper" "$XDG_CONFIG_HOME/hypr/scripts/$helper"
   chmod +x "$XDG_CONFIG_HOME/hypr/scripts/$helper"
 done
@@ -143,6 +143,8 @@ rules="$XDG_CONFIG_HOME/hypr/scripts/automation-rules"
 "$rules" enable
 "$rules" status | jq -e '.enabled == true and .active == 1 and .rules[1].enabled == false' >/dev/null
 [[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/rules.json") == 600 ]]
+"$XDG_CONFIG_HOME/hypr/scripts/context-timer-state" status \
+  | jq -e '.format == "nocturne-context-timer-v1" and .required == true and .reasons.rules == true' >/dev/null
 
 clipboard="$XDG_CONFIG_HOME/hypr/scripts/clipboard-control"
 export MOCK_CLIPHIST_STORE="$test_root/cliphist-store"
@@ -159,7 +161,15 @@ printf 'password=correct-horse-battery-staple' | "$clipboard" watch
 power_lab="$XDG_CONFIG_HOME/hypr/scripts/power-lab"
 "$power_lab" configure adaptiveSaver true
 "$power_lab" configure lowBattery 25
-"$power_lab" status | jq -e '.format == "nocturne-power-lab-v1" and .adaptiveSaver == true and .lowBattery == 25 and (.sleep.deepAvailable|type == "boolean")' >/dev/null
+"$power_lab" configure brightnessStep 2
+"$power_lab" configure brightnessFloor 10
+"$power_lab" configure lowerRefreshOnBattery true
+"$power_lab" configure batteryRefresh 60
+"$power_lab" configure bluetoothStartup off
+"$power_lab" status | jq -e '.format == "nocturne-power-lab-v2" and .adaptiveSaver == true and .lowBattery == 25 and .brightness.step == 2 and .brightness.floor == 10 and .refresh.lowerOnBattery == true and .refresh.target == 60 and .bluetooth.startup == "off" and (.sleep.deepAvailable|type == "boolean")' >/dev/null
+"$rules" disable
+"$XDG_CONFIG_HOME/hypr/scripts/context-timer-state" status \
+  | jq -e '.required == true and .reasons.rules == false and .reasons.power == true' >/dev/null
 
 preferences="$XDG_CONFIG_HOME/hypr/scripts/system-preferences"
 "$preferences" set-input workspaceSwipe true
@@ -291,5 +301,86 @@ NOCTURNE_SECURITY_STATE_ROOT="$test_root/security-state" NOCTURNE_SECURITY_DATA_
 NOCTURNE_SECURITY_STATE_ROOT="$test_root/security-state" NOCTURNE_SECURITY_DATA_ROOT="$XDG_DATA_HOME/nocturne/security" \
   "$security" scan downloads standard >/dev/null
 jq -e '.result == "clean" and .scanned == 3 and .infected == 0' "$test_root/security-state/last-scan.json" >/dev/null
+
+# Community-demand controls remain declarative, private and zero-resident.
+agenda="$root/bin/nocturne-agenda"
+today=$(date +%Y%m%d); tomorrow=$(date -d tomorrow +%Y%m%d)
+printf '%s\n' 'BEGIN:VCALENDAR' 'VERSION:2.0' 'BEGIN:VEVENT' 'UID:test-event' \
+  "DTSTART;VALUE=DATE:$today" "DTEND;VALUE=DATE:$tomorrow" 'SUMMARY:Private agenda test' \
+  'END:VEVENT' 'END:VCALENDAR' > "$test_root/calendar.ics"
+NOCTURNE_NO_RESTART=1 "$agenda" add Test "$test_root/calendar.ics" '#5f8f76' >/dev/null
+NOCTURNE_NO_RESTART=1 "$agenda" refresh >/dev/null
+NOCTURNE_NO_RESTART=1 "$agenda" status \
+  | jq -e '.format == "nocturne-agenda-v1" and .configured == true and .sourceCount == 1 and .eventCount == 1 and .privacy.urlsRedacted == true and .privacy.residentProcesses == 0' >/dev/null
+[[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/agenda.json") == 600 ]]
+NOCTURNE_NO_RESTART=1 "$agenda" add Offline 'https://127.0.0.1:9/calendar.ics?token=never-log-this' '#6f8fae' >/dev/null
+NOCTURNE_NO_RESTART=1 "$agenda" refresh >/dev/null 2>&1 || true
+agenda_status=$(NOCTURNE_NO_RESTART=1 "$agenda" status)
+! grep -Fq 'never-log-this' <<< "$agenda_status"
+jq -e '.sources[] | select(.name == "Offline") | .ok == false' <<< "$agenda_status" >/dev/null
+
+printf '%s\n' '#!/bin/sh' \
+  'if [ "$*" = "-j activewindow" ]; then printf '\''{"class":"steam","title":"Steam Settings","workspace":{"name":"2"},"monitor":0,"floating":true}'\'';' \
+  'elif [ "$*" = "-j clients" ]; then printf '\''[{"class":"steam","title":"Steam Settings"},{"class":"kitty","title":"shell"}]'\''; fi' \
+  > "$test_root/bin/hyprctl"
+chmod +x "$test_root/bin/hyprctl"
+window_rules="$root/bin/nocturne-window-rules"
+NOCTURNE_NO_RESTART=1 "$window_rules" add 'Steam settings' steam 'Steam Settings' float '' >/dev/null
+NOCTURNE_NO_RESTART=1 "$window_rules" add 'Dim terminal' kitty - opacity 0.9 >/dev/null
+NOCTURNE_NO_RESTART=1 "$window_rules" status \
+  | jq -e '.format == "nocturne-window-rules-v1" and .count == 2 and .active == 2 and (.clients|length) == 2' >/dev/null
+grep -Fq 'class = "^steam$", title = "^Steam\\ Settings$"' "$XDG_CONFIG_HOME/nocturne/window-rules.lua"
+grep -Fq 'opacity = "0.90 override 0.90 override 0.90 override"' "$XDG_CONFIG_HOME/nocturne/window-rules.lua"
+
+# Portable exports must never include credentials, token-bearing calendar URLs,
+# private window titles or device-bound display profiles.
+mkdir -p "$XDG_CONFIG_HOME/nocturne/continuity" "$XDG_CONFIG_HOME/nocturne/display-profiles"
+printf '%s\n' 'AGE-SECRET-KEY-TEST-ONLY' > "$XDG_CONFIG_HOME/nocturne/continuity/identity.txt"
+portable_bundle=$("$root/bin/nocturne-portable" export)
+portable_listing=$(tar -tzf "$portable_bundle")
+for private_path in agenda.json window-rules.json window-rules.lua continuity display-profiles; do
+  if grep -Fq -- "$private_path" <<< "$portable_listing"; then
+    printf 'Portable export leaked private path: %s\n' "$private_path" >&2
+    exit 1
+  fi
+done
+tar -xOf "$portable_bundle" nocturne-portable/manifest.json \
+  | jq -e '.format == "nocturne-portable-v1" and (.excluded | index("calendar subscription URLs")) != null' >/dev/null
+
+extension_manifest="$test_root/extension.json"
+printf '%s\n' '{"format":"nocturne-extension-v1","id":"org.example.status","name":"Example status","version":"1.0.0","description":"Status page","entry":{"type":"url","target":"https://status.example.org"},"permissions":["network"]}' > "$extension_manifest"
+extensions="$root/bin/nocturne-extensions"
+"$extensions" install "$extension_manifest" >/dev/null
+"$extensions" status | jq -e '.installed == 1 and .enabled == 1 and .contract.arbitraryCode == false and .contract.residentProcesses == 0' >/dev/null
+"$extensions" disable org.example.status | jq -e '.enabled == 0' >/dev/null
+ln -s "$extension_manifest" "$test_root/extension-link.json"
+if "$extensions" install "$test_root/extension-link.json" >/dev/null 2>&1; then
+  printf 'Extension install should reject manifest symlinks.\n' >&2
+  exit 1
+fi
+if "$extensions" remove '../../outside' >/dev/null 2>&1; then
+  printf 'Extension operations should reject path-like ids.\n' >&2
+  exit 1
+fi
+
+printf '%s\n' '#!/bin/sh' \
+  'if [ "$1 $2" = "-j monitors" ]; then printf '\''[{"id":0,"name":"eDP-1","description":"Panel","width":1920,"height":1080,"refreshRate":144.0,"x":0,"y":0,"scale":1.0,"transform":0,"focused":true,"vrr":false,"availableModes":["1920x1080@60.00Hz","1920x1080@144.00Hz"]}]'\''; exit 0; fi' \
+  'exit 0' > "$test_root/bin/hyprctl"
+chmod +x "$test_root/bin/hyprctl"
+monitor_layout="$root/config/hypr/scripts/monitor-layout"
+printf '%s\n' 'invalid display state' > "$XDG_CONFIG_HOME/nocturne/display-lab.json"
+"$monitor_layout" profile-save mobile
+"$monitor_layout" auto true
+"$monitor_layout" lab-status | jq -e '.format == "nocturne-display-lab-v1" and (.monitors|length) == 1 and (.profiles|length) == 1 and .profiles[0].matches == true' >/dev/null
+[[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/display-profiles/mobile.json") == 600 ]]
+"$XDG_CONFIG_HOME/hypr/scripts/context-timer-state" status \
+  | jq -e '.required == true and .reasons.display == true' >/dev/null
+
+onboarding="$root/config/hypr/scripts/onboarding-control"
+"$onboarding" status | jq -e '.format == "nocturne-onboarding-v1" and .total == 7 and (.hardware.monitors|type == "number")' >/dev/null
+"$onboarding" acknowledge-shortcuts | jq -e '.steps.shortcuts == true' >/dev/null
+printf '%s\n' 'invalid power state' > "$XDG_CONFIG_HOME/nocturne/power-lab.json"
+"$power_lab" status | jq -e '.format == "nocturne-power-lab-v2" and .lowBattery == 20 and .brightness.step == 5' >/dev/null
+[[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/power-lab.json") == 600 ]]
 "$root/bin/nocturne-doctor" --help | grep -Fq -- '--json'
 printf 'NOCTURNE // shell interaction contracts passed\n'

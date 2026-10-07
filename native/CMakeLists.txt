@@ -51,6 +51,12 @@ qt_add_qml_module(nocturne-native
         qml/pages/SystemSettingsPage.qml
         qml/pages/StorageSettingsPage.qml
         qml/pages/SecuritySettingsPage.qml
+        qml/pages/AgendaSettingsPage.qml
+        qml/pages/WindowRulesSettingsPage.qml
+        qml/pages/ExtensionsSettingsPage.qml
+        qml/pages/OnboardingSettingsPage.qml
+        qml/pages/LaptopIntelligenceSettingsPage.qml
+        qml/pages/DisplayLabSettingsPage.qml
         qml/pages/ControlCenterSettingsPage.qml
         qml/pages/AutomationRulesSettingsPage.qml
         qml/pages/IntegrationsPage.qml

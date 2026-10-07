@@ -152,7 +152,7 @@ for control_spec in \
   'storage-control:nocturne-storage-v1:Storage Center' \
   'permission-control:nocturne-permissions-v1:Permission Center' \
   'system-guard:nocturne-guard-v1:NOC Guard' \
-  'power-lab:nocturne-power-lab-v1:Power Lab' \
+  'power-lab:nocturne-power-lab-v2:Laptop Intelligence' \
   'clipboard-control:nocturne-clipboard-v1:clipboard privacy'; do
   IFS=: read -r helper expected label <<< "$control_spec"
   control_state=$($HOME/.config/hypr/scripts/$helper status 2>/dev/null || true)
@@ -168,10 +168,22 @@ if jq -e '.format == "nocturne-rules-v1" and (.rules|type == "array")' <<<"$rule
 else
   warning 'Automation rule state could not be validated'
 fi
-if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /\/hypr\/scripts\/(storage-control|permission-control|system-guard|power-lab|automation-rules) / {found=1} END {exit !found}'; then
-  warning 'An on-demand 1.1 control helper is unexpectedly persistent'
+if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /(\/hypr\/scripts\/(storage-control|permission-control|system-guard|power-lab|automation-rules)|\/nocturne-(agenda|window-rules|extensions)) / {found=1} END {exit !found}'; then
+  warning 'An on-demand control helper is unexpectedly persistent'
 else
   ok 'Control-center helpers have zero persistent processes'
+fi
+agenda_state=$($HOME/.local/bin/nocturne-agenda status 2>/dev/null || true)
+if jq -e '.format == "nocturne-agenda-v1" and .privacy.urlsRedacted == true and .privacy.residentProcesses == 0' <<<"$agenda_state" >/dev/null 2>&1; then
+  ok 'Connected Agenda is private, redacted and zero-resident'
+else
+  warning 'Connected Agenda state could not be validated'
+fi
+extension_state=$($HOME/.local/bin/nocturne-extensions status 2>/dev/null || true)
+if jq -e '.format == "nocturne-extensions-state-v1" and .contract.arbitraryCode == false and .contract.residentProcesses == 0' <<<"$extension_state" >/dev/null 2>&1; then
+  ok 'Extension contract blocks arbitrary executable payloads'
+else
+  warning 'Extension contract state could not be validated'
 fi
 if pgrep -af 'wl-paste --type text --watch .*/clipboard-control watch' >/dev/null 2>&1; then
   ok 'Sensitive clipboard filter owns text history ingestion'

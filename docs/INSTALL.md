@@ -122,6 +122,8 @@ Open **Nocturne Settings → Setup + Recovery** after the first login. Hardware
 detection recommends a desktop or laptop profile; the choice changes only
 optional background services and never removes the core shell. The same page
 exports a portable preferences bundle under `~/Documents/Nocturne-Backups`.
+Portable bundles exclude credentials, Continuity identities, calendar
+subscription URLs, private window titles and machine-bound display profiles.
 
 ## Encrypted multi-device continuity
 

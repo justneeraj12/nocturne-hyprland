@@ -84,7 +84,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -186,7 +186,7 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
-for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-security-update.service nocturne-security-update.timer nocturne-security-scan.service nocturne-security-scan.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-security-update.service nocturne-security-update.timer nocturne-security-scan.service nocturne-security-scan.timer nocturne-agenda-refresh.service nocturne-agenda-refresh.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
   install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
 done
 rm -f -- "$CONFIG_HOME/systemd/user/nocturne-notifications.service"
@@ -257,6 +257,9 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-files" "$BIN_HOME/nocturne-files"
 install -m 0755 "$ROOT_DIR/bin/nocturne-platform" "$BIN_HOME/nocturne-platform"
 install -m 0755 "$ROOT_DIR/bin/nocturne-polkit-agent" "$BIN_HOME/nocturne-polkit-agent"
+install -m 0755 "$ROOT_DIR/bin/nocturne-agenda" "$BIN_HOME/nocturne-agenda"
+install -m 0755 "$ROOT_DIR/bin/nocturne-window-rules" "$BIN_HOME/nocturne-window-rules"
+install -m 0755 "$ROOT_DIR/bin/nocturne-extensions" "$BIN_HOME/nocturne-extensions"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
 if [[ -f /usr/share/applications/brave-browser.desktop ]]; then
   sed -e "s|/usr/bin/brave-browser-stable|$BIN_HOME/nocturne-browser|g" \
@@ -461,10 +464,11 @@ systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || tr
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-notification-rules.timer >/dev/null 2>&1 || true
-if jq -e '.enabled == true' "$CONFIG_HOME/nocturne/context.json" >/dev/null 2>&1; then
-  systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+"$CONFIG_HOME/hypr/scripts/context-timer-state" sync
+if jq -e '(.sources // []) | any(if has("enabled") then .enabled else true end)' "$CONFIG_HOME/nocturne/agenda.json" >/dev/null 2>&1; then
+  systemctl --user enable --now nocturne-agenda-refresh.timer >/dev/null 2>&1 || true
 else
-  systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+  systemctl --user disable --now nocturne-agenda-refresh.timer >/dev/null 2>&1 || true
 fi
 systemctl --user disable nocturne-session-health.service >/dev/null 2>&1 || true
 systemctl --user enable nocturne-session-health.timer >/dev/null 2>&1 || true
