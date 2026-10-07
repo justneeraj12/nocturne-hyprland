@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/release-1.3.0-cb8d62?style=flat-square" alt="Nocturne 1.3.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
+  <img src="https://img.shields.io/badge/Arch-CI%20validated-6d9578?style=flat-square" alt="CI validated on Arch Linux">
 </p>
 
 **NOC**—the **Nocturne Operations Console**—turns a working Hyprland
@@ -28,15 +29,15 @@ It is designed for people who want a dark, compact rice and still expect
 brightness keys, Bluetooth audio, per-app volume, notifications, clipboard
 history, power modes, screenshots and screen recording to behave normally.
 
-> **Reference platform:** Ubuntu 26.04, Hyprland 0.56.2 and Qt 6.10. The source
-> requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
-> packaged dependency installer currently targets Ubuntu.
+> **Supported platforms:** Ubuntu 26.04 is hardware-tested; current Arch Linux
+> is package-resolved and native-build tested in clean CI. Both require
+> Hyprland 0.56+ and Qt 6.6+.
 
 > **NOC 2.0 is in development.** The next generation turns this shell into an
 > installable desktop platform with encrypted multi-device continuity, packages,
 > transactional updates and a public hardware matrix. Follow the
 > [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
-> Community testers can start with the [Alpha 1 notes](docs/RELEASE-2.0-ALPHA1.md).
+> Community testers can start with the [Alpha 2 notes](docs/RELEASE-2.0-ALPHA2.md).
 
 ## Current release // 1.3.0
 
@@ -123,7 +124,7 @@ The shell includes:
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
-- apt, Flatpak, firmware and failed-service status in one maintenance card;
+- distro packages, Flatpak, firmware and failed-service status in one maintenance card;
 - bounded Storage Center cleanup and on-demand duplicate discovery;
 - reversible Meeting Mode, portal/permission ownership, NOC Guard and NOC Pulse;
 - a safe trigger/action Automation Builder that shares the existing context timer;

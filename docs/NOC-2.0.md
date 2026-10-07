@@ -50,7 +50,7 @@ the user must pull or explicitly force after review.
 
 1. **Foundation:** edition boundary, encrypted continuity, community templates,
    operator analytics contract and clean-install matrix.
-2. **Packaging:** versioned Ubuntu package/repository, deterministic update and
+2. **Packaging:** versioned Ubuntu and Arch delivery, deterministic update and
    rollback, first-run hardware onboarding.
 3. **Compatibility:** hardware reports, adapter fixtures, single-display and
    multi-display CI, NVIDIA/Intel/AMD validation.

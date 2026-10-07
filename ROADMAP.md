@@ -9,6 +9,7 @@ installable desktop platform powered by Hyprland.
 - [x] encrypted, transport-neutral multi-device continuity;
 - [x] conflict refusal and machine-local state separation;
 - [x] structured bug, hardware and feature contribution paths;
+- [x] official-repository Arch package adapter and clean Arch native CI;
 - [ ] clean virtual-machine install fixture;
 - [ ] Ubuntu package and signed repository metadata;
 - [ ] transactional update command with automatic rollback;

@@ -10,7 +10,7 @@ Rectangle {
     color: backend.baseColor
     border.color: backend.accent2Color
     border.width: 1
-    property var state: ({apt:0, flatpak:0, firmware:0, failed:0})
+    property var state: ({packages:0, flatpak:0, firmware:0, failed:0, platform:{packageLabel:"SYSTEM PACKAGES"}})
     property bool loading: false
 
     readonly property string helper: backend.home + "/.config/hypr/scripts/system-maintenance"
@@ -30,7 +30,7 @@ Rectangle {
 
         Repeater {
             model: [
-                {key:"apt", label:"SYSTEM PACKAGES", action:"packages"},
+                {key:"packages", label:String(root.state.platform.packageLabel || "SYSTEM PACKAGES"), action:"packages"},
                 {key:"flatpak", label:"FLATPAK APPS", action:"flatpak"},
                 {key:"firmware", label:"DEVICE FIRMWARE", action:"firmware"},
                 {key:"failed", label:"FAILED USER SERVICES", action:"doctor"}

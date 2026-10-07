@@ -31,13 +31,15 @@ jobs:
       - name: Static validation
         run: |
           shellcheck -S error install.sh uninstall.sh apply-hyprland.sh scripts/build-native.sh \
-            scripts/install-hyprshot.sh scripts/install-kooha.sh bin/nocturne-doctor \
+            scripts/install-hyprshot.sh scripts/install-kooha.sh scripts/install-packages.sh \
+            bin/nocturne-doctor bin/nocturne-platform bin/nocturne-polkit-agent \
             bin/nocturne-settings bin/nocturne-visualizer bin/nocturne-portable bin/nocturne-continuity bin/nocturne-steam bin/nocturne-signal \
             config/hypr/scripts/night-light config/hypr/scripts/monitor-layout \
             config/hypr/scripts/system-maintenance config/hypr/scripts/setup-profile \
             config/hypr/scripts/steam-launch config/hypr/scripts/bar
           jq -e . config/locations.json config/nocturne/theme.json config/nocturne/edition.json >/dev/null
           jq -e '.edition == "community" and .analytics == false and .telemetryEndpoint == null' config/nocturne/edition.json >/dev/null
+          ./scripts/test-install-contracts.sh
           test -f config/mako/config
           test -f config/xdg-desktop-portal/hyprland-portals.conf
           test ! -d config/waybar
@@ -50,3 +52,35 @@ jobs:
         run: |
           ./scripts/build-release-bundle.sh ci
           (cd dist && sha256sum -c nocturne-ci-source.tar.gz.sha256)
+
+  arch-native-and-packages:
+    runs-on: ubuntu-24.04
+    container: archlinux:base-devel
+    timeout-minutes: 25
+    steps:
+      - name: Install Arch validation dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git cmake ninja qt6-base qt6-declarative qt6-wayland layer-shell-qt \
+            python python-pytest jq shellcheck file
+      - uses: actions/checkout@v7
+      - name: Resolve the complete official Arch package plan
+        run: |
+          plan=$(./scripts/install-packages.sh --print)
+          jq -e '.family == "arch" and .packageManager == "pacman" and (.packages | length) > 60' <<< "$plan" >/dev/null
+          mapfile -t packages < <(jq -r '.packages[]' <<< "$plan")
+          pacman -Sp --print-format '%n' --needed "${packages[@]}" >/dev/null
+      - name: Build and test the native shell on Arch
+        run: |
+          cmake -S native -B build/arch-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/arch-ci --parallel
+          ./build/arch-ci/nocturne-native --self-test
+          ./scripts/test-ui-components.sh ./build/arch-ci/nocturne-native
+      - name: Validate portable install contracts
+        run: |
+          ./scripts/test-install-contracts.sh
+          shellcheck -S error install.sh apply-hyprland.sh uninstall.sh \
+            scripts/install-packages.sh bin/nocturne-platform bin/nocturne-polkit-agent \
+            config/hypr/scripts/system-maintenance config/hypr/scripts/storage-control \
+            config/hypr/scripts/camera-control
+          (cd agent && PYTHONPATH=src python -m pytest -q)

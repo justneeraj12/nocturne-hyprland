@@ -19,17 +19,20 @@ holder_name() {
 }
 
 status() {
-  local available=false controller=false busy=false pid='' holder='' profile='default' format='1280×720 MJPEG · 30 FPS target'
+  local available=false controller=false busy=false pid='' holder='' profile='default' format='1280×720 MJPEG · 30 FPS target' install_command='Install v4l-utils with your package manager'
   [[ -c $device ]] && available=true
   command -v v4l2-ctl >/dev/null 2>&1 && controller=true
   pid=$(holder_pid)
   holder=$(holder_name)
   [[ -n $pid ]] && busy=true
   [[ -r $state_file ]] && read -r profile < "$state_file"
+  if [[ -x $HOME/.local/bin/nocturne-platform ]]; then
+    install_command=$($HOME/.local/bin/nocturne-platform camera-command 2>/dev/null || printf '%s' "$install_command")
+  fi
   jq -cn --argjson available "$available" --argjson controller "$controller" --argjson busy "$busy" \
     --arg device "$device" --arg name "$(camera_name)" --arg pid "$pid" --arg holder "$holder" \
-    --arg profile "$profile" --arg format "$format" \
-    '{available:$available,controller:$controller,busy:$busy,device:$device,name:$name,pid:$pid,holder:$holder,profile:$profile,format:$format,idleCost:"0 processes · hardware controls persist in sensor"}'
+    --arg profile "$profile" --arg format "$format" --arg installCommand "$install_command" \
+    '{available:$available,controller:$controller,busy:$busy,device:$device,name:$name,pid:$pid,holder:$holder,profile:$profile,format:$format,installCommand:$installCommand,idleCost:"0 processes · hardware controls persist in sensor"}'
 }
 
 controls() { v4l2-ctl --device "$device" --list-ctrls-menus 2>/dev/null || true; }

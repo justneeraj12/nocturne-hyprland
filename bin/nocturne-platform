@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+os_release_file=${NOCTURNE_OS_RELEASE_FILE:-/etc/os-release}
+
+read_os_release() {
+  local id='' id_like=''
+  if [[ -r $os_release_file ]]; then
+    id=$(sed -n 's/^ID=//p' "$os_release_file" | head -1 | tr -d '"')
+    id_like=$(sed -n 's/^ID_LIKE=//p' "$os_release_file" | head -1 | tr -d '"')
+  fi
+  printf '%s\t%s\n' "${id,,}" "${id_like,,}"
+}
+
+platform_family() {
+  local id id_like
+  IFS=$'\t' read -r id id_like < <(read_os_release)
+  case " $id $id_like " in
+    *' arch '*|*' manjaro '*|*' endeavouros '*) printf 'arch\n' ;;
+    *' ubuntu '*|*' debian '*) printf 'debian\n' ;;
+    *) printf 'unsupported\n' ;;
+  esac
+}
+
+platform_id() {
+  local id _
+  IFS=$'\t' read -r id _ < <(read_os_release)
+  printf '%s\n' "${id:-unknown}"
+}
+
+pending_packages() {
+  case $(platform_family) in
+    arch)
+      if command -v checkupdates >/dev/null 2>&1; then
+        { checkupdates 2>/dev/null || true; } | awk 'NF {count++} END {print count + 0}'
+      else
+        printf '0\n'
+      fi
+      ;;
+    debian)
+      apt list --upgradable 2>/dev/null | sed '1d' | awk 'NF {count++} END {print count + 0}'
+      ;;
+    *) printf '0\n' ;;
+  esac
+}
+
+command_for() {
+  local action=$1
+  case "$(platform_family):$action" in
+    arch:refresh)
+      printf '%s\n' 'checkupdates || true; flatpak update --user --appstream; fwupdmgr refresh --force'
+      ;;
+    arch:upgrade)
+      printf '%s\n' 'sudo pacman -Syu'
+      ;;
+    arch:clean)
+      printf '%s\n' 'sudo pacman -Sc --noconfirm'
+      ;;
+    arch:camera)
+      printf '%s\n' 'sudo pacman -S v4l-utils'
+      ;;
+    debian:refresh)
+      printf '%s\n' 'sudo apt-get update; flatpak update --user --appstream; fwupdmgr refresh --force'
+      ;;
+    debian:upgrade)
+      printf '%s\n' 'sudo apt-get update && sudo apt-get upgrade'
+      ;;
+    debian:clean)
+      printf '%s\n' 'sudo apt-get clean'
+      ;;
+    debian:camera)
+      printf '%s\n' 'sudo apt-get install v4l-utils'
+      ;;
+    *)
+      printf 'Unsupported platform action: %s on %s\n' "$action" "$(platform_id)" >&2
+      exit 3
+      ;;
+  esac
+}
+
+status() {
+  local family id manager label supported=false
+  family=$(platform_family)
+  id=$(platform_id)
+  case $family in
+    arch) manager=pacman; label='ARCH PACKAGES'; supported=true ;;
+    debian) manager=apt; label='SYSTEM PACKAGES'; supported=true ;;
+    *) manager=unknown; label='SYSTEM PACKAGES' ;;
+  esac
+  jq -cn --arg id "$id" --arg family "$family" --arg manager "$manager" \
+    --arg label "$label" --argjson supported "$supported" \
+    '{format:"nocturne-platform-v1",id:$id,family:$family,packageManager:$manager,packageLabel:$label,supported:$supported}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  id) platform_id ;;
+  family) platform_family ;;
+  pending) pending_packages ;;
+  refresh-command) command_for refresh ;;
+  upgrade-command) command_for upgrade ;;
+  clean-command) command_for clean ;;
+  camera-command) command_for camera ;;
+  *) printf 'Usage: %s status|id|family|pending|refresh-command|upgrade-command|clean-command|camera-command\n' "$0" >&2; exit 2 ;;
+esac

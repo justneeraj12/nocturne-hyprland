@@ -1,16 +1,16 @@
 # Install, update and rollback
 
 Nocturne targets people who already have Hyprland running and want to apply the
-complete desktop layer. The Ubuntu helper installs build/runtime dependencies;
-it intentionally does not replace the distribution's Hyprland package.
+complete desktop layer. The package helper supports Ubuntu and Arch Linux; it
+intentionally does not replace the distribution's Hyprland package.
 
 ## Requirements
 
-- Ubuntu 26.04 or a compatible Ubuntu development base
+- Ubuntu 26.04 or current Arch Linux
 - Hyprland 0.56 or newer, launched through UWSM
 - systemd user services and PipeWire/WirePlumber
 - a working network connection during the first install
-- `sudo` access only for the optional apt dependency step
+- `sudo` access only for the optional apt/pacman dependency step
 
 The shell itself runs entirely as the logged-in user. Deep-sleep and MSI
 hardware helpers are separate, opt-in scripts because they change system-wide
@@ -24,9 +24,11 @@ cd nocturne-hyprland
 ./install.sh --install-packages
 ```
 
-The command installs Ubuntu packages, checksum-verifies Hyprshot, installs
-Kooha from Flathub, installs Hyprsunset and fwupd support, builds the Qt shell
-in release mode and applies the config. It also installs `v4l-utils`, which
+The command detects `/etc/os-release`, installs packages with apt or pacman,
+checksum-verifies Hyprshot, installs Kooha from Flathub, installs Hyprsunset and
+fwupd support, builds the Qt shell in release mode and applies the config. On
+Arch it uses only official repositories and enables NetworkManager and BlueZ.
+It also installs `v4l-utils`, which
 lets Nocturne tune controls exposed by a standard UVC webcam without keeping a
 camera service running in the background.
 
@@ -91,7 +93,7 @@ user-owned.
 The rollback script shows the snapshot it will restore and requires an explicit
 `RESTORE` confirmation. It saves the current Nocturne config first, restores
 the original pre-Nocturne shell configuration, disables Nocturne services and
-leaves apt packages, Hyprshot and Kooha installed for safety.
+leaves distro packages, Hyprshot and Kooha installed for safety.
 
 To choose a particular snapshot:
 
@@ -164,7 +166,11 @@ or GPU process.
 If dependencies were installed separately, add the standard control utility:
 
 ```bash
+# Ubuntu
 sudo apt install v4l-utils
+
+# Arch Linux
+sudo pacman -S v4l-utils
 ```
 
 The camera page reports the device's real capture limit. Software cannot turn a

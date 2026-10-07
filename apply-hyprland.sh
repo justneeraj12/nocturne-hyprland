@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot dolphin cmake ninja xdg-mime lspci glxinfo convert upower)
+required=(Hyprland hyprctl start-hyprland uwsm hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot dolphin cmake ninja xdg-mime lspci glxinfo convert upower)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -16,8 +16,13 @@ if ((${#missing[@]})); then
   printf 'Missing Hyprland components: %s\n' "${missing[*]}" >&2
   exit 1
 fi
-[[ -d /usr/lib/x86_64-linux-gnu/qt6/qml/org/kde/layershell || -d /usr/lib/aarch64-linux-gnu/qt6/qml/org/kde/layershell ]] || {
-  printf 'Missing Qt 6 Layer Shell QML support (qml6-module-org-kde-layershell).\n' >&2
+hyprland_version=$(Hyprland --version 2>/dev/null | sed -nE 's/^Hyprland ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -1)
+if [[ -z $hyprland_version || $(printf '%s\n%s\n' 0.56.0 "$hyprland_version" | sort -V | head -1) != 0.56.0 ]]; then
+  printf 'Nocturne requires Hyprland 0.56.0 or newer; found %s.\n' "${hyprland_version:-unknown}" >&2
+  exit 1
+fi
+find /usr/lib /usr/lib64 -path '*/qt6/qml/org/kde/layershell/qmldir' -print -quit 2>/dev/null | grep -q . || {
+  printf 'Missing Qt 6 Layer Shell QML support (LayerShellQt).\n' >&2
   exit 1
 }
 find /usr/lib /usr/lib64 -path '*/qt6/plugins/platformthemes/KDEPlasmaPlatformTheme6.so' -print -quit 2>/dev/null | grep -q . || {
@@ -79,7 +84,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -241,6 +246,8 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
 install -m 0755 "$ROOT_DIR/bin/nocturne-migrate" "$BIN_HOME/nocturne-migrate"
 install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-files" "$BIN_HOME/nocturne-files"
+install -m 0755 "$ROOT_DIR/bin/nocturne-platform" "$BIN_HOME/nocturne-platform"
+install -m 0755 "$ROOT_DIR/bin/nocturne-polkit-agent" "$BIN_HOME/nocturne-polkit-agent"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
 if [[ -f /usr/share/applications/brave-browser.desktop ]]; then
   sed -e "s|/usr/bin/brave-browser-stable|$BIN_HOME/nocturne-browser|g" \
@@ -398,7 +405,11 @@ fi
 # indexer is deliberately disabled: previews are generated on demand and the
 # app consumes no resources after its last window closes.
 xdg-mime default org.kde.dolphin.desktop inode/directory
-xdg-mime default qpdfview.desktop application/pdf
+if command -v qpdfview >/dev/null 2>&1; then
+  xdg-mime default qpdfview.desktop application/pdf
+elif command -v okular >/dev/null 2>&1; then
+  xdg-mime default org.kde.okular.desktop application/pdf
+fi
 if [[ -f /usr/share/applications/vlc.desktop ]]; then
   for mime in video/mp4 video/x-matroska video/webm audio/mpeg audio/flac; do xdg-mime default vlc.desktop "$mime"; done
 fi

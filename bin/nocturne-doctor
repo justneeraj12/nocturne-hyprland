@@ -37,12 +37,17 @@ if [[ $mode == human ]]; then
   printf '%s\n\n' '────────────────────────────────────────'
 fi
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qpdfview qalculate-qt convert upower age age-keygen)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qalculate-qt convert upower age age-keygen)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
 done
 if ((${#missing[@]} == 0)); then ok 'Native desktop commands are installed'; else bad "Missing commands: ${missing[*]}"; fi
+if command -v qpdfview >/dev/null 2>&1 || command -v okular >/dev/null 2>&1; then
+  ok 'A supported Qt PDF viewer is installed'
+else
+  bad 'Missing a supported Qt PDF viewer: qpdfview or Okular'
+fi
 
 [[ -x $HOME/.local/bin/nocturne-native ]] \
   && "$HOME/.local/bin/nocturne-native" --self-test >/dev/null 2>&1 \
@@ -130,6 +135,12 @@ if jq -e '.format == "nocturne-edition-v1" and .edition == "community" and .anal
   ok 'Community edition has no desktop telemetry endpoint'
 else
   bad 'Community edition privacy manifest is missing or invalid'
+fi
+platform_state=$($HOME/.local/bin/nocturne-platform status 2>/dev/null || true)
+if jq -e '.format == "nocturne-platform-v1" and .supported == true and (.family == "debian" or .family == "arch")' <<<"$platform_state" >/dev/null 2>&1; then
+  ok "Supported platform adapter: $(jq -r '.id + " / " + .packageManager' <<<"$platform_state")"
+else
+  warning 'This distribution does not yet have a supported package adapter'
 fi
 continuity_state=$($HOME/.local/bin/nocturne-continuity status 2>/dev/null || true)
 if jq -e '.format == "nocturne-continuity-status-v1" and .analytics == false and ((.configured == false) or (.encrypted == true))' <<<"$continuity_state" >/dev/null 2>&1; then
@@ -259,8 +270,11 @@ if [[ -x $HOME/.local/bin/nocturne-browser ]] \
 else
   warning 'Brave video acceleration launcher is incomplete'
 fi
-[[ $(xdg-mime query default application/pdf 2>/dev/null) == qpdfview.desktop ]] \
-  && ok 'qpdfview is the PDF handler' || warning 'PDF handler is not qpdfview'
+pdf_handler=$(xdg-mime query default application/pdf 2>/dev/null || true)
+case $pdf_handler in
+  qpdfview.desktop|org.kde.okular.desktop) ok "Supported PDF handler: $pdf_handler" ;;
+  *) warning 'PDF handler is not qpdfview or Okular' ;;
+esac
 
 wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null || true)
 if jq -e '.display_active == true and (.monitors | length) > 0 and ((.mapped_monitors | sort) == (.monitors | sort))' >/dev/null 2>&1 <<<"$wallpaper"; then

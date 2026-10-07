@@ -11,7 +11,7 @@ usage() {
     '' \
     'Apply Nocturne to an existing Hyprland 0.56+ installation.' \
     '' \
-    '  --install-packages  Install Ubuntu build/runtime dependencies with apt.' \
+    '  --install-packages  Install Ubuntu or Arch build/runtime dependencies.' \
     '  --dry-run           Validate without changing the live configuration.'
 }
 
@@ -36,19 +36,7 @@ if "$dry_run"; then
 fi
 
 if "$install_packages"; then
-  sudo apt-get update
-  sudo apt-get install -y --no-install-recommends \
-    build-essential cmake ninja-build qt6-base-dev qt6-declarative-dev \
-    qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts \
-    qml6-module-qtquick-window qml6-module-org-kde-layershell \
-    layer-shell-qt liblayershellqtinterface-dev mako-notifier xdg-desktop-portal-kde \
-    curl flatpak grim slurp swappy tesseract-ocr qrencode wl-clipboard cliphist libnotify-bin brightnessctl pipewire-bin pulseaudio-utils xdg-utils v4l-utils \
-    network-manager bluez jq age socat kitty btop cava fastfetch playerctl gamemode dolphin plasma-integration kde-style-breeze kf6-breeze-icon-theme ffmpegthumbs pcmanfm-qt lxqt-archiver ffmpegthumbnailer qt6-image-formats-plugins kimageformat6-plugins qpdfview qalculate-qt \
-    power-profiles-daemon fwupd hyprsunset pciutils mesa-utils imagemagick upower mangohud fonts-inter fonts-jetbrains-mono \
-    ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
-    libva2 intel-media-va-driver vainfo intel-gpu-tools
-  sudo install -m 0644 "$root/assets/nocturne-recovery.desktop" /usr/share/wayland-sessions/nocturne-recovery.desktop
-  sudo install -m 0755 "$root/bin/nocturne-recovery-session" /usr/local/bin/nocturne-recovery-session
+  "$root/scripts/install-packages.sh"
 fi
 
 "$root/scripts/install-hyprshot.sh"

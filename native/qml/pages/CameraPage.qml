@@ -8,7 +8,7 @@ Rectangle {
     implicitWidth: 430
     implicitHeight: panel.implicitHeight + 20
     color: backend.baseColor; border.color: backend.accent2Color; border.width: 1
-    property var state: ({available:false,controller:false,busy:false,name:"Camera",holder:"",profile:"default",format:"",idleCost:""})
+    property var state: ({available:false,controller:false,busy:false,name:"Camera",holder:"",profile:"default",format:"",idleCost:"",installCommand:"Install v4l-utils with your package manager"})
     property bool applying: false
     readonly property string helper: backend.home + "/.config/hypr/scripts/camera-control"
 
@@ -60,7 +60,7 @@ Rectangle {
             glyph: root.state.controller ? "ISP" : "!"
             Text {
                 Layout.fillWidth: true
-                text: root.state.controller ? root.state.idleCost : "sudo apt install v4l-utils"
+                text: root.state.controller ? root.state.idleCost : root.state.installCommand
                 color: root.state.controller ? backend.accentColor : "#ffb36a"
                 font.family: "monospace"; font.pixelSize: 9; wrapMode: Text.Wrap
             }
