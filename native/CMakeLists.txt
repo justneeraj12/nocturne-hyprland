@@ -50,6 +50,7 @@ qt_add_qml_module(nocturne-native
         qml/pages/OperationsPage.qml
         qml/pages/SystemSettingsPage.qml
         qml/pages/StorageSettingsPage.qml
+        qml/pages/SecuritySettingsPage.qml
         qml/pages/ControlCenterSettingsPage.qml
         qml/pages/AutomationRulesSettingsPage.qml
         qml/pages/IntegrationsPage.qml

@@ -31,6 +31,7 @@ ApplicationWindow {
         {key:"storage", label:"Storage", group:"SYSTEM", icon:"drive-harddisk", glyph:"▰", keywords:"disk cleanup duplicate cache trash space"},
         {key:"workflow", label:"Workflow", group:"SYSTEM", icon:"system-run", glyph:"↯", keywords:"tasks focus notes pomodoro screenshot recorder shortcuts"},
         {key:"automation", label:"Scenes & automation", group:"SYSTEM", icon:"view-calendar-timeline", glyph:"◎", keywords:"workspace scenes context dock automation"},
+        {key:"security", label:"Security Hub", group:"SYSTEM", icon:"security-high", glyph:"⬡", keywords:"malware antivirus clamav firewall apparmor secure boot encryption scan integrity"},
         {key:"privacy", label:"Privacy & gaming", group:"SYSTEM", icon:"security-high", glyph:"◉", keywords:"microphone camera gpu steam notification"},
         {key:"efficiency", label:"Efficiency", group:"SYSTEM", icon:"utilities-system-monitor", glyph:"≋", keywords:"memory ram cpu startup resources optimize cleanup performance"},
         {key:"power", label:"Power & session", group:"SYSTEM", icon:"battery", glyph:"⚡", keywords:"performance balanced saver maintenance lock"},
@@ -99,7 +100,7 @@ ApplicationWindow {
 
     readonly property var pageComponents: [
         overviewPage, appearancePage, barPage, connectivityPage, soundPage,
-        inputPage, systemPage, commandPage, storagePage, workflowPage, automationPage, privacyPage,
+        inputPage, systemPage, commandPage, storagePage, workflowPage, automationPage, securityPage, privacyPage,
         efficiencyPage, powerPage, setupPage, aboutPage
     ]
     Component { id: overviewPage; OverviewSettingsPage { active: true; onSectionRequested: function(key) { root.selectSection(key) } } }
@@ -146,6 +147,7 @@ ApplicationWindow {
         ]
     } }
     Component { id: automationPage; AutomationRulesSettingsPage { active: true } }
+    Component { id: securityPage; SecuritySettingsPage { active: true } }
     Component { id: privacyPage; SettingsActionsPage {
         pageEyebrow: "VISIBILITY + PERFORMANCE"; pageTitle: "Privacy & gaming"
         pageDescription: "Inspect live privacy clients and GPU behavior only when the dashboard is open."

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the lightweight NOC malware scan
+After=nocturne-security-update.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/hypr/scripts/security-control scan quick standard
+Nice=15
+IOSchedulingClass=idle

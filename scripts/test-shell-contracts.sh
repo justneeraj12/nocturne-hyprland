@@ -278,5 +278,18 @@ fi
 NOCTURNE_CAMERA_DEVICE="$test_root/missing-camera" \
   "$root/config/hypr/scripts/camera-control" status \
   | jq -e '.available == false and .idleCost == "0 processes · hardware controls persist in sensor"' >/dev/null
+
+security="$root/config/hypr/scripts/security-control"
+mkdir -p "$HOME/Downloads" "$XDG_DATA_HOME/nocturne/security/clamav"
+touch -d '1 hour ago' "$XDG_DATA_HOME/nocturne/security/clamav/daily.cvd"
+printf '%s\n' '#!/bin/sh' \
+  'if [ "${1:-}" = "--version" ]; then printf "ClamAV 1.4.0/test\n"; exit 0; fi' \
+  'printf "Scanned files: 3\nInfected files: 0\nTotal errors: 0\n"' > "$test_root/bin/clamscan"
+chmod +x "$test_root/bin/clamscan"
+NOCTURNE_SECURITY_STATE_ROOT="$test_root/security-state" NOCTURNE_SECURITY_DATA_ROOT="$XDG_DATA_HOME/nocturne/security" \
+  "$security" status | jq -e '.format == "nocturne-security-v1" and .engine.installed == true and .engine.database.fresh == true and .idleCost == "0 resident scanner processes"' >/dev/null
+NOCTURNE_SECURITY_STATE_ROOT="$test_root/security-state" NOCTURNE_SECURITY_DATA_ROOT="$XDG_DATA_HOME/nocturne/security" \
+  "$security" scan downloads standard >/dev/null
+jq -e '.result == "clean" and .scanned == 3 and .infected == 0' "$test_root/security-state/last-scan.json" >/dev/null
 "$root/bin/nocturne-doctor" --help | grep -Fq -- '--json'
 printf 'NOCTURNE // shell interaction contracts passed\n'

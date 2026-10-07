@@ -26,7 +26,7 @@ ubuntu_packages=(
   pciutils mesa-utils imagemagick upower mangohud fonts-inter fonts-jetbrains-mono
   ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad
   gstreamer1.0-plugins-ugly libva2 intel-media-va-driver vainfo intel-gpu-tools
-  kdeconnect easyeffects
+  kdeconnect easyeffects clamav clamav-freshclam debsums apparmor-utils ufw
 )
 
 # Every Arch dependency below is in Core or Extra; the supported path never
@@ -43,7 +43,7 @@ arch_packages=(
   hyprsunset uwsm pciutils mesa-utils imagemagick upower mangohud inter-font
   ttf-jetbrains-mono ttf-meslo-nerd ffmpeg gst-libav gst-plugins-good
   gst-plugins-bad gst-plugins-ugly libva intel-media-driver libva-utils
-  intel-gpu-tools pacman-contrib kdeconnect easyeffects
+  intel-gpu-tools pacman-contrib kdeconnect easyeffects clamav apparmor ufw
 )
 
 family=$($platform family)
@@ -64,6 +64,9 @@ case $family in
   debian)
     sudo apt-get update
     sudo apt-get install -y --no-install-recommends "${packages[@]}"
+    # NOC uses a user-owned signature database and zero-resident timers. Keep
+    # distro ClamAV daemons from pinning the full signature set in memory.
+    sudo systemctl disable --now clamav-freshclam.service clamav-daemon.service clamav-daemon.socket 2>/dev/null || true
     ;;
   arch)
     sudo pacman -Syu --needed --noconfirm "${packages[@]}"

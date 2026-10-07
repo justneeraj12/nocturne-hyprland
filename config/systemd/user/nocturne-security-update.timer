@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodic NOC malware signature refresh
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=45m
+Persistent=true
+Unit=nocturne-security-update.service
+
+[Install]
+WantedBy=timers.target

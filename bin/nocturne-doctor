@@ -345,6 +345,15 @@ elif jq -e '.format == "nocturne-update-guard-v1"' >/dev/null 2>&1 <<<"$update_g
 else
   warning 'NOC Update Guard is not installed'
 fi
+security_state=$($HOME/.config/hypr/scripts/security-control status 2>/dev/null || true)
+if jq -e '.format == "nocturne-security-v1" and .engine.installed and .engine.database.ready' >/dev/null 2>&1 <<<"$security_state"; then
+  ok "Security Hub malware engine and local definitions are ready"
+elif jq -e '.format == "nocturne-security-v1"' >/dev/null 2>&1 <<<"$security_state"; then
+  warning 'Security Hub is available but its optional malware engine or definitions are not ready'
+else
+  warning 'Security Hub control plane is not installed'
+fi
+if jq -e '.apparmor.enabled == true' >/dev/null 2>&1 <<<"$security_state"; then ok 'AppArmor mandatory access control is active'; else warning 'AppArmor enforcement is unavailable'; fi
 pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
 
 if [[ -x $HOME/.local/bin/hyprshot ]] \

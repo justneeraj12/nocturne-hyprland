@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh the user-owned NOC malware signature database
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/hypr/scripts/security-control update
+Nice=10
+IOSchedulingClass=idle

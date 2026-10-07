@@ -1,0 +1,236 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root=${NOCTURNE_SECURITY_STATE_ROOT:-${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/security}
+data_root=${NOCTURNE_SECURITY_DATA_ROOT:-${XDG_DATA_HOME:-"$HOME/.local/share"}/nocturne/security}
+database="$data_root/clamav"
+last_scan="$state_root/last-scan.json"
+scan_log="$state_root/last-scan.log"
+update_log="$state_root/freshclam.log"
+freshclam_config="$state_root/freshclam.conf"
+platform=${NOCTURNE_PLATFORM_TOOL:-"$HOME/.local/bin/nocturne-platform"}
+
+mkdir -p "$state_root" "$data_root"
+chmod 700 "$state_root" "$data_root" 2>/dev/null || true
+
+json_bool() { [[ $1 == true ]] && printf true || printf false; }
+
+platform_family() {
+  [[ -x $platform ]] && "$platform" family 2>/dev/null || printf unsupported
+}
+
+database_state() {
+  local files=0 newest=0 age=-1 fresh=false updated=''
+  if [[ -d $database ]]; then
+    files=$(find "$database" -maxdepth 1 -type f \( -name '*.cvd' -o -name '*.cld' -o -name '*.cud' \) -printf . 2>/dev/null | wc -c)
+    newest=$(find "$database" -maxdepth 1 -type f \( -name '*.cvd' -o -name '*.cld' -o -name '*.cud' \) -printf '%T@\n' 2>/dev/null | sort -nr | head -1 | cut -d. -f1)
+  fi
+  newest=${newest:-0}
+  if ((newest > 0)); then
+    age=$(( ($(date +%s) - newest) / 86400 ))
+    updated=$(date --date="@$newest" --iso-8601=seconds 2>/dev/null || true)
+    ((age <= 2)) && fresh=true
+  fi
+  jq -cn --argjson files "$files" --argjson age "$age" --arg updated "$updated" --argjson fresh "$fresh" \
+    '{ready:($files>0),files:$files,ageDays:$age,updated:$updated,fresh:$fresh}'
+}
+
+firewall_state() {
+  local available=false enabled=false backend=none
+  if command -v ufw >/dev/null 2>&1; then
+    available=true; backend=ufw
+    grep -Eq '^ENABLED=yes' /etc/ufw/ufw.conf 2>/dev/null && enabled=true
+  elif command -v nft >/dev/null 2>&1; then
+    available=true; backend=nftables
+    [[ -s /etc/nftables.conf ]] && enabled=true
+  fi
+  jq -cn --arg backend "$backend" --argjson available "$available" --argjson enabled "$enabled" \
+    '{backend:$backend,available:$available,enabled:$enabled}'
+}
+
+apparmor_state() {
+  local available=false enabled=false enforced=0
+  command -v aa-status >/dev/null 2>&1 && available=true
+  [[ -r /sys/module/apparmor/parameters/enabled ]] && grep -qi '^Y' /sys/module/apparmor/parameters/enabled && enabled=true
+  if "$available" && "$enabled"; then
+    enforced=$(timeout 3 aa-status 2>/dev/null | sed -nE 's/^[[:space:]]*([0-9]+) profiles are in enforce mode.*/\1/p' | head -1)
+  fi
+  jq -cn --argjson available "$available" --argjson enabled "$enabled" --argjson enforced "${enforced:-0}" \
+    '{available:$available,enabled:$enabled,enforcedProfiles:$enforced}'
+}
+
+secure_boot_state() {
+  local available=false enabled=false
+  if command -v mokutil >/dev/null 2>&1; then
+    available=true
+    mokutil --sb-state 2>/dev/null | grep -qi 'SecureBoot enabled' && enabled=true
+  fi
+  jq -cn --argjson available "$available" --argjson enabled "$enabled" '{available:$available,enabled:$enabled}'
+}
+
+encryption_state() {
+  local source encrypted=false
+  source=$(findmnt -n -o SOURCE / 2>/dev/null || true)
+  if [[ -n $source ]] && command -v lsblk >/dev/null 2>&1; then
+    lsblk -s -n -o TYPE "$source" 2>/dev/null | grep -qx crypt && encrypted=true
+  fi
+  jq -cn --arg source "$source" --argjson encrypted "$encrypted" '{source:$source,encrypted:$encrypted}'
+}
+
+last_scan_state() {
+  if [[ -s $last_scan ]] && jq -e . "$last_scan" >/dev/null 2>&1; then cat "$last_scan"
+  else jq -cn '{finished:"",target:"",mode:"",scanned:0,infected:0,errors:0,result:"never"}'; fi
+}
+
+status() {
+  local engine=false engine_version='' db firewall apparmor secureboot encryption scan scheduled=false updates=0 ports=0 coverage=0
+  if command -v clamscan >/dev/null 2>&1; then engine=true; engine_version=$(clamscan --version 2>/dev/null | head -1); fi
+  db=$(database_state); firewall=$(firewall_state); apparmor=$(apparmor_state)
+  secureboot=$(secure_boot_state); encryption=$(encryption_state); scan=$(last_scan_state)
+  systemctl --user is-enabled --quiet nocturne-security-scan.timer 2>/dev/null && scheduled=true
+  [[ -x $platform ]] && updates=$($platform pending 2>/dev/null || printf 0)
+  command -v ss >/dev/null 2>&1 && ports=$(ss -H -lntu 2>/dev/null | awk 'NF{count++}END{print count+0}')
+  "$engine" && coverage=$((coverage + 1))
+  jq -e '.fresh' >/dev/null <<<"$db" && coverage=$((coverage + 1))
+  jq -e '.enabled' >/dev/null <<<"$firewall" && coverage=$((coverage + 1))
+  jq -e '.enabled' >/dev/null <<<"$apparmor" && coverage=$((coverage + 1))
+  jq -e '.enabled' >/dev/null <<<"$secureboot" && coverage=$((coverage + 1))
+  jq -e '.encrypted' >/dev/null <<<"$encryption" && coverage=$((coverage + 1))
+  ((updates == 0)) && coverage=$((coverage + 1))
+  jq -cn --argjson engine "$engine" --arg engineVersion "$engine_version" \
+    --argjson database "$db" --argjson firewall "$firewall" --argjson apparmor "$apparmor" \
+    --argjson secureBoot "$secureboot" --argjson encryption "$encryption" --argjson scan "$scan" \
+    --argjson scheduled "$scheduled" --argjson updates "$updates" --argjson ports "$ports" --argjson coverage "$coverage" \
+    '{format:"nocturne-security-v1",coverage:{ready:$coverage,total:7},
+      engine:{installed:$engine,version:$engineVersion,database:$database,scheduled:$scheduled},
+      firewall:$firewall,apparmor:$apparmor,secureBoot:$secureBoot,encryption:$encryption,
+      updates:$updates,listeningSockets:$ports,lastScan:$scan,
+      idleCost:"0 resident scanner processes"}'
+}
+
+write_freshclam_config() {
+  mkdir -p "$database"
+  chmod 700 "$database"
+  cat > "$freshclam_config.tmp" <<EOF
+DatabaseMirror database.clamav.net
+DatabaseDirectory $database
+UpdateLogFile $update_log
+LogTime yes
+Checks 1
+EOF
+  mv -f -- "$freshclam_config.tmp" "$freshclam_config"
+  chmod 600 "$freshclam_config"
+}
+
+update_database() {
+  command -v freshclam >/dev/null 2>&1 || { printf 'ClamAV is not installed. Use INSTALL ENGINE in Security Hub.\n' >&2; exit 3; }
+  write_freshclam_config
+  printf 'NOC // SIGNATURE UPDATE\nOfficial ClamAV mirror · local user database\n\n'
+  freshclam --config-file="$freshclam_config" --datadir="$database" --stdout
+}
+
+scan_targets() {
+  case ${1:-quick} in
+    quick)
+      [[ -d $HOME/Downloads ]] && printf '%s\0' "$HOME/Downloads"
+      [[ -d $HOME/Desktop ]] && printf '%s\0' "$HOME/Desktop"
+      ;;
+    downloads) [[ -d $HOME/Downloads ]] && printf '%s\0' "$HOME/Downloads" ;;
+    home) printf '%s\0' "$HOME" ;;
+    *) return 2 ;;
+  esac
+}
+
+scan_files() {
+  local target=${1:-quick} mode=${2:-standard} scan_exit=0 temporary scanned infected errors result
+  command -v clamscan >/dev/null 2>&1 || { printf 'ClamAV is not installed. Use INSTALL ENGINE in Security Hub.\n' >&2; exit 3; }
+  jq -e '.ready == true' >/dev/null <<<"$(database_state)" || { printf 'Virus definitions are missing. Run UPDATE DEFINITIONS first.\n' >&2; exit 4; }
+  [[ $mode == standard || $mode == deep ]] || exit 2
+  local -a targets options
+  while IFS= read -r -d '' item; do targets+=("$item"); done < <(scan_targets "$target")
+  ((${#targets[@]})) || { printf 'No scan target exists.\n' >&2; exit 2; }
+  options=(--database="$database" --recursive=yes --infected --max-filesize=128M --max-scansize=512M --max-recursion=20)
+  if [[ $target == home ]]; then
+    options+=(--exclude-dir="^$HOME/.cache" --exclude-dir="^$HOME/.local/share/Steam" --exclude-dir="^$HOME/.local/share/Trash")
+  fi
+  [[ $mode == deep ]] && options+=(--detect-pua=yes --heuristic-alerts=yes --alert-encrypted=yes)
+  temporary=$(mktemp "$state_root/.scan.XXXXXX")
+  chmod 600 "$temporary"
+  printf 'NOC // MALWARE SCAN\nTarget: %s · mode: %s\nNo file is deleted or uploaded.\n\n' "$target" "$mode"
+  clamscan "${options[@]}" "${targets[@]}" 2>&1 | tee "$temporary" || scan_exit=${PIPESTATUS[0]}
+  scanned=$(sed -nE 's/^Scanned files:[[:space:]]*([0-9]+).*/\1/p' "$temporary" | tail -1); scanned=${scanned:-0}
+  infected=$(sed -nE 's/^Infected files:[[:space:]]*([0-9]+).*/\1/p' "$temporary" | tail -1); infected=${infected:-0}
+  errors=$(sed -nE 's/^Total errors:[[:space:]]*([0-9]+).*/\1/p' "$temporary" | tail -1); errors=${errors:-0}
+  if ((infected > 0)); then result=detected; elif ((scan_exit > 1)); then result=error; else result=clean; fi
+  mv -f -- "$temporary" "$scan_log"
+  jq -cn --arg finished "$(date --iso-8601=seconds)" --arg target "$target" --arg mode "$mode" \
+    --arg result "$result" --argjson scanned "$scanned" --argjson infected "$infected" --argjson errors "$errors" \
+    '{finished:$finished,target:$target,mode:$mode,scanned:$scanned,infected:$infected,errors:$errors,result:$result}' > "$last_scan.tmp"
+  mv -f -- "$last_scan.tmp" "$last_scan"
+  chmod 600 "$last_scan" "$scan_log"
+  ((infected == 0 && scan_exit <= 1))
+}
+
+install_engine() {
+  case $(platform_family) in
+    debian)
+      sudo apt-get install --no-install-recommends clamav clamav-freshclam debsums apparmor-utils
+      sudo systemctl disable --now clamav-freshclam.service clamav-daemon.service clamav-daemon.socket 2>/dev/null || true
+      ;;
+    arch) sudo pacman -S --needed clamav ufw apparmor ;;
+    *) printf 'Unsupported platform. Install ClamAV manually.\n' >&2; exit 3 ;;
+  esac
+  hash -r
+  update_database
+  set_schedule true
+}
+
+integrity_check() {
+  case $(platform_family) in
+    debian)
+      command -v debsums >/dev/null 2>&1 || { printf 'Install debsums from Security Hub first.\n' >&2; exit 3; }
+      printf 'NOC // PACKAGE INTEGRITY\nOnly changed or missing packaged files are listed.\n\n'
+      sudo debsums --changed --silent
+      ;;
+    arch)
+      printf 'NOC // PACKAGE INTEGRITY\nPackage-owned file metadata verification.\n\n'
+      sudo pacman -Qkk
+      ;;
+    *) exit 3 ;;
+  esac
+}
+
+set_schedule() {
+  case ${1:-} in
+    true)
+      command -v clamscan >/dev/null 2>&1 || { printf 'Install ClamAV before enabling scheduled scans.\n' >&2; exit 3; }
+      systemctl --user enable --now nocturne-security-update.timer nocturne-security-scan.timer
+      ;;
+    false) systemctl --user disable --now nocturne-security-update.timer nocturne-security-scan.timer ;;
+    *) exit 2 ;;
+  esac
+}
+
+open_terminal() {
+  local action=${1:-} first=${2:-} second=${3:-}
+  case $action in
+    install) exec kitty --hold --class nocturne-security --title 'NOC // Install security engine' -e "$0" install ;;
+    update) exec kitty --hold --class nocturne-security --title 'NOC // Update malware definitions' -e "$0" update ;;
+    scan) exec kitty --hold --class nocturne-security --title 'NOC // Malware scan' -e "$0" scan "${first:-quick}" "${second:-standard}" ;;
+    integrity) exec kitty --hold --class nocturne-security --title 'NOC // Package integrity' -e "$0" integrity ;;
+    firewall) exec kitty --hold --class nocturne-security --title 'NOC // Firewall' -e sudo ufw enable ;;
+    log) exec kitty --hold --class nocturne-security --title 'NOC // Last malware scan' -e less "$scan_log" ;;
+    *) exit 2 ;;
+  esac
+}
+
+case ${1:-status} in
+  status) status ;;
+  update) update_database ;;
+  scan) scan_files "${2:-quick}" "${3:-standard}" ;;
+  install) install_engine ;;
+  integrity) integrity_check ;;
+  schedule) set_schedule "${2:-}" ;;
+  terminal) open_terminal "${2:-}" "${3:-}" "${4:-}" ;;
+  *) printf 'Usage: %s status|update|scan quick|downloads|home [standard|deep]|install|integrity|schedule true|false|terminal ACTION\n' "$0" >&2; exit 2 ;;
+esac

@@ -186,7 +186,7 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
-for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-security-update.service nocturne-security-update.timer nocturne-security-scan.service nocturne-security-scan.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
   install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
 done
 rm -f -- "$CONFIG_HOME/systemd/user/nocturne-notifications.service"

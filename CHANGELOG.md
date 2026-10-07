@@ -2,6 +2,7 @@
 
 ## 2.0.0-alpha.1 - Development
 
+- Added the zero-resident Security Hub: on-demand official ClamAV detection, optional deep heuristics, AppArmor/firewall/Secure Boot/encryption visibility, package verification and opt-in timers.
 - Added NOC Update Guard with pre-upgrade recovery checkpoints, Hyprland/kernel/GPU and critical-package manifests, post-upgrade verification and a local audit trail.
 - Integrated guarded upgrades into the native Maintenance card while keeping every privileged package operation visible.
 - Made Kitty, Powerlevel10k, FZF, suggestions and syntax highlighting follow the active NOC palette and sharp compact design language.
