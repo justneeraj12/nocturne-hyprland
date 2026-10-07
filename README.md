@@ -36,6 +36,7 @@ history, power modes, screenshots and screen recording to behave normally.
 > installable desktop platform with encrypted multi-device continuity, packages,
 > transactional updates and a public hardware matrix. Follow the
 > [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
+> Community testers can start with the [Alpha 1 notes](docs/RELEASE-2.0-ALPHA1.md).
 
 ## Current release // 1.3.0
 
@@ -288,6 +289,7 @@ applications keep their own toolkit and license.
 - [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
 - [Nocturne 1.1 — fifty system upgrades](docs/RELEASE-1.1.md)
 - [Nocturne 1.3 — signal identity](docs/RELEASE-1.3.md)
+- [NOC 2.0 Alpha 1 — foundation](docs/RELEASE-2.0-ALPHA1.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Launch and community plan](docs/LAUNCH.md)
 - [Experimental NØX local agent](agent/README.md) — optional and not installed by default

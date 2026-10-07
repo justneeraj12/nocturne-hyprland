@@ -251,6 +251,24 @@ if PATH="$test_root/bin:$PATH" "$continuity" pull >/dev/null 2>&1; then
   exit 1
 fi
 PATH="$test_root/bin:$PATH" "$continuity" push --force >/dev/null
+identity_export="$test_root/continuity-identity.txt"
+PATH="$test_root/bin:$PATH" "$continuity" export-key "$identity_export" >/dev/null
+second_home="$test_root/second-device"
+mkdir -p "$second_home/.config" "$second_home/.local/share" "$second_home/.local/state"
+PATH="$test_root/bin:$PATH" HOME="$second_home" XDG_CONFIG_HOME="$second_home/.config" XDG_DATA_HOME="$second_home/.local/share" XDG_STATE_HOME="$second_home/.local/state" \
+  "$continuity" import-key "$identity_export" "$shared" | jq -e '.configured == true and .encrypted == true' >/dev/null
+PATH="$test_root/bin:$PATH" HOME="$second_home" XDG_CONFIG_HOME="$second_home/.config" XDG_DATA_HOME="$second_home/.local/share" XDG_STATE_HOME="$second_home/.local/state" \
+  "$continuity" pull | jq -e '.inSync == true and .lastAction == "pull"' >/dev/null
+jq -e '.name == "Copper Deep Green"' "$second_home/.config/nocturne/theme.json" >/dev/null
+printf '%s\n' '{"format":"test-theme","name":"Second Device Copper"}' > "$second_home/.config/nocturne/theme.json"
+PATH="$test_root/bin:$PATH" HOME="$second_home" XDG_CONFIG_HOME="$second_home/.config" XDG_DATA_HOME="$second_home/.local/share" XDG_STATE_HOME="$second_home/.local/state" \
+  "$continuity" push | jq -e '.inSync == true and .lastAction == "push"' >/dev/null
+if PATH="$test_root/bin:$PATH" "$continuity" push >/dev/null 2>&1; then
+  printf 'First device should refuse to overwrite the second device.\n' >&2
+  exit 1
+fi
+PATH="$test_root/bin:$PATH" "$continuity" pull >/dev/null
+jq -e '.name == "Second Device Copper"' "$XDG_CONFIG_HOME/nocturne/theme.json" >/dev/null
 printf 'remote-change' >> "$shared/nocturne-continuity.age"
 if PATH="$test_root/bin:$PATH" "$continuity" push >/dev/null 2>&1; then
   printf 'Continuity push should refuse an unseen remote change.\n' >&2

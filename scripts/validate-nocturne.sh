@@ -40,6 +40,8 @@ grep -Fq 'Fifty system upgrades' "$root/docs/RELEASE-1.1.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.1.md") -eq 50 ]]
 grep -Fq 'Nocturne 1.2 — NOC Core' "$root/docs/RELEASE-1.2.md"
 grep -Fq '# NOC 2.0 product architecture' "$root/docs/NOC-2.0.md"
+grep -Fq '# NOC 2.0 Alpha 1 — Foundation' "$root/docs/RELEASE-2.0-ALPHA1.md"
+grep -Fq 'Hyprland speed. Desktop continuity. No phone home.' "$root/docs/LAUNCH-KIT-2.0.md"
 grep -Fq 'Nocturne Community does not phone home' "$root/PRIVACY.md"
 grep -Fq 'NOC 2.0 is in development' "$root/README.md"
 grep -Fq 'nocturne-benchmark --summary' "$root/README.md"
