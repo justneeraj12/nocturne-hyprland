@@ -1,0 +1,136 @@
+# NOCTURNE LOCK STYLE: black-ice
+shape {
+    monitor =
+    size = 760, 520
+    color = rgba(@BASE@e8)
+    rounding = 0
+    border_size = 1
+    border_color = rgba(@ACCENT@73)
+    position = 96, 0
+    halign = left
+    valign = center
+}
+shape {
+    monitor =
+    size = 3, 680
+    color = rgba(@ACCENT@e8)
+    rounding = 0
+    position = 76, 0
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = BLACK ICE // CARRIER 09
+    color = rgba(@ACCENT@ff)
+    font_size = 11
+    font_family = JetBrains Mono ExtraBold
+    position = 126, -56
+    halign = left
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 142
+    font_family = JetBrains Mono ExtraBold
+    position = 126, 198
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@d8)
+    font_size = 16
+    font_family = JetBrains Mono Medium
+    position = 136, 101
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(@ACCENT2@ff)
+    font_size = 12
+    font_family = JetBrains Mono Medium
+    position = 136, 58
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = $USER // ICE NODE AUTH
+    color = rgba(@ACCENT@ff)
+    font_size = 9
+    font_family = JetBrains Mono Medium
+    position = 136, -30
+    halign = left
+    valign = center
+}
+input-field {
+    monitor =
+    size = 560, 54
+    outline_thickness = 1
+    rounding = 0
+    dots_size = 0.19
+    dots_spacing = 0.28
+    dots_center = false
+    outer_color = rgba(@ACCENT@b8)
+    inner_color = rgba(@BASE@e8)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">DECRYPT SESSION_</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">ICE REJECTED // $FAIL // $ATTEMPTS</span>
+    capslock_color = rgba(@ACCENT2@ff)
+    position = 136, -88
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@TEXT@b8)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = 136, -152
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 18
+    font_family = Inter Display Medium
+    text_align = right
+    position = -96, -172
+    halign = right
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media meta
+    color = rgba(@MUTED@ff)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = right
+    position = -96, -208
+    halign = right
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@a8)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = right
+    position = -96, 52
+    halign = right
+    valign = bottom
+}

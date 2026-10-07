@@ -263,14 +263,17 @@ grep -Fq 'nocturne-guard-v1' "$root/config/hypr/scripts/system-guard"
 grep -Fq 'nocturne-rules-v1' "$root/config/hypr/scripts/automation-rules"
 grep -Fq 'nocturne-clipboard-v1' "$root/config/hypr/scripts/clipboard-control"
 grep -Fq 'nocturne-power-lab-v1' "$root/config/hypr/scripts/power-lab"
-grep -Fq 'nocturne-lock-style-v1' "$root/config/hypr/scripts/lock-style"
-[[ $(find "$root/config/hypr/lockstyles" -maxdepth 1 -name '*.conf.in' | wc -l) -eq 6 ]]
+grep -Fq 'nocturne-lock-style-v2' "$root/config/hypr/scripts/lock-style"
+[[ $(find "$root/config/hypr/lockstyles" -maxdepth 1 -name '*.conf.in' | wc -l) -eq 11 ]]
 for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
   [[ $(basename -- "$lock_style") == common.conf.in ]] && continue
   grep -Fq 'input-field {' "$lock_style"
   grep -Fq 'fail_text =' "$lock_style"
   grep -Fq 'check_color =' "$lock_style"
 done
+[[ -x $root/bin/nocturne-banner ]]
+grep -Fq 'NOCTURNE OPERATIONS CONTROL' "$root/branding/noc-terminal.txt"
+grep -Fq 'noc-terminal-compact.txt' "$root/apply-hyprland.sh"
 grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
 grep -Fq 'lock_dir=' "$root/config/hypr/scripts/bar"
 ! grep -Fq 'exec 9>' "$root/config/hypr/scripts/bar"

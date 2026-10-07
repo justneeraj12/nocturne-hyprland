@@ -14,7 +14,29 @@ styles_json() {
     {id:"center-signal",name:"Center Signal",glyph:"⊕",description:"Calm centered clock with balanced authentication and telemetry."},
     {id:"noc-grid",name:"NOC Grid",glyph:"▦",description:"Dense operations-console blocks with a vertical NOC mast."},
     {id:"phosphor-terminal",name:"Phosphor Terminal",glyph:">_",description:"A sharp terminal session with command-line authentication."},
-    {id:"relay-split",name:"Relay Split",glyph:"//",description:"Hard split composition with bold clock and relay controls."}
+    {id:"relay-split",name:"Relay Split",glyph:"//",description:"Hard split composition with bold clock and relay controls."},
+    {id:"black-ice",name:"Black Ice",glyph:"◇",description:"Cold data rails, an offset clock and a near-black security pane."},
+    {id:"red-sector",name:"Red Sector",glyph:"07",description:"A restrained red alert channel with hard industrial geometry."},
+    {id:"signal-tower",name:"Signal Tower",glyph:"⌁",description:"A vertical carrier mast with radial nodes and balanced readouts."},
+    {id:"mainframe",name:"Mainframe",glyph:"▤",description:"Rack telemetry, dense operator labels and an isolated auth bay."},
+    {id:"dead-channel",name:"Dead Channel",glyph:"—",description:"Sparse broadcast typography with only the signals that matter."}
+  ]'
+}
+
+backgrounds_json() {
+  jq -cn '[
+    {id:"void",name:"Void",description:"Near-black wallpaper with minimal texture."},
+    {id:"dim",name:"Dim",description:"Dark, quiet and easy to read at night."},
+    {id:"balanced",name:"Balanced",description:"The intended mix of wallpaper and interface."},
+    {id:"vivid",name:"Vivid",description:"More wallpaper color with restrained blur."}
+  ]'
+}
+
+clocks_json() {
+  jq -cn '[
+    {id:"operator",name:"Operator",description:"12-hour time with + for AM and − for PM."},
+    {id:"twelve",name:"12 hour",description:"Conventional 12-hour time with AM or PM."},
+    {id:"twenty-four",name:"24 hour",description:"Compact 24-hour time."}
   ]'
 }
 
@@ -25,17 +47,48 @@ normalize_style() {
     grid|noc-grid|'noc grid') printf 'noc-grid' ;;
     terminal|phosphor|phosphor-terminal|'phosphor terminal') printf 'phosphor-terminal' ;;
     relay|split|relay-split|'relay split') printf 'relay-split' ;;
+    ice|black-ice|'black ice') printf 'black-ice' ;;
+    red|sector|red-sector|'red sector') printf 'red-sector' ;;
+    tower|signal-tower|'signal tower') printf 'signal-tower' ;;
+    mainframe|rack) printf 'mainframe' ;;
+    dead|channel|dead-channel|'dead channel') printf 'dead-channel' ;;
+    *) return 2 ;;
+  esac
+}
+
+normalize_background() {
+  case ${1,,} in
+    void|dim|balanced|vivid) printf '%s' "${1,,}" ;;
+    *) return 2 ;;
+  esac
+}
+
+normalize_clock() {
+  case ${1,,} in
+    operator) printf operator ;;
+    twelve|12|12h|'12 hour') printf twelve ;;
+    twenty-four|24|24h|'24 hour') printf twenty-four ;;
     *) return 2 ;;
   esac
 }
 
 ensure_state() {
+  local current background clock temporary
   mkdir -p "$config_home/nocturne" "$state_home"
-  if [[ ! -s $state_file ]]; then
-    printf '%s\n' '{"format":"nocturne-lock-style-v1","current":"editorial"}' > "$state_file"
-    chmod 600 "$state_file"
+  current=$(jq -r '.current // "editorial"' "$state_file" 2>/dev/null || printf editorial)
+  current=$(normalize_style "$current" 2>/dev/null || printf editorial)
+  background=$(jq -r '.background // "balanced"' "$state_file" 2>/dev/null || printf balanced)
+  background=$(normalize_background "$background" 2>/dev/null || printf balanced)
+  clock=$(jq -r '.clock // "operator"' "$state_file" 2>/dev/null || printf operator)
+  clock=$(normalize_clock "$clock" 2>/dev/null || printf operator)
+  if ! jq -e --arg style "$current" --arg background "$background" --arg clock "$clock" \
+      '.format=="nocturne-lock-style-v2" and .current==$style and .background==$background and .clock==$clock' \
+      "$state_file" >/dev/null 2>&1; then
+    temporary=$(mktemp "$config_home/nocturne/.lock-style.XXXXXX")
+    jq -cn --arg style "$current" --arg background "$background" --arg clock "$clock" \
+      '{format:"nocturne-lock-style-v2",current:$style,background:$background,clock:$clock}' > "$temporary"
+    chmod 600 "$temporary"; mv -f -- "$temporary" "$state_file"
   fi
-  jq -e '.format=="nocturne-lock-style-v1" and (.current|type=="string")' "$state_file" >/dev/null
 }
 
 css_color() {
@@ -46,7 +99,7 @@ css_color() {
 
 render_style() {
   local style=$1 common template palette accent_css base surface line text muted accent accent2
-  local blur_passes blur_size noise contrast brightness vibrancy temporary
+  local blur_passes blur_size noise contrast brightness vibrancy background temporary
   common="$style_dir/common.conf.in"; template="$style_dir/$style.conf.in"
   [[ -r $common && -r $template ]] || { printf 'Lock style assets are missing: %s\n' "$style" >&2; exit 3; }
   palette="$config_home/nocturne/palette.css"; accent_css="$config_home/nocturne/accent.css"
@@ -60,6 +113,19 @@ render_style() {
     noc-grid) blur_passes=2; blur_size=4; noise=0.018; contrast=1.18; brightness=0.24; vibrancy=0.20 ;;
     phosphor-terminal) blur_passes=1; blur_size=3; noise=0.025; contrast=1.22; brightness=0.19; vibrancy=0.08 ;;
     relay-split) blur_passes=2; blur_size=5; noise=0.014; contrast=1.16; brightness=0.25; vibrancy=0.16 ;;
+    black-ice) blur_passes=2; blur_size=4; noise=0.020; contrast=1.24; brightness=0.17; vibrancy=0.09 ;;
+    red-sector) blur_passes=2; blur_size=5; noise=0.016; contrast=1.20; brightness=0.21; vibrancy=0.12 ;;
+    signal-tower) blur_passes=3; blur_size=6; noise=0.010; contrast=1.13; brightness=0.26; vibrancy=0.16 ;;
+    mainframe) blur_passes=1; blur_size=3; noise=0.022; contrast=1.23; brightness=0.18; vibrancy=0.10 ;;
+    dead-channel) blur_passes=4; blur_size=9; noise=0.006; contrast=1.10; brightness=0.15; vibrancy=0.04 ;;
+    *) return 2 ;;
+  esac
+  background=$(jq -r '.background // "balanced"' "$state_file" 2>/dev/null || printf balanced)
+  case $background in
+    void) blur_passes=1; blur_size=2; noise=0.010; contrast=1.32; brightness=0.08; vibrancy=0.00 ;;
+    dim) brightness=$(awk -v value="$brightness" 'BEGIN { printf "%.3f", value * 0.68 }'); vibrancy=0.06 ;;
+    vivid) blur_passes=2; blur_size=3; brightness=$(awk -v value="$brightness" 'BEGIN { printf "%.3f", value * 1.62 }'); vibrancy=0.28 ;;
+    balanced) ;;
     *) return 2 ;;
   esac
   temporary=$(mktemp "$config_home/hypr/.hyprlock.XXXXXX")
@@ -74,24 +140,42 @@ render_style() {
 }
 
 write_state() {
-  local style=$1 temporary
+  local style=$1 background=$2 clock=$3 temporary
   temporary=$(mktemp "$config_home/nocturne/.lock-style.XXXXXX")
-  jq -cn --arg style "$style" '{format:"nocturne-lock-style-v1",current:$style}' > "$temporary"
+  jq -cn --arg style "$style" --arg background "$background" --arg clock "$clock" \
+    '{format:"nocturne-lock-style-v2",current:$style,background:$background,clock:$clock}' > "$temporary"
   chmod 600 "$temporary"; mv -f -- "$temporary" "$state_file"
 }
 
 status() {
   ensure_state
-  local current styles
-  current=$(jq -r '.current' "$state_file"); styles=$(styles_json)
-  jq -cn --arg current "$current" --argjson styles "$styles" \
-    '{format:"nocturne-lock-style-v1",current:$current,styles:$styles,previewLocksSession:true}'
+  local current background clock styles backgrounds clocks
+  current=$(jq -r '.current' "$state_file"); background=$(jq -r '.background' "$state_file")
+  clock=$(jq -r '.clock' "$state_file"); styles=$(styles_json)
+  backgrounds=$(backgrounds_json); clocks=$(clocks_json)
+  jq -cn --arg current "$current" --arg background "$background" --arg clock "$clock" \
+    --argjson styles "$styles" --argjson backgrounds "$backgrounds" --argjson clocks "$clocks" \
+    '{format:"nocturne-lock-style-v2",current:$current,background:$background,clock:$clock,styles:$styles,backgrounds:$backgrounds,clocks:$clocks,previewLocksSession:true}'
 }
 
 apply_style() {
-  local style; style=$(normalize_style "${1:?style required}")
-  ensure_state; render_style "$style"; write_state "$style"
+  local style background clock; style=$(normalize_style "${1:?style required}")
+  ensure_state; background=$(jq -r '.background' "$state_file"); clock=$(jq -r '.clock' "$state_file")
+  render_style "$style"; write_state "$style" "$background" "$clock"
   notify-send -a Nocturne 'Lock style changed' "$(styles_json | jq -r --arg id "$style" '.[]|select(.id==$id)|.name')" >/dev/null 2>&1 || true
+}
+
+configure() {
+  local field=${1:-} value=${2:-} current background clock
+  ensure_state
+  current=$(jq -r '.current' "$state_file"); background=$(jq -r '.background' "$state_file"); clock=$(jq -r '.clock' "$state_file")
+  case $field in
+    background) background=$(normalize_background "$value") ;;
+    clock) clock=$(normalize_clock "$value") ;;
+    *) printf 'Configuration must be background or clock.\n' >&2; return 2 ;;
+  esac
+  write_state "$current" "$background" "$clock"
+  render_style "$current"
 }
 
 render_current() {
@@ -118,5 +202,6 @@ case ${1:-status} in
   apply) apply_style "${2:-}" ;;
   render) render_current ;;
   try) try_style "${2:-}" ;;
-  *) printf 'Usage: %s status|list|apply STYLE|render|try STYLE\n' "$0" >&2; exit 2 ;;
+  configure) configure "${2:-}" "${3:-}" ;;
+  *) printf 'Usage: %s status|list|apply STYLE|render|try STYLE|configure background|clock VALUE\n' "$0" >&2; exit 2 ;;
 esac

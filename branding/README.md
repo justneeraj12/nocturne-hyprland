@@ -16,18 +16,15 @@ at repository-banner, application-icon and terminal sizes.
 - `noc-banner.svg` — editable 1600×640 master for GitHub and project pages;
 - `noc-mark.svg` — square monogram for avatars, releases and application art;
 - `noc-mark.webp` — ready-to-upload square project avatar;
-- `noc-terminal.txt` — uncolored terminal-safe companion mark.
+- `noc-terminal.txt` — grand framed terminal mark used by Fastfetch;
+- `noc-terminal-compact.txt` — narrow split and small-terminal companion mark.
 
 The ready-to-publish banner export lives at
 `docs/screenshots/noc-banner.webp`.
 
-```text
- _   _  ___   ____
-| \ | |/ _ \ / ___|
-|  \| | | | | |
-| |\  | |_| | |___
-|_| \_|\___/ \____|
-```
+`nocturne-banner` selects between the two terminal marks from the available
+column width, follows the active accent and can append live node/session state
+without a resident process.
 
 Palette:
 

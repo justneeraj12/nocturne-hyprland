@@ -1,0 +1,143 @@
+# NOCTURNE LOCK STYLE: signal-tower
+shape {
+    monitor =
+    size = 3, 760
+    color = rgba(@ACCENT@cc)
+    rounding = 0
+    position = 0, 0
+    halign = center
+    valign = center
+}
+shape {
+    monitor =
+    size = 116, 116
+    color = rgba(00000000)
+    rounding = 58
+    border_size = 2
+    border_color = rgba(@ACCENT@8f)
+    position = 0, 214
+    halign = center
+    valign = center
+}
+shape {
+    monitor =
+    size = 18, 18
+    color = rgba(@ACCENT@ff)
+    rounding = 9
+    position = 0, 214
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = SIGNAL TOWER // LINK STABLE
+    color = rgba(@ACCENT@ff)
+    font_size = 10
+    font_family = JetBrains Mono ExtraBold
+    position = 0, 357
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 132
+    font_family = Inter Display SemiBold
+    position = -112, 110
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@d8)
+    font_size = 15
+    font_family = JetBrains Mono Medium
+    position = -120, 18
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(@ACCENT2@ff)
+    font_size = 11
+    font_family = JetBrains Mono Medium
+    position = 120, 134
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@TEXT@c8)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = 120, 88
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = $USER // TOWER AUTH
+    color = rgba(@ACCENT@ff)
+    font_size = 9
+    font_family = JetBrains Mono Medium
+    position = 0, -90
+    halign = center
+    valign = center
+}
+input-field {
+    monitor =
+    size = 600, 54
+    outline_thickness = 1
+    rounding = 0
+    dots_size = 0.20
+    dots_spacing = 0.28
+    dots_center = true
+    outer_color = rgba(@ACCENT@b8)
+    inner_color = rgba(@BASE@e8)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">ESTABLISH LINK</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">SIGNAL REFUSED // $FAIL // $ATTEMPTS</span>
+    capslock_color = rgba(@ACCENT2@ff)
+    position = 0, -145
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 17
+    font_family = Inter Display Medium
+    position = 0, -236
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media meta
+    color = rgba(@MUTED@ff)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = 0, -270
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@a8)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = center
+    position = 0, 50
+    halign = center
+    valign = bottom
+}

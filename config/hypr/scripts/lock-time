@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-clock=$(date '+%I:%M')
-clock=${clock#0}
-if [[ $(date '+%p') == AM ]]; then
-  marker=+
-else
-  marker=−
-fi
-printf '%s%s\n' "$clock" "$marker"
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+state_file="$config_home/nocturne/lock-style.json"
+format=$(jq -r '.clock // "operator"' "$state_file" 2>/dev/null || printf operator)
+
+case $format in
+  twenty-four) date '+%H:%M' ;;
+  twelve)
+    clock=$(date '+%I:%M')
+    printf '%s %s\n' "${clock#0}" "$(date '+%p')"
+    ;;
+  *)
+    clock=$(date '+%I:%M')
+    [[ $(date '+%p') == AM ]] && marker=+ || marker=−
+    printf '%s%s\n' "${clock#0}" "$marker"
+    ;;
+esac

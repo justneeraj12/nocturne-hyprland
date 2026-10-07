@@ -1,0 +1,143 @@
+# NOCTURNE LOCK STYLE: red-sector
+shape {
+    monitor =
+    size = 430, 1600
+    color = rgba(160b0dcc)
+    rounding = 0
+    position = 0, 0
+    halign = left
+    valign = center
+}
+shape {
+    monitor =
+    size = 8, 1600
+    color = rgba(ff5f6de8)
+    rounding = 0
+    position = 430, 0
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = 07
+    color = rgba(ff5f6dff)
+    font_size = 164
+    font_family = JetBrains Mono ExtraBold
+    position = 78, -64
+    halign = left
+    valign = top
+}
+label {
+    monitor =
+    text = RED SECTOR\nCONTROLLED ACCESS
+    color = rgba(@TEXT@ff)
+    font_size = 12
+    font_family = JetBrains Mono ExtraBold
+    text_align = left
+    position = 82, -278
+    halign = left
+    valign = top
+}
+label {
+    monitor =
+    text = cmd[update:1000] ~/.config/hypr/scripts/lock-time
+    color = rgba(@TEXT@ff)
+    font_size = 154
+    font_family = Inter Display SemiBold
+    position = -112, 205
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-date
+    color = rgba(@TEXT@d8)
+    font_size = 16
+    font_family = JetBrains Mono Medium
+    position = -120, 103
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:300000] ~/.config/hypr/scripts/lock-weather
+    color = rgba(ff5f6dcc)
+    font_size = 12
+    font_family = JetBrains Mono Medium
+    position = -120, 58
+    halign = right
+    valign = center
+}
+label {
+    monitor =
+    text = $USER // SECTOR CLEARANCE
+    color = rgba(ff5f6dff)
+    font_size = 10
+    font_family = JetBrains Mono ExtraBold
+    position = 500, 45
+    halign = left
+    valign = center
+}
+input-field {
+    monitor =
+    size = 620, 58
+    outline_thickness = 1
+    rounding = 0
+    dots_size = 0.20
+    dots_spacing = 0.28
+    dots_center = false
+    outer_color = rgba(ff5f6dcc)
+    inner_color = rgba(@BASE@e8)
+    font_color = rgba(@TEXT@ff)
+    fade_on_empty = false
+    placeholder_text = <span foreground="##@MUTED@">PRESENT CREDENTIALS</span>
+    hide_input = false
+    check_color = rgba(@ACCENT@ff)
+    fail_color = rgba(ff5f6dff)
+    fail_text = <span foreground="##ff5f6d">CLEARANCE DENIED // $FAIL // $ATTEMPTS</span>
+    capslock_color = rgba(ff5f6dff)
+    position = 500, -16
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-status
+    color = rgba(@TEXT@b8)
+    font_size = 9
+    font_family = JetBrains Mono
+    position = 500, -82
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:3000] ~/.config/hypr/scripts/lock-media title
+    color = rgba(@TEXT@ff)
+    font_size = 18
+    font_family = Inter Display Medium
+    position = 500, -175
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:5000] ~/.config/hypr/scripts/lock-notifications
+    color = rgba(ff5f6dcc)
+    font_size = 9
+    font_family = JetBrains Mono Medium
+    position = 500, -220
+    halign = left
+    valign = center
+}
+label {
+    monitor =
+    text = cmd[update:60000] ~/.config/hypr/scripts/lock-world
+    color = rgba(@TEXT@a8)
+    font_size = 9
+    font_family = JetBrains Mono
+    text_align = right
+    position = -112, 52
+    halign = right
+    valign = bottom
+}

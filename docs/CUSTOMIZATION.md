@@ -57,15 +57,27 @@ custom themes under `~/.config/nocturne/themes`.
 
 ## Lock screen styles
 
-**Settings → Appearance → Lock Screen Style** includes five layouts: Editorial,
-Center Signal, NOC Grid, Phosphor Terminal and Relay Split. **Apply** makes a
-style persistent. **Try** locks the session once with that layout and restores
-the previous style immediately after a successful unlock. Every layout uses the
-active Nocturne accent and the same PAM-backed Hyprlock authentication path.
+**Settings → Appearance → Lock Screen Style** includes ten layouts: Editorial,
+Center Signal, NOC Grid, Phosphor Terminal, Relay Split, Black Ice, Red Sector,
+Signal Tower, Mainframe and Dead Channel. **Apply** makes a style persistent.
+**Try** locks the session once with that layout and restores the previous style
+immediately after a successful unlock. Every layout uses the active Nocturne
+accent and the same PAM-backed Hyprlock authentication path.
+
+The same card controls wallpaper treatment (**Void**, **Dim**, **Balanced** or
+**Vivid**) and clock notation (**Operator**, conventional 12-hour or 24-hour).
+Operator notation keeps Nocturne's `+` AM and `−` PM markers.
 
 The selected style is stored privately in
 `~/.config/nocturne/lock-style.json`; rendered Hyprlock configuration is rebuilt
 when the session locks, so theme and accent changes stay synchronized.
+
+## Terminal identity
+
+Fastfetch uses the grand framed NOC wordmark. Run `nocturne-banner` for the same
+identity plus live node, session and uptime state. It automatically chooses a
+compact mark in narrow terminal splits; `--grand`, `--compact` and `--plain`
+provide explicit output for screenshots, scripts and dotfiles.
 
 ## Scenes and context automation
 

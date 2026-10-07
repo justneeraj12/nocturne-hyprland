@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0 - 2026-10-06
+
+- Expanded the lock system to ten production-safe compositions with a shared PAM authentication path.
+- Added Void, Dim, Balanced and Vivid wallpaper treatments plus Operator, 12-hour and 24-hour clocks.
+- Added an automatic v1-to-v2 lock-state migration without discarding the selected composition.
+- Rebuilt the terminal identity around a grand framed NOC mark, a split-friendly compact mark and on-demand live node telemetry.
+
 ## 1.2.0 - 2026-10-06
 
 - Added five accent-aware lock-screen compositions with persistent selection and a one-unlock safe preview.

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+source_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || true)
+grand="$config_home/fastfetch/noc.txt"
+compact="$config_home/fastfetch/noc-compact.txt"
+[[ -r $grand ]] || grand="$source_root/branding/noc-terminal.txt"
+[[ -r $compact ]] || compact="$source_root/branding/noc-terminal-compact.txt"
+
+usage() {
+  printf 'Usage: nocturne-banner [--grand|--compact|--plain]\n'
+}
+
+mode=auto
+plain=false
+case ${1:-} in
+  --grand) mode=grand ;;
+  --compact) mode=compact ;;
+  --plain) plain=true ;;
+  -h|--help) usage; exit 0 ;;
+  '') ;;
+  *) usage >&2; exit 2 ;;
+esac
+
+columns=${COLUMNS:-}
+[[ $columns =~ ^[0-9]+$ ]] || columns=$(tput cols 2>/dev/null || printf 120)
+if [[ $mode == auto ]]; then
+  ((columns < 96)) && mode=compact || mode=grand
+fi
+[[ $mode == compact ]] && art=$compact || art=$grand
+[[ -r $art ]] || { printf 'NOC branding asset is missing.\n' >&2; exit 1; }
+
+accent=cb8d62
+if [[ -r $config_home/nocturne/accent.css ]]; then
+  candidate=$(sed -nE 's/^@define-color accent #([0-9A-Fa-f]{6});/\1/p' "$config_home/nocturne/accent.css" | head -1)
+  [[ $candidate =~ ^[0-9A-Fa-f]{6}$ ]] && accent=${candidate,,}
+fi
+
+if [[ -t 1 && $plain == false ]]; then
+  red=$((16#${accent:0:2})); green=$((16#${accent:2:2})); blue=$((16#${accent:4:2}))
+  printf '\033[38;2;%s;%s;%sm' "$red" "$green" "$blue"
+fi
+cat -- "$art"
+[[ -t 1 && $plain == false ]] && printf '\033[0m'
+
+if [[ $plain == false ]]; then
+  state=READY
+  if [[ -x $config_home/hypr/scripts/noc-state ]]; then
+    state=$($config_home/hypr/scripts/noc-state status 2>/dev/null | jq -r 'if .alerts|length > 0 then "ATTENTION" else "READY" end' 2>/dev/null || printf READY)
+  fi
+  uptime_text=$(uptime -p 2>/dev/null | sed 's/^up //' || printf unknown)
+  session=${XDG_CURRENT_DESKTOP:-${XDG_SESSION_DESKTOP:-TTY}}
+  printf '\n  OPERATOR  %-18s  NODE   %s\n' "${USER:-unknown}" "$(hostname -s 2>/dev/null || printf local)"
+  printf '  SESSION   %-18s  STATE  %s\n' "$session" "$state"
+  printf '  UPTIME    %s\n' "$uptime_text"
+fi

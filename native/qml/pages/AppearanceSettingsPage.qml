@@ -9,7 +9,7 @@ Rectangle {
     property bool active: false
     property var images: []
     property var studio: ({preview:false,remaining:0,themes:[]})
-    property var lockState: ({current:"editorial",styles:[],previewLocksSession:true})
+    property var lockState: ({current:"editorial",background:"balanced",clock:"operator",styles:[],backgrounds:[],clocks:[],previewLocksSession:true})
     property var wallpaperState: ({enabled:false,current:"",source:"",mode:"day-cycle",monitors:[],mapped_monitors:[]})
     property string selectedWallpaper: wallpaperState.current || ""
     property string selectedAccent: ""
@@ -64,6 +64,10 @@ Rectangle {
     }
     function tryLockStyle(id) {
         backend.start([lockTool, "try", id])
+    }
+    function configureLock(field, value) {
+        backend.run([lockTool, "configure", field, value], 2500)
+        refresh()
     }
 
     ScrollView {
@@ -241,7 +245,7 @@ Rectangle {
             SettingsCard {
                 Layout.fillWidth: true
                 title: "LOCK SCREEN STYLE"
-                description: "Five sharp compositions share your wallpaper and active accent. TRY locks once, then restores the current style after you authenticate."
+                description: "Ten sharp compositions share one reliable authentication path. TRY locks once, then restores the active composition after you authenticate."
                 icon: "system-lock-screen"
                 glyph: "■"
                 GridLayout {
@@ -275,8 +279,13 @@ Rectangle {
                                         color: backend.accentColor
                                     }
                                     Text {
-                                        text: modelData.id === "phosphor-terminal" ? ">_ 12:47+" : (modelData.id === "noc-grid" ? "N\nO\nC    12:47+" : "12:47+")
-                                        color: backend.textColor
+                                        text: modelData.id === "phosphor-terminal" ? ">_ 12:47+"
+                                            : (modelData.id === "noc-grid" ? "N\nO\nC    12:47+"
+                                            : (modelData.id === "mainframe" ? "01 02 03\n12:47+"
+                                            : (modelData.id === "red-sector" ? "07 // 12:47+"
+                                            : (modelData.id === "signal-tower" ? "⌁\n12:47+"
+                                            : "12:47+"))))
+                                        color: modelData.id === "red-sector" ? "#ff5f6d" : backend.textColor
                                         font.family: "monospace"
                                         font.bold: true
                                         font.pixelSize: modelData.id === "center-signal" ? 20 : 14
@@ -299,6 +308,46 @@ Rectangle {
                                         NocturneButton { text: "TRY"; onClicked: root.tryLockStyle(modelData.id) }
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: backend.lineColor }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 7
+                    Text { text: "BACKGROUND TREATMENT"; color: backend.accentColor; font.family: "monospace"; font.pixelSize: 9; font.bold: true }
+                    Text { Layout.fillWidth: true; text: "Change wallpaper visibility without changing the composition or active system accent."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; wrapMode: Text.WordWrap }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Repeater {
+                            model: root.lockState.backgrounds || []
+                            NocturneButton {
+                                required property var modelData
+                                text: modelData.name.toUpperCase()
+                                selected: root.lockState.background === modelData.id
+                                onClicked: root.configureLock("background", modelData.id)
+                            }
+                        }
+                    }
+                }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: backend.lineColor }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 7
+                    Text { text: "CLOCK NOTATION"; color: backend.accentColor; font.family: "monospace"; font.pixelSize: 9; font.bold: true }
+                    Text { Layout.fillWidth: true; text: "Operator uses + for AM and − for PM; conventional 12-hour and 24-hour formats are also available."; color: backend.mutedColor; font.family: "Inter"; font.pixelSize: 8; wrapMode: Text.WordWrap }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Repeater {
+                            model: root.lockState.clocks || []
+                            NocturneButton {
+                                required property var modelData
+                                text: modelData.name.toUpperCase()
+                                selected: root.lockState.clock === modelData.id
+                                onClicked: root.configureLock("clock", modelData.id)
                             }
                         }
                     }

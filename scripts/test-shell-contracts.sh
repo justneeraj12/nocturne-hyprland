@@ -27,7 +27,7 @@ jq -e '.format == "nocturne-context-v2" and .contexts.docked == "desk" and .prof
 "$XDG_CONFIG_HOME/hypr/scripts/context-engine" decision \
   | jq -e '.enabled == false and .context == "mobile" and .selectedScene == "commute" and .reason == "context:mobile"' >/dev/null
 
-"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 9' >/dev/null
+"$root/bin/nocturne-migrate" --json | jq -e '.ready == true and .schema == 10' >/dev/null
 trace="$root/config/hypr/scripts/automation-trace"
 "$trace" record context scene-applied profile:meeting calls 'Settings only.'
 "$trace" record context baseline-restored no-matching-scene calls 'Reversed.'
@@ -197,14 +197,26 @@ cp -- "$root/config/hypr/scripts/lock-style" "$XDG_CONFIG_HOME/hypr/scripts/lock
 cp -- "$root/config/hypr/lockstyles/"*.conf.in "$XDG_CONFIG_HOME/hypr/lockstyles/"
 chmod +x "$XDG_CONFIG_HOME/hypr/scripts/lock-style"
 lock_style="$XDG_CONFIG_HOME/hypr/scripts/lock-style"
-"$lock_style" status | jq -e '.format == "nocturne-lock-style-v1" and .current == "editorial" and (.styles|length) == 5' >/dev/null
-for style in editorial center-signal noc-grid phosphor-terminal relay-split; do
+"$lock_style" status | jq -e '.format == "nocturne-lock-style-v2" and .current == "editorial" and .background == "balanced" and .clock == "operator" and (.styles|length) == 10' >/dev/null
+printf '%s\n' '{"format":"nocturne-lock-style-v1","current":"relay-split"}' > "$XDG_CONFIG_HOME/nocturne/lock-style.json"
+"$lock_style" status | jq -e '.format == "nocturne-lock-style-v2" and .current == "relay-split" and .background == "balanced" and .clock == "operator"' >/dev/null
+for style in editorial center-signal noc-grid phosphor-terminal relay-split black-ice red-sector signal-tower mainframe dead-channel; do
   "$lock_style" apply "$style"
   "$lock_style" status | jq -e --arg style "$style" '.current == $style' >/dev/null
   grep -Fq "NOCTURNE LOCK STYLE: $style" "$XDG_CONFIG_HOME/hypr/hyprlock.conf"
   ! grep -Eq '@[A-Z0-9_]+@' "$XDG_CONFIG_HOME/hypr/hyprlock.conf"
 done
 "$lock_style" apply editorial
+"$lock_style" configure background void
+"$lock_style" configure clock twenty-four
+"$lock_style" status | jq -e '.background == "void" and .clock == "twenty-four"' >/dev/null
+grep -Fq 'brightness = 0.08' "$XDG_CONFIG_HOME/hypr/hyprlock.conf"
+XDG_CONFIG_HOME="$XDG_CONFIG_HOME" "$root/config/hypr/scripts/lock-time" | grep -Eq '^[0-2][0-9]:[0-5][0-9]$'
+"$lock_style" configure clock twelve
+XDG_CONFIG_HOME="$XDG_CONFIG_HOME" "$root/config/hypr/scripts/lock-time" | grep -Eq '^([1-9]|1[0-2]):[0-5][0-9] (AM|PM)$'
+"$lock_style" configure background balanced
+"$lock_style" configure clock operator
+XDG_CONFIG_HOME="$XDG_CONFIG_HOME" "$root/config/hypr/scripts/lock-time" | grep -Eq '^([1-9]|1[0-2]):[0-5][0-9](\+|−)$'
 [[ $(stat -c %a "$XDG_CONFIG_HOME/nocturne/lock-style.json") == 600 ]]
 for template in "$XDG_CONFIG_HOME/hypr/lockstyles/"*.conf.in; do
   [[ $(basename -- "$template") == common.conf.in ]] && continue

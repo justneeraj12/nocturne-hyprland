@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/justneeraj12/nocturne-hyprland/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/justneeraj12/nocturne-hyprland/ci.yml?branch=main&style=flat-square&label=build" alt="Build status"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-6d9578?style=flat-square" alt="MIT license"></a>
-  <img src="https://img.shields.io/badge/release-1.1.0-cb8d62?style=flat-square" alt="Nocturne 1.1.0">
+  <img src="https://img.shields.io/badge/release-1.3.0-cb8d62?style=flat-square" alt="Nocturne 1.3.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
 </p>
@@ -32,17 +32,17 @@ history, power modes, screenshots and screen recording to behave normally.
 > requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
 > packaged dependency installer currently targets Ubuntu.
 
-## Current release // 1.1.0
+## Current release // 1.3.0
 
-Nocturne 1.1 expands the native Settings app into a local system control plane without adding a new resident daemon. The [fifty-item release manifest](docs/RELEASE-1.1.md) lists every tested addition.
+Nocturne 1.3 expands the visual identity without forking critical system behavior. The [release notes](docs/RELEASE-1.3.md) describe the complete lock and terminal system.
 
-- **Storage Center** explains disk use, previews bounded cleanup and finds large duplicates without deleting personal files;
-- **System Command** combines reversible Meeting Mode, permissions, startup ownership, NOC Guard and the private NOC Pulse;
-- **Automation Builder** provides safe dock, power, meeting, focus and gaming rules with predefined reversible actions;
-- **Power Lab, Display and Input** expose battery health, deep sleep, adaptive saver, monitor modes, VRR and native touchpad gestures;
-- clipboard privacy, pinned text, Wi-Fi sharing, captive-portal handling, screenshot annotation and local OCR complete the daily-use layer.
+- **Ten lock compositions** range from sparse Dead Channel to dense Mainframe while sharing one PAM path;
+- **independent treatments** control wallpaper intensity and Operator, 12-hour or 24-hour clock notation;
+- **safe previews and migration** preserve the active style and restore previews after one successful unlock;
+- **grand and compact NOC marks** give Fastfetch, terminal splits and project screenshots one adaptive identity;
+- `nocturne-banner` adds live node state only on demand, with no new resident process.
 
-Read the complete [1.1 release notes](docs/RELEASE-1.1.md).
+Read the complete [1.3 release notes](docs/RELEASE-1.3.md).
 
 <p align="center">
   <img src="docs/screenshots/storage-center.webp" alt="Nocturne Storage Center" width="47%">
@@ -113,7 +113,7 @@ The shell includes:
 - Hyprshot screenshots and Kooha screen recording;
 - compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
 - reliable background-app controls with native DBusMenu actions on ordinary left-click;
-- dynamic day-cycle wallpapers, eight design presets, sixteen accents and five switchable lock-screen compositions;
+- dynamic day-cycle wallpapers, eight design presets, sixteen accents and ten switchable lock-screen compositions with background and clock controls;
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
@@ -126,7 +126,7 @@ The shell includes:
 - a compact dark Files profile with tabs, split view, rich previews, network/removable mounts and zero-idle indexing;
 - native-Wayland Brave launching with VA-API hardware video decode and a complete FFmpeg/GStreamer codec stack;
 - dock, power, meeting, focus and gaming context automation, guarded theme previews and last-known-good recovery;
-- coordinated Kitty, tmux, btop, Cava and NOC-branded Fastfetch defaults.
+- coordinated Kitty, tmux, btop, Cava and a grand responsive NOC terminal identity for Fastfetch and `nocturne-banner`.
 
 <details>
 <summary><strong>See NOC Desk</strong></summary>
@@ -277,6 +277,7 @@ applications keep their own toolkit and license.
 - [Camera quality and latency](docs/CAMERA.md)
 - [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
 - [Nocturne 1.1 — fifty system upgrades](docs/RELEASE-1.1.md)
+- [Nocturne 1.3 — signal identity](docs/RELEASE-1.3.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Launch and community plan](docs/LAUNCH.md)
 - [Experimental NØX local agent](agent/README.md) — optional and not installed by default

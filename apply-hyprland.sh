@@ -79,7 +79,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -160,6 +160,7 @@ install -m 0644 "$ROOT_DIR/config/tmux/tmux.conf" "$CONFIG_HOME/tmux/tmux.conf"
 cp -a -- "$ROOT_DIR/config/cava/." "$CONFIG_HOME/cava/"
 install -m 0644 "$ROOT_DIR/config/fastfetch/config.jsonc" "$CONFIG_HOME/fastfetch/config.jsonc"
 install -m 0644 "$ROOT_DIR/branding/noc-terminal.txt" "$CONFIG_HOME/fastfetch/noc.txt"
+install -m 0644 "$ROOT_DIR/branding/noc-terminal-compact.txt" "$CONFIG_HOME/fastfetch/noc-compact.txt"
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-wallpaper-cycle.service" \
   "$CONFIG_HOME/systemd/user/nocturne-wallpaper-cycle.service"
@@ -231,6 +232,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-browser" "$BIN_HOME/nocturne-browser"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-benchmark" "$BIN_HOME/nocturne-benchmark"
+install -m 0755 "$ROOT_DIR/bin/nocturne-banner" "$BIN_HOME/nocturne-banner"
 install -m 0755 "$ROOT_DIR/bin/nocturne-support" "$BIN_HOME/nocturne-support"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
 install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
