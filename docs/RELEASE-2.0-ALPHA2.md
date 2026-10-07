@@ -19,6 +19,12 @@ Ubuntu-shaped source tree. Nocturne 1.3 remains the stable release.
 
 Start from a working Hyprland 0.56+ session. NOC does not replace Hyprland.
 
+Download the [source bundle](https://noc-operator.noc-operator.workers.dev/download/v2.0.0-alpha.2/nocturne-2.0.0-alpha.2-source.tar.gz)
+and [SHA-256 checksum](https://noc-operator.noc-operator.workers.dev/download/v2.0.0-alpha.2/nocturne-2.0.0-alpha.2-source.tar.gz.sha256),
+or clone the signed release tag below. The optional download redirect stores
+only timestamp, two-letter country code, release and asset; direct GitHub assets
+remain available on the release page.
+
 ```bash
 git clone --branch v2.0.0-alpha.2 https://github.com/justneeraj12/nocturne-hyprland.git
 cd nocturne-hyprland
