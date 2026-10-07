@@ -19,7 +19,7 @@ shape {
 }
 label {
     monitor =
-    text = RELAY // 05\nSECURE SESSION
+    text = RELAY // 05 // SECURE SESSION
     color = rgba(@ACCENT@ff)
     font_size = 15
     font_family = JetBrains Mono ExtraBold

@@ -146,9 +146,36 @@ wallpaper. The same workflow and shortcuts remain available with every preset.
 
 ## Lock screen
 
-![Nocturne Hyprlock screen](screenshots/lockscreen.webp)
+![Ten Nocturne Hyprlock compositions](screenshots/lockscreen-gallery.webp)
+
+<details>
+<summary><strong>Open every composition at full resolution</strong></summary>
+
+<p align="center">
+  <img src="screenshots/lock-editorial.webp" alt="Nocturne Editorial lock composition" width="49%">
+  <img src="screenshots/lock-center-signal.webp" alt="Nocturne Center Signal lock composition" width="49%">
+</p>
+<p align="center">
+  <img src="screenshots/lock-noc-grid.webp" alt="Nocturne NOC Grid lock composition" width="49%">
+  <img src="screenshots/lock-phosphor-terminal.webp" alt="Nocturne Phosphor Terminal lock composition" width="49%">
+</p>
+<p align="center">
+  <img src="screenshots/lock-relay-split.webp" alt="Nocturne Relay Split lock composition" width="49%">
+  <img src="screenshots/lock-black-ice.webp" alt="Nocturne Black Ice lock composition" width="49%">
+</p>
+<p align="center">
+  <img src="screenshots/lock-red-sector.webp" alt="Nocturne Red Sector lock composition" width="49%">
+  <img src="screenshots/lock-signal-tower.webp" alt="Nocturne Signal Tower lock composition" width="49%">
+</p>
+<p align="center">
+  <img src="screenshots/lock-mainframe.webp" alt="Nocturne Mainframe lock composition" width="49%">
+  <img src="screenshots/lock-dead-channel.webp" alt="Nocturne Dead Channel lock composition" width="49%">
+</p>
+
+</details>
 
 ![Nocturne lock authentication and media detail](screenshots/lockscreen-auth.webp)
 
-These were rendered by Hyprlock inside an isolated nested Hyprland session.
-Public demo values replace the owner's notifications, username and locations.
+All ten designs were rendered by Hyprlock at 1920×1080 inside an isolated
+nested Hyprland session, then downscaled for the repository. Public demo values
+replace the owner's notifications, username, media and locations.

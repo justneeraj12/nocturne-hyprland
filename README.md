@@ -179,6 +179,15 @@ More images are in the [showcase](docs/SHOWCASE.md).
 
 ![Nocturne lock screen](docs/screenshots/lockscreen.webp)
 
+<details>
+<summary><strong>Compare all ten lock-screen compositions</strong></summary>
+
+![Nocturne lock-screen design gallery](docs/screenshots/lockscreen-gallery.webp)
+
+Full-resolution frames are in the [showcase](docs/SHOWCASE.md#lock-screen).
+
+</details>
+
 ## Install
 
 Start from a working **Hyprland 0.56+ session** on Ubuntu. Nocturne configures

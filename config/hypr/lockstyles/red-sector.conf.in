@@ -29,7 +29,7 @@ label {
 }
 label {
     monitor =
-    text = RED SECTOR\nCONTROLLED ACCESS
+    text = RED SECTOR // CONTROLLED ACCESS
     color = rgba(@TEXT@ff)
     font_size = 12
     font_family = JetBrains Mono ExtraBold

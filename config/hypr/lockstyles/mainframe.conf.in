@@ -2,7 +2,7 @@
 shape {
     monitor =
     size = 1520, 670
-    color = rgba(@BASE@de)
+    color = rgba(@BASE@8f)
     rounding = 0
     border_size = 1
     border_color = rgba(@LINE@ff)
@@ -70,12 +70,56 @@ label {
 }
 label {
     monitor =
-    text = RACK STATUS\n01  POWER     NOMINAL\n02  NETWORK   LINKED\n03  AUDIO     ARMED\n04  SECURITY  SEALED
+    text = RACK STATUS // LIVE
+    color = rgba(@ACCENT@ff)
+    font_size = 10
+    font_family = JetBrains Mono ExtraBold
+    text_align = left
+    position = 0, 158
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = 01  POWER      NOMINAL
     color = rgba(@TEXT@d8)
     font_size = 10
     font_family = JetBrains Mono Medium
     text_align = left
-    position = 0, 105
+    position = 0, 126
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = 02  NETWORK    LINKED
+    color = rgba(@TEXT@d8)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 0, 94
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = 03  AUDIO      ARMED
+    color = rgba(@TEXT@d8)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 0, 62
+    halign = center
+    valign = center
+}
+label {
+    monitor =
+    text = 04  SECURITY   SEALED
+    color = rgba(@TEXT@d8)
+    font_size = 10
+    font_family = JetBrains Mono Medium
+    text_align = left
+    position = 0, 30
     halign = center
     valign = center
 }

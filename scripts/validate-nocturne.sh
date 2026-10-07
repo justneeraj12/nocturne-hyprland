@@ -68,6 +68,11 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/storage-center.webp ]]
 [[ -s $root/docs/screenshots/system-command.webp ]]
 [[ -s $root/docs/screenshots/operations-deck.webp ]]
+for asset in editorial center-signal noc-grid phosphor-terminal relay-split black-ice red-sector signal-tower mainframe dead-channel; do
+  [[ -s $root/docs/screenshots/lock-$asset.webp ]]
+done
+[[ -s $root/docs/screenshots/lockscreen-gallery.webp ]]
+grep -Fq 'lockscreen-gallery.webp' "$root/README.md"
 for asset in noc-2-showcase-reel noc-2-onboarding noc-2-overview noc-2-appearance noc-2-display-lab noc-2-laptop-intelligence noc-2-connected-agenda noc-2-security-hub noc-2-efficiency noc-2-extensions; do
   [[ -s $root/docs/screenshots/$asset.webp ]]
 done

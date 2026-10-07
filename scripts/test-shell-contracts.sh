@@ -233,6 +233,7 @@ for template in "$XDG_CONFIG_HOME/hypr/lockstyles/"*.conf.in; do
   grep -Fq 'input-field {' "$template"
   grep -Fq 'fail_text =' "$template"
   grep -Fq 'check_color =' "$template"
+  ! grep -Fq '\n' "$template"
 done
 
 printf '%s\n' '#!/bin/sh' \
