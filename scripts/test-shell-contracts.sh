@@ -185,6 +185,19 @@ grep -Fq 'accel_profile = "flat"' "$XDG_CONFIG_HOME/nocturne/input.lua"
   | jq -e '.format == "nocturne-performance-plan-v1" and .rebootRequired == true and (.changes|length) == 2' >/dev/null
 "$root/config/hypr/scripts/campus-control" status \
   | jq -e '.format == "nocturne-campus-v1" and .privacy == "NO CREDENTIALS STORED" and .print.driverless == "IPP EVERYWHERE"' >/dev/null
+doc_root="$test_root/nox-doc-root"
+doc_home="$doc_root/home/noc"
+mkdir -p "$doc_root/etc" "$doc_home/.config/hypr" "$doc_home/.local/bin" "$doc_home/.local/state/nocturne/recovery"
+printf '%s\n' 'noc:x:1000:1000:NOC:/home/noc:/bin/bash' > "$doc_root/etc/passwd"
+printf '%s\n' 'return {}' > "$doc_home/.config/hypr/hyprland.lua"
+printf '%s\n' '#!/bin/sh' 'exit 0' > "$doc_home/.local/bin/nocturne-native"
+chmod +x "$doc_home/.local/bin/nocturne-native"
+tar -C "$doc_home" -czf "$doc_home/.local/state/nocturne/recovery/last-good.tar.gz" .config/hypr
+doc_env=(NOX_DOC_ROOT="$doc_root" NOX_DOC_USER=noc NOX_DOC_HOME=/home/noc NOX_DOC_KNOWLEDGE="$root/config/nocturne/nox-doc-knowledge.json")
+env "${doc_env[@]}" "$root/bin/nox-doc" diagnose --json \
+  | jq -e '.format == "nox-doc-diagnosis-v1" and .critical == 0 and .safety.modelHasRoot == false and .checkpoint.valid == true' >/dev/null
+env "${doc_env[@]}" "$root/bin/nox-doc" plan \
+  | jq -e '.format == "nox-doc-plan-v1" and (.boundary | contains("language model has no root tool"))' >/dev/null
 "$root/config/hypr/scripts/noc-state" status \
   | jq -e '.format == "nocturne-operations-v1" and (.score|type == "number") and (.alerts|type == "array")' >/dev/null
 mkdir -p "$XDG_CONFIG_HOME/nocturne"

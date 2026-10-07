@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root_prefix=${NOX_DOC_ROOT:-}
+state_root=${NOX_DOC_STATE_ROOT:-${root_prefix}/var/lib/nocturne/nox-doc}
+knowledge_file=${NOX_DOC_KNOWLEDGE:-${root_prefix}/usr/share/nocturne/nox-doc-knowledge.json}
+config_file=${NOX_DOC_CONFIG:-${root_prefix}/etc/nocturne/nox-doc.conf}
+systemctl_cmd=${NOX_DOC_SYSTEMCTL:-systemctl}
+
+root_path() { printf '%s%s' "$root_prefix" "$1"; }
+command_ready() { command -v "$1" >/dev/null 2>&1; }
+if [[ ! -r $knowledge_file ]]; then
+  source_knowledge=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)/config/nocturne/nox-doc-knowledge.json
+  [[ -r $source_knowledge ]] && knowledge_file=$source_knowledge
+fi
+
+configured_value() {
+  local key=$1
+  [[ -r $config_file ]] || return 0
+  sed -nE "s/^${key}=([^[:space:]]+)$/\\1/p" "$config_file" | head -1
+}
+
+doc_user=${NOX_DOC_USER:-$(configured_value NOX_DOC_USER)}
+doc_home=${NOX_DOC_HOME:-$(configured_value NOX_DOC_HOME)}
+if [[ -z $doc_user ]]; then
+  doc_user=$(awk -F: '$3 >= 1000 && $3 < 60000 && $7 !~ /(nologin|false)$/ {print $1; exit}' "$(root_path /etc/passwd)" 2>/dev/null || true)
+fi
+if [[ -z $doc_home && -n $doc_user ]]; then
+  doc_home=$(awk -F: -v user="$doc_user" '$1 == user {print $6; exit}' "$(root_path /etc/passwd)" 2>/dev/null || true)
+fi
+[[ $doc_user =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] || doc_user=''
+[[ $doc_home == /* && $doc_home != */../* ]] || doc_home=''
+
+user_path() {
+  local relative=$1
+  if [[ -n $root_prefix ]]; then printf '%s%s/%s' "$root_prefix" "$doc_home" "$relative"; else printf '%s/%s' "$doc_home" "$relative"; fi
+}
+
+checkpoint=$(user_path .local/state/nocturne/recovery/last-good.tar.gz)
+recovery_tool=$(user_path .local/bin/nocturne-recovery)
+native_tool=$(user_path .local/bin/nocturne-native)
+hypr_config=$(user_path .config/hypr/hyprland.lua)
+
+asic() {
+  [[ -t 1 && ${NOX_DOC_NO_ANIMATION:-0} != 1 ]] || return 0
+  local frame
+  for frame in '░░░░░░░░' '▓░░░░░░░' '▓▓▓░░░░░' '▓▓▓▓▓░░░' '▓▓▓▓▓▓▓▓'; do
+    printf '\r\033[38;2;109;149;120m  N O X  D O C  //  RECOVERY ASIC  [%s]\033[0m' "$frame"
+    sleep 0.05
+  done
+  printf '\n'
+  printf '\033[38;2;203;141;98m  PAUSING OTHER NOC OPERATIONS // RECOVERY HAS PRIORITY\033[0m\n\n'
+}
+
+checkpoint_safe() {
+  [[ -s $checkpoint ]] || return 1
+  tar -tzf "$checkpoint" >/dev/null 2>&1 || return 1
+  ! tar -tzf "$checkpoint" 2>/dev/null | grep -Eq '(^/|(^|/)\.\.(/|$))'
+}
+
+append_check() {
+  local current=$1 id=$2 ok=$3 severity=$4 label=$5 detail=$6 repair=$7
+  jq -c --arg id "$id" --argjson ok "$ok" --arg severity "$severity" --arg label "$label" \
+    --arg detail "$detail" --arg repair "$repair" \
+    '. + [{id:$id,ok:$ok,severity:$severity,label:$label,detail:$detail,repair:$repair}]' <<< "$current"
+}
+
+diagnosis_json() {
+  local checks='[]' ok=true detail free_percent=100 failed_count=0 failed_names='' root_writable=true
+  local checkpoint_exists=false checkpoint_valid=false config_ready=false native_ready=false systemd_ready=false
+
+  [[ -n $doc_user && -n $doc_home ]] || ok=false
+  checks=$(append_check "$checks" identity "$ok" critical 'Recovery identity' \
+    "$([[ $ok == true ]] && printf '%s · %s' "$doc_user" "$doc_home" || printf 'No valid desktop owner configured')" none)
+
+  ok=false; [[ -s $checkpoint ]] && { ok=true; checkpoint_exists=true; }
+  checks=$(append_check "$checks" checkpoint-present "$ok" warning 'Last-known-good checkpoint' \
+    "$([[ $ok == true ]] && printf '%s' "$checkpoint" || printf 'Create a checkpoint after the next healthy login')" checkpoint)
+
+  if [[ $checkpoint_exists == true ]] && checkpoint_safe; then ok=true; checkpoint_valid=true
+  elif [[ $checkpoint_exists == true ]]; then ok=false
+  else ok=true
+  fi
+  checks=$(append_check "$checks" checkpoint-safe "$ok" critical 'Checkpoint integrity' \
+    "$([[ $checkpoint_exists == false ]] && printf 'No archive to inspect' || { [[ $checkpoint_valid == true ]] && printf 'Archive paths and compression verified' || printf 'Archive is corrupt or contains unsafe paths'; })" none)
+
+  ok=false; [[ -r $hypr_config ]] && { ok=true; config_ready=true; }
+  checks=$(append_check "$checks" hypr-config "$ok" critical 'Hyprland configuration' \
+    "$([[ $ok == true ]] && printf 'Readable Lua entry point' || printf 'Missing %s' "$hypr_config")" checkpoint)
+
+  ok=false; [[ -x $native_tool ]] && { ok=true; native_ready=true; }
+  checks=$(append_check "$checks" native-shell "$ok" critical 'Native shell binary' \
+    "$([[ $ok == true ]] && printf 'Executable is present' || printf 'Missing %s' "$native_tool")" checkpoint)
+
+  if [[ -z $root_prefix ]]; then
+    detail=$(findmnt -n -o OPTIONS / 2>/dev/null || true)
+    [[ ,$detail, == *,rw,* ]] || root_writable=false
+    free_percent=$(df -P / 2>/dev/null | awk 'NR == 2 {gsub(/%/,"",$5); print 100-$5}' || printf '0')
+  else
+    [[ -w $(root_path /) ]] || root_writable=false
+    free_percent=$(df -P "$(root_path /)" 2>/dev/null | awk 'NR == 2 {gsub(/%/,"",$5); print 100-$5}' || printf '0')
+  fi
+  [[ $free_percent =~ ^[0-9]+$ ]] || free_percent=0
+  checks=$(append_check "$checks" root-writable "$root_writable" critical 'Root filesystem' \
+    "$([[ $root_writable == true ]] && printf 'Writable · %s%% free' "$free_percent" || printf 'Read-only; offline filesystem repair may be required')" none)
+  ok=true; ((free_percent >= 5)) || ok=false
+  checks=$(append_check "$checks" disk-space "$ok" critical 'Recovery working space' \
+    "$([[ $ok == true ]] && printf '%s%% free' "$free_percent" || printf 'Less than 5%% free; do not restore until space is recovered')" none)
+
+  if [[ -z $root_prefix ]] && command_ready "$systemctl_cmd"; then
+    local failed_output=''
+    if failed_output=$($systemctl_cmd --failed --no-legend --plain 2>/dev/null); then
+      failed_names=$(awk '{print $1}' <<< "$failed_output" | head -8 | paste -sd, - || true)
+      failed_count=$(awk 'NF {count++} END {print count + 0}' <<< "$failed_output")
+      systemd_ready=true
+    fi
+  fi
+  ok=true; ((failed_count == 0)) || ok=false
+  checks=$(append_check "$checks" system-services "$ok" warning 'System service state' \
+    "$([[ $systemd_ready == false ]] && printf 'Unavailable in fixture/offline root' || { [[ $ok == true ]] && printf 'No failed system units' || printf '%s failed · %s' "$failed_count" "$failed_names"; })" reset-failed)
+
+  jq -cn --arg user "$doc_user" --arg home "$doc_home" --arg checkpoint "$checkpoint" \
+    --argjson checkpointExists "$checkpoint_exists" --argjson checkpointValid "$checkpoint_valid" \
+    --argjson configReady "$config_ready" --argjson nativeReady "$native_ready" \
+    --argjson freePercent "$free_percent" --argjson rootWritable "$root_writable" --argjson checks "$checks" \
+    '{format:"nox-doc-diagnosis-v1",mode:"DETERMINISTIC RECOVERY",user:$user,home:$home,
+      checkpoint:{path:$checkpoint,exists:$checkpointExists,valid:$checkpointValid},
+      readiness:{config:$configReady,nativeShell:$nativeReady,rootWritable:$rootWritable,freePercent:$freePercent},
+      checks:$checks,issues:[$checks[]|select(.ok|not)],critical:([$checks[]|select((.ok|not) and .severity=="critical")]|length),
+      repairable:([$checks[]|select((.ok|not) and .repair!="none")]|length),
+      safety:{modelHasRoot:false,arbitraryShell:false,automaticDestructiveRepair:false}}'
+}
+
+print_diagnosis() {
+  local json=$1
+  printf '┌─ NOX DOC // DIAGNOSIS ─────────────────────────────────────\n'
+  jq -r '.checks[] | "│ " + (if .ok then "[ OK ] " else "[ !! ] " end) + .label + "\n│        " + .detail' <<< "$json"
+  printf '└──────────────────────────────────────────────────────────────\n'
+}
+
+plan_json() {
+  local diagnosis knowledge='{"entries":[]}'
+  diagnosis=$(diagnosis_json)
+  [[ -r $knowledge_file ]] && knowledge=$(<"$knowledge_file")
+  jq -c --argjson knowledge "$knowledge" '
+    . as $diagnosis |
+    {format:"nox-doc-plan-v1",diagnosis:$diagnosis,
+     steps:[.issues[] as $issue |
+       (($knowledge.entries // []) | map(select(.id == $issue.id)) | first) as $entry |
+       {id:$issue.id,severity:$issue.severity,label:$issue.label,
+        action:($entry.action // "Inspect the evidence and use a recovery TTY."),
+        automatic:($entry.automatic // false),repair:$issue.repair}],
+     boundary:"The knowledge pack explains evidence. Only compiled allow-listed repairs execute; the language model has no root tool."}' <<< "$diagnosis"
+}
+
+pause_noc() {
+  printf 'NOX DOC // pausing the user shell control plane…\n'
+  [[ -z $doc_user || -n $root_prefix ]] && return 0
+  $systemctl_cmd --user --machine="${doc_user}@" stop nocturne-session.target 2>/dev/null || true
+}
+
+resume_noc() {
+  [[ -z $doc_user || -n $root_prefix ]] && return 0
+  $systemctl_cmd --user --machine="${doc_user}@" daemon-reload 2>/dev/null || true
+  $systemctl_cmd --user --machine="${doc_user}@" reset-failed 2>/dev/null || true
+}
+
+safe_repair() {
+  [[ ${EUID:-$(id -u)} -eq 0 || ${NOX_DOC_ALLOW_UNPRIVILEGED:-0} == 1 ]] || { printf 'NOX DOC safe repair must run as root.\n' >&2; exit 4; }
+  pause_noc
+  if [[ -z $root_prefix ]] && command_ready "$systemctl_cmd"; then
+    $systemctl_cmd daemon-reload
+    $systemctl_cmd reset-failed
+  fi
+  resume_noc
+  mkdir -p "$state_root"
+  diagnosis_json > "$state_root/last-diagnosis.json"
+  printf 'NOX DOC // safe control-plane reset complete. No configuration or personal data changed.\n'
+}
+
+restore_checkpoint() {
+  [[ ${EUID:-$(id -u)} -eq 0 || ${NOX_DOC_ALLOW_UNPRIVILEGED:-0} == 1 ]] || { printf 'NOX DOC restore must run as root.\n' >&2; exit 4; }
+  checkpoint_safe || { printf 'NOX DOC refused: no valid recovery checkpoint.\n' >&2; exit 4; }
+  [[ -x $recovery_tool ]] || { printf 'NOX DOC refused: recovery tool is unavailable.\n' >&2; exit 4; }
+  pause_noc
+  if [[ -n $root_prefix || ${NOX_DOC_ALLOW_UNPRIVILEGED:-0} == 1 ]]; then
+    HOME="$doc_home" XDG_CONFIG_HOME="$doc_home/.config" XDG_STATE_HOME="$doc_home/.local/state" "$recovery_tool" restore --offline
+  else
+    runuser -u "$doc_user" -- env HOME="$doc_home" XDG_CONFIG_HOME="$doc_home/.config" \
+      XDG_STATE_HOME="$doc_home/.local/state" "$recovery_tool" restore --offline
+  fi
+  resume_noc
+  mkdir -p "$state_root"
+  diagnosis_json > "$state_root/last-diagnosis.json"
+  printf 'NOX DOC // checkpoint restored offline. Validate, then return to the default target.\n'
+}
+
+recover() {
+  [[ ${EUID:-$(id -u)} -eq 0 ]] || { printf 'Run system recovery with sudo or boot into nox-doc.target.\n' >&2; exit 4; }
+  asic
+  local diagnosis choice
+  diagnosis=$(diagnosis_json)
+  print_diagnosis "$diagnosis"
+  printf '\nNOX DOC uses a fixed repair allowlist. The local language model is not root and is not required.\n'
+  printf '[1] Reset failed NOC/system control-plane state\n'
+  printf '[2] Restore the verified last-known-good NOC checkpoint\n'
+  printf '[3] Print the evidence-based recovery plan\n'
+  printf '[R] Return to normal boot   [Q] Stay in recovery\n'
+  printf '> '
+  read -r choice
+  case ${choice^^} in
+    1) safe_repair ;;
+    2) restore_checkpoint ;;
+    3) plan_json | jq . ;;
+    R) $systemctl_cmd --no-block isolate default.target ;;
+    Q|'') printf 'NOX DOC // recovery target remains active.\n' ;;
+    *) printf 'Unknown selection; no changes made.\n' ;;
+  esac
+}
+
+case ${1:-diagnose} in
+  diagnose|status)
+    if [[ ${2:-} == --json || ! -t 1 ]]; then diagnosis_json; else print_diagnosis "$(diagnosis_json)"; fi ;;
+  plan) plan_json ;;
+  verify) diagnosis_json | jq -e '.critical == 0' >/dev/null ;;
+  repair) safe_repair ;;
+  restore) restore_checkpoint ;;
+  recover) recover ;;
+  enter)
+    [[ ${EUID:-$(id -u)} -eq 0 ]] || { printf 'Use sudo nox-doc enter.\n' >&2; exit 4; }
+    printf 'NOX DOC will pause the graphical target and take over tty1. Type ENTER to continue: '
+    read -r answer; [[ $answer == ENTER ]] || { printf 'Cancelled.\n'; exit 1; }
+    $systemctl_cmd isolate nox-doc.target ;;
+  *) printf 'Usage: %s diagnose [--json]|plan|verify|repair|restore|recover|enter\n' "$0" >&2; exit 2 ;;
+esac

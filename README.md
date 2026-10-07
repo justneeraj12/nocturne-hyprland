@@ -90,6 +90,7 @@ personal file names.
 | **Explainable system control** | Storage, permissions, startup, power and recovery expose their real source of truth and keep destructive or privileged actions explicit. |
 | **Pressure-aware performance** | An opt-in, reversible zram profile absorbs memory bursts while Linux keeps ownership of page cache, NVMe scheduling and thermal safety. |
 | **Campus-ready peripherals** | CUPS/IPP Everywhere, AirScan/SANE, enterprise Wi-Fi guidance and bounded discovery make shared printers and scanners first-class. |
+| **NOX DOC recovery agent** | A model-independent tty recovery target verifies checkpoints and executes only allow-listed repairs when the graphical desktop cannot start. |
 
 ## The desktop
 
@@ -131,6 +132,7 @@ The shell includes:
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
 - a reversible Performance Lab with zram readiness, kernel-cache visibility, NVMe policy and pressure-aware recommendations;
 - a Campus compatibility hub for driverless IPP printing, AirScan/SANE devices, eduroam-safe setup and standard identity hardware;
+- NOX DOC, a headless systemd recovery target with an inspectable Linux knowledge pack, offline checkpoint restore and no model-to-root path;
 - calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
 - a private read-only Connected Agenda for local, Google, Outlook, iCloud, Nextcloud and other ICS feeds;
 - Window Rules Studio with open-app discovery, escaped exact matches and isolated generated Lua;

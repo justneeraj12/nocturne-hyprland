@@ -20,7 +20,8 @@ Read the exact policy in [Performance Lab](PERFORMANCE-LAB.md).
 - Skanpage with Document Scanner fallback;
 - WPA-Enterprise/eduroam safety guidance without credential ownership;
 - standard FIDO2 and smart-card capability visibility;
-- matching Ubuntu and Arch dependency plans.
+- matching Ubuntu and Arch dependency plans (`systemd-zram-generator` on
+  Ubuntu, `zram-generator` on Arch).
 
 Read the compatibility model in [Campus compatibility](CAMPUS-COMPATIBILITY.md).
 
@@ -38,3 +39,11 @@ The performance profile is **not** silently enabled during installation. Open
 Settings → Performance Lab, inspect the live recommendation, and opt in. A
 restart is required because NOC will not hot-replace a working swap stack.
 
+## NOX DOC
+
+Alpha 3 also introduces a headless recovery controller for failures below the
+graphical shell. `nox-doc.target` runs on `tty1`, validates the last-known-good
+archive, pauses the NOC user control plane and offers only allow-listed repair
+or offline restore operations. Its compact Linux knowledge pack is inspectable;
+the optional NØX model may explain evidence but has no root action. See
+[NOX DOC](NOX-DOC.md).

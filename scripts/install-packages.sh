@@ -47,7 +47,7 @@ arch_packages=(
   gst-plugins-bad gst-plugins-ugly libva intel-media-driver libva-utils
   intel-gpu-tools pacman-contrib kdeconnect easyeffects clamav apparmor ufw
   cups cups-filters cups-browsed ipp-usb avahi nss-mdns sane sane-airscan
-  simple-scan skanpage systemd-zram-generator
+  simple-scan skanpage zram-generator
 )
 
 family=$($platform family)
@@ -80,4 +80,18 @@ esac
 
 sudo install -m 0644 "$root/assets/nocturne-recovery.desktop" /usr/share/wayland-sessions/nocturne-recovery.desktop
 sudo install -m 0755 "$root/bin/nocturne-recovery-session" /usr/local/bin/nocturne-recovery-session
+sudo install -d -m 0755 /etc/nocturne /usr/share/nocturne /usr/local/sbin
+sudo install -m 0755 "$root/bin/nox-doc" /usr/local/sbin/nox-doc
+sudo install -m 0644 "$root/config/nocturne/nox-doc-knowledge.json" /usr/share/nocturne/nox-doc-knowledge.json
+sudo install -m 0644 "$root/config/systemd/system/nox-doc.service" /etc/systemd/system/nox-doc.service
+sudo install -m 0644 "$root/config/systemd/system/nox-doc.target" /etc/systemd/system/nox-doc.target
+install_user=${SUDO_USER:-$(id -un)}
+install_home=$(getent passwd "$install_user" | awk -F: '{print $6; exit}')
+if [[ $install_user =~ ^[a-z_][a-z0-9_-]{0,31}$ && $install_home == /* ]]; then
+  nox_doc_config=$(mktemp)
+  trap 'rm -f -- "$nox_doc_config"' EXIT
+  printf 'NOX_DOC_USER=%s\nNOX_DOC_HOME=%s\n' "$install_user" "$install_home" > "$nox_doc_config"
+  sudo install -m 0644 "$nox_doc_config" /etc/nocturne/nox-doc.conf
+fi
+sudo systemctl daemon-reload
 printf 'Installed the Nocturne %s dependency plan.\n' "$family"

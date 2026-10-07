@@ -185,6 +185,24 @@ class ToolTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertEqual(result.message, "Hello from NØX.")
 
+    @patch("nocturne_agent.tools.Path.is_file", return_value=True)
+    @patch("nocturne_agent.tools.os.access", return_value=True)
+    @patch("nocturne_agent.tools._run")
+    def test_recovery_advice_reads_plan_without_requesting_root(self, run, _access, _is_file) -> None:
+        run.return_value = type("Result", (), {
+            "returncode": 0,
+            "stderr": "",
+            "stdout": json.dumps({
+                "format": "nox-doc-plan-v1",
+                "diagnosis": {"critical": 1},
+                "steps": [{"action": "Restore the verified checkpoint."}],
+            }),
+        })()
+        result = ToolExecutor.recovery_advice({"view": "plan"})
+        self.assertTrue(result.ok)
+        self.assertFalse(result.data["root_access"])
+        self.assertIn("Restore the verified checkpoint", result.message)
+
     @patch("nocturne_agent.tools._run")
     @patch("nocturne_agent.tools.shutil.which", return_value="/usr/bin/uwsm")
     @patch("nocturne_agent.tools.resolve_reference")

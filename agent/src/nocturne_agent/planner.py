@@ -45,6 +45,10 @@ class RulePlanner:
         if re.search(r"\b(system status|resource usage|how is (the )?(system|computer)|cpu usage|gpu usage)\b", text):
             return Action("system_status")
 
+        if re.search(r"\b(repair|recover|recovery|boot fail|won't boot|wont boot|desktop broke|system broke)\b", text):
+            view = "status" if re.search(r"\b(status|ready|available|checkpoint)\b", text) else "plan"
+            return Action("recovery_advice", {"view": view})
+
         song = re.search(
             r"\b(?:play|put on)\s+(?:(?:the|a)\s+)?(?:song\s+)?(.+?)\s+by\s+(.+?)(?:\s+on\s+(?:yt|youtube)\s+music)?$",
             text,
@@ -205,6 +209,8 @@ class LocalModelPlanner:
             "casual conversation, or requests unsupported by the manifest. Use system_status only when the "
             "user explicitly asks about computer health, CPU, RAM, disk, GPU, temperature, or resource usage; "
             "never use it as a generic fallback. For unsupported actions, use respond to explain the limitation. "
+            "Use recovery_advice for boot, desktop-recovery, broken-system, checkpoint or repair questions. It is "
+            "read-only evidence from NOX DOC. Never claim to have repaired the machine and never create root commands. "
             "Use browser_context when asked what is visible, playing, or happening in the browser; do not launch "
             "a browser unless the user explicitly asks to open or launch one. "
             "Use browser_open only when the user explicitly asks to open a URL or search the web; never infer a URL. "

@@ -248,6 +248,25 @@ if [[ -e /usr/share/wayland-sessions/nocturne-recovery.desktop || -e /usr/local/
   fi
 fi
 
+nox_doc_system_files=(
+  /usr/local/sbin/nox-doc
+  /usr/share/nocturne/nox-doc-knowledge.json
+  /etc/nocturne/nox-doc.conf
+  /etc/systemd/system/nox-doc.service
+  /etc/systemd/system/nox-doc.target
+)
+nox_doc_installed=false
+for target in "${nox_doc_system_files[@]}"; do [[ -e $target ]] && nox_doc_installed=true; done
+if "$nox_doc_installed"; then
+  if sudo -n true 2>/dev/null; then
+    sudo -n systemctl stop nox-doc.service nox-doc.target >/dev/null 2>&1 || true
+    sudo -n rm -f -- "${nox_doc_system_files[@]}"
+    sudo -n systemctl daemon-reload
+  else
+    printf 'Root-owned NOX DOC files remain. Remove the paths documented in docs/NOX-DOC.md with sudo.\n'
+  fi
+fi
+
 printf '\nNocturne config was rolled back from:\n  %s\n' "$backup"
 printf 'The removed Nocturne state is recoverable from:\n  %s\n' "$rollback"
 printf 'Packages, Hyprshot and Kooha were left installed. Log out once.\n'

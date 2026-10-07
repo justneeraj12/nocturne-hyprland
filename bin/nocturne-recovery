@@ -20,6 +20,8 @@ checkpoint() {
 }
 
 restore() {
+  local offline=false
+  [[ ${1:-} == --offline ]] && offline=true
   [[ -s $archive ]] || { printf 'No recovery checkpoint exists.\n' >&2; exit 1; }
   if tar -tzf "$archive" | grep -Eq '(^/|(^|/)\.\.(/|$))'; then printf 'Unsafe checkpoint archive.\n' >&2; exit 1; fi
   mkdir -p "$state_root"
@@ -27,6 +29,10 @@ restore() {
     .config/hypr .config/nocturne .config/mako 2>/dev/null || true
   tar -C "$HOME" -xzf "$archive"
   printf '0\n' > "$fail_file"
+  if "$offline"; then
+    printf 'Nocturne restored offline from %s\n' "$archive"
+    return
+  fi
   systemctl --user daemon-reload 2>/dev/null || true
   hyprctl reload 2>/dev/null || true
   nohup "$config_home/hypr/scripts/bar" >"$state_root/bar-restore.log" 2>&1 &
@@ -60,7 +66,7 @@ status() {
 
 case ${1:-status} in
   checkpoint) checkpoint ;;
-  restore) restore ;;
+  restore) restore "${2:-}" ;;
   verify) verify ;;
   status) status ;;
   *) printf 'Usage: %s checkpoint|restore|verify|status\n' "$0" >&2; exit 2 ;;

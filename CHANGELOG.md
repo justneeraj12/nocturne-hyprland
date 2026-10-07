@@ -6,6 +6,8 @@
 - Added an opt-in adaptive zram profile with conservative VM policy, visible confirmation, pre-change backup and direct rollback.
 - Added Campus compatibility for IPP Everywhere/CUPS, ipp-usb, Avahi, SANE/AirScan, enterprise Wi-Fi guidance and portable identity readiness.
 - Added matching Ubuntu and Arch printer, scanner and zram dependency plans with bounded zero-idle discovery.
+- Added NOX DOC, an isolatable tty recovery agent with checkpoint verification, offline restore, a curated Linux knowledge pack and no language-model root authority.
+- Connected ordinary NØX repair questions to NOX DOC's read-only evidence and plan while keeping all privileged repair actions outside the model tool manifest.
 - Added the community-demand feature set: private Connected Agenda, exact-match Window Rules Studio, hardware onboarding, capability-gated declarative extensions, Laptop Intelligence and Display Lab profiles.
 - Added read-only Google/Outlook/iCloud/Nextcloud-compatible ICS subscriptions with redacted source URLs, mode-0600 caches, bounded recurrence expansion and zero-resident refresh timers.
 - Added reversible battery refresh limits, shared brightness step/floor controls, Bluetooth startup policy, charge-threshold discovery and exact AC restoration.

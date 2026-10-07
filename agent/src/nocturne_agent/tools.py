@@ -87,6 +87,7 @@ class ToolExecutor:
             "browser_open": self.browser_open,
             "observe": self.observe,
             "system_status": self.system_status,
+            "recovery_advice": self.recovery_advice,
             "find_app": self.find_app,
             "launch_app": self.launch_app,
             "volume": self.volume,
@@ -369,6 +370,33 @@ class ToolExecutor:
             "gpu": gpu,
         }
         return ActionResult(True, "System status collected", data)
+
+    @staticmethod
+    def recovery_advice(arguments: dict) -> ActionResult:
+        configured = os.environ.get("NOX_DOC_PATH", "")
+        executable = configured or shutil.which("nox-doc") or "/usr/local/sbin/nox-doc"
+        if not Path(executable).is_file() or not os.access(executable, os.X_OK):
+            return ActionResult(False, "NOX DOC is not installed at the system level")
+        command = [executable, "plan"] if arguments["view"] == "plan" else [executable, "diagnose", "--json"]
+        result = _run(command, timeout=10)
+        if result.returncode != 0:
+            return ActionResult(False, result.stderr.strip() or "NOX DOC could not collect recovery evidence")
+        try:
+            document = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            return ActionResult(False, "NOX DOC returned invalid recovery evidence")
+        if arguments["view"] == "plan":
+            diagnosis = document.get("diagnosis", {})
+            steps = document.get("steps", [])
+            critical = int(diagnosis.get("critical", 0))
+            first = steps[0] if steps else None
+            detail = f" First evidence-based step: {first.get('action')}" if isinstance(first, dict) else ""
+            message = f"NOX DOC found {critical} critical recovery condition(s).{detail}"
+        else:
+            critical = int(document.get("critical", 0))
+            repairable = int(document.get("repairable", 0))
+            message = f"NOX DOC is ready: {critical} critical and {repairable} allow-listed repairable condition(s)."
+        return ActionResult(True, message, {"recovery": document, "root_access": False})
 
     @staticmethod
     def find_app(arguments: dict) -> ActionResult:

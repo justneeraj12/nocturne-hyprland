@@ -1,0 +1,46 @@
+{
+  "format": "nox-doc-knowledge-v1",
+  "scope": "evidence-based Linux and Nocturne recovery; no generated commands",
+  "entries": [
+    {
+      "id": "identity",
+      "action": "Boot normally or edit /etc/nocturne/nox-doc.conf from a root TTY so it names the desktop owner and home directory.",
+      "automatic": false
+    },
+    {
+      "id": "checkpoint-present",
+      "action": "Do not invent a baseline. Use the minimal Nocturne Recovery login, repair manually, then create a checkpoint after one verified healthy session.",
+      "automatic": false
+    },
+    {
+      "id": "checkpoint-safe",
+      "action": "Quarantine the invalid archive. Never extract a corrupt archive or one containing absolute or parent-traversal paths.",
+      "automatic": false
+    },
+    {
+      "id": "hypr-config",
+      "action": "Restore only the verified last-known-good NOC checkpoint, preserving a pre-restore archive first.",
+      "automatic": false
+    },
+    {
+      "id": "native-shell",
+      "action": "Restore the verified checkpoint. If the binary is still absent, reinstall the same signed/source NOC revision before starting the graphical target.",
+      "automatic": false
+    },
+    {
+      "id": "root-writable",
+      "action": "Keep the filesystem offline and use fsck for its exact filesystem from recovery media. NOX DOC will not force a remount or run filesystem repair automatically.",
+      "automatic": false
+    },
+    {
+      "id": "disk-space",
+      "action": "Recover space from logs or package caches with an operator present. Personal files are never selected or deleted by NOX DOC.",
+      "automatic": false
+    },
+    {
+      "id": "system-services",
+      "action": "Reload unit metadata and clear failed state, then re-diagnose. NOX DOC does not blindly enable or restart unrelated services.",
+      "automatic": true
+    }
+  ]
+}

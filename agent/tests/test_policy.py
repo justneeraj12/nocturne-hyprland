@@ -40,6 +40,12 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(self.policy.evaluate(Action("observe", {"subject": "files"})).allowed)
         self.assertFalse(self.policy.evaluate(Action("observe", {"subject": "processes", "query": "x" * 81})).allowed)
 
+    def test_recovery_advice_is_read_only_and_schema_bounded(self) -> None:
+        decision = self.policy.evaluate(Action("recovery_advice", {"view": "plan"}))
+        self.assertTrue(decision.allowed)
+        self.assertEqual(decision.risk, Risk.SAFE)
+        self.assertFalse(self.policy.evaluate(Action("recovery_advice", {"view": "repair"})).allowed)
+
     def test_conversational_response_is_bounded(self) -> None:
         decision = self.policy.evaluate(Action("respond", {"text": "Hey. What can I do for you?"}))
         self.assertTrue(decision.allowed)

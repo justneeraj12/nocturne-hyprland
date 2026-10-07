@@ -79,6 +79,15 @@ class RulePlannerTests(unittest.TestCase):
     def test_unknown_returns_none(self) -> None:
         self.assertIsNone(self.planner.plan("rewrite my kernel in assembly"))
 
+    def test_broken_system_routes_to_read_only_nox_doc_plan(self) -> None:
+        action = self.planner.plan("can you diagnose why my desktop broke")
+        self.assertEqual(action.name, "recovery_advice")
+        self.assertEqual(action.arguments, {"view": "plan"})
+
+    def test_recovery_status_is_distinct_from_repair(self) -> None:
+        action = self.planner.plan("is the recovery checkpoint ready")
+        self.assertEqual(action.arguments, {"view": "status"})
+
 
 if __name__ == "__main__":
     unittest.main()
