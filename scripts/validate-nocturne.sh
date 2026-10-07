@@ -20,7 +20,12 @@ printf '[ OK ] shell scripts\n'
 "$root/scripts/test-install-contracts.sh" >/dev/null
 printf '[ OK ] installer + rollback symmetry\n'
 
-jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" "$root/config/nocturne/bar.json" >/dev/null
+[[ -x $root/scripts/build-release-bundle.sh ]]
+grep -Fq 'gzip -n -9' "$root/scripts/build-release-bundle.sh"
+grep -Fq 'gh release upload' "$root/.github/workflows/release.yml"
+
+jq -e . "$root/config/locations.json" "$root/config/nocturne/theme.json" "$root/config/nocturne/bar.json" "$root/config/nocturne/edition.json" >/dev/null
+jq -e '.edition == "community" and .analytics == false and .telemetryEndpoint == null and .operatorOverlay == false' "$root/config/nocturne/edition.json" >/dev/null
 jq -e . "$root/agent/config/profile.default.json" >/dev/null
 printf '[ OK ] JSON configuration\n'
 
@@ -34,6 +39,13 @@ grep -Fq 'Fifty workflow upgrades' "$root/docs/RELEASE-1.0.md"
 grep -Fq 'Fifty system upgrades' "$root/docs/RELEASE-1.1.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.1.md") -eq 50 ]]
 grep -Fq 'Nocturne 1.2 — NOC Core' "$root/docs/RELEASE-1.2.md"
+grep -Fq '# NOC 2.0 product architecture' "$root/docs/NOC-2.0.md"
+grep -Fq '# Hyprland community demand scan' "$root/docs/COMMUNITY-DEMAND-2026.md"
+grep -Fq '# NOC 2.0 Alpha 1 — Foundation' "$root/docs/RELEASE-2.0-ALPHA1.md"
+grep -Fq '# NOC 2.0 Alpha 2 — Arch portability' "$root/docs/RELEASE-2.0-ALPHA2.md"
+grep -Fq 'Hyprland speed. Desktop continuity. No phone home.' "$root/docs/LAUNCH-KIT-2.0.md"
+grep -Fq 'Nocturne Community does not phone home' "$root/PRIVACY.md"
+grep -Fq 'NOC 2.0 is in development' "$root/README.md"
 grep -Fq 'nocturne-benchmark --summary' "$root/README.md"
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
@@ -56,6 +68,16 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/storage-center.webp ]]
 [[ -s $root/docs/screenshots/system-command.webp ]]
 [[ -s $root/docs/screenshots/operations-deck.webp ]]
+for asset in editorial center-signal noc-grid phosphor-terminal relay-split black-ice red-sector signal-tower mainframe dead-channel; do
+  [[ -s $root/docs/screenshots/lock-$asset.webp ]]
+done
+[[ -s $root/docs/screenshots/lockscreen-gallery.webp ]]
+grep -Fq 'lockscreen-gallery.webp' "$root/README.md"
+for asset in noc-2-showcase-reel noc-2-onboarding noc-2-overview noc-2-appearance noc-2-display-lab noc-2-laptop-intelligence noc-2-connected-agenda noc-2-security-hub noc-2-efficiency noc-2-extensions; do
+  [[ -s $root/docs/screenshots/$asset.webp ]]
+done
+[[ -s $root/docs/media/noc-2-community-labs.mp4 ]]
+grep -Fq 'docs/media/noc-2-community-labs.mp4' "$root/README.md"
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
@@ -83,6 +105,7 @@ grep -Fq 'qml/pages/DeskPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/HabitsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/VaultPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/StorageSettingsPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/SecuritySettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/ControlCenterSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/AutomationRulesSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'ADAPTIVE SENSOR PROFILE' "$root/native/qml/pages/CameraPage.qml"
@@ -91,6 +114,13 @@ grep -Fq 'PRIVATE BY DESIGN' "$root/native/qml/pages/AutomationPage.qml"
 grep -Fq 'Nocturne Trace' "$root/native/qml/pages/AutomationPage.qml"
 grep -Fq 'NOC // OPERATIONS DECK' "$root/native/qml/pages/OperationsPage.qml"
 grep -Fq 'ZERO IDLE TELEMETRY' "$root/native/qml/pages/OperationsPage.qml"
+grep -Fq 'NOC UPDATE GUARD' "$root/native/qml/pages/MaintenancePage.qml"
+grep -Fq 'nocturne-update-guard' "$root/config/hypr/scripts/system-maintenance"
+grep -Fq 'terminal-palette.zsh' "$root/config/zsh/nocturne.zsh"
+grep -Fq 'sync-terminal-theme' "$root/config/hypr/scripts/sync-hyprtoolkit-theme"
+grep -Fq '0 resident scanner processes' "$root/config/hypr/scripts/security-control"
+grep -Fq 'AUTOMATION WITHOUT A DAEMON' "$root/native/qml/pages/SecuritySettingsPage.qml"
+grep -Fq 'nocturne-security-scan.timer' "$root/apply-hyprland.sh"
 grep -Fq 'NOC Desk' "$root/native/qml/pages/DeskPage.qml"
 grep -Fq 'desk-capture' "$root/native/src/backend.cpp"
 grep -Fq 'habit-capture' "$root/native/src/backend.cpp"
@@ -106,6 +136,8 @@ grep -Fq 'backend.notificationCount()' "$root/native/qml/Bar.qml"
 grep -Fq 'text: "󰖨"' "$root/native/qml/BarWindow.qml"
 grep -Fq 'END IN SHARING APP' "$root/native/qml/pages/PrivacyPage.qml"
 grep -Fq 'SAFETY + PORTABILITY' "$root/native/qml/pages/SetupSettingsPage.qml"
+grep -Fq 'nocturne-platform' "$root/config/hypr/scripts/system-maintenance"
+grep -Fq 'nocturne-polkit-agent' "$root/config/systemd/user/nocturne-polkit.service"
 grep -Fq 'Accessible.role: Accessible.Button' "$root/native/qml/components/BarButton.qml"
 grep -Fq 'Accessible.role: Accessible.CheckBox' "$root/native/qml/components/NocturneToggle.qml"
 grep -Fq 'CONFIRM CLEAR' "$root/native/qml/pages/ClipboardPage.qml"
@@ -197,6 +229,11 @@ grep -Fq 'hyprctl hyprsunset temperature' "$root/config/hypr/scripts/night-light
 grep -Fq 'hyprctl keyword monitor' "$root/config/hypr/scripts/monitor-layout"
 grep -Fq 'fwupdmgr get-updates' "$root/config/hypr/scripts/system-maintenance"
 grep -Fq 'nocturne-portable-v1' "$root/bin/nocturne-portable"
+[[ -x $root/bin/nocturne-continuity ]]
+grep -Fq 'nocturne-continuity-v1' "$root/bin/nocturne-continuity"
+grep -Fq 'analytics:false' "$root/bin/nocturne-continuity"
+grep -Fq 'install -m 0755 "$ROOT_DIR/bin/nocturne-continuity"' "$root/apply-hyprland.sh"
+grep -Fq 'ENCRYPTED CONTINUITY' "$root/native/qml/pages/SetupSettingsPage.qml"
 HOME="$temporary/portable-home" XDG_CONFIG_HOME="$temporary/portable-config" \
   "$root/bin/nocturne-portable" status | jq -e '.exists == false' >/dev/null
 printf '[ OK ] night shift, display, maintenance and portable setup controls\n'
@@ -262,7 +299,7 @@ grep -Fq 'nocturne-permissions-v1' "$root/config/hypr/scripts/permission-control
 grep -Fq 'nocturne-guard-v1' "$root/config/hypr/scripts/system-guard"
 grep -Fq 'nocturne-rules-v1' "$root/config/hypr/scripts/automation-rules"
 grep -Fq 'nocturne-clipboard-v1' "$root/config/hypr/scripts/clipboard-control"
-grep -Fq 'nocturne-power-lab-v1' "$root/config/hypr/scripts/power-lab"
+grep -Fq 'nocturne-power-lab-v2' "$root/config/hypr/scripts/power-lab"
 grep -Fq 'nocturne-lock-style-v2' "$root/config/hypr/scripts/lock-style"
 [[ $(find "$root/config/hypr/lockstyles" -maxdepth 1 -name '*.conf.in' | wc -l) -eq 11 ]]
 for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
@@ -289,6 +326,19 @@ grep -Fq 'install -m 0755 "$ROOT_DIR/bin/nocturne-support"' "$root/apply-hyprlan
 grep -Fq 'theme-studio' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
 printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
+
+for page in AgendaSettingsPage WindowRulesSettingsPage ExtensionsSettingsPage OnboardingSettingsPage LaptopIntelligenceSettingsPage DisplayLabSettingsPage; do
+  grep -Fq "qml/pages/$page.qml" "$root/native/CMakeLists.txt"
+done
+grep -Fq 'nocturne-agenda-v1' "$root/bin/nocturne-agenda"
+grep -Fq 'nocturne-window-rules-v1' "$root/bin/nocturne-window-rules"
+grep -Fq 'arbitraryCode' "$root/bin/nocturne-extensions"
+grep -Fq 'nocturne-display-lab-v1' "$root/config/hypr/scripts/monitor-layout"
+grep -Fq 'brightnessStep' "$root/config/hypr/scripts/power-lab"
+grep -Fq 'nocturne-context-timer-v1' "$root/config/hypr/scripts/context-timer-state"
+grep -Fq 'pcall(dofile, user_window_rules)' "$root/config/hypr/hyprland.lua"
+grep -Fq 'nocturne-agenda-refresh.timer' "$root/apply-hyprland.sh"
+printf '[ OK ] agenda, onboarding, window rules, extensions, laptop intelligence and display lab\n'
 
 grep -Fq 'systemctl --user restart nocturne-session.target' "$root/config/hypr/hyprland.lua"
 grep -Fq 'systemctl --user stop nocturne-session.target' "$root/apply-hyprland.sh"
@@ -323,7 +373,8 @@ printf '[ OK ] Signal keyring and profile routing\n'
 grep -Fq 'AcceleratedVideoDecodeLinuxGL' "$root/bin/nocturne-browser"
 grep -Fq 'AcceleratedVideoDecodeLinuxZeroCopyGL' "$root/bin/nocturne-browser"
 grep -Fq 'nocturne-browser" "$BIN_HOME/nocturne-browser"' "$root/apply-hyprland.sh"
-grep -Fq 'intel-media-va-driver vainfo intel-gpu-tools' "$root/install.sh"
+grep -Fq 'intel-media-va-driver vainfo intel-gpu-tools' "$root/scripts/install-packages.sh"
+grep -Fq 'intel-media-driver libva-utils' "$root/scripts/install-packages.sh"
 grep -Fq 'Hardware video decode profiles are available' "$root/bin/nocturne-doctor"
 printf '[ OK ] native Wayland browser video acceleration\n'
 
@@ -332,6 +383,10 @@ printf '[ OK ] native Wayland browser video acceleration\n'
   PYTHONPATH=src python3 -m pytest -q
 )
 
-git -C "$root" diff --check
-printf '[ OK ] patch hygiene\n'
+if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git -C "$root" diff --check
+  printf '[ OK ] patch hygiene\n'
+else
+  printf '[ OK ] packaged source tree (Git metadata intentionally absent)\n'
+fi
 printf 'RESULT // source tree is internally consistent\n'

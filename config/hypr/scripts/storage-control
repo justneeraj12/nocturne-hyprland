@@ -3,6 +3,7 @@ set -euo pipefail
 
 cache_home=${XDG_CACHE_HOME:-"$HOME/.cache"}
 state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
+platform="$HOME/.local/bin/nocturne-platform"
 mkdir -p -- "$state_home"
 
 bytes() { du -sb -- "$1" 2>/dev/null | awk '{print $1+0}' || printf '0\n'; }
@@ -48,7 +49,7 @@ clean() {
       flatpak uninstall --unused --noninteractive ;;
     admin)
       exec kitty --hold --class nocturne-maintenance --title 'Nocturne · Admin cleanup' -e bash -lc \
-        'sudo apt-get clean; sudo journalctl --vacuum-size=100M; printf "\nAdmin cleanup complete.\n"' ;;
+        "$($platform clean-command); sudo journalctl --vacuum-size=100M; printf '\nAdmin cleanup complete.\n'" ;;
     *) printf 'Usage: %s clean thumbnails|build-caches|browser-cache|trash|flatpak-unused|admin\n' "$0" >&2; exit 2 ;;
   esac
 }

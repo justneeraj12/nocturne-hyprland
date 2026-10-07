@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_root=${NOCTURNE_UPDATE_GUARD_STATE_ROOT:-${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne/update-guard}
+manifest="$state_root/pre-upgrade.json"
+last_result="$state_root/last-verification.json"
+history="$state_root/history.jsonl"
+recovery_tool=${NOCTURNE_RECOVERY_TOOL:-"$HOME/.local/bin/nocturne-recovery"}
+platform_tool=${NOCTURNE_PLATFORM_TOOL:-"$HOME/.local/bin/nocturne-platform"}
+native_tool=${NOCTURNE_NATIVE_TOOL:-"$HOME/.local/bin/nocturne-native"}
+config_file=${NOCTURNE_HYPRLAND_CONFIG:-"${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hyprland.lua"}
+
+timestamp() { date --iso-8601=seconds; }
+
+hyprland_version() {
+  if [[ -n ${NOCTURNE_HYPRLAND_VERSION:-} ]]; then
+    printf '%s\n' "$NOCTURNE_HYPRLAND_VERSION"
+  elif command -v Hyprland >/dev/null 2>&1; then
+    Hyprland --version 2>/dev/null | sed -nE 's/^Hyprland ([^ ]+).*/\1/p' | head -1
+  fi
+}
+
+platform_state() {
+  if [[ -x $platform_tool ]]; then
+    "$platform_tool" status 2>/dev/null || true
+  fi
+}
+
+pending_hyprland_version() {
+  if [[ -n ${NOCTURNE_PENDING_HYPRLAND_VERSION:-} ]]; then
+    printf '%s\n' "$NOCTURNE_PENDING_HYPRLAND_VERSION"
+    return
+  fi
+  local family
+  family=$(platform_state | jq -r '.family // "unsupported"' 2>/dev/null || printf unsupported)
+  case $family in
+    arch)
+      command -v checkupdates >/dev/null 2>&1 || return 0
+      timeout 12 checkupdates 2>/dev/null \
+        | awk '$1 == "hyprland" {for (i=1; i<=NF; i++) if ($i == "->") {print $(i+1); exit}}' \
+        | sed -E 's/-[0-9]+$//'
+      ;;
+    debian)
+      command -v apt >/dev/null 2>&1 || return 0
+      apt list --upgradable 2>/dev/null \
+        | awk '$1 ~ /^hyprland\// {print $2; exit}' \
+        | sed -E 's/^[0-9]+://; s/-.*$//'
+      ;;
+  esac
+}
+
+config_hash() {
+  local config_dir=${config_file%/*}
+  [[ -d $config_dir ]] || { printf 'missing\n'; return; }
+  find "$config_dir" -maxdepth 2 -type f -print0 2>/dev/null \
+    | sort -z \
+    | xargs -0 -r sha256sum 2>/dev/null \
+    | sha256sum \
+    | awk '{print $1}'
+}
+
+critical_packages() {
+  local family
+  family=$(platform_state | jq -r '.family // "unsupported"' 2>/dev/null || printf unsupported)
+  case $family in
+    arch)
+      { command -v pacman >/dev/null 2>&1 \
+        && pacman -Q hyprland aquamarine waybar xdg-desktop-portal-hyprland linux linux-lts nvidia nvidia-dkms 2>/dev/null \
+        || true; } \
+        | jq -Rsc 'split("\n") | map(select(length > 0) | split(" ") | {name:.[0],version:.[1]})'
+      ;;
+    debian)
+      { command -v dpkg-query >/dev/null 2>&1 \
+        && dpkg-query -W -f='${binary:Package} ${Version}\n' hyprland xdg-desktop-portal-hyprland linux-image-generic nvidia-driver-535 nvidia-driver-550 2>/dev/null \
+        || true; } \
+        | jq -Rsc 'split("\n") | map(select(length > 0) | split(" ") | {name:.[0],version:.[1]})'
+      ;;
+    *) printf '[]\n' ;;
+  esac
+}
+
+checkpoint_ready() {
+  [[ -x $recovery_tool ]] && "$recovery_tool" status 2>/dev/null | jq -e '.exists == true' >/dev/null 2>&1
+}
+
+write_manifest() {
+  mkdir -p "$state_root"
+  local temporary current pending platform packages hash kernel gpu
+  temporary=$(mktemp "$state_root/.manifest.XXXXXX")
+  current=$(hyprland_version)
+  pending=$(pending_hyprland_version)
+  platform=$(platform_state)
+  packages=$(critical_packages)
+  hash=$(config_hash)
+  kernel=$(uname -r)
+  gpu=$(lspci -Dnn 2>/dev/null | awk '/VGA compatible controller|3D controller/ {line=line (line ? " | " : "") $0} END {print line}' || true)
+  jq -cn \
+    --arg preparedAt "$(timestamp)" --arg currentVersion "${current:-unknown}" \
+    --arg pendingVersion "$pending" --arg kernel "$kernel" --arg gpu "$gpu" \
+    --arg configHash "$hash" --argjson platform "${platform:-null}" \
+    --argjson packages "${packages:-[]}" \
+    '{format:"nocturne-update-checkpoint-v1",preparedAt:$preparedAt,
+      hyprland:{current:$currentVersion,pending:$pendingVersion},kernel:$kernel,gpu:$gpu,
+      configHash:$configHash,platform:$platform,packages:$packages}' > "$temporary"
+  mv -f -- "$temporary" "$manifest"
+}
+
+status() {
+  local current pending prepared=false checkpoint=false baseline='' prepared_at='' last='null' phase risk reason
+  current=$(hyprland_version)
+  pending=$(pending_hyprland_version)
+  [[ -s $manifest ]] && prepared=true
+  checkpoint_ready && checkpoint=true
+  if "$prepared"; then
+    baseline=$(jq -r '.hyprland.current // ""' "$manifest" 2>/dev/null || true)
+    prepared_at=$(jq -r '.preparedAt // ""' "$manifest" 2>/dev/null || true)
+  fi
+  [[ -s $last_result ]] && last=$(<"$last_result")
+
+  if jq -e '.ok == false' >/dev/null 2>&1 <<<"$last"; then
+    phase=attention; risk=critical; reason='POST-UPGRADE CHECK FAILED'
+  elif [[ $(jq -r '.ok // false' <<<"$last" 2>/dev/null) == true \
+      && $(jq -r '.toVersion // ""' <<<"$last" 2>/dev/null) == "${current:-unknown}" ]]; then
+    phase=verified; risk=low; reason='CURRENT VERSION VERIFIED'
+  elif "$prepared" && [[ -n $baseline && $baseline != "${current:-unknown}" ]]; then
+    phase=pending-verification; risk=review; reason='VERSION CHANGED · VERIFY NOW'
+  elif "$prepared"; then
+    phase=protected; risk=low; reason='CHECKPOINT READY'
+  elif "$checkpoint"; then
+    phase=checkpoint-only; risk=review; reason='PREPARE BEFORE UPDATING'
+  else
+    phase=unprotected; risk=critical; reason='NO RECOVERY CHECKPOINT'
+  fi
+
+  jq -cn --arg currentVersion "${current:-unknown}" --arg pendingVersion "$pending" \
+    --arg baselineVersion "$baseline" --arg preparedAt "$prepared_at" \
+    --arg phase "$phase" --arg risk "$risk" --arg reason "$reason" \
+    --argjson prepared "$prepared" --argjson checkpoint "$checkpoint" --argjson last "$last" \
+    '{format:"nocturne-update-guard-v1",phase:$phase,risk:$risk,reason:$reason,
+      prepared:$prepared,checkpoint:$checkpoint,preparedAt:$preparedAt,
+      hyprland:{current:$currentVersion,pending:$pendingVersion,baseline:$baselineVersion,
+        updateAvailable:($pendingVersion != "" and $pendingVersion != $currentVersion)},lastVerification:$last}'
+}
+
+prepare() {
+  [[ -x $recovery_tool ]] || { printf 'Recovery tool is not installed: %s\n' "$recovery_tool" >&2; exit 1; }
+  printf 'NOC // UPDATE GUARD\n'
+  printf 'Creating a last-known-good desktop checkpoint…\n'
+  "$recovery_tool" checkpoint
+  write_manifest
+  rm -f -- "$last_result"
+  printf 'Protected. Hyprland %s and the current NOC configuration were recorded.\n' "$(hyprland_version)"
+  printf 'After the package upgrade, run: nocturne-update-guard verify\n'
+}
+
+add_issue() {
+  jq -cn --arg code "$1" --arg message "$2" '{code:$code,message:$message}' >> "$3"
+}
+
+verify() {
+  mkdir -p "$state_root"
+  local issues current baseline changed=false live=false restart=false temporary result ok=false errors=''
+  temporary=$(mktemp "$state_root/.issues.XXXXXX")
+  current=$(hyprland_version)
+  baseline=$(jq -r '.hyprland.current // ""' "$manifest" 2>/dev/null || true)
+  [[ -n $baseline && $baseline != "${current:-unknown}" ]] && changed=true
+  "$changed" && restart=true
+
+  [[ -n $current ]] || add_issue compositor 'Hyprland is not installed or did not report a version.' "$temporary"
+  [[ -r $config_file ]] || add_issue config 'The Nocturne Hyprland configuration is missing.' "$temporary"
+  if command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then
+    live=true
+    errors=$(hyprctl configerrors 2>/dev/null || true)
+    [[ -z $errors ]] || add_issue config-errors "Hyprland reports configuration errors: ${errors//$'\n'/ · }" "$temporary"
+  fi
+  if [[ -x $native_tool ]]; then
+    "$native_tool" --self-test >/dev/null 2>&1 || add_issue shell 'The native NOC shell self-test failed.' "$temporary"
+  else
+    add_issue shell 'The native NOC shell binary is missing.' "$temporary"
+  fi
+  command -v xdg-desktop-portal-hyprland >/dev/null 2>&1 \
+    || add_issue portal 'The Hyprland screen-sharing portal is missing.' "$temporary"
+
+  [[ ! -s $temporary ]] && ok=true
+  result=$(jq -sc --arg verifiedAt "$(timestamp)" --arg fromVersion "${baseline:-unknown}" \
+    --arg toVersion "${current:-unknown}" --argjson ok "$ok" --argjson live "$live" \
+    --argjson changed "$changed" --argjson restart "$restart" \
+    '{format:"nocturne-update-verification-v1",verifiedAt:$verifiedAt,ok:$ok,
+      fromVersion:$fromVersion,toVersion:$toVersion,versionChanged:$changed,
+      liveSession:$live,restartRecommended:$restart,issues:.}' "$temporary")
+  printf '%s\n' "$result" > "$last_result"
+  printf '%s\n' "$result" >> "$history"
+  rm -f -- "$temporary"
+
+  if "$ok"; then
+    printf 'NOC // UPDATE VERIFIED\nHyprland %s passed config, native shell and portal checks.\n' "${current:-unknown}"
+    "$restart" && printf 'Hyprland changed from %s; reboot before calling this version fully accepted.\n' "$baseline"
+    return 0
+  else
+    printf 'NOC // UPDATE NEEDS ATTENTION\n' >&2
+    jq -r '.issues[] | "[FAIL] " + .message' <<<"$result" >&2
+    printf 'Your pre-upgrade NOC checkpoint remains available through the recovery session.\n' >&2
+    exit 1
+  fi
+}
+
+history_json() {
+  if [[ -s $history ]]; then jq -sc 'reverse' "$history"; else printf '[]\n'; fi
+}
+
+case ${1:-status} in
+  status) status ;;
+  prepare) prepare ;;
+  verify) verify ;;
+  history) history_json ;;
+  -h|--help)
+    printf '%s\n' 'Usage: nocturne-update-guard status|prepare|verify|history' \
+      '' 'prepare  Save a last-known-good config and hardware/package manifest.' \
+      'verify   Check the running desktop after a package upgrade.'
+    ;;
+  *) printf 'Usage: %s status|prepare|verify|history\n' "$0" >&2; exit 2 ;;
+esac

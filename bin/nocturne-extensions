@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""Capability-gated declarative extensions for Nocturne.
+
+Version 1 deliberately supports only existing native surfaces, HTTPS pages and
+desktop entries.  It does not evaluate scripts, QML or shell text.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlparse
+
+
+HOME = Path(os.environ.get("HOME", str(Path.home())))
+DATA_HOME = Path(os.environ.get("XDG_DATA_HOME", HOME / ".local/share"))
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config"))
+STORE = DATA_HOME / "nocturne/extensions"
+STATE = CONFIG_HOME / "nocturne/extensions.json"
+FORMAT = "nocturne-extension-v1"
+STATE_FORMAT = "nocturne-extensions-state-v1"
+SURFACES = {"agenda", "audio", "calendar", "clipboard", "connectivity", "desk", "habits", "notifications", "operations", "pomodoro", "privacy", "scenes", "vault", "world"}
+PERMISSIONS = {"network", "notifications", "clipboard-read", "files-read"}
+
+
+def valid_identifier(identifier: str) -> bool:
+    return bool(re.fullmatch(r"[a-z0-9]+(?:[.-][a-z0-9]+)*", identifier)) and len(identifier) <= 80
+
+
+def desktop_entry_exists(identifier: str) -> bool:
+    configured_dirs = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")
+    data_dirs = [DATA_HOME, *(Path(item) for item in configured_dirs)]
+    return any((directory / "applications" / identifier).is_file() for directory in data_dirs)
+
+
+def atomic_json(path: Path, value: Any, mode: int = 0o600) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def state() -> dict[str, Any]:
+    try:
+        value = json.loads(STATE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        value = {}
+    if value.get("format") != STATE_FORMAT or not isinstance(value.get("disabled"), list):
+        value = {"format": STATE_FORMAT, "disabled": []}
+        atomic_json(STATE, value)
+    else:
+        os.chmod(STATE, 0o600)
+        disabled = sorted({str(item) for item in value["disabled"] if valid_identifier(str(item))})
+        if disabled != value["disabled"]:
+            value["disabled"] = disabled
+            atomic_json(STATE, value)
+    return value
+
+
+def validate(manifest: Any) -> dict[str, Any]:
+    if not isinstance(manifest, dict) or manifest.get("format") != FORMAT:
+        raise ValueError(f"Manifest format must be {FORMAT}")
+    identifier = str(manifest.get("id", ""))
+    if not valid_identifier(identifier):
+        raise ValueError("Extension id is invalid")
+    name = str(manifest.get("name", "")).strip()
+    version = str(manifest.get("version", "")).strip()
+    description = str(manifest.get("description", "")).strip()
+    if not name or len(name) > 80 or not re.fullmatch(r"[0-9]+(?:\.[0-9]+){0,3}(?:[-+][A-Za-z0-9.-]+)?", version):
+        raise ValueError("Extension name or version is invalid")
+    entry = manifest.get("entry")
+    if not isinstance(entry, dict) or entry.get("type") not in {"surface", "url", "desktop"}:
+        raise ValueError("Entry type must be surface, url or desktop")
+    entry_type = entry["type"]
+    target = str(entry.get("target", ""))
+    if entry_type == "surface" and target not in SURFACES:
+        raise ValueError("Unknown native surface")
+    if entry_type == "url":
+        parsed = urlparse(target)
+        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+            raise ValueError("URL entries require credential-free HTTPS URLs")
+    if entry_type == "desktop" and not re.fullmatch(r"[A-Za-z0-9_.-]+\.desktop", target):
+        raise ValueError("Desktop entry id is invalid")
+    permissions = manifest.get("permissions", [])
+    if not isinstance(permissions, list) or any(item not in PERMISSIONS for item in permissions):
+        raise ValueError("Manifest requests an unsupported permission")
+    required = {"url": {"network"}, "surface": set(), "desktop": set()}[entry_type]
+    if not required.issubset(set(permissions)):
+        raise ValueError("Manifest is missing a required permission")
+    return {
+        "format": FORMAT,
+        "id": identifier,
+        "name": name,
+        "version": version,
+        "description": description[:240],
+        "entry": {"type": entry_type, "target": target},
+        "permissions": sorted(set(permissions)),
+        "author": str(manifest.get("author", ""))[:100],
+    }
+
+
+def installed() -> list[dict[str, Any]]:
+    STORE.mkdir(parents=True, exist_ok=True)
+    disabled = set(state()["disabled"])
+    result: list[dict[str, Any]] = []
+    for path in sorted(STORE.glob("*.json")):
+        if path.is_symlink() or path.stat().st_size > 65536:
+            continue
+        try:
+            manifest = validate(json.loads(path.read_text(encoding="utf-8")))
+            manifest["enabled"] = manifest["id"] not in disabled
+            manifest["residentProcesses"] = 0
+            result.append(manifest)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+    return result
+
+
+def status() -> None:
+    values = installed()
+    print(json.dumps({"format": STATE_FORMAT, "installed": len(values), "enabled": sum(1 for item in values if item["enabled"]), "extensions": values, "contract": {"version": 1, "declarative": True, "arbitraryCode": False, "residentProcesses": 0}}, separators=(",", ":")))
+
+
+def install(source: str) -> None:
+    supplied_path = Path(source).expanduser()
+    if supplied_path.is_symlink():
+        raise SystemExit("Manifest symlinks are not accepted")
+    try:
+        path = supplied_path.resolve(strict=True)
+    except OSError as exc:
+        raise SystemExit("Manifest file does not exist") from exc
+    if not path.is_file() or path.stat().st_size > 65536:
+        raise SystemExit("Manifest must be a regular JSON file smaller than 64 KiB")
+    try:
+        manifest = validate(json.loads(path.read_text(encoding="utf-8")))
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        raise SystemExit(str(exc)) from exc
+    if manifest["entry"]["type"] == "desktop" and not desktop_entry_exists(manifest["entry"]["target"]):
+        raise SystemExit("Desktop entry is not installed")
+    STORE.mkdir(parents=True, exist_ok=True)
+    atomic_json(STORE / f"{manifest['id']}.json", manifest, 0o644)
+    status()
+
+
+def set_enabled(identifier: str, enabled: bool) -> None:
+    if not valid_identifier(identifier):
+        raise SystemExit("Invalid extension id")
+    if not any(item["id"] == identifier for item in installed()):
+        raise SystemExit("Unknown extension")
+    value = state()
+    disabled = set(value["disabled"])
+    if enabled:
+        disabled.discard(identifier)
+    else:
+        disabled.add(identifier)
+    value["disabled"] = sorted(disabled)
+    atomic_json(STATE, value)
+    status()
+
+
+def remove(identifier: str) -> None:
+    if not valid_identifier(identifier):
+        raise SystemExit("Invalid extension id")
+    path = STORE / f"{identifier}.json"
+    if not path.exists():
+        raise SystemExit("Unknown extension")
+    path.unlink()
+    value = state()
+    value["disabled"] = [item for item in value["disabled"] if item != identifier]
+    atomic_json(STATE, value)
+    status()
+
+
+def launch(identifier: str) -> None:
+    if not valid_identifier(identifier):
+        raise SystemExit("Invalid extension id")
+    manifest = next((item for item in installed() if item["id"] == identifier), None)
+    if manifest is None or not manifest["enabled"]:
+        raise SystemExit("Extension is missing or disabled")
+    entry = manifest["entry"]
+    if entry["type"] == "surface":
+        command = [str(HOME / ".local/bin/nocturne-native"), entry["target"]]
+    elif entry["type"] == "url":
+        command = ["xdg-open", entry["target"]]
+    else:
+        if not desktop_entry_exists(entry["target"]):
+            raise SystemExit("Desktop entry is no longer installed")
+        command = ["gtk-launch", entry["target"][:-8]]
+    try:
+        subprocess.Popen(command, start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except OSError as exc:
+        raise SystemExit("Extension target could not be opened") from exc
+
+
+def main(argv: list[str]) -> int:
+    command = argv[1] if len(argv) > 1 else "status"
+    if command == "status":
+        status()
+    elif command == "install" and len(argv) == 3:
+        install(argv[2])
+    elif command in {"enable", "disable"} and len(argv) == 3:
+        set_enabled(argv[2], command == "enable")
+    elif command == "remove" and len(argv) == 3:
+        remove(argv[2])
+    elif command == "launch" and len(argv) == 3:
+        launch(argv[2])
+    else:
+        print("Usage: nocturne-extensions status|install MANIFEST.json|enable ID|disable ID|remove ID|launch ID", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

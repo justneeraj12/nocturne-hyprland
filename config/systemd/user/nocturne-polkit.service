@@ -5,7 +5,6 @@ PartOf=nocturne-session.target graphical-session.target
 
 [Service]
 Type=simple
-ExecStart=/usr/libexec/hyprpolkitagent
+ExecStart=%h/.local/bin/nocturne-polkit-agent
 Restart=on-failure
 RestartSec=2
-

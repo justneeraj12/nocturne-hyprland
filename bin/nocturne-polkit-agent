@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+for candidate in \
+  /usr/libexec/hyprpolkitagent \
+  /usr/lib/hyprpolkitagent/hyprpolkitagent \
+  /usr/lib/hyprpolkitagent; do
+  if [[ -x $candidate ]]; then
+    exec "$candidate" "$@"
+  fi
+done
+
+if command -v hyprpolkitagent >/dev/null 2>&1; then
+  exec hyprpolkitagent "$@"
+fi
+
+printf 'hyprpolkitagent is not installed.\n' >&2
+exit 127

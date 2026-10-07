@@ -273,3 +273,12 @@ hl.window_rule({ match = { class = "^(Chatgpt)$" }, no_blur = true, opacity = "1
 
 hl.layer_rule({ match = { namespace = "nocturne-bar" }, blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ match = { namespace = "mako" }, blur = true, ignore_alpha = 0.15 })
+
+-- Rules authored in Settings are isolated in a generated file. A malformed
+-- user rule cannot prevent the base desktop from starting.
+local user_window_rules = config_home .. "/nocturne/window-rules.lua"
+local user_window_rules_file = io.open(user_window_rules, "r")
+if user_window_rules_file then
+    user_window_rules_file:close()
+    pcall(dofile, user_window_rules)
+end

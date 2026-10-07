@@ -1,30 +1,44 @@
 name: Bug report
-description: Report reproducible Nocturne behavior
-title: "[bug] "
-labels: [bug]
+description: Report a reproducible Nocturne failure or regression.
+title: "bug: "
+labels: [bug, needs-triage]
 body:
   - type: markdown
     attributes:
-      value: Do not attach screenshots containing private applications, account names or tokens.
+      value: Thanks for helping make NOC reliable. Remove SSIDs, usernames, window titles and other personal information from logs or screenshots.
   - type: input
     id: version
     attributes:
-      label: Hyprland and Qt versions
-    validations:
-      required: true
-  - type: textarea
-    id: reproduce
+      label: Nocturne version or commit
+      placeholder: v1.3.0 or commit SHA
+    validations: {required: true}
+  - type: input
+    id: platform
     attributes:
-      label: Reproduction steps
-    validations:
-      required: true
+      label: Distribution, Hyprland and Qt versions
+      placeholder: Ubuntu 26.04, Hyprland 0.56.2, Qt 6.10
+    validations: {required: true}
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction
+      description: Give the shortest sequence that reproduces the problem.
+      placeholder: "1. Open…\n2. Click…\n3. Observe…"
+    validations: {required: true}
   - type: textarea
     id: expected
-    attributes:
-      label: Expected behavior
-    validations:
-      required: true
+    attributes: {label: Expected and actual behaviour}
+    validations: {required: true}
   - type: textarea
     id: diagnostics
     attributes:
-      label: Relevant nocturne-doctor output
+      label: Sanitized diagnostics
+      description: Paste relevant `nocturne-doctor` output or attach a `nocturne-support` archive after reviewing it.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed personal information and searched existing issues.
+          required: true

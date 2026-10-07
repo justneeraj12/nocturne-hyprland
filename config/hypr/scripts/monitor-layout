@@ -3,6 +3,32 @@ set -euo pipefail
 
 config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 layout_file="$config_home/nocturne/monitors.lua"
+profiles_dir="$config_home/nocturne/display-profiles"
+display_config="$config_home/nocturne/display-lab.json"
+mkdir -p -- "$profiles_dir"
+chmod 700 "$profiles_dir"
+
+ensure_display_config() {
+  local temporary
+  if jq -e '.format == "nocturne-display-lab-v1" and (.autoSwitch|type == "boolean") and (.lastProfile|type == "string")' "$display_config" >/dev/null 2>&1; then
+    chmod 600 "$display_config"
+    return
+  fi
+  temporary=$(mktemp "$config_home/nocturne/.display-lab.XXXXXX")
+  printf '%s\n' '{"format":"nocturne-display-lab-v1","autoSwitch":false,"lastProfile":""}' > "$temporary"
+  chmod 600 "$temporary"
+  mv -f -- "$temporary" "$display_config"
+}
+
+update_display_config() {
+  local filter=$1 value=$2 temporary
+  temporary=$(mktemp "$config_home/nocturne/.display-lab.XXXXXX")
+  jq --arg value "$value" "$filter" "$display_config" > "$temporary"
+  chmod 600 "$temporary"
+  mv -f -- "$temporary" "$display_config"
+}
+
+ensure_display_config
 
 monitors() { hyprctl -j monitors; }
 
@@ -38,6 +64,15 @@ apply_monitor() {
   hyprctl keyword monitor "$rule" >/dev/null
 }
 
+monitor_rule() {
+  local data=$1
+  jq -r '[.name,((.width|tostring)+"x"+(.height|tostring)+"@"+(.refreshRate|tostring)),((.x|tostring)+"x"+(.y|tostring)),(.scale|tostring),("transform,"+((.transform//0)|tostring))] | join(",")' <<<"$data"
+}
+
+connected_signature() {
+  monitors | jq -r '[.[] | .name + "|" + (.description // "")] | sort | join("::")' | sha256sum | cut -d' ' -f1
+}
+
 save_layout() {
   local temporary
   mkdir -p "$(dirname "$layout_file")"
@@ -51,6 +86,79 @@ save_layout() {
   printf 'hl.monitor({ output = "", mode = "preferred", position = "auto", scale = 1 })\n' >> "$temporary"
   mv -- "$temporary" "$layout_file"
   notify-send -a Nocturne 'Display layout saved' 'This arrangement will be restored at login.'
+}
+
+set_position() {
+  local output=$1 x=$2 y=$3 data rule
+  validate_output "$output"; [[ $x =~ ^-?[0-9]+$ && $y =~ ^-?[0-9]+$ ]] || exit 2
+  data=$(monitor_json "$output")
+  rule=$(jq -r --arg x "$x" --arg y "$y" '[.name,((.width|tostring)+"x"+(.height|tostring)+"@"+(.refreshRate|tostring)),($x+"x"+$y),(.scale|tostring),("transform,"+((.transform//0)|tostring))] | join(",")' <<<"$data")
+  hyprctl keyword monitor "$rule" >/dev/null
+}
+
+disable_output() {
+  local output=$1 count
+  validate_output "$output"; count=$(monitors | jq 'length'); ((count > 1)) || { printf 'The last active display cannot be disabled.\n' >&2; exit 3; }
+  hyprctl keyword monitor "$output,disable" >/dev/null
+}
+
+validate_profile_name() { [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$ ]] || { printf 'Profile names use letters, numbers, dot, dash or underscore.\n' >&2; exit 2; }; }
+
+save_profile() {
+  local name=$1 file temporary signature
+  validate_profile_name "$name"; file="$profiles_dir/$name.json"; temporary=$(mktemp "$profiles_dir/.profile.XXXXXX"); signature=$(connected_signature)
+  monitors | jq --arg format nocturne-display-profile-v1 --arg name "$name" --arg signature "$signature" --arg created "$(date --iso-8601=seconds)" \
+    '{format:$format,name:$name,signature:$signature,created:$created,monitors:[.[]|{name,width,height,refreshRate,x,y,scale,transform:(.transform//0),description:(.description//"")} ]}' > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$file"
+  update_display_config '.lastProfile=$value' "$name"
+  notify-send -a Nocturne 'Display profile saved' "$name matches this exact monitor set."
+}
+
+apply_profile() {
+  local name=$1 file data rule
+  validate_profile_name "$name"; file="$profiles_dir/$name.json"
+  [[ -f $file && ! -L $file ]] || exit 3
+  jq -e '.format == "nocturne-display-profile-v1" and (.monitors|type == "array")' "$file" >/dev/null 2>&1 || exit 3
+  while IFS= read -r data; do
+    validate_output "$(jq -r '.name' <<<"$data")"; rule=$(monitor_rule "$data"); hyprctl keyword monitor "$rule" >/dev/null
+  done < <(jq -c '.monitors[]' "$file")
+  update_display_config '.lastProfile=$value' "$name"
+}
+
+delete_profile() {
+  validate_profile_name "$1"; rm -f -- "$profiles_dir/$1.json"
+}
+
+profiles_json() {
+  local first=true file
+  printf '['
+  for file in "$profiles_dir"/*.json; do
+    [[ -f $file && ! -L $file ]] || continue
+    if [[ $first == true ]]; then first=false; else printf ','; fi
+    jq -c '{name,signature,created,outputs:(.monitors|length),matches:false}' "$file"
+  done
+  printf ']\n'
+}
+
+lab_status() {
+  local live signature profile_list
+  live=$(monitors); signature=$(connected_signature); profile_list=$(profiles_json)
+  jq -cn --argjson monitors "$live" --argjson profiles "$profile_list" --argjson config "$(cat "$display_config")" --arg signature "$signature" \
+    '{format:"nocturne-display-lab-v1",monitors:$monitors,profiles:[$profiles[]|.matches=(.signature==$signature)],autoSwitch:$config.autoSwitch,lastProfile:$config.lastProfile,signature:$signature,hdr:{experimental:true,managed:false}}'
+}
+
+set_auto() {
+  [[ ${1:-} =~ ^(true|false)$ ]] || exit 2
+  update_display_config '.autoSwitch=($value == "true")' "$1"
+  "$config_home/hypr/scripts/context-timer-state" sync
+}
+
+evaluate_profile() {
+  [[ $(jq -r '.autoSwitch' "$display_config") == true ]] || exit 0
+  local signature match
+  signature=$(connected_signature)
+  match=$(for file in "$profiles_dir"/*.json; do [[ -f $file && ! -L $file ]] && jq -r --arg signature "$signature" 'select(.signature==$signature)|.name' "$file"; done | head -1)
+  [[ -n $match ]] && apply_profile "$match"
 }
 
 extend_layout() {
@@ -89,12 +197,20 @@ set_mode() {
 
 case ${1:-status} in
   status) monitors ;;
+  lab-status) lab_status ;;
   scale) apply_monitor "${2:?output required}" "${3:?scale required}" ;;
   rotate) apply_monitor "${2:?output required}" '' "${3:?rotation required}" ;;
+  position) set_position "${2:?output required}" "${3:?x required}" "${4:?y required}" ;;
+  disable) disable_output "${2:?output required}" ;;
   extend) extend_layout ;;
   mirror) mirror_layout ;;
   mode) set_mode "${2:?output required}" "${3:?mode required}" ;;
   vrr) [[ ${2:-} =~ ^[0-2]$ ]] || exit 2; hyprctl keyword misc:vrr "$2" >/dev/null ;;
   save) save_layout ;;
-  *) printf 'Usage: %s status|scale OUTPUT SCALE|rotate OUTPUT 0..3|mode OUTPUT MODE|vrr 0..2|extend|mirror|save\n' "$0" >&2; exit 2 ;;
+  profile-save) save_profile "${2:?name required}" ;;
+  profile-apply) apply_profile "${2:?name required}" ;;
+  profile-delete) delete_profile "${2:?name required}" ;;
+  auto) set_auto "${2:-}" ;;
+  evaluate) evaluate_profile ;;
+  *) printf 'Usage: %s status|lab-status|scale OUTPUT SCALE|rotate OUTPUT 0..3|position OUTPUT X Y|disable OUTPUT|mode OUTPUT MODE|vrr 0..2|extend|mirror|save|profile-save NAME|profile-apply NAME|profile-delete NAME|auto true|false|evaluate\n' "$0" >&2; exit 2 ;;
 esac

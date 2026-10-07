@@ -8,6 +8,7 @@ backups/
 .DS_Store
 __pycache__/
 build/
+dist/
 .cache/
 .local-state/
 

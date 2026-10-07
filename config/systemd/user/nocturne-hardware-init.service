@@ -6,4 +6,4 @@ PartOf=nocturne-session.target graphical-session.target
 [Service]
 Type=oneshot
 ExecStart=%h/.config/hypr/scripts/hardware-control touchpad init
-
+ExecStart=%h/.config/hypr/scripts/power-lab startup

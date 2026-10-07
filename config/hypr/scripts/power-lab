@@ -5,14 +5,50 @@ config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
 state_home=${XDG_STATE_HOME:-"$HOME/.local/state"}/nocturne
 config_file="$config_home/nocturne/power-lab.json"
 state_file="$state_home/power-lab.state"
+refresh_state="$state_home/power-refresh.json"
 mkdir -p -- "$config_home/nocturne" "$state_home"
-[[ -s $config_file ]] || printf '%s\n' '{"format":"nocturne-power-lab-v1","adaptiveSaver":false,"lowBattery":20}' > "$config_file"
+
+ensure_config() {
+  local temporary
+  if [[ ! -s $config_file ]]; then
+    printf '%s\n' '{"format":"nocturne-power-lab-v2","adaptiveSaver":false,"lowBattery":20,"brightnessStep":5,"brightnessFloor":5,"lowerRefreshOnBattery":false,"batteryRefresh":60,"bluetoothStartup":"remember","lastBluetoothPowered":true}' > "$config_file"
+    chmod 600 "$config_file"
+    return
+  fi
+  if ! jq -e '. as $config
+      | .format == "nocturne-power-lab-v2"
+      and (.adaptiveSaver|type == "boolean")
+      and ([15,20,25,30,40,50] | index($config.lowBattery) != null)
+      and ([1,2,5,10] | index($config.brightnessStep) != null)
+      and ([1,2,5,10,15,20] | index($config.brightnessFloor) != null)
+      and (.lowerRefreshOnBattery|type == "boolean")
+      and ([40,48,50,60,75,90] | index($config.batteryRefresh) != null)
+      and (.bluetoothStartup == "remember" or .bluetoothStartup == "on" or .bluetoothStartup == "off")
+      and (.lastBluetoothPowered|type == "boolean")' "$config_file" >/dev/null 2>&1; then
+    temporary=$(mktemp "$config_home/nocturne/.power-lab.XXXXXX")
+    if ! jq '.format="nocturne-power-lab-v2"
+      | .adaptiveSaver=(if (.adaptiveSaver|type) == "boolean" then .adaptiveSaver else false end)
+      | .lowBattery=(if [.lowBattery] | inside([15,20,25,30,40,50]) then .lowBattery else 20 end)
+      | .brightnessStep=(if [.brightnessStep] | inside([1,2,5,10]) then .brightnessStep else 5 end)
+      | .brightnessFloor=(if [.brightnessFloor] | inside([1,2,5,10,15,20]) then .brightnessFloor else 5 end)
+      | .lowerRefreshOnBattery=(if (.lowerRefreshOnBattery|type) == "boolean" then .lowerRefreshOnBattery else false end)
+      | .batteryRefresh=(if [.batteryRefresh] | inside([40,48,50,60,75,90]) then .batteryRefresh else 60 end)
+      | .bluetoothStartup=(if [.bluetoothStartup] | inside(["remember","on","off"]) then .bluetoothStartup else "remember" end)
+      | .lastBluetoothPowered=(if (.lastBluetoothPowered|type) == "boolean" then .lastBluetoothPowered else true end)' "$config_file" > "$temporary" 2>/dev/null; then
+      printf '%s\n' '{"format":"nocturne-power-lab-v2","adaptiveSaver":false,"lowBattery":20,"brightnessStep":5,"brightnessFloor":5,"lowerRefreshOnBattery":false,"batteryRefresh":60,"bluetoothStartup":"remember","lastBluetoothPowered":true}' > "$temporary"
+    fi
+    chmod 600 "$temporary"; mv -f -- "$temporary" "$config_file"
+  else
+    chmod 600 "$config_file"
+  fi
+}
+ensure_config
 
 battery_path() { find /sys/class/power_supply -maxdepth 1 -type l -name 'BAT*' -print -quit; }
 threshold_path() { local battery; battery=$(battery_path); [[ -n $battery ]] && find "$battery" -maxdepth 1 -type f \( -name charge_control_end_threshold -o -name charge_stop_threshold \) -print -quit; }
 
 status() {
-  local battery threshold_file threshold=-1 capacity=-1 cycles=-1 status=unknown health=-1 modes='' current='' adaptive low
+  local battery threshold_file threshold=-1 capacity=-1 cycles=-1 status=unknown health=-1 modes='' current='' adaptive low brightness_step brightness_floor lower_refresh battery_refresh bluetooth_policy bluetooth_powered=false on_ac=false
   battery=$(battery_path || true); threshold_file=$(threshold_path || true)
   if [[ -n $battery ]]; then
     [[ -r $battery/capacity ]] && capacity=$(<$battery/capacity); [[ -r $battery/status ]] && status=$(<$battery/status)
@@ -23,14 +59,25 @@ status() {
   [[ -n $threshold_file && -r $threshold_file ]] && threshold=$(<$threshold_file)
   if [[ -r /sys/power/mem_sleep ]]; then modes=$(</sys/power/mem_sleep); current=$(grep -o '\[[^]]*\]' /sys/power/mem_sleep | tr -d '[]'); fi
   adaptive=$(jq -r '.adaptiveSaver' "$config_file"); low=$(jq -r '.lowBattery' "$config_file")
+  brightness_step=$(jq -r '.brightnessStep' "$config_file"); brightness_floor=$(jq -r '.brightnessFloor' "$config_file")
+  lower_refresh=$(jq -r '.lowerRefreshOnBattery' "$config_file"); battery_refresh=$(jq -r '.batteryRefresh' "$config_file")
+  bluetooth_policy=$(jq -r '.bluetoothStartup' "$config_file")
+  bluetoothctl show 2>/dev/null | grep -q 'Powered: yes' && bluetooth_powered=true
+  [[ $status != Discharging ]] && on_ac=true
   jq -cn --argjson capacity "$capacity" --arg status "$status" --argjson health "$health" --argjson cycles "$cycles" --argjson threshold "$threshold" \
     --arg thresholdPath "$threshold_file" --arg modes "$modes" --arg current "$current" --argjson adaptive "$adaptive" --argjson low "$low" \
-    '{format:"nocturne-power-lab-v1",battery:{capacity:$capacity,status:$status,health:$health,cycles:$cycles},charge:{supported:($thresholdPath!=""),threshold:$threshold},sleep:{modes:$modes,current:$current,deepAvailable:($modes|contains("deep"))},adaptiveSaver:$adaptive,lowBattery:$low}'
+    --argjson brightnessStep "$brightness_step" --argjson brightnessFloor "$brightness_floor" --argjson lowerRefresh "$lower_refresh" --argjson batteryRefresh "$battery_refresh" \
+    --arg bluetoothPolicy "$bluetooth_policy" --argjson bluetoothPowered "$bluetooth_powered" --argjson onAc "$on_ac" \
+    '{format:"nocturne-power-lab-v2",battery:{capacity:$capacity,status:$status,health:$health,cycles:$cycles,onAc:$onAc},charge:{supported:($thresholdPath!=""),threshold:$threshold},sleep:{modes:$modes,current:$current,deepAvailable:($modes|contains("deep"))},adaptiveSaver:$adaptive,lowBattery:$low,brightness:{step:$brightnessStep,floor:$brightnessFloor},refresh:{lowerOnBattery:$lowerRefresh,target:$batteryRefresh,limited:($lowerRefresh and ($onAc|not))},bluetooth:{startup:$bluetoothPolicy,powered:$bluetoothPowered}}'
 }
 
 set_threshold() {
   local value=${1:-} path; [[ $value =~ ^(60|70|80|90|100)$ ]] || exit 2; path=$(threshold_path); [[ -n $path ]] || exit 3
-  pkexec sh -c "printf '%s\\n' '$value' > '$path'"
+  printf '%s\n' "$value" | pkexec tee "$path" >/dev/null
+}
+
+update_timer_state() {
+  "$config_home/hypr/scripts/context-timer-state" sync
 }
 
 configure() {
@@ -38,18 +85,69 @@ configure() {
   case $key in
     adaptiveSaver) [[ $value =~ ^(true|false)$ ]] || exit 2; jq --argjson v "$value" '.adaptiveSaver=$v' "$config_file" > "$temp" ;;
     lowBattery) [[ $value =~ ^([1-4][0-9]|50)$ ]] || exit 2; jq --argjson v "$value" '.lowBattery=$v' "$config_file" > "$temp" ;;
-    *) rm -f "$temp"; exit 2 ;;
+    brightnessStep) [[ $value =~ ^(1|2|5|10)$ ]] || exit 2; jq --argjson v "$value" '.brightnessStep=$v' "$config_file" > "$temp" ;;
+    brightnessFloor) [[ $value =~ ^(1|2|5|10|15|20)$ ]] || exit 2; jq --argjson v "$value" '.brightnessFloor=$v' "$config_file" > "$temp" ;;
+    lowerRefreshOnBattery) [[ $value =~ ^(true|false)$ ]] || exit 2; jq --argjson v "$value" '.lowerRefreshOnBattery=$v' "$config_file" > "$temp" ;;
+    batteryRefresh) [[ $value =~ ^(40|48|50|60|75|90)$ ]] || exit 2; jq --argjson v "$value" '.batteryRefresh=$v' "$config_file" > "$temp" ;;
+    bluetoothStartup) [[ $value =~ ^(remember|on|off)$ ]] || exit 2; jq --arg v "$value" '.bluetoothStartup=$v' "$config_file" > "$temp" ;;
+    *) rm -f -- "$temp"; exit 2 ;;
   esac
   chmod 600 "$temp"; mv -f -- "$temp" "$config_file"
-  if [[ $key == adaptiveSaver && $value == true ]]; then systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
-  elif [[ $key == adaptiveSaver && $value == false ]] \
-    && [[ $(jq -r '.enabled' "$config_home/nocturne/context.json" 2>/dev/null || printf false) != true ]] \
-    && [[ $(jq -r '.enabled' "$config_home/nocturne/rules.json" 2>/dev/null || printf false) != true ]]; then
-    systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+  update_timer_state
+}
+
+remember_bluetooth() {
+  [[ $(jq -r '.bluetoothStartup' "$config_file") == remember ]] || return 0
+  local powered=false current temporary
+  bluetoothctl show 2>/dev/null | grep -q 'Powered: yes' && powered=true
+  current=$(jq -r '.lastBluetoothPowered' "$config_file")
+  [[ $current == "$powered" ]] && return 0
+  temporary=$(mktemp "$config_home/nocturne/.power-lab.XXXXXX")
+  jq --argjson value "$powered" '.lastBluetoothPowered=$value' "$config_file" > "$temporary"
+  chmod 600 "$temporary"; mv -f -- "$temporary" "$config_file"
+}
+
+bluetooth_startup() {
+  local policy desired
+  policy=$(jq -r '.bluetoothStartup' "$config_file")
+  case $policy in
+    on) desired=on ;;
+    off) desired=off ;;
+    remember) if [[ $(jq -r '.lastBluetoothPowered' "$config_file") == true ]]; then desired=on; else desired=off; fi ;;
+  esac
+  bluetoothctl power "$desired" >/dev/null 2>&1 || true
+}
+
+apply_refresh_policy() {
+  command -v hyprctl >/dev/null 2>&1 || return 0
+  local status lower target current monitor name mode
+  status=$(battery_path || true); [[ -n $status && -r $status/status ]] || return 0
+  lower=$(jq -r '.lowerRefreshOnBattery' "$config_file"); target=$(jq -r '.batteryRefresh' "$config_file")
+  if [[ $lower == true && $(<"$status/status") == Discharging ]]; then
+    if [[ ! -s $refresh_state ]]; then
+      local refresh_temporary
+      refresh_temporary=$(mktemp "$state_home/.power-refresh.XXXXXX")
+      if ! hyprctl monitors -j 2>/dev/null | jq '{monitors:[.[] | . as $monitor | {name,mode:(([(.availableModes // [])[] | . as $mode | try (capture("^(?<width>[0-9]+)x(?<height>[0-9]+)@(?<hz>[0-9.]+)Hz?$") | select((.width|tonumber) == $monitor.width and (.height|tonumber) == $monitor.height and (((.hz|tonumber) - $monitor.refreshRate) | fabs) < 0.2) | $mode)] | first) // (($monitor.width|tostring)+"x"+($monitor.height|tostring)+"@"+($monitor.refreshRate|tostring)))}]}' > "$refresh_temporary"; then
+        rm -f -- "$refresh_temporary"
+        return 0
+      fi
+      chmod 600 "$refresh_temporary"; mv -f -- "$refresh_temporary" "$refresh_state"
+    fi
+    while IFS=$'\t' read -r name mode; do
+      [[ -n $name && -n $mode ]] || continue
+      "$config_home/hypr/scripts/monitor-layout" mode "$name" "$mode" >/dev/null 2>&1 || true
+    done < <(hyprctl monitors -j 2>/dev/null | jq -r --argjson target "$target" '.[] | . as $m | [(.availableModes // [])[] | select((capture("@(?<hz>[0-9.]+)Hz?$").hz|tonumber) <= $target) | {mode:.,hz:(capture("@(?<hz>[0-9.]+)Hz?$").hz|tonumber)}] | sort_by(.hz) | last | select(.) | [$m.name,.mode] | @tsv')
+  elif [[ -s $refresh_state ]]; then
+    while IFS=$'\t' read -r name mode; do
+      "$config_home/hypr/scripts/monitor-layout" mode "$name" "$mode" >/dev/null 2>&1 || true
+    done < <(jq -r '.monitors[] | [.name,.mode] | @tsv' "$refresh_state")
+    rm -f -- "$refresh_state"
   fi
 }
 
 evaluate() {
+  remember_bluetooth
+  apply_refresh_policy
   [[ $(jq -r '.adaptiveSaver' "$config_file") == true ]] || exit 0
   local battery capacity state low profile; battery=$(battery_path || true); [[ -n $battery && -r $battery/capacity && -r $battery/status ]] || exit 0
   capacity=$(<$battery/capacity); state=$(<$battery/status); low=$(jq -r '.lowBattery' "$config_file"); profile=$(powerprofilesctl get 2>/dev/null || printf balanced)
@@ -66,5 +164,6 @@ case ${1:-status} in
   threshold) set_threshold "${2:-}" ;;
   configure) configure "${2:-}" "${3:-}" ;;
   evaluate) evaluate ;;
-  *) printf 'Usage: %s status|threshold 60|70|80|90|100|configure adaptiveSaver true|false|configure lowBattery N|evaluate\n' "$0" >&2; exit 2 ;;
+  startup) bluetooth_startup; evaluate ;;
+  *) printf 'Usage: %s status|threshold 60|70|80|90|100|configure KEY VALUE|evaluate|startup\n' "$0" >&2; exit 2 ;;
 esac

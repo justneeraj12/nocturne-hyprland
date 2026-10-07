@@ -7,7 +7,7 @@ DATA_HOME=${XDG_DATA_HOME:-"$HOME/.local/share"}
 STATE_HOME=${XDG_STATE_HOME:-"$HOME/.local/state"}
 BIN_HOME="$HOME/.local/bin"
 
-required=(Hyprland hyprlock hyprland-dialog hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot dolphin cmake ninja xdg-mime lspci glxinfo convert upower)
+required=(Hyprland hyprctl start-hyprland uwsm hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy notify-send jq flatpak nmcli bluetoothctl wpctl pactl pw-dump powerprofilesctl fwupdmgr gamemoded socat grim slurp hyprshot dolphin cmake ninja xdg-mime lspci glxinfo convert upower)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
@@ -16,8 +16,13 @@ if ((${#missing[@]})); then
   printf 'Missing Hyprland components: %s\n' "${missing[*]}" >&2
   exit 1
 fi
-[[ -d /usr/lib/x86_64-linux-gnu/qt6/qml/org/kde/layershell || -d /usr/lib/aarch64-linux-gnu/qt6/qml/org/kde/layershell ]] || {
-  printf 'Missing Qt 6 Layer Shell QML support (qml6-module-org-kde-layershell).\n' >&2
+hyprland_version=$(Hyprland --version 2>/dev/null | sed -nE 's/^Hyprland ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' | head -1)
+if [[ -z $hyprland_version || $(printf '%s\n%s\n' 0.56.0 "$hyprland_version" | sort -V | head -1) != 0.56.0 ]]; then
+  printf 'Nocturne requires Hyprland 0.56.0 or newer; found %s.\n' "${hyprland_version:-unknown}" >&2
+  exit 1
+fi
+find /usr/lib /usr/lib64 -path '*/qt6/qml/org/kde/layershell/qmldir' -print -quit 2>/dev/null | grep -q . || {
+  printf 'Missing Qt 6 Layer Shell QML support (LayerShellQt).\n' >&2
   exit 1
 }
 find /usr/lib /usr/lib64 -path '*/qt6/plugins/platformthemes/KDEPlasmaPlatformTheme6.so' -print -quit 2>/dev/null | grep -q . || {
@@ -79,7 +84,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -154,6 +159,14 @@ cp -a -- "$ROOT_DIR/config/qt6ct/." "$CONFIG_HOME/qt6ct/"
 sed "s|@CONFIG_HOME@|$CONFIG_HOME|g" "$ROOT_DIR/config/qt6ct/qt6ct.conf" \
   > "$CONFIG_HOME/qt6ct/qt6ct.conf"
 install -m 0644 "$ROOT_DIR/config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
+install -m 0644 "$ROOT_DIR/config/zsh/nocturne.zsh" "$CONFIG_HOME/nocturne/zsh.zsh"
+if command -v zsh >/dev/null 2>&1 && ! grep -Fq '# >>> Nocturne desktop >>>' "$HOME/.zshrc" 2>/dev/null; then
+  {
+    printf '\n%s\n' '# >>> Nocturne desktop >>>'
+    printf '%s\n' '[[ ! -f ${XDG_CONFIG_HOME:-$HOME/.config}/nocturne/zsh.zsh ]] || source ${XDG_CONFIG_HOME:-$HOME/.config}/nocturne/zsh.zsh'
+    printf '%s\n' '# <<< Nocturne desktop <<<'
+  } >> "$HOME/.zshrc"
+fi
 install -m 0644 "$ROOT_DIR/config/btop/btop.conf" "$CONFIG_HOME/btop/btop.conf"
 install -m 0644 "$ROOT_DIR/config/btop/nocturne.theme" "$CONFIG_HOME/btop/themes/nocturne.theme"
 install -m 0644 "$ROOT_DIR/config/tmux/tmux.conf" "$CONFIG_HOME/tmux/tmux.conf"
@@ -173,7 +186,7 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
-for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-security-update.service nocturne-security-update.timer nocturne-security-scan.service nocturne-security-scan.timer nocturne-agenda-refresh.service nocturne-agenda-refresh.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
   install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
 done
 rm -f -- "$CONFIG_HOME/systemd/user/nocturne-notifications.service"
@@ -199,6 +212,7 @@ if [[ ! -e "$CONFIG_HOME/nocturne/bar.json" ]]; then
 fi
 install -m 0644 "$ROOT_DIR/config/nocturne/bar.json" "$CONFIG_HOME/nocturne/bar.default.json"
 install -m 0644 "$ROOT_DIR/config/nocturne/performance-budget.json" "$CONFIG_HOME/nocturne/performance-budget.json"
+install -m 0644 "$ROOT_DIR/config/nocturne/edition.json" "$CONFIG_HOME/nocturne/edition.json"
 if [[ ! -e "$CONFIG_HOME/nocturne/game-mode.conf" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/game-mode.conf" "$CONFIG_HOME/nocturne/game-mode.conf"
 fi
@@ -233,12 +247,19 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wal
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
 install -m 0755 "$ROOT_DIR/bin/nocturne-benchmark" "$BIN_HOME/nocturne-benchmark"
 install -m 0755 "$ROOT_DIR/bin/nocturne-banner" "$BIN_HOME/nocturne-banner"
+install -m 0755 "$ROOT_DIR/bin/nocturne-continuity" "$BIN_HOME/nocturne-continuity"
 install -m 0755 "$ROOT_DIR/bin/nocturne-support" "$BIN_HOME/nocturne-support"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
 install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
+install -m 0755 "$ROOT_DIR/bin/nocturne-update-guard" "$BIN_HOME/nocturne-update-guard"
 install -m 0755 "$ROOT_DIR/bin/nocturne-migrate" "$BIN_HOME/nocturne-migrate"
 install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-files" "$BIN_HOME/nocturne-files"
+install -m 0755 "$ROOT_DIR/bin/nocturne-platform" "$BIN_HOME/nocturne-platform"
+install -m 0755 "$ROOT_DIR/bin/nocturne-polkit-agent" "$BIN_HOME/nocturne-polkit-agent"
+install -m 0755 "$ROOT_DIR/bin/nocturne-agenda" "$BIN_HOME/nocturne-agenda"
+install -m 0755 "$ROOT_DIR/bin/nocturne-window-rules" "$BIN_HOME/nocturne-window-rules"
+install -m 0755 "$ROOT_DIR/bin/nocturne-extensions" "$BIN_HOME/nocturne-extensions"
 install -m 0755 "$ROOT_DIR/bin/nocturne-steam" "$BIN_HOME/steam"
 if [[ -f /usr/share/applications/brave-browser.desktop ]]; then
   sed -e "s|/usr/bin/brave-browser-stable|$BIN_HOME/nocturne-browser|g" \
@@ -396,7 +417,11 @@ fi
 # indexer is deliberately disabled: previews are generated on demand and the
 # app consumes no resources after its last window closes.
 xdg-mime default org.kde.dolphin.desktop inode/directory
-xdg-mime default qpdfview.desktop application/pdf
+if command -v qpdfview >/dev/null 2>&1; then
+  xdg-mime default qpdfview.desktop application/pdf
+elif command -v okular >/dev/null 2>&1; then
+  xdg-mime default org.kde.okular.desktop application/pdf
+fi
 if [[ -f /usr/share/applications/vlc.desktop ]]; then
   for mime in video/mp4 video/x-matroska video/webm audio/mpeg audio/flac; do xdg-mime default vlc.desktop "$mime"; done
 fi
@@ -439,10 +464,11 @@ systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || tr
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-game-session.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-notification-rules.timer >/dev/null 2>&1 || true
-if jq -e '.enabled == true' "$CONFIG_HOME/nocturne/context.json" >/dev/null 2>&1; then
-  systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+"$CONFIG_HOME/hypr/scripts/context-timer-state" sync
+if jq -e '(.sources // []) | any(if has("enabled") then .enabled else true end)' "$CONFIG_HOME/nocturne/agenda.json" >/dev/null 2>&1; then
+  systemctl --user enable --now nocturne-agenda-refresh.timer >/dev/null 2>&1 || true
 else
-  systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+  systemctl --user disable --now nocturne-agenda-refresh.timer >/dev/null 2>&1 || true
 fi
 systemctl --user disable nocturne-session-health.service >/dev/null 2>&1 || true
 systemctl --user enable nocturne-session-health.timer >/dev/null 2>&1 || true

@@ -15,6 +15,7 @@
   <img src="https://img.shields.io/badge/release-1.3.0-cb8d62?style=flat-square" alt="Nocturne 1.3.0">
   <img src="https://img.shields.io/badge/Hyprland-0.56%2B-6d9578?style=flat-square" alt="Hyprland 0.56 or newer">
   <img src="https://img.shields.io/badge/Ubuntu-26.04-cb8d62?style=flat-square" alt="Tested on Ubuntu 26.04">
+  <img src="https://img.shields.io/badge/Arch-CI%20validated-6d9578?style=flat-square" alt="CI validated on Arch Linux">
 </p>
 
 **NOC**—the **Nocturne Operations Console**—turns a working Hyprland
@@ -28,9 +29,23 @@ It is designed for people who want a dark, compact rice and still expect
 brightness keys, Bluetooth audio, per-app volume, notifications, clipboard
 history, power modes, screenshots and screen recording to behave normally.
 
-> **Reference platform:** Ubuntu 26.04, Hyprland 0.56.2 and Qt 6.10. The source
-> requires Hyprland 0.56+ and Qt 6.6+. Other distributions are welcome, but the
-> packaged dependency installer currently targets Ubuntu.
+> **Supported platforms:** Ubuntu 26.04 is hardware-tested; current Arch Linux
+> is package-resolved and native-build tested in clean CI. Both require
+> Hyprland 0.56+ and Qt 6.6+.
+
+> **NOC 2.0 is in development.** The next generation turns this shell into an
+> installable desktop platform with encrypted multi-device continuity, packages,
+> transactional updates and a public hardware matrix. Follow the
+> [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
+> Community testers can start with the [Alpha 2 notes](docs/RELEASE-2.0-ALPHA2.md).
+
+<p align="center">
+  <a href="docs/media/noc-2-community-labs.mp4">
+    <img src="docs/screenshots/noc-2-showcase-reel.webp" alt="Watch the NOC 2.0 Community Labs showcase reel" width="100%">
+  </a>
+  <br>
+  <sub>Click the frame for the 25-second NOC 2.0 showcase reel.</sub>
+</p>
 
 ## Current release // 1.3.0
 
@@ -66,6 +81,9 @@ personal file names.
 | **NOC Operations Deck** | One zero-idle native surface scores node health and exposes live resources, thermals, link, power and control-plane status only while open. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
+| **Update Guard** | System upgrades can checkpoint the working desktop first, record the exact platform state and verify Hyprland, NOC and portal health afterward. |
+| **Layered Security Hub** | AppArmor, firewall, Secure Boot, encryption, updates, package integrity and on-demand malware scanning share one zero-resident control surface. |
+| **Community-demand workflow** | Connected calendars, visual window rules, onboarding, safe extensions, laptop policies and dock-aware display profiles live in the same control plane. |
 | **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Nocturne Trace tells you why, shows what changed and preserves a direct reversal path. |
 | **Local workflow memory** | Desk, Habits and Vault connect tasks, notes, focus blocks, weekly pacing and reusable snippets through private files with no account, cloud dependency or resident workflow daemon. |
 | **Deterministic operator input** | Command Center recognizes a small documented control language, previews the exact action and never passes user text to a shell. |
@@ -110,6 +128,12 @@ The shell includes:
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
 - calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
+- a private read-only Connected Agenda for local, Google, Outlook, iCloud, Nextcloud and other ICS feeds;
+- Window Rules Studio with open-app discovery, escaped exact matches and isolated generated Lua;
+- first-run hardware onboarding with a reversible seven-step readiness checklist;
+- a declarative extension contract that blocks arbitrary shell, QML and native payloads;
+- Laptop Intelligence for brightness behaviour, charge thresholds, Bluetooth startup and reversible battery refresh limits;
+- Display Lab with live geometry, scaling, rotation and monitor-set profiles for docks;
 - Hyprshot screenshots and Kooha screen recording;
 - compact native screen/window sharing for Meet, Discord and browsers through the Hyprland portal;
 - reliable background-app controls with native DBusMenu actions on ordinary left-click;
@@ -117,7 +141,9 @@ The shell includes:
 - scheduled Night Shift, live display scaling/rotation/mirroring and saved layouts;
 - fail-closed NVIDIA PRIME offload for Steam and every game it launches;
 - automatic gaming sessions that apply performance, caffeine and focus, then restore the exact prior state;
-- apt, Flatpak, firmware and failed-service status in one maintenance card;
+- distro packages, Flatpak, firmware and failed-service status in one maintenance card;
+- a guarded system-upgrade workflow with preflight checkpoint, critical-version manifest, post-upgrade verification and local history;
+- a lightweight Security Hub with official ClamAV signatures, opt-in heuristic scans, platform protection status and zero-resident scheduled jobs;
 - bounded Storage Center cleanup and on-demand duplicate discovery;
 - reversible Meeting Mode, portal/permission ownership, NOC Guard and NOC Pulse;
 - a safe trigger/action Automation Builder that shares the existing context timer;
@@ -152,6 +178,15 @@ More images are in the [showcase](docs/SHOWCASE.md).
 </details>
 
 ![Nocturne lock screen](docs/screenshots/lockscreen.webp)
+
+<details>
+<summary><strong>Compare all ten lock-screen compositions</strong></summary>
+
+![Nocturne lock-screen design gallery](docs/screenshots/lockscreen-gallery.webp)
+
+Full-resolution frames are in the [showcase](docs/SHOWCASE.md#lock-screen).
+
+</details>
 
 ## Install
 
@@ -260,6 +295,10 @@ nocturne-benchmark --summary
 
 # privacy-limited archive for a bug report
 nocturne-support
+
+# protect and verify a manual package upgrade
+nocturne-update-guard prepare
+nocturne-update-guard verify
 ```
 
 The local validator performs a clean Qt build and verifies the live Hyprland
@@ -274,10 +313,20 @@ applications keep their own toolkit and license.
 - [NOC identity](branding/README.md)
 - [Customization](docs/CUSTOMIZATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
+- [NOC 2.0 architecture](docs/NOC-2.0.md)
+- [2026 community demand scan](docs/COMMUNITY-DEMAND-2026.md)
+- [Security Hub design](docs/SECURITY-HUB.md)
+- [Declarative extension contract](docs/EXTENSIONS.md)
+- [Community-demand feature architecture](docs/COMMUNITY-FEATURES.md)
+- [Roadmap](ROADMAP.md)
+- [Community](docs/COMMUNITY.md)
+- [Support matrix](docs/SUPPORT-MATRIX.md)
+- [Privacy](PRIVACY.md)
 - [Camera quality and latency](docs/CAMERA.md)
 - [Nocturne 0.7 — fifty upgrades](docs/RELEASE-0.7.md)
 - [Nocturne 1.1 — fifty system upgrades](docs/RELEASE-1.1.md)
 - [Nocturne 1.3 — signal identity](docs/RELEASE-1.3.md)
+- [NOC 2.0 Alpha 1 — foundation](docs/RELEASE-2.0-ALPHA1.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Launch and community plan](docs/LAUNCH.md)
 - [Experimental NØX local agent](agent/README.md) — optional and not installed by default

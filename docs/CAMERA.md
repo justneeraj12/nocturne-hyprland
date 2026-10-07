@@ -10,10 +10,13 @@ final format and frame rate.
 
 ## Enable hardware profiles
 
-Ubuntu needs the standard control utility once:
+Install the standard control utility once:
 
 ```bash
 sudo apt install v4l-utils
+
+# Arch Linux
+sudo pacman -S v4l-utils
 ```
 
 Then open **Settings → Sound & displays → Camera quality**. Profiles modify

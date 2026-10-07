@@ -1,39 +1,24 @@
-name: Feature request
-description: Propose a focused improvement to the Nocturne workflow
-title: "[feature] "
-labels: [enhancement]
+name: Feature proposal
+description: Propose a focused workflow or platform improvement.
+title: "proposal: "
+labels: [enhancement, needs-discussion]
 body:
-  - type: markdown
-    attributes:
-      value: Explain the user workflow first. Prefer standard Linux backends and replaceable components over a new private service.
   - type: textarea
     id: problem
-    attributes:
-      label: Problem
-      description: What is difficult or missing today?
-    validations:
-      required: true
+    attributes: {label: Problem, description: Explain the workflow problem before describing the UI., placeholder: "When I… I cannot…"}
+    validations: {required: true}
   - type: textarea
     id: proposal
-    attributes:
-      label: Proposed workflow
-      description: Describe what opens, what stays visible, how it closes and which system service owns the state.
-    validations:
-      required: true
+    attributes: {label: Proposed behaviour}
+    validations: {required: true}
   - type: textarea
     id: alternatives
+    attributes: {label: Existing Linux tools or alternatives considered}
+  - type: checkboxes
+    id: principles
     attributes:
-      label: Existing tools considered
-      description: Is there a maintained Wayland utility Nocturne can integrate instead of rebuilding it?
-  - type: dropdown
-    id: scope
-    attributes:
-      label: Scope
+      label: NOC principles
       options:
-        - Native shell
-        - Hyprland workflow
-        - Hardware integration
-        - Installer or recovery
-        - Documentation
-    validations:
-      required: true
+        - label: The feature can remain zero-idle or event-driven.
+        - label: It reuses an authoritative Linux service where possible.
+        - label: It has a safe rollback or failure path.

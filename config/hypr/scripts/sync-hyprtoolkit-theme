@@ -40,3 +40,7 @@ printf '%s\n' \
   "rounding_large = 0" \
   "rounding_small = 0" > "$tmp"
 mv "$tmp" "$output"
+
+if [[ -x $config_home/hypr/scripts/sync-terminal-theme ]]; then
+  "$config_home/hypr/scripts/sync-terminal-theme"
+fi

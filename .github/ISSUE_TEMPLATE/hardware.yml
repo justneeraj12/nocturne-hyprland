@@ -1,0 +1,38 @@
+name: Hardware compatibility report
+description: Help expand the tested device and GPU matrix.
+title: "hardware: "
+labels: [hardware, compatibility]
+body:
+  - type: input
+    id: model
+    attributes: {label: Device model, placeholder: Framework Laptop 13 or custom desktop}
+    validations: {required: true}
+  - type: dropdown
+    id: gpu
+    attributes:
+      label: Graphics
+      options: [Intel, AMD, NVIDIA, Hybrid Intel/NVIDIA, Hybrid AMD/NVIDIA, Other]
+    validations: {required: true}
+  - type: input
+    id: monitors
+    attributes: {label: Displays, placeholder: "1920×1080 internal + 2560×1440 external"}
+    validations: {required: true}
+  - type: input
+    id: platform
+    attributes: {label: Distribution and Hyprland version}
+    validations: {required: true}
+  - type: checkboxes
+    id: results
+    attributes:
+      label: Verified areas
+      options:
+        - label: Login, lock and resume
+        - label: Wi-Fi and Bluetooth
+        - label: Audio input and output
+        - label: Brightness and hardware keys
+        - label: Screen capture and sharing
+        - label: Gaming and GPU selection
+        - label: Multi-monitor hotplug
+  - type: textarea
+    id: notes
+    attributes: {label: Failures, workarounds or notes}

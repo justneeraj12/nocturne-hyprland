@@ -116,9 +116,10 @@ The remaining manually configured cities continue working normally.
 
 ## Default applications
 
-The reference setup uses the Nocturne-styled Dolphin profile for folders, qpdfview for PDFs and
-Qalculate-Qt for calculations. Change defaults with `xdg-mime` if you prefer
-other applications; the shell does not require those exact choices.
+The reference setup uses the Nocturne-styled Dolphin profile for folders,
+qpdfview on Ubuntu or Okular on Arch for PDFs, and Qalculate-Qt for
+calculations. Change defaults with `xdg-mime` if you prefer other applications;
+the shell does not require those exact choices.
 
 ## Portable preferences
 

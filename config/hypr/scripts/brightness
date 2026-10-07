@@ -5,9 +5,25 @@ read_percent() {
   brightnessctl -m | awk -F, 'NR == 1 {gsub(/%/, "", $4); print $4}'
 }
 
+power_config=${XDG_CONFIG_HOME:-"$HOME/.config"}/nocturne/power-lab.json
+brightness_floor() {
+  local value
+  value=$(jq -r '.brightnessFloor // 5' "$power_config" 2>/dev/null || printf 5)
+  [[ $value =~ ^(1|2|5|10|15|20)$ ]] && printf '%s\n' "$value" || printf '5\n'
+}
+
+brightness_step() {
+  local value
+  value=$(jq -r '.brightnessStep // 5' "$power_config" 2>/dev/null || printf 5)
+  [[ $value =~ ^(1|2|5|10)$ ]] && printf '%s\n' "$value" || printf '5\n'
+}
+
 set_percent() {
   local percent=$1 device maximum raw
-  ((percent < 5)) && percent=5
+  local floor
+  [[ $percent =~ ^[0-9]{1,3}$ ]] || { printf 'Brightness must be an integer from 0 to 100.\n' >&2; exit 2; }
+  floor=$(brightness_floor)
+  ((percent < floor)) && percent=$floor
   ((percent > 100)) && percent=100
   device=$(brightnessctl -m | awk -F, 'NR == 1 {print $1}')
   maximum=$(brightnessctl max)
@@ -29,11 +45,12 @@ status() {
 }
 
 adjust() {
-  local current
+  local current step
   current=$(read_percent)
+  step=$(brightness_step)
   case $1 in
-    up) set_percent "$((current + 5))" ;;
-    down) set_percent "$((current - 5))" ;;
+    up) set_percent "$((current + step))" ;;
+    down) set_percent "$((current - step))" ;;
   esac
 }
 

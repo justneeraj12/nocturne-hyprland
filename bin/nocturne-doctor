@@ -37,12 +37,17 @@ if [[ $mode == human ]]; then
   printf '%s\n\n' '────────────────────────────────────────'
 fi
 
-required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qpdfview qalculate-qt convert upower)
+required=(Hyprland hyprctl hyprlock hypridle hyprpaper hyprsunset mako cliphist wl-copy nmcli bluetoothctl wpctl pactl brightnessctl powerprofilesctl fwupdmgr playerctl socat grim slurp hyprshot dolphin pcmanfm-qt qalculate-qt convert upower age age-keygen)
 missing=()
 for program in "${required[@]}"; do
   command -v "$program" >/dev/null 2>&1 || missing+=("$program")
 done
 if ((${#missing[@]} == 0)); then ok 'Native desktop commands are installed'; else bad "Missing commands: ${missing[*]}"; fi
+if command -v qpdfview >/dev/null 2>&1 || command -v okular >/dev/null 2>&1; then
+  ok 'A supported Qt PDF viewer is installed'
+else
+  bad 'Missing a supported Qt PDF viewer: qpdfview or Okular'
+fi
 
 [[ -x $HOME/.local/bin/nocturne-native ]] \
   && "$HOME/.local/bin/nocturne-native" --self-test >/dev/null 2>&1 \
@@ -125,11 +130,29 @@ if jq -e '.current as $current | .format == "nocturne-lock-style-v2" and (.style
 else
   warning 'Lock screen style registry could not be validated'
 fi
+edition_state=$(cat "$HOME/.config/nocturne/edition.json" 2>/dev/null || true)
+if jq -e '.format == "nocturne-edition-v1" and .edition == "community" and .analytics == false and .telemetryEndpoint == null and .operatorOverlay == false' <<<"$edition_state" >/dev/null 2>&1; then
+  ok 'Community edition has no desktop telemetry endpoint'
+else
+  bad 'Community edition privacy manifest is missing or invalid'
+fi
+platform_state=$($HOME/.local/bin/nocturne-platform status 2>/dev/null || true)
+if jq -e '.format == "nocturne-platform-v1" and .supported == true and (.family == "debian" or .family == "arch")' <<<"$platform_state" >/dev/null 2>&1; then
+  ok "Supported platform adapter: $(jq -r '.id + " / " + .packageManager' <<<"$platform_state")"
+else
+  warning 'This distribution does not yet have a supported package adapter'
+fi
+continuity_state=$($HOME/.local/bin/nocturne-continuity status 2>/dev/null || true)
+if jq -e '.format == "nocturne-continuity-status-v1" and .analytics == false and ((.configured == false) or (.encrypted == true))' <<<"$continuity_state" >/dev/null 2>&1; then
+  ok 'Continuity is local, encrypted when configured and telemetry-free'
+else
+  bad 'Continuity privacy or encryption state could not be validated'
+fi
 for control_spec in \
   'storage-control:nocturne-storage-v1:Storage Center' \
   'permission-control:nocturne-permissions-v1:Permission Center' \
   'system-guard:nocturne-guard-v1:NOC Guard' \
-  'power-lab:nocturne-power-lab-v1:Power Lab' \
+  'power-lab:nocturne-power-lab-v2:Laptop Intelligence' \
   'clipboard-control:nocturne-clipboard-v1:clipboard privacy'; do
   IFS=: read -r helper expected label <<< "$control_spec"
   control_state=$($HOME/.config/hypr/scripts/$helper status 2>/dev/null || true)
@@ -145,10 +168,22 @@ if jq -e '.format == "nocturne-rules-v1" and (.rules|type == "array")' <<<"$rule
 else
   warning 'Automation rule state could not be validated'
 fi
-if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /\/hypr\/scripts\/(storage-control|permission-control|system-guard|power-lab|automation-rules) / {found=1} END {exit !found}'; then
-  warning 'An on-demand 1.1 control helper is unexpectedly persistent'
+if ps -eo etimes=,args= | awk '$1 > 5 && $0 ~ /(\/hypr\/scripts\/(storage-control|permission-control|system-guard|power-lab|automation-rules)|\/nocturne-(agenda|window-rules|extensions)) / {found=1} END {exit !found}'; then
+  warning 'An on-demand control helper is unexpectedly persistent'
 else
   ok 'Control-center helpers have zero persistent processes'
+fi
+agenda_state=$($HOME/.local/bin/nocturne-agenda status 2>/dev/null || true)
+if jq -e '.format == "nocturne-agenda-v1" and .privacy.urlsRedacted == true and .privacy.residentProcesses == 0' <<<"$agenda_state" >/dev/null 2>&1; then
+  ok 'Connected Agenda is private, redacted and zero-resident'
+else
+  warning 'Connected Agenda state could not be validated'
+fi
+extension_state=$($HOME/.local/bin/nocturne-extensions status 2>/dev/null || true)
+if jq -e '.format == "nocturne-extensions-state-v1" and .contract.arbitraryCode == false and .contract.residentProcesses == 0' <<<"$extension_state" >/dev/null 2>&1; then
+  ok 'Extension contract blocks arbitrary executable payloads'
+else
+  warning 'Extension contract state could not be validated'
 fi
 if pgrep -af 'wl-paste --type text --watch .*/clipboard-control watch' >/dev/null 2>&1; then
   ok 'Sensitive clipboard filter owns text history ingestion'
@@ -247,8 +282,11 @@ if [[ -x $HOME/.local/bin/nocturne-browser ]] \
 else
   warning 'Brave video acceleration launcher is incomplete'
 fi
-[[ $(xdg-mime query default application/pdf 2>/dev/null) == qpdfview.desktop ]] \
-  && ok 'qpdfview is the PDF handler' || warning 'PDF handler is not qpdfview'
+pdf_handler=$(xdg-mime query default application/pdf 2>/dev/null || true)
+case $pdf_handler in
+  qpdfview.desktop|org.kde.okular.desktop) ok "Supported PDF handler: $pdf_handler" ;;
+  *) warning 'PDF handler is not qpdfview or Okular' ;;
+esac
 
 wallpaper=$($HOME/.local/bin/nocturne-wallpaper-cycle status 2>/dev/null || true)
 if jq -e '.display_active == true and (.monitors | length) > 0 and ((.mapped_monitors | sort) == (.monitors | sort))' >/dev/null 2>&1 <<<"$wallpaper"; then
@@ -311,6 +349,23 @@ else
 fi
 recovery=$($HOME/.local/bin/nocturne-recovery status 2>/dev/null || true)
 if jq -e '.exists == true' >/dev/null 2>&1 <<<"$recovery"; then ok 'Last-known-good recovery checkpoint is ready'; else warning 'No recovery checkpoint exists yet'; fi
+update_guard=$($HOME/.local/bin/nocturne-update-guard status 2>/dev/null || true)
+if jq -e '.phase == "protected" or .phase == "verified"' >/dev/null 2>&1 <<<"$update_guard"; then
+  ok "Update Guard: $(jq -r '.reason' <<<"$update_guard")"
+elif jq -e '.format == "nocturne-update-guard-v1"' >/dev/null 2>&1 <<<"$update_guard"; then
+  warning "Update Guard: $(jq -r '.reason' <<<"$update_guard")"
+else
+  warning 'NOC Update Guard is not installed'
+fi
+security_state=$($HOME/.config/hypr/scripts/security-control status 2>/dev/null || true)
+if jq -e '.format == "nocturne-security-v1" and .engine.installed and .engine.database.ready' >/dev/null 2>&1 <<<"$security_state"; then
+  ok "Security Hub malware engine and local definitions are ready"
+elif jq -e '.format == "nocturne-security-v1"' >/dev/null 2>&1 <<<"$security_state"; then
+  warning 'Security Hub is available but its optional malware engine or definitions are not ready'
+else
+  warning 'Security Hub control plane is not installed'
+fi
+if jq -e '.apparmor.enabled == true' >/dev/null 2>&1 <<<"$security_state"; then ok 'AppArmor mandatory access control is active'; else warning 'AppArmor enforcement is unavailable'; fi
 pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
 
 if [[ -x $HOME/.local/bin/hyprshot ]] \

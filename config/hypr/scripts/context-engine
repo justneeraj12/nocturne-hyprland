@@ -83,6 +83,7 @@ refresh() {
   ensure_config; enabled=$(jq -r '.enabled' "$config_file")
   [[ -x $config_home/hypr/scripts/automation-rules ]] && "$config_home/hypr/scripts/automation-rules" evaluate >/dev/null 2>&1 || true
   [[ -x $config_home/hypr/scripts/power-lab ]] && "$config_home/hypr/scripts/power-lab" evaluate >/dev/null 2>&1 || true
+  [[ -x $config_home/hypr/scripts/monitor-layout ]] && "$config_home/hypr/scripts/monitor-layout" evaluate >/dev/null 2>&1 || true
   [[ $enabled == true ]] || exit 0
   live=$(snapshot)
   IFS='|' read -r scene reason < <(select_scene "$live")
@@ -108,10 +109,10 @@ set_enabled() {
   temp=$(mktemp "$config_home/nocturne/.context.XXXXXX")
   jq --argjson value "$value" '.enabled=$value' "$config_file" > "$temp"; mv -f "$temp" "$config_file"
   if [[ $value == true ]]; then
-    systemctl --user enable --now nocturne-context.timer >/dev/null 2>&1 || true
+    "$config_home/hypr/scripts/context-timer-state" sync
     refresh
   else
-    systemctl --user disable --now nocturne-context.timer >/dev/null 2>&1 || true
+    "$config_home/hypr/scripts/context-timer-state" sync
     if [[ -s $config_home/nocturne/scenes/$baseline_name.json ]]; then
       "$scene_manager" apply "$baseline_name" settings-only
       "$scene_manager" delete "$baseline_name"

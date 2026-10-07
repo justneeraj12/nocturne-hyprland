@@ -1,0 +1,504 @@
+#!/usr/bin/env python3
+"""Private, read-only ICS agenda for the Nocturne shell.
+
+The helper intentionally uses only Python's standard library.  It accepts local
+ICS files and HTTPS/webcal subscriptions, keeps source URLs in a mode-0600
+configuration file, and exposes redacted JSON to the UI.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import urllib.error
+import urllib.request
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+
+HOME = Path(os.environ.get("HOME", str(Path.home())))
+CONFIG_HOME = Path(os.environ.get("XDG_CONFIG_HOME", HOME / ".config"))
+STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", HOME / ".local/state"))
+CONFIG = CONFIG_HOME / "nocturne/agenda.json"
+STATE = STATE_HOME / "nocturne/agenda"
+CACHE = STATE / "cache"
+EVENTS = STATE / "events.json"
+META = STATE / "meta.json"
+FORMAT = "nocturne-agenda-v1"
+MAX_DOWNLOAD = 5 * 1024 * 1024
+WINDOW_DAYS = 90
+
+
+class HttpsRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject calendar redirects that leave encrypted transport."""
+
+    def redirect_request(
+        self,
+        request: urllib.request.Request,
+        file_pointer: Any,
+        code: int,
+        message: str,
+        headers: Any,
+        new_url: str,
+    ) -> urllib.request.Request | None:
+        redirected = super().redirect_request(request, file_pointer, code, message, headers, new_url)
+        if redirected is not None and not redirected.full_url.startswith("https://"):
+            raise urllib.error.HTTPError(new_url, code, "Insecure calendar redirect", headers, file_pointer)
+        return redirected
+
+
+def atomic_json(path: Path, value: Any) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(value, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def atomic_text(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(value)
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, path)
+    finally:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def load_json(path: Path, fallback: Any) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return fallback
+
+
+def ensure() -> dict[str, Any]:
+    STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    CACHE.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(STATE, 0o700)
+    os.chmod(CACHE, 0o700)
+    config = load_json(CONFIG, {})
+    if config.get("format") != FORMAT or not isinstance(config.get("sources"), list):
+        config = {"format": FORMAT, "sources": []}
+        atomic_json(CONFIG, config)
+    else:
+        os.chmod(CONFIG, 0o600)
+        normalized: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+        seen_locations: set[str] = set()
+        for source in config["sources"]:
+            if not isinstance(source, dict):
+                continue
+            identifier = str(source.get("id", ""))
+            name = str(source.get("name", "")).strip()[:80]
+            location = str(source.get("location", ""))
+            color = str(source.get("color", "#5f8f76")).lower()
+            try:
+                kind = source_kind(location)
+            except ValueError:
+                continue
+            if (
+                not re.fullmatch(r"[a-f0-9]{12}", identifier)
+                or not name
+                or not re.fullmatch(r"#[0-9a-f]{6}", color)
+                or identifier in seen_ids
+                or location in seen_locations
+            ):
+                continue
+            seen_ids.add(identifier)
+            seen_locations.add(location)
+            normalized.append(
+                {
+                    "id": identifier,
+                    "name": name,
+                    "location": location,
+                    "kind": kind,
+                    "enabled": bool(source.get("enabled", True)),
+                    "color": color,
+                }
+            )
+        if normalized != config["sources"]:
+            config["sources"] = normalized
+            atomic_json(CONFIG, config)
+    return config
+
+
+def clean_text(value: str) -> str:
+    return (
+        value.replace("\\n", " · ")
+        .replace("\\N", " · ")
+        .replace("\\,", ",")
+        .replace("\\;", ";")
+        .replace("\\\\", "\\")
+        .strip()
+    )
+
+
+def unfold(text: str) -> list[str]:
+    lines = text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    result: list[str] = []
+    for line in lines:
+        if line.startswith((" ", "\t")) and result:
+            result[-1] += line[1:]
+        else:
+            result.append(line)
+    return result
+
+
+def local_zone() -> timezone | ZoneInfo:
+    try:
+        return datetime.now().astimezone().tzinfo or timezone.utc
+    except Exception:
+        return timezone.utc
+
+
+def parse_dt(raw: str, params: dict[str, str]) -> tuple[datetime, bool]:
+    raw = raw.strip()
+    is_date = params.get("VALUE") == "DATE" or bool(re.fullmatch(r"\d{8}", raw))
+    if is_date:
+        parsed = datetime.strptime(raw[:8], "%Y%m%d")
+        return parsed.replace(tzinfo=local_zone()), True
+    utc = raw.endswith("Z")
+    value = raw[:-1] if utc else raw
+    pattern = "%Y%m%dT%H%M%S" if len(value) >= 15 else "%Y%m%dT%H%M"
+    parsed = datetime.strptime(value[:15] if len(value) >= 15 else value[:13], pattern)
+    if utc:
+        zone = timezone.utc
+    else:
+        zone_name = params.get("TZID", "")
+        try:
+            zone = ZoneInfo(zone_name) if zone_name else local_zone()
+        except ZoneInfoNotFoundError:
+            zone = local_zone()
+    return parsed.replace(tzinfo=zone), False
+
+
+def parse_rule(raw: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for item in raw.split(";"):
+        key, separator, value = item.partition("=")
+        if separator:
+            values[key.upper()] = value
+    return values
+
+
+def bounded_integer(raw: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        return max(minimum, min(maximum, int(raw)))
+    except (TypeError, ValueError):
+        return default
+
+
+def recurrence_starts(start: datetime, rule: dict[str, str], horizon: datetime) -> list[datetime]:
+    frequency = rule.get("FREQ", "").upper()
+    if frequency not in {"DAILY", "WEEKLY", "MONTHLY"}:
+        return [start]
+    interval = bounded_integer(rule.get("INTERVAL", "1"), 1, 1, 365)
+    count = bounded_integer(rule.get("COUNT", "500"), 500, 1, 500)
+    until: datetime | None = None
+    if rule.get("UNTIL"):
+        try:
+            until, _ = parse_dt(rule["UNTIL"], {})
+        except ValueError:
+            until = None
+    weekdays = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
+    byday = {weekdays[item[-2:]] for item in rule.get("BYDAY", "").split(",") if item[-2:] in weekdays}
+    result: list[datetime] = []
+    current = start
+    emitted = 0
+    attempts = 0
+    while current <= horizon and emitted < count and attempts < 1000:
+        include = True
+        if frequency == "WEEKLY" and byday:
+            include = current.weekday() in byday and ((current.date() - start.date()).days // 7) % interval == 0
+        if include and (until is None or current <= until):
+            result.append(current)
+            emitted += 1
+        if until is not None and current > until:
+            break
+        if frequency == "DAILY":
+            current += timedelta(days=interval)
+        elif frequency == "WEEKLY" and byday:
+            current += timedelta(days=1)
+        elif frequency == "WEEKLY":
+            current += timedelta(weeks=interval)
+        else:
+            month = current.month - 1 + interval
+            year = current.year + month // 12
+            month = month % 12 + 1
+            day = min(current.day, [31, 29 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1])
+            current = current.replace(year=year, month=month, day=day)
+        attempts += 1
+    return result
+
+
+def parse_ics(text: str, source: dict[str, Any]) -> list[dict[str, Any]]:
+    blocks: list[list[str]] = []
+    current: list[str] | None = None
+    for line in unfold(text):
+        if line == "BEGIN:VEVENT":
+            current = []
+        elif line == "END:VEVENT" and current is not None:
+            blocks.append(current)
+            current = None
+        elif current is not None:
+            current.append(line)
+    now = datetime.now(local_zone())
+    lower = now - timedelta(days=2)
+    horizon = now + timedelta(days=WINDOW_DAYS)
+    events: list[dict[str, Any]] = []
+    for lines in blocks:
+        fields: dict[str, tuple[dict[str, str], str]] = {}
+        for line in lines:
+            key_part, separator, value = line.partition(":")
+            if not separator:
+                continue
+            pieces = key_part.split(";")
+            key = pieces[0].upper()
+            params = dict(piece.split("=", 1) for piece in pieces[1:] if "=" in piece)
+            fields[key] = ({k.upper(): v for k, v in params.items()}, value)
+        if "DTSTART" not in fields:
+            continue
+        try:
+            start, all_day = parse_dt(fields["DTSTART"][1], fields["DTSTART"][0])
+            if "DTEND" in fields:
+                end, _ = parse_dt(fields["DTEND"][1], fields["DTEND"][0])
+            else:
+                end = start + (timedelta(days=1) if all_day else timedelta(hours=1))
+        except ValueError:
+            continue
+        duration = max(timedelta(0), end - start)
+        starts = recurrence_starts(start, parse_rule(fields.get("RRULE", ({}, ""))[1]), horizon)
+        for occurrence in starts:
+            occurrence_end = occurrence + duration
+            if occurrence_end < lower or occurrence > horizon:
+                continue
+            uid = fields.get("UID", ({}, ""))[1]
+            identity = hashlib.sha256(f"{source['id']}|{uid}|{occurrence.isoformat()}".encode()).hexdigest()[:20]
+            events.append(
+                {
+                    "id": identity,
+                    "sourceId": source["id"],
+                    "source": source["name"],
+                    "color": source.get("color", "#5f8f76"),
+                    "title": clean_text(fields.get("SUMMARY", ({}, "Untitled event"))[1])[:240],
+                    "location": clean_text(fields.get("LOCATION", ({}, ""))[1])[:240],
+                    "start": occurrence.astimezone().isoformat(),
+                    "end": occurrence_end.astimezone().isoformat(),
+                    "date": occurrence.astimezone().date().isoformat(),
+                    "allDay": all_day,
+                }
+            )
+    return events
+
+
+def source_kind(location: str) -> str:
+    if location.startswith(("https://", "webcal://")):
+        return "remote"
+    path = Path(location).expanduser()
+    if not path.is_absolute():
+        raise ValueError("Local calendar paths must be absolute")
+    return "local"
+
+
+def fetch(source: dict[str, Any]) -> str:
+    location = source["location"]
+    if source["kind"] == "local":
+        path = Path(location).expanduser()
+        if path.stat().st_size > MAX_DOWNLOAD:
+            raise ValueError("Calendar file exceeds 5 MiB")
+        return path.read_text(encoding="utf-8", errors="replace")
+    url = "https://" + location[len("webcal://") :] if location.startswith("webcal://") else location
+    request = urllib.request.Request(url, headers={"User-Agent": "Nocturne-Agenda/1"})
+    opener = urllib.request.build_opener(HttpsRedirectHandler())
+    with opener.open(request, timeout=15) as response:
+        length = int(response.headers.get("Content-Length", "0") or "0")
+        if length > MAX_DOWNLOAD:
+            raise ValueError("Calendar feed exceeds 5 MiB")
+        payload = response.read(MAX_DOWNLOAD + 1)
+        if len(payload) > MAX_DOWNLOAD:
+            raise ValueError("Calendar feed exceeds 5 MiB")
+        return payload.decode("utf-8", errors="replace")
+
+
+def refresh() -> int:
+    config = ensure()
+    all_events: list[dict[str, Any]] = []
+    results: list[dict[str, Any]] = []
+    for source in config["sources"]:
+        if not source.get("enabled", True):
+            continue
+        cache = CACHE / f"{source['id']}.ics"
+        error = ""
+        try:
+            text = fetch(source)
+            atomic_text(cache, text)
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            # Subscription URLs can contain bearer tokens.  Persist only a
+            # bounded error class, never exception text that may include one.
+            error = type(exc).__name__[:80]
+            try:
+                text = cache.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                text = ""
+        parsed = parse_ics(text, source) if text else []
+        all_events.extend(parsed)
+        results.append({"id": source["id"], "ok": not error, "events": len(parsed), "error": error})
+    all_events.sort(key=lambda item: (item["start"], item["title"].lower()))
+    timestamp = datetime.now().astimezone().isoformat()
+    atomic_json(EVENTS, {"format": FORMAT, "refreshed": timestamp, "events": all_events})
+    atomic_json(META, {"format": FORMAT, "refreshed": timestamp, "results": results})
+    print(json.dumps({"format": FORMAT, "refreshed": timestamp, "events": len(all_events), "sources": results}, separators=(",", ":")))
+    return 0 if all(item["ok"] for item in results) else 1
+
+
+def redacted_sources(config: dict[str, Any]) -> list[dict[str, Any]]:
+    meta = load_json(META, {}).get("results", [])
+    results = {item.get("id"): item for item in meta if isinstance(item, dict)}
+    return [
+        {
+            "id": source["id"],
+            "name": source["name"],
+            "kind": source["kind"],
+            "enabled": source.get("enabled", True),
+            "color": source.get("color", "#5f8f76"),
+            "ok": results.get(source["id"], {}).get("ok", False),
+            "events": results.get(source["id"], {}).get("events", 0),
+        }
+        for source in config["sources"]
+    ]
+
+
+def selected_events(day: str | None = None, days: int = 14) -> list[dict[str, Any]]:
+    values = load_json(EVENTS, {}).get("events", [])
+    if not isinstance(values, list):
+        return []
+    if day:
+        return [event for event in values if event.get("date") == day]
+    today = date.today()
+    end = today + timedelta(days=max(1, min(days, 90)))
+    selected: list[dict[str, Any]] = []
+    for event in values:
+        try:
+            event_day = date.fromisoformat(str(event["date"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if today <= event_day < end:
+            selected.append(event)
+    return selected
+
+
+def status() -> None:
+    config = ensure()
+    data = load_json(EVENTS, {})
+    meta = load_json(META, {})
+    sources = redacted_sources(config)
+    upcoming = selected_events(days=14)[:12]
+    output = {
+        "format": FORMAT,
+        "configured": bool(sources),
+        "sourceCount": len(sources),
+        "enabledSources": sum(1 for source in sources if source["enabled"]),
+        "eventCount": len(data.get("events", [])) if isinstance(data.get("events"), list) else 0,
+        "refreshed": meta.get("refreshed", ""),
+        "sources": sources,
+        "upcoming": upcoming,
+        "privacy": {"readOnly": True, "urlsRedacted": True, "residentProcesses": 0},
+    }
+    print(json.dumps(output, separators=(",", ":")))
+
+
+def sync_timer(config: dict[str, Any]) -> None:
+    if os.environ.get("NOCTURNE_NO_RESTART") == "1":
+        return
+    enabled = any(source.get("enabled", True) for source in config["sources"])
+    action = "enable" if enabled else "disable"
+    subprocess.run(
+        ["systemctl", "--user", action, "--now", "nocturne-agenda-refresh.timer"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+
+
+def add_source(name: str, location: str, color: str) -> None:
+    name = name.strip()[:80]
+    if not name:
+        raise SystemExit("Source name is required")
+    kind = source_kind(location)
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+        raise SystemExit("Color must be #RRGGBB")
+    config = ensure()
+    if any(source["location"] == location for source in config["sources"]):
+        raise SystemExit("That calendar source already exists")
+    config["sources"].append(
+        {"id": uuid.uuid4().hex[:12], "name": name, "location": location, "kind": kind, "enabled": True, "color": color.lower()}
+    )
+    atomic_json(CONFIG, config)
+    sync_timer(config)
+    status()
+
+
+def mutate_source(identifier: str, operation: str) -> None:
+    config = ensure()
+    source = next((item for item in config["sources"] if item.get("id") == identifier), None)
+    if source is None:
+        raise SystemExit("Unknown calendar source")
+    if operation == "remove":
+        config["sources"] = [item for item in config["sources"] if item.get("id") != identifier]
+        (CACHE / f"{identifier}.ics").unlink(missing_ok=True)
+    else:
+        source["enabled"] = operation == "enable"
+    atomic_json(CONFIG, config)
+    sync_timer(config)
+    status()
+
+
+def main(argv: list[str]) -> int:
+    command = argv[1] if len(argv) > 1 else "status"
+    if command == "status":
+        status()
+    elif command == "events":
+        day = argv[2] if len(argv) > 2 and argv[2] != "-" else None
+        days = int(argv[3]) if len(argv) > 3 else 14
+        print(json.dumps(selected_events(day, days), separators=(",", ":")))
+    elif command == "add" and len(argv) >= 4:
+        add_source(argv[2], argv[3], argv[4] if len(argv) > 4 else "#5f8f76")
+    elif command == "remove" and len(argv) == 3:
+        mutate_source(argv[2], "remove")
+    elif command in {"enable", "disable"} and len(argv) == 3:
+        mutate_source(argv[2], command)
+    elif command == "refresh":
+        return refresh()
+    else:
+        print("Usage: nocturne-agenda status|events [YYYY-MM-DD|-] [DAYS]|add NAME ICS_URL_OR_PATH [#RRGGBB]|remove ID|enable ID|disable ID|refresh", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main(sys.argv))
+    except BrokenPipeError:
+        raise SystemExit(0)

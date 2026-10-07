@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly NOC malware scan
+
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=2h
+Persistent=true
+Unit=nocturne-security-scan.service
+
+[Install]
+WantedBy=timers.target

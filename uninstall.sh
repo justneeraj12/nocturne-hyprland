@@ -53,6 +53,12 @@ systemctl --user disable --now \
   nocturne-game-session.service \
   nocturne-notification-rules.timer \
   nocturne-context.timer \
+  nocturne-security-update.timer \
+  nocturne-security-scan.timer \
+  nocturne-security-update.service \
+  nocturne-security-scan.service \
+  nocturne-agenda-refresh.timer \
+  nocturne-agenda-refresh.service \
   nocturne-session-health.timer \
   nocturne-session-health.service >/dev/null 2>&1 || true
 pkill -f '^.*/nocturne-native( |$)' 2>/dev/null || true
@@ -181,7 +187,7 @@ systemctl --user unmask \
 systemctl --user unmask kde-baloo.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent nocturne-agenda nocturne-window-rules nocturne-extensions steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"
@@ -193,6 +199,13 @@ for binary in "${bin_targets[@]}"; do
     cp -a -- "$backup/bin/$binary" "$current"
   fi
 done
+
+if [[ -f $HOME/.zshrc ]] && grep -Fq '# >>> Nocturne desktop >>>' "$HOME/.zshrc"; then
+  zshrc_tmp=$(mktemp "${TMPDIR:-/tmp}/nocturne-zshrc.XXXXXX")
+  sed '/# >>> Nocturne desktop >>>/,/# <<< Nocturne desktop <<</d' "$HOME/.zshrc" > "$zshrc_tmp"
+  install -m 0644 "$zshrc_tmp" "$HOME/.zshrc"
+  rm -f -- "$zshrc_tmp"
+fi
 
 for data_group in backgrounds color-schemes; do
   mkdir -p "$rollback/$data_group" "$DATA_HOME/$data_group"
