@@ -79,7 +79,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -172,9 +172,10 @@ install -m 0644 \
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/nocturne-game-session.service" \
   "$CONFIG_HOME/systemd/user/nocturne-game-session.service"
-for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer; do
+for unit in nocturne-notification-rules.service nocturne-notification-rules.timer nocturne-context.service nocturne-context.timer nocturne-session-health.service nocturne-session-health.timer nocturne-session.target nocturne-bar.service nocturne-idle.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-hardware-init.service; do
   install -m 0644 "$ROOT_DIR/config/systemd/user/$unit" "$CONFIG_HOME/systemd/user/$unit"
 done
+rm -f -- "$CONFIG_HOME/systemd/user/nocturne-notifications.service"
 install -m 0644 \
   "$ROOT_DIR/config/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf" \
   "$CONFIG_HOME/systemd/user/wayland-wm@hyprland.desktop.service.d/90-nocturne.conf"
@@ -196,6 +197,7 @@ if [[ ! -e "$CONFIG_HOME/nocturne/bar.json" ]]; then
   install -m 0600 "$ROOT_DIR/config/nocturne/bar.json" "$CONFIG_HOME/nocturne/bar.json"
 fi
 install -m 0644 "$ROOT_DIR/config/nocturne/bar.json" "$CONFIG_HOME/nocturne/bar.default.json"
+install -m 0644 "$ROOT_DIR/config/nocturne/performance-budget.json" "$CONFIG_HOME/nocturne/performance-budget.json"
 if [[ ! -e "$CONFIG_HOME/nocturne/game-mode.conf" ]]; then
   install -m 0644 "$ROOT_DIR/config/nocturne/game-mode.conf" "$CONFIG_HOME/nocturne/game-mode.conf"
 fi
@@ -228,6 +230,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-web-app" "$BIN_HOME/nocturne-web-app"
 install -m 0755 "$ROOT_DIR/bin/nocturne-browser" "$BIN_HOME/nocturne-browser"
 install -m 0755 "$ROOT_DIR/bin/nocturne-wallpaper-cycle" "$BIN_HOME/nocturne-wallpaper-cycle"
 install -m 0755 "$ROOT_DIR/bin/nocturne-doctor" "$BIN_HOME/nocturne-doctor"
+install -m 0755 "$ROOT_DIR/bin/nocturne-benchmark" "$BIN_HOME/nocturne-benchmark"
 install -m 0755 "$ROOT_DIR/bin/nocturne-support" "$BIN_HOME/nocturne-support"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
 install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
@@ -412,13 +415,23 @@ systemctl --user stop \
   evolution-calendar-factory.service \
   evolution-source-registry.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
-# The compositor starts this only after importing the Wayland environment.
-# Remove historical default.target enablement which races login and leaves a
-# healthy daemon unable to connect to the display for its entire lifetime.
+# The compositor starts the complete supervised target only after importing the
+# Wayland environment. Historical default.target enablement races login.
 systemctl --user disable nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
 if [[ ${XDG_CURRENT_DESKTOP:-} == *Hyprland* ]]; then
   dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME >/dev/null 2>&1 || true
-  systemctl --user restart nocturne-wallpaper-cycle.service >/dev/null 2>&1 || true
+  systemctl --user stop nocturne-session.target >/dev/null 2>&1 || true
+  systemctl --user unmask mako.service >/dev/null 2>&1 || true
+  systemctl --user stop mako.service nocturne-notifications.service >/dev/null 2>&1 || true
+  pkill -f '(^| )[^ ]*/hypr/scripts/bar($| )' 2>/dev/null || true
+  pkill -f '^.*/nocturne-native bar($| )' 2>/dev/null || true
+  pkill -f "^$BIN_HOME/pactl subscribe$" 2>/dev/null || true
+  rm -f -- "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/nocturne-native-bar.lock"
+  pkill -x hypridle 2>/dev/null || true
+  pkill -x mako 2>/dev/null || true
+  pkill -x hyprpolkitagent 2>/dev/null || true
+  pkill -f '^wl-paste --type (text|image) --watch' 2>/dev/null || true
+  systemctl --user start nocturne-session.target >/dev/null 2>&1 || true
 fi
 systemctl --user enable --now nocturne-easyeffects.service >/dev/null 2>&1 || true
 systemctl --user enable --now nocturne-audio-autoswitch.service >/dev/null 2>&1 || true
@@ -432,19 +445,19 @@ fi
 systemctl --user disable nocturne-session-health.service >/dev/null 2>&1 || true
 systemctl --user enable nocturne-session-health.timer >/dev/null 2>&1 || true
 systemctl --user mask --now \
-  mako.service \
   waybar.service \
   hypridle.service \
   hyprpaper.service \
   hyprpolkitagent.service >/dev/null 2>&1 || true
 
-# Nocturne starts exactly one Mako process from the compositor so its lifetime
-# follows the Wayland session. Ubuntu may also enable mako.service and may leave
+# Nocturne starts exactly one Mako process through its packaged D-Bus systemd
+# unit, wanted by the supervised session target. Ubuntu may leave
 # a failed generated unit behind after the retired GTK update notifier exits.
 # Neither failure represents a package-update failure; clear the stale state so
 # systemd desktop notifications do not report it again.
 systemctl --user reset-failed \
   mako.service \
+  nocturne-notifications.service \
   'app-update\x2dnotifier@autostart.service' >/dev/null 2>&1 || true
 
 # A running legacy-config session may recreate Hyprland's generated stub when

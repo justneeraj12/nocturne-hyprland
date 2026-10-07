@@ -1,0 +1,11 @@
+[Unit]
+Description=Nocturne idle and lock policy
+After=graphical-session.target
+PartOf=nocturne-session.target graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hypridle -c %h/.config/hypr/hypridle.conf
+Restart=on-failure
+RestartSec=2
+

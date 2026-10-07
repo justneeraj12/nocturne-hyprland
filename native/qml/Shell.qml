@@ -12,10 +12,10 @@ ApplicationWindow {
     height: 1
     screen: backend.targetScreen
 
-    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "desk" || backend.surface === "habits" || backend.surface === "vault" || backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "osd" || backend.surface === "overview" || backend.surface === "scenes" || backend.surface === "automation" || backend.surface === "privacy" || backend.surface === "gaming"
-    readonly property int cardWidth: backend.surface === "overview" ? Math.min(1080, width - 48) : (backend.surface === "vault" ? 650 : (backend.surface === "habits" ? 580 : (backend.surface === "desk" ? 660 : (backend.surface === "scenes" ? 610 : (backend.surface === "automation" ? 570 : (backend.surface === "gaming" ? 510 : (backend.surface === "privacy" ? 460 : (backend.surface === "camera" ? 430 : (backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
+    readonly property bool centerSurface: backend.surface === "launcher" || backend.surface === "desk" || backend.surface === "habits" || backend.surface === "vault" || backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "osd" || backend.surface === "overview" || backend.surface === "operations" || backend.surface === "scenes" || backend.surface === "automation" || backend.surface === "privacy" || backend.surface === "gaming"
+    readonly property int cardWidth: backend.surface === "overview" ? Math.min(1080, width - 48) : (backend.surface === "operations" ? Math.min(760, width - 48) : (backend.surface === "vault" ? 650 : (backend.surface === "habits" ? 580 : (backend.surface === "desk" ? 660 : (backend.surface === "scenes" ? 610 : (backend.surface === "automation" ? 570 : (backend.surface === "gaming" ? 510 : (backend.surface === "privacy" ? 460 : (backend.surface === "camera" ? 430 : (backend.surface === "osd" ? 330 : (backend.surface === "launcher" ? 560
         : (backend.surface === "display" ? 460
-            : ((backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "notifications") ? (backend.surface === "clipboard" ? 520 : (backend.surface === "notifications" ? 480 : 500)) : 410))))))))))))
+            : ((backend.surface === "clipboard" || backend.surface === "minimized" || backend.surface === "notifications") ? (backend.surface === "clipboard" ? 520 : (backend.surface === "notifications" ? 480 : 500)) : 410)))))))))))))
     readonly property int cardHeight: contentLoader.item ? contentLoader.item.implicitHeight : 200
 
     function dismiss() { backend.close() }
@@ -60,6 +60,7 @@ ApplicationWindow {
                 if (backend.surface === "habits") return habitsPage
                 if (backend.surface === "vault") return vaultPage
                 if (backend.surface === "overview") return overviewPage
+                if (backend.surface === "operations") return operationsPage
                 if (backend.surface === "scenes") return scenesPage
                 if (backend.surface === "automation") return automationPage
                 if (backend.surface === "privacy") return privacyPage
@@ -98,6 +99,7 @@ ApplicationWindow {
     Component { id: habitsPage; HabitsPage {} }
     Component { id: vaultPage; VaultPage {} }
     Component { id: overviewPage; OverviewPage {} }
+    Component { id: operationsPage; OperationsPage {} }
     Component { id: scenesPage; ScenesPage {} }
     Component { id: automationPage; AutomationPage {} }
     Component { id: privacyPage; PrivacyPage {} }

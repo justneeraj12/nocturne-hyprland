@@ -169,6 +169,14 @@ grep -Fq 'accel_profile = "flat"' "$XDG_CONFIG_HOME/nocturne/input.lua"
 
 "$root/config/hypr/scripts/storage-control" status \
   | jq -e '.format == "nocturne-storage-v1" and (.cleanup|length) == 4 and (.protected|length) >= 4' >/dev/null
+"$root/config/hypr/scripts/noc-state" status \
+  | jq -e '.format == "nocturne-operations-v1" and (.score|type == "number") and (.alerts|type == "array")' >/dev/null
+mkdir -p "$XDG_CONFIG_HOME/nocturne"
+cp -- "$root/config/hypr/scripts/efficiency-control" "$XDG_CONFIG_HOME/hypr/scripts/efficiency-control"
+cp -- "$root/config/nocturne/performance-budget.json" "$XDG_CONFIG_HOME/nocturne/performance-budget.json"
+chmod +x "$XDG_CONFIG_HOME/hypr/scripts/efficiency-control"
+"$root/bin/nocturne-benchmark" --json \
+  | jq -e '.format == "nocturne-performance-report-v1" and (.checks|length) == 5' >/dev/null
 printf '%s\n' '#!/bin/sh' \
   'case "$*" in' \
   '  "list --app --columns=application,name") printf "org.example.App\tExample App\n" ;;' \

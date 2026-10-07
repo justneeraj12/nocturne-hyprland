@@ -22,5 +22,7 @@ grep -Fq 'Type RESTORE to continue' "$root/uninstall.sh"
 grep -Fq 'rollback-' "$root/uninstall.sh"
 grep -Fq 'nocturne-context.timer' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-context.timer' "$root/uninstall.sh"
+grep -Fq 'nocturne-session.target' "$root/apply-hyprland.sh"
+grep -Fq 'nocturne-session.target' "$root/uninstall.sh"
 
 printf 'NOCTURNE // installer and rollback contracts match\n'

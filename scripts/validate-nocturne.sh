@@ -33,6 +33,8 @@ grep -Fq 'Fifty workflow upgrades' "$root/docs/RELEASE-1.0.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.0.md") -eq 50 ]]
 grep -Fq 'Fifty system upgrades' "$root/docs/RELEASE-1.1.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-1.1.md") -eq 50 ]]
+grep -Fq 'Nocturne 1.2 — NOC Core' "$root/docs/RELEASE-1.2.md"
+grep -Fq 'nocturne-benchmark --summary' "$root/README.md"
 grep -Fq '# Camera quality and latency' "$root/docs/CAMERA.md"
 [[ $(grep -Ec '^[0-9]+\. ' "$root/docs/RELEASE-0.7.md") -eq 50 ]]
 grep -Fq '~/.local/state/nocturne/backups/' "$root/docs/INSTALL.md"
@@ -53,6 +55,7 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/noc-vault.webp ]]
 [[ -s $root/docs/screenshots/storage-center.webp ]]
 [[ -s $root/docs/screenshots/system-command.webp ]]
+[[ -s $root/docs/screenshots/operations-deck.webp ]]
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null
@@ -75,6 +78,7 @@ grep -Fq 'qml/pages/SetupSettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/EfficiencySettingsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/CameraPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/AutomationPage.qml' "$root/native/CMakeLists.txt"
+grep -Fq 'qml/pages/OperationsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/DeskPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/HabitsPage.qml' "$root/native/CMakeLists.txt"
 grep -Fq 'qml/pages/VaultPage.qml' "$root/native/CMakeLists.txt"
@@ -85,6 +89,8 @@ grep -Fq 'ADAPTIVE SENSOR PROFILE' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'camera-control' "$root/native/qml/pages/CameraPage.qml"
 grep -Fq 'PRIVATE BY DESIGN' "$root/native/qml/pages/AutomationPage.qml"
 grep -Fq 'Nocturne Trace' "$root/native/qml/pages/AutomationPage.qml"
+grep -Fq 'NOC // OPERATIONS DECK' "$root/native/qml/pages/OperationsPage.qml"
+grep -Fq 'ZERO IDLE TELEMETRY' "$root/native/qml/pages/OperationsPage.qml"
 grep -Fq 'NOC Desk' "$root/native/qml/pages/DeskPage.qml"
 grep -Fq 'desk-capture' "$root/native/src/backend.cpp"
 grep -Fq 'habit-capture' "$root/native/src/backend.cpp"
@@ -131,6 +137,7 @@ grep -Fq 'PanelHeader' "$root/native/qml/pages/AudioPage.qml"
 grep -Fq 'PanelHeader' "$root/native/qml/pages/PowerPage.qml"
 grep -Fq 'displayHour = hours % 12' "$root/native/qml/BarWindow.qml"
 grep -Fq 'nativeCard("maintenance", "")' "$root/native/qml/BarWindow.qml"
+grep -Fq 'nativeCard("operations", "")' "$root/native/qml/BarWindow.qml"
 grep -Fq 'nativeCard("display", "")' "$root/native/qml/BarWindow.qml"
 grep -Fq 'Layout.preferredWidth: 42' "$root/native/qml/pages/WorldPage.qml"
 grep -Fq 'current-location.json' "$root/native/qml/pages/WorldPage.qml"
@@ -265,6 +272,9 @@ for lock_style in "$root/config/hypr/lockstyles/"*.conf.in; do
   grep -Fq 'check_color =' "$lock_style"
 done
 grep -Fq 'rapid_failures' "$root/config/hypr/scripts/bar"
+grep -Fq 'lock_dir=' "$root/config/hypr/scripts/bar"
+! grep -Fq 'exec 9>' "$root/config/hypr/scripts/bar"
+grep -Fq 'mako.service' "$root/config/systemd/user/nocturne-session.target"
 grep -Fq 'nocturne-session-health.service' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-session-health.timer' "$root/apply-hyprland.sh"
 grep -Fq 'Meeting share chooser is compact, floating and pinned' "$root/bin/nocturne-doctor"
@@ -277,10 +287,13 @@ grep -Fq 'theme-studio' "$root/native/qml/pages/AppearanceSettingsPage.qml"
 grep -Fq 'Q_INVOKABLE QVariantList privacyItems' "$root/native/src/backend.h"
 printf '[ OK ] overview, scenes, automation, privacy, gaming, themes and recovery\n'
 
-grep -Fq 'systemctl --user restart nocturne-wallpaper-cycle.service' "$root/config/hypr/hyprland.lua"
+grep -Fq 'systemctl --user restart nocturne-session.target' "$root/config/hypr/hyprland.lua"
+grep -Fq 'systemctl --user stop nocturne-session.target' "$root/apply-hyprland.sh"
+grep -Fq 'systemctl --user start nocturne-session.target' "$root/apply-hyprland.sh"
+grep -Fq 'nocturne-wallpaper-cycle.service' "$root/config/systemd/user/nocturne-session.target"
 grep -Fq 'if desired and monitors and' "$root/bin/nocturne-wallpaper-cycle"
 ! grep -Fq 'WantedBy=default.target' "$root/config/systemd/user/nocturne-wallpaper-cycle.service"
-printf '[ OK ] compositor-owned wallpaper startup and reboot recovery\n'
+printf '[ OK ] supervised session startup and wallpaper reboot recovery\n'
 
 "$root/scripts/test-shell-contracts.sh" >/dev/null
 printf '[ OK ] migrations, bar preferences and context interaction contracts\n'

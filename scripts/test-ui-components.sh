@@ -14,7 +14,7 @@ install -m 0644 "$root/config/nocturne/theme.json" "$test_root/home/.config/noct
 pages=(
   AudioPage BrightnessPage CameraPage CalendarPage WorldPage ConnectivityPage
   PomodoroPage PowerPage LauncherPage DeskPage HabitsPage VaultPage OverviewPage ScenesPage AutomationPage
-  PrivacyPage GamingPage OsdPage BackgroundPage NotificationsPage ClipboardPage
+  PrivacyPage GamingPage OperationsPage OsdPage BackgroundPage NotificationsPage ClipboardPage
   MinimizedPage MediaPage KdeConnectPage MaintenancePage DisplayPage
   StorageSettingsPage ControlCenterSettingsPage AutomationRulesSettingsPage
 )

@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## 1.2.0 - 2026-10-06
 
 - Added five accent-aware lock-screen compositions with persistent selection and a one-unlock safe preview.
 - Added a responsive Lock Screen Style selector to Appearance and regression coverage for every rendered layout.
+- Added the zero-idle NOC Operations Deck with health scoring, resource, network, power and control-plane telemetry.
+- Moved essential Wayland session components into one systemd-supervised target with bounded restart and clean shutdown behavior.
+- Added an explicit native-shell performance budget, CLI benchmark, doctor integration and release regression checks.
 
 ## 1.1.0 - 2026-10-06
 

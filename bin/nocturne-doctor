@@ -104,6 +104,21 @@ fi
 [[ -x $HOME/.config/hypr/scripts/efficiency-control ]] \
   && ok 'On-demand efficiency telemetry is installed' \
   || warning 'Efficiency telemetry helper is missing'
+performance_report=$($HOME/.local/bin/nocturne-benchmark --json 2>/dev/null || true)
+if jq -e '.format == "nocturne-performance-report-v1" and .pass == true' <<<"$performance_report" >/dev/null 2>&1; then
+  ok 'Native shell is inside its performance budget'
+else
+  warning 'Native shell performance budget needs attention'
+fi
+session_supervised=true
+for supervised_unit in nocturne-session.target nocturne-bar.service nocturne-idle.service mako.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-wallpaper-cycle.service; do
+  systemctl --user is-active --quiet "$supervised_unit" 2>/dev/null || session_supervised=false
+done
+if $session_supervised; then
+  ok 'Nocturne session components are supervised'
+else
+  warning 'One or more supervised session components are not active'
+fi
 lock_style_state=$($HOME/.config/hypr/scripts/lock-style status 2>/dev/null || true)
 if jq -e '.current as $current | .format == "nocturne-lock-style-v1" and (.styles|length) == 5 and ([.styles[].id]|index($current) != null)' <<<"$lock_style_state" >/dev/null 2>&1; then
   ok 'Lock screen style registry is valid'

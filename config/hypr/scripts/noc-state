@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+format_bytes() {
+  numfmt --to=iec-i --suffix=B "${1:-0}" 2>/dev/null || printf '%s B' "${1:-0}"
+}
+
+bool_unit() {
+  systemctl --user is-active --quiet "$1" 2>/dev/null && printf true || printf false
+}
+
+temperature() {
+  local highest=0 value file
+  for file in /sys/class/thermal/thermal_zone*/temp; do
+    [[ -r $file ]] || continue
+    read -r value < "$file" || continue
+    [[ $value =~ ^[0-9]+$ ]] || continue
+    ((value > highest && value < 150000)) && highest=$value
+  done
+  awk -v value="$highest" 'BEGIN {printf "%.0f", value / 1000}'
+}
+
+status() {
+  local mem_total mem_available mem_used mem_percent swap_total swap_free swap_used swap_percent
+  local load1 uptime_seconds uptime_label temp profile battery=0 charging=false power_source='AC'
+  local interface='offline' connection='Disconnected' ip='—' rx=0 tx=0 rx_label tx_label
+  local failed portal pipewire wireplumber notifications session=true bar_pid bar_pss=0 bar_cpu=0 legacy=0 score=100 level='GREEN'
+  local alerts='[]' host kernel unit
+
+  mem_total=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+  mem_available=$(awk '/^MemAvailable:/ {print $2}' /proc/meminfo)
+  mem_used=$((mem_total - mem_available))
+  mem_percent=$((mem_total > 0 ? mem_used * 100 / mem_total : 0))
+  swap_total=$(awk '/^SwapTotal:/ {print $2}' /proc/meminfo)
+  swap_free=$(awk '/^SwapFree:/ {print $2}' /proc/meminfo)
+  swap_used=$((swap_total - swap_free))
+  swap_percent=$((swap_total > 0 ? swap_used * 100 / swap_total : 0))
+  read -r load1 _ < /proc/loadavg
+  uptime_seconds=$(awk '{printf "%.0f", $1}' /proc/uptime)
+  if ((uptime_seconds >= 86400)); then
+    uptime_label="$((uptime_seconds / 86400))d $(((uptime_seconds % 86400) / 3600))h"
+  else
+    uptime_label="$((uptime_seconds / 3600))h $(((uptime_seconds % 3600) / 60))m"
+  fi
+  temp=$(temperature)
+  profile=$(powerprofilesctl get 2>/dev/null || printf unknown)
+
+  if command -v upower >/dev/null 2>&1; then
+    battery_path=$(upower -e 2>/dev/null | awk '/battery/ {print; exit}' || true)
+    if [[ -n ${battery_path:-} ]]; then
+      battery=$(upower -i "$battery_path" 2>/dev/null | awk -F: '/percentage/ {gsub(/[% ]/, "", $2); print $2 + 0; exit}')
+      state=$(upower -i "$battery_path" 2>/dev/null | awk -F: '/state/ {gsub(/^ +| +$/, "", $2); print $2; exit}')
+      [[ $state == charging || $state == fully-charged || $state == pending-charge ]] && charging=true
+      $charging || power_source='BATTERY'
+    fi
+  fi
+
+  interface=$(ip route show default 2>/dev/null | awk 'NR == 1 {for (i=1;i<=NF;i++) if ($i == "dev") {print $(i+1); exit}}' || true)
+  if [[ -n $interface && -d /sys/class/net/$interface ]]; then
+    connection=$(nmcli -t -f NAME,DEVICE connection show --active 2>/dev/null | awk -F: -v device="$interface" '$2 == device {print $1; exit}' || true)
+    [[ -n $connection ]] || connection="$interface"
+    ip=$(ip -4 -o addr show dev "$interface" scope global 2>/dev/null | awk 'NR == 1 {sub(/\/.*/, "", $4); print $4}' || true)
+    [[ -n $ip ]] || ip='—'
+    read -r rx < "/sys/class/net/$interface/statistics/rx_bytes" || rx=0
+    read -r tx < "/sys/class/net/$interface/statistics/tx_bytes" || tx=0
+  else
+    interface='offline'
+  fi
+  rx_label=$(format_bytes "$rx"); tx_label=$(format_bytes "$tx")
+
+  failed=$({ systemctl --user --failed --no-legend --no-pager 2>/dev/null || true; } | awk 'NF {count++} END {print count + 0}')
+  portal=$(bool_unit xdg-desktop-portal-hyprland.service)
+  pipewire=$(bool_unit pipewire.service)
+  wireplumber=$(bool_unit wireplumber.service)
+  notifications=$(bool_unit mako.service)
+  for unit in nocturne-bar.service nocturne-idle.service mako.service nocturne-polkit.service nocturne-clipboard-text.service nocturne-clipboard-image.service nocturne-wallpaper-cycle.service; do
+    systemctl --user is-active --quiet "$unit" 2>/dev/null || session=false
+  done
+  bar_pid=$(pgrep -f '/nocturne-native bar($| )' | awk 'NR == 1 {print; exit}' || true)
+  if [[ $bar_pid =~ ^[0-9]+$ ]]; then
+    bar_pss=$(awk '/^Pss:/ {print $2 + 0}' "/proc/$bar_pid/smaps_rollup" 2>/dev/null || printf 0)
+    bar_cpu=$(ps -p "$bar_pid" -o pcpu= 2>/dev/null | awk '{print $1 + 0}' || printf 0)
+  fi
+  for process in waybar swaync wofi nm-applet blueman-applet gnome-shell; do
+    pgrep -x "$process" >/dev/null 2>&1 && legacy=$((legacy + 1))
+  done
+
+  if ((failed > 0)); then
+    score=$((score - 25)); alerts=$(jq -cn --argjson a "$alerts" --arg text "$failed failed user unit(s)" '$a + [$text]')
+  fi
+  if ! $portal; then score=$((score - 25)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Hyprland portal unavailable"]'); fi
+  if ! $pipewire || ! $wireplumber; then score=$((score - 25)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Audio control plane degraded"]'); fi
+  if ! $session; then score=$((score - 25)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Session supervision degraded"]'); fi
+  if ((legacy > 0)); then score=$((score - 15)); alerts=$(jq -cn --argjson a "$alerts" --arg text "$legacy competing shell process(es)" '$a + [$text]'); fi
+  if ((mem_percent >= 90)); then score=$((score - 20)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Memory pressure critical"]')
+  elif ((mem_percent >= 80)); then score=$((score - 10)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Memory pressure elevated"]'); fi
+  if ((temp >= 90)); then score=$((score - 20)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Thermal limit approaching"]')
+  elif ((temp >= 80)); then score=$((score - 10)); alerts=$(jq -cn --argjson a "$alerts" '$a + ["Thermals elevated"]'); fi
+  ((score < 0)) && score=0
+  ((score < 100)) && level='AMBER'
+  ((score < 65)) && level='RED'
+  host=$(hostnamectl --static 2>/dev/null || hostname)
+  kernel=$(uname -r)
+
+  jq -cn --arg level "$level" --argjson score "$score" --arg host "$host" --arg kernel "$kernel" \
+    --arg uptime "$uptime_label" --argjson memory "$mem_percent" --argjson memoryKiB "$mem_used" \
+    --argjson swap "$swap_percent" --arg load "$load1" --argjson temperature "$temp" \
+    --arg profile "$profile" --arg source "$power_source" --argjson battery "${battery:-0}" --argjson charging "$charging" \
+    --arg interface "$interface" --arg connection "$connection" --arg ip "$ip" --arg rx "$rx_label" --arg tx "$tx_label" \
+    --argjson failed "$failed" --argjson portal "$portal" --argjson pipewire "$pipewire" --argjson wireplumber "$wireplumber" --argjson notifications "$notifications" --argjson session "$session" \
+    --argjson legacy "$legacy" --argjson barMiB "$((bar_pss / 1024))" --argjson barCpu "$bar_cpu" --argjson alerts "$alerts" \
+    '{format:"nocturne-operations-v1",level:$level,score:$score,node:{host:$host,kernel:$kernel,uptime:$uptime},resources:{memory:$memory,memoryKiB:$memoryKiB,swap:$swap,load1:$load,temperature:$temperature,barMiB:$barMiB,barCpu:$barCpu},power:{profile:$profile,source:$source,battery:$battery,charging:$charging},network:{interface:$interface,connection:$connection,ip:$ip,received:$rx,sent:$tx},services:{failed:$failed,portal:$portal,pipewire:$pipewire,wireplumber:$wireplumber,notifications:$notifications,session:$session,legacy:$legacy},alerts:$alerts}'
+}
+
+case ${1:-status} in
+  status) status ;;
+  *) printf 'Usage: %s status\n' "$0" >&2; exit 2 ;;
+esac

@@ -5,6 +5,7 @@ REMEMBER ONLY THESE THREE
   Super + Space           Find and launch any app
   Super + R               Open the full Nocturne Settings app
   Super + Shift + R       Open the graphical resource monitor
+  Super + O               Open the live NOC Operations Deck
   Super + Tab             Overview all workspaces and windows
   Super + Shift + Tab     Save or restore a session scene
   Super + /               Reopen this guide at any time
@@ -119,7 +120,7 @@ THE TOP BAR
   Phone                   KDE Connect card · right sends clipboard
   Brightness              Scroll to adjust · click for themed presets
   SYS button              CPU · RAM · GPU · disk in one grouped button
-  SYS button              Left Nocturne dashboard · right graphical Resources
+  SYS button              Left NOC Operations Deck · right maintenance
   Bell                    Notification history
   Battery                 Battery state · click power/profile/session card
   Coffee/moon             Caffeine mode

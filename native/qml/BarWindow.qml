@@ -240,7 +240,7 @@ ApplicationWindow {
                 tooltip: (shell.systemState.tooltip || "System resources")
                     + "\nAdaptive bar · " + root.monitorCount + " display"
                     + (root.monitorCount === 1 ? "" : "s")
-                onLeftClicked: root.run([backend.home + "/.local/bin/nocturne-dashboard"])
+                onLeftClicked: root.nativeCard("operations", "")
                 onRightClicked: root.nativeCard("maintenance", "")
             }
             Rectangle {

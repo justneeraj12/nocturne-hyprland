@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home=${XDG_CONFIG_HOME:-"$HOME/.config"}
+budget_file="$config_home/nocturne/performance-budget.json"
+helper="$config_home/hypr/scripts/efficiency-control"
+
+[[ -x $helper ]] || { printf 'Efficiency helper is not installed.\n' >&2; exit 2; }
+[[ -r $budget_file ]] || { printf 'Performance budget is not installed.\n' >&2; exit 2; }
+
+report=$($helper status)
+result=$(jq -cn --argjson report "$report" --slurpfile budget "$budget_file" '
+  ($budget[0]) as $b |
+  [
+    {id:"bar-running", label:"Native bar is running", value:$report.shell.barMiB, limit:0, pass:($report.shell.barMiB > 0)},
+    {id:"bar-memory", label:"Native bar proportional memory", value:$report.shell.barMiB, limit:$b.barPssMiB, unit:"MiB", pass:($report.shell.barMiB <= $b.barPssMiB)},
+    {id:"bar-cpu", label:"Native bar idle CPU", value:$report.shell.barCpu, limit:$b.barCpuPercent, unit:"%", pass:($report.shell.barCpu <= $b.barCpuPercent)},
+    {id:"legacy", label:"Competing shell processes", value:$report.shell.legacyProcesses, limit:$b.legacyProcesses, pass:($report.shell.legacyProcesses <= $b.legacyProcesses)},
+    {id:"failed", label:"Failed user services", value:$report.session.failedUnits, limit:$b.failedUnits, pass:($report.session.failedUnits <= $b.failedUnits)}
+  ] as $checks |
+  {format:"nocturne-performance-report-v1",pass:([$checks[].pass]|all),budget:$b,measurements:{memoryPercent:$report.memory.percent,memoryPressure:$report.memory.pressureAvg10,swapUsedKiB:$report.swap.usedKiB,activeUnits:$report.session.activeUnits},checks:$checks}')
+
+case ${1:---summary} in
+  --json) printf '%s\n' "$result" ;;
+  --summary)
+    jq -r '"NOC // PERFORMANCE BUDGET  " + (if .pass then "PASS" else "ATTENTION" end),
+      (.checks[] | (if .pass then "[ OK ] " else "[ !! ] " end) + .label + "  " + (.value|tostring) + (.unit // "") + (if .id == "bar-running" then "" else " / " + (.limit|tostring) + (.unit // "") end))' <<<"$result"
+    ;;
+  *) printf 'Usage: %s --summary|--json\n' "$0" >&2; exit 2 ;;
+esac

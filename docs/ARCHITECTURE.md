@@ -16,6 +16,13 @@ invoking another surface changes the existing owner rather than stacking
 another popup. The full-screen transparent layer exists only while a card is
 open and provides consistent outside-click dismissal.
 
+`nocturne-session.target` owns the essential Wayland-session processes. The
+native bar, idle policy, packaged D-Bus notification provider, PolicyKit agent, clipboard
+watchers, wallpaper cycle and hardware initialization are independently
+supervised, restart only on failure and stop with the graphical session. The
+Hyprland start event first exports the live Wayland environment and then starts
+this single target; it does not spawn a second unmanaged applet stack.
+
 ## System ownership
 
 Nocturne renders controls but does not invent parallel services:
@@ -59,6 +66,10 @@ browsers and editor windows are not reimplemented inside the shell.
 ## Performance choices
 
 - Cards are demand-loaded and terminate after dismissal.
+- The Operations Deck gathers telemetry only during its 2.5-second visible
+  refresh cycle; opening it creates no permanent monitor process.
+- `nocturne-benchmark` enforces a 128 MiB proportional-memory and 2% idle-CPU
+  budget for the native bar, plus zero failed units and zero competing shells.
 - Expensive PipeWire stream discovery runs only while the audio card is open.
 - Brightness is read from sysfs while the display card is visible.
 - Weather and current-location data are cached.

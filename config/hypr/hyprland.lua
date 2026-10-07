@@ -63,14 +63,7 @@ hl.env("XDG_SESSION_DESKTOP", "Hyprland")
 
 hl.on("hyprland.start", function()
     local commands = {
-        "sh -lc 'dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME; systemctl --user restart nocturne-wallpaper-cycle.service'",
-        "hypridle",
-        "mako",
-        scripts .. "bar",
-        hardware .. " touchpad init",
-        "/usr/libexec/hyprpolkitagent",
-        "wl-paste --type text --watch " .. scripts .. "clipboard-control watch",
-        "wl-paste --type image --watch cliphist store",
+        "sh -lc 'dbus-update-activation-environment --systemd WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP QT_QPA_PLATFORMTHEME; systemctl --user restart nocturne-session.target'",
     }
     for _, command in ipairs(commands) do hl.exec_cmd(command) end
 end)
@@ -160,6 +153,7 @@ hl.bind(mod .. " + SHIFT + Tab", run(home .. "/.local/bin/nocturne-native scenes
 hl.bind(mod .. " + slash", run(scripts .. "help"))
 hl.bind(mod .. " + R", run(control))
 hl.bind(mod .. " + SHIFT + R", run("resources"))
+hl.bind(mod .. " + O", run(home .. "/.local/bin/nocturne-native operations"))
 hl.bind(mod .. " + W", run(wallpaper))
 hl.bind(mod .. " + E", run(home .. "/.local/bin/nocturne-files"))
 hl.bind(mod .. " + B", run("xdg-open https://www.google.com"))

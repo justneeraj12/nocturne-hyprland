@@ -63,6 +63,7 @@ personal file names.
 | **Meeting-safe sharing** | Meet and Discord use the trusted Hyprland portal with a compact pinned chooser that stays above the call without disrupting the tiling tree. |
 | **Desktop muscle memory** | Click to open, click again or outside to dismiss, hardware keys show compact native OSD feedback, and ordinary apps tile normally. |
 | **One searchable control center** | Appearance, hardware, defaults, accounts, automation and recovery live in one responsive Settings app with no dead control-center duplicates. |
+| **NOC Operations Deck** | One zero-idle native surface scores node health and exposes live resources, thermals, link, power and control-plane status only while open. |
 | **Laptop-first details** | Bluetooth output auto-routing, laptop-mic preference, live brightness sync, caffeine, deep-sleep tooling and power profiles are included. |
 | **Reversible by design** | The installer snapshots existing desktop config, diagnostics are read-only, and rollback is a supported path—not an afterthought. |
 | **Explainable continuity** | Nocturne can adapt to dock, power, meeting, focus and gaming contexts, but Nocturne Trace tells you why, shows what changed and preserves a direct reversal path. |
@@ -105,6 +106,7 @@ The shell includes:
 - sensitive clipboard filtering, automatic expiry and private pinned text;
 - per-app timed notification muting, grouped alerts and verification-code copying;
 - live privacy and gaming dashboards with on-demand sensor/GPU inspection;
+- a live NOC Operations Deck with node health, resource, thermal, network, power and service telemetry;
 - a red, live screen-sharing indicator with state-aware microphone, camera and portal capture privacy reporting;
 - an on-demand Efficiency Center with memory pressure, shell cost, startup health, top consumers and guarded cache cleanup;
 - calendar, world clocks/weather, persistent task-linked Pomodoro, caffeine and power/session controls;
@@ -134,6 +136,13 @@ The shell includes:
 </details>
 
 More images are in the [showcase](docs/SHOWCASE.md).
+
+<details>
+<summary><strong>See the NOC Operations Deck</strong></summary>
+
+![Nocturne NOC Operations Deck](docs/screenshots/operations-deck.webp)
+
+</details>
 
 <details>
 <summary><strong>See the live Efficiency Center</strong></summary>
@@ -245,6 +254,9 @@ nocturne-doctor
 # structured or compact health output
 nocturne-doctor --json
 nocturne-doctor --summary
+
+# enforce the native-shell memory, CPU and ownership budget
+nocturne-benchmark --summary
 
 # privacy-limited archive for a bug report
 nocturne-support

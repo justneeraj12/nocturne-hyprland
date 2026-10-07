@@ -40,6 +40,13 @@ rollback="$NOCTURNE_STATE/backups/pre-rollback-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$rollback"
 
 systemctl --user disable --now \
+  nocturne-session.target \
+  nocturne-bar.service \
+  nocturne-idle.service \
+  nocturne-polkit.service \
+  nocturne-clipboard-text.service \
+  nocturne-clipboard-image.service \
+  nocturne-hardware-init.service \
   nocturne-wallpaper-cycle.service \
   nocturne-easyeffects.service \
   nocturne-audio-autoswitch.service \
@@ -174,7 +181,7 @@ systemctl --user unmask \
 systemctl --user unmask kde-baloo.service >/dev/null 2>&1 || true
 systemctl --user daemon-reload >/dev/null 2>&1 || true
 
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files steam)
 mkdir -p "$rollback/bin" "$BIN_HOME"
 for binary in "${bin_targets[@]}"; do
   current="$BIN_HOME/$binary"

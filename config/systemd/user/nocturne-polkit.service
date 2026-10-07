@@ -1,0 +1,11 @@
+[Unit]
+Description=Nocturne PolicyKit authentication agent
+After=graphical-session.target
+PartOf=nocturne-session.target graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/libexec/hyprpolkitagent
+Restart=on-failure
+RestartSec=2
+

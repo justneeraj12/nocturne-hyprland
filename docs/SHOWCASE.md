@@ -87,6 +87,13 @@ makes the safety boundary visible before an action.
 
 ![Nocturne System Command](screenshots/system-command.webp)
 
+## NOC Operations Deck
+
+The on-demand node view scores current health and exposes resources, thermals,
+link state, power and service ownership without a resident telemetry daemon.
+
+![Nocturne NOC Operations Deck](screenshots/operations-deck.webp)
+
 Meeting state, portal permissions, startup ownership, Guard and NOC Pulse share
 one responsive page. The narrow capture demonstrates the single-column tiled
 layout; wider windows use the same cards in two columns.

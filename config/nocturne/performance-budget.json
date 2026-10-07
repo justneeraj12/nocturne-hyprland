@@ -1,0 +1,7 @@
+{
+  "format": "nocturne-performance-budget-v1",
+  "barPssMiB": 128,
+  "barCpuPercent": 2.0,
+  "legacyProcesses": 0,
+  "failedUnits": 0
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Nocturne privacy-aware text clipboard history
+After=graphical-session.target
+PartOf=nocturne-session.target graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/wl-paste --type text --watch %h/.config/hypr/scripts/clipboard-control watch
+Restart=on-failure
+RestartSec=2
+
