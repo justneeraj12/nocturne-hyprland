@@ -29,6 +29,9 @@ Lead with the shell screenshot and the short demo. Include the repository,
 supported platform, rollback warning and the exact areas needing test coverage.
 Ask for workflow and install-friction feedback rather than stars.
 
+Use `docs/screenshots/noc-2-showcase-reel.webp` as the poster and
+`docs/media/noc-2-community-labs.mp4` as the silent short demo.
+
 ## r/unixporn
 
 **Title:** [Hyprland] NOC — Nocturne Operations Console

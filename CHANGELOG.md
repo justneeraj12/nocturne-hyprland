@@ -8,6 +8,7 @@
 - Added dock-aware display profiles, monitor-set matching, live geometry controls and explicit deferral of unsafe automatic HDR forcing.
 - Added shared context-timer arbitration so scenes, rules, laptop policy and display profiles cannot disable one another's evaluator.
 - Hardened portable exports against calendar URL, window-title, continuity-key and machine-profile leakage.
+- Added a public-safe NOC 2.0 screenshot suite, branded motion reel and clickable repository showcase poster.
 - Added the zero-resident Security Hub: on-demand official ClamAV detection, optional deep heuristics, AppArmor/firewall/Secure Boot/encryption visibility, package verification and opt-in timers.
 - Added NOC Update Guard with pre-upgrade recovery checkpoints, Hyprland/kernel/GPU and critical-package manifests, post-upgrade verification and a local audit trail.
 - Integrated guarded upgrades into the native Maintenance card while keeping every privileged package operation visible.

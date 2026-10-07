@@ -68,6 +68,11 @@ grep -Fq '~/.config/fastfetch/noc.txt' "$root/config/fastfetch/config.jsonc"
 [[ -s $root/docs/screenshots/storage-center.webp ]]
 [[ -s $root/docs/screenshots/system-command.webp ]]
 [[ -s $root/docs/screenshots/operations-deck.webp ]]
+for asset in noc-2-showcase-reel noc-2-onboarding noc-2-overview noc-2-appearance noc-2-display-lab noc-2-laptop-intelligence noc-2-connected-agenda noc-2-security-hub noc-2-efficiency noc-2-extensions; do
+  [[ -s $root/docs/screenshots/$asset.webp ]]
+done
+[[ -s $root/docs/media/noc-2-community-labs.mp4 ]]
+grep -Fq 'docs/media/noc-2-community-labs.mp4' "$root/README.md"
 printf '[ OK ] public documentation + showcase assets\n'
 
 cmake -S "$root/native" -B "$temporary/native" -G Ninja -DCMAKE_BUILD_TYPE=Release >/dev/null

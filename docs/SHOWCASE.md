@@ -1,10 +1,53 @@
 # Showcase
 
-UI images below were captured from Nocturne 0.6.1–1.1.0 on an empty Hyprland
-workspace on 5–6 October 2026, or from an isolated nested Hyprland session for
-the lock screen. Browser windows, messages, clipboard content, account names,
-Wi-Fi SSIDs and personal files are excluded. The NOC banner is editable
-project artwork rather than a desktop screenshot.
+UI images below were captured from Nocturne 0.6.1–NOC 2.0 Alpha on an empty
+Hyprland workspace on 5–6 October 2026, or from an isolated nested Hyprland
+session for the lock screen. Browser windows, messages, clipboard content,
+account names, Wi-Fi SSIDs, calendar subscriptions and personal files are
+excluded. The NOC banner is editable project artwork rather than a desktop
+screenshot.
+
+## NOC 2.0 Community Labs reel
+
+[![Watch the NOC 2.0 Community Labs reel](screenshots/noc-2-showcase-reel.webp)](media/noc-2-community-labs.mp4)
+
+The 25-second silent reel uses controlled motion edits from the public-safe
+frames below. It is H.264 High Profile, 1280×720, `yuv420p` and optimized for
+progressive browser playback.
+
+## NOC 2.0 control center
+
+<p align="center">
+  <img src="screenshots/noc-2-onboarding.webp" alt="NOC 2.0 first-run hardware onboarding" width="49%">
+  <img src="screenshots/noc-2-overview.webp" alt="NOC 2.0 system overview" width="49%">
+</p>
+
+The first-run path detects capabilities without publishing hardware IDs and
+keeps every setup step optional. Overview provides the familiar one-page route
+into appearance, connectivity, audio, displays, power and integrations.
+
+![NOC 2.0 appearance and wallpaper control](screenshots/noc-2-appearance.webp)
+
+<p align="center">
+  <img src="screenshots/noc-2-display-lab.webp" alt="NOC 2.0 Display Lab" width="49%">
+  <img src="screenshots/noc-2-laptop-intelligence.webp" alt="NOC 2.0 Laptop Intelligence" width="49%">
+</p>
+
+Display Lab handles live output geometry and dock profiles. Laptop Intelligence
+shares real brightness, battery, refresh, Bluetooth and firmware capabilities
+with the hardware keys and existing context engine.
+
+![NOC 2.0 private Connected Agenda](screenshots/noc-2-connected-agenda.webp)
+
+<p align="center">
+  <img src="screenshots/noc-2-security-hub.webp" alt="NOC 2.0 Security Hub" width="49%">
+  <img src="screenshots/noc-2-efficiency.webp" alt="NOC 2.0 Efficiency Center" width="49%">
+</p>
+
+![NOC 2.0 capability-gated extensions](screenshots/noc-2-extensions.webp)
+
+Agenda subscriptions remain read-only and redacted. Security and efficiency
+checks are on demand, while the extension contract blocks executable payloads.
 
 ## NOC identity
 

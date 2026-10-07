@@ -39,6 +39,14 @@ history, power modes, screenshots and screen recording to behave normally.
 > [roadmap](ROADMAP.md) or join [Discussions](https://github.com/justneeraj12/nocturne-hyprland/discussions).
 > Community testers can start with the [Alpha 2 notes](docs/RELEASE-2.0-ALPHA2.md).
 
+<p align="center">
+  <a href="docs/media/noc-2-community-labs.mp4">
+    <img src="docs/screenshots/noc-2-showcase-reel.webp" alt="Watch the NOC 2.0 Community Labs showcase reel" width="100%">
+  </a>
+  <br>
+  <sub>Click the frame for the 25-second NOC 2.0 showcase reel.</sub>
+</p>
+
 ## Current release // 1.3.0
 
 Nocturne 1.3 expands the visual identity without forking critical system behavior. The [release notes](docs/RELEASE-1.3.md) describe the complete lock and terminal system.
