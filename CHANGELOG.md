@@ -2,6 +2,10 @@
 
 ## 2.0.0-alpha.1 - Development
 
+- Added NOC Update Guard with pre-upgrade recovery checkpoints, Hyprland/kernel/GPU and critical-package manifests, post-upgrade verification and a local audit trail.
+- Integrated guarded upgrades into the native Maintenance card while keeping every privileged package operation visible.
+- Made Kitty, Powerlevel10k, FZF, suggestions and syntax highlighting follow the active NOC palette and sharp compact design language.
+- Published the October 2026 Hyprland community-demand scan and used its highest recurring unmet need to select this work.
 - Established explicit Community and private Operator trust domains with a machine-readable zero-telemetry edition manifest.
 - Added age-encrypted multi-device continuity for roaming preferences and workflow data with device-local hardware state, safe pull backups and remote-conflict refusal.
 - Added the private download-edge contract for country/date/release aggregation without client telemetry or device identifiers.

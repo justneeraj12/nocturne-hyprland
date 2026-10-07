@@ -32,7 +32,7 @@ dependency on this system.
 | Hyprland adapter | Workspaces, windows, monitors, gestures and IPC |
 | Service adapters | NetworkManager, BlueZ, PipeWire, UPower and portals |
 | Continuity | Encrypted roaming state with conflict refusal |
-| Recovery | Pre-install snapshot and last-known-good rollback |
+| Recovery | Pre-install snapshot, last-known-good rollback and guarded system upgrades |
 | Operator overlay | Private distribution aggregate, never desktop telemetry |
 
 ## Continuity model

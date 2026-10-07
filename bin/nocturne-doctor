@@ -337,6 +337,14 @@ else
 fi
 recovery=$($HOME/.local/bin/nocturne-recovery status 2>/dev/null || true)
 if jq -e '.exists == true' >/dev/null 2>&1 <<<"$recovery"; then ok 'Last-known-good recovery checkpoint is ready'; else warning 'No recovery checkpoint exists yet'; fi
+update_guard=$($HOME/.local/bin/nocturne-update-guard status 2>/dev/null || true)
+if jq -e '.phase == "protected" or .phase == "verified"' >/dev/null 2>&1 <<<"$update_guard"; then
+  ok "Update Guard: $(jq -r '.reason' <<<"$update_guard")"
+elif jq -e '.format == "nocturne-update-guard-v1"' >/dev/null 2>&1 <<<"$update_guard"; then
+  warning "Update Guard: $(jq -r '.reason' <<<"$update_guard")"
+else
+  warning 'NOC Update Guard is not installed'
+fi
 pgrep -x hyprpolkitagent >/dev/null 2>&1 && ok 'Hyprland password agent is running' || bad 'Hyprland password agent is not running'
 
 if [[ -x $HOME/.local/bin/hyprshot ]] \

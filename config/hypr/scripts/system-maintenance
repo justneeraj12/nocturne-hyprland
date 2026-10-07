@@ -3,23 +3,25 @@ set -euo pipefail
 
 bin_home="$HOME/.local/bin"
 platform="$bin_home/nocturne-platform"
+guard="$bin_home/nocturne-update-guard"
 
 count_lines() {
   awk 'NF {count++} END {print count + 0}'
 }
 
 status() {
-  local package_count flatpak_count firmware_count failed_count platform_state
+  local package_count flatpak_count firmware_count failed_count platform_state guard_state
   platform_state=$($platform status)
   package_count=$($platform pending)
   flatpak_count=$(timeout 8 flatpak remote-ls --user --updates --columns=application 2>/dev/null | count_lines || printf 0)
   firmware_count=$(timeout 8 fwupdmgr get-updates --json 2>/dev/null \
     | jq '[(.Devices // .devices // [])[]? | .Releases // .releases // [] | length] | add // 0' 2>/dev/null || printf 0)
   failed_count=$(systemctl --user --failed --no-legend 2>/dev/null | count_lines)
+  guard_state=$($guard status 2>/dev/null || printf '{"phase":"unavailable","risk":"critical","reason":"UPDATE GUARD UNAVAILABLE","prepared":false,"checkpoint":false,"hyprland":{"current":"unknown","pending":""}}')
   jq -cn --argjson packages "$package_count" --argjson flatpak "$flatpak_count" \
     --argjson firmware "$firmware_count" --argjson failed "$failed_count" \
-    --argjson platform "$platform_state" \
-    '{packages:$packages,flatpak:$flatpak,firmware:$firmware,failed:$failed,platform:$platform}'
+    --argjson platform "$platform_state" --argjson guard "$guard_state" \
+    '{packages:$packages,flatpak:$flatpak,firmware:$firmware,failed:$failed,platform:$platform,guard:$guard}'
 }
 
 open_terminal() {
@@ -30,9 +32,15 @@ open_terminal() {
 case ${1:-status} in
   status) status ;;
   refresh) open_terminal 'Nocturne · Refresh updates' "$($platform refresh-command); printf '\nMetadata refresh finished.\n'" ;;
-  packages) open_terminal 'Nocturne · System packages' "$($platform upgrade-command); printf '\nSystem package task finished.\n'" ;;
+  packages)
+    upgrade_command=$($platform upgrade-command)
+    open_terminal 'Nocturne · Guarded system upgrade' \
+      "if '$guard' prepare; then if $upgrade_command; then '$guard' verify; else printf '\nPackage upgrade failed; the NOC checkpoint remains intact.\n'; exit 1; fi; fi"
+    ;;
+  prepare) open_terminal 'Nocturne · Prepare update checkpoint' "'$guard' prepare" ;;
+  verify) open_terminal 'Nocturne · Verify updated desktop' "'$guard' verify" ;;
   flatpak) open_terminal 'Nocturne · Flatpak updates' 'flatpak update --user; printf "\nFlatpak task finished.\n"' ;;
   firmware) open_terminal 'Nocturne · Firmware' 'fwupdmgr get-devices; fwupdmgr get-updates; printf "\nUse: sudo fwupdmgr update\n"' ;;
   doctor) open_terminal 'Nocturne · System check' "'$bin_home/nocturne-doctor'; printf '\nRead-only check finished.\n'" ;;
-  *) printf 'Usage: %s status|refresh|packages|flatpak|firmware|doctor\n' "$0" >&2; exit 2 ;;
+  *) printf 'Usage: %s status|refresh|packages|prepare|verify|flatpak|firmware|doctor\n' "$0" >&2; exit 2 ;;
 esac

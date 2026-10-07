@@ -24,6 +24,8 @@ grep -Fq 'nocturne-context.timer' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-context.timer' "$root/uninstall.sh"
 grep -Fq 'nocturne-session.target' "$root/apply-hyprland.sh"
 grep -Fq 'nocturne-session.target' "$root/uninstall.sh"
+grep -Fq '# >>> Nocturne desktop >>>' "$root/apply-hyprland.sh"
+grep -Fq '# >>> Nocturne desktop >>>' "$root/uninstall.sh"
 
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT
@@ -52,5 +54,23 @@ jq -e '.family == "debian" and (.packages | index("qml6-module-org-kde-layershel
 grep -Fq 'nocturne-polkit-agent' "$root/config/systemd/user/nocturne-polkit.service"
 grep -Fq "platform upgrade-command" "$root/config/hypr/scripts/system-maintenance"
 ! grep -Eq '\b(apt|apt-get|pacman)\b' "$root/config/hypr/scripts/system-maintenance"
+
+guard_home="$test_root/guard-home"
+mkdir -p "$guard_home/.config/hypr" "$guard_home/.local/bin" "$test_root/guard-state" "$test_root/guard-bin"
+printf '%s\n' 'return {}' > "$guard_home/.config/hypr/hyprland.lua"
+printf '%s\n' '#!/usr/bin/env bash' 'case ${1:-status} in checkpoint) exit 0 ;; status) printf '\''{"exists":true}\n'\'' ;; esac' > "$test_root/guard-bin/recovery"
+printf '%s\n' '#!/usr/bin/env bash' 'printf '\''{"family":"arch","supported":true}\n'\''' > "$test_root/guard-bin/platform"
+printf '%s\n' '#!/usr/bin/env bash' '[[ ${1:-} == --self-test ]]' > "$test_root/guard-bin/native"
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' > "$test_root/guard-bin/xdg-desktop-portal-hyprland"
+chmod +x "$test_root/guard-bin/"*
+guard_env=(HOME="$guard_home" PATH="$test_root/guard-bin:$PATH" NOCTURNE_UPDATE_GUARD_STATE_ROOT="$test_root/guard-state" NOCTURNE_RECOVERY_TOOL="$test_root/guard-bin/recovery" NOCTURNE_PLATFORM_TOOL="$test_root/guard-bin/platform" NOCTURNE_NATIVE_TOOL="$test_root/guard-bin/native" NOCTURNE_HYPRLAND_CONFIG="$guard_home/.config/hypr/hyprland.lua" NOCTURNE_HYPRLAND_VERSION="0.56.0" NOCTURNE_PENDING_HYPRLAND_VERSION="0.57.0")
+env "${guard_env[@]}" "$root/bin/nocturne-update-guard" status | jq -e '.format == "nocturne-update-guard-v1" and .phase == "checkpoint-only" and .hyprland.updateAvailable == true' >/dev/null
+env "${guard_env[@]}" "$root/bin/nocturne-update-guard" prepare >/dev/null
+env "${guard_env[@]}" "$root/bin/nocturne-update-guard" status | jq -e '.phase == "protected" and .prepared == true' >/dev/null
+guard_verify=$(env "${guard_env[@]}" "$root/bin/nocturne-update-guard" verify 2>&1) || {
+  printf 'Update Guard verification fixture failed:\n%s\n' "$guard_verify" >&2
+  exit 1
+}
+env "${guard_env[@]}" "$root/bin/nocturne-update-guard" history | jq -e 'length == 1 and .[0].ok == true' >/dev/null
 
 printf 'NOCTURNE // installer and rollback contracts match\n'

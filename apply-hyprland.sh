@@ -84,7 +84,7 @@ if [[ -e "$CONFIG_HOME/environment.d/10-nocturne-path.conf" ]]; then
   cp -a -- "$CONFIG_HOME/environment.d/10-nocturne-path.conf" "$snapshot/environment.d/10-nocturne-path.conf"
 fi
 mkdir -p "$snapshot/bin" "$snapshot/backgrounds" "$snapshot/color-schemes"
-bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent steam)
+bin_targets=(nocturne-native nocturne-dashboard nocturne-visualizer nocturne-settings nocturne-web-app nocturne-browser nocturne-wallpaper-cycle nocturne-doctor nocturne-benchmark nocturne-banner nocturne-continuity nocturne-support nocturne-portable nocturne-recovery nocturne-update-guard nocturne-migrate nocturne-signal nocturne-files nocturne-platform nocturne-polkit-agent steam)
 for binary in "${bin_targets[@]}"; do
   if [[ -e "$BIN_HOME/$binary" ]]; then
     cp -a -- "$BIN_HOME/$binary" "$snapshot/bin/$binary"
@@ -159,6 +159,14 @@ cp -a -- "$ROOT_DIR/config/qt6ct/." "$CONFIG_HOME/qt6ct/"
 sed "s|@CONFIG_HOME@|$CONFIG_HOME|g" "$ROOT_DIR/config/qt6ct/qt6ct.conf" \
   > "$CONFIG_HOME/qt6ct/qt6ct.conf"
 install -m 0644 "$ROOT_DIR/config/kitty/kitty.conf" "$CONFIG_HOME/kitty/kitty.conf"
+install -m 0644 "$ROOT_DIR/config/zsh/nocturne.zsh" "$CONFIG_HOME/nocturne/zsh.zsh"
+if command -v zsh >/dev/null 2>&1 && ! grep -Fq '# >>> Nocturne desktop >>>' "$HOME/.zshrc" 2>/dev/null; then
+  {
+    printf '\n%s\n' '# >>> Nocturne desktop >>>'
+    printf '%s\n' '[[ ! -f ${XDG_CONFIG_HOME:-$HOME/.config}/nocturne/zsh.zsh ]] || source ${XDG_CONFIG_HOME:-$HOME/.config}/nocturne/zsh.zsh'
+    printf '%s\n' '# <<< Nocturne desktop <<<'
+  } >> "$HOME/.zshrc"
+fi
 install -m 0644 "$ROOT_DIR/config/btop/btop.conf" "$CONFIG_HOME/btop/btop.conf"
 install -m 0644 "$ROOT_DIR/config/btop/nocturne.theme" "$CONFIG_HOME/btop/themes/nocturne.theme"
 install -m 0644 "$ROOT_DIR/config/tmux/tmux.conf" "$CONFIG_HOME/tmux/tmux.conf"
@@ -243,6 +251,7 @@ install -m 0755 "$ROOT_DIR/bin/nocturne-continuity" "$BIN_HOME/nocturne-continui
 install -m 0755 "$ROOT_DIR/bin/nocturne-support" "$BIN_HOME/nocturne-support"
 install -m 0755 "$ROOT_DIR/bin/nocturne-portable" "$BIN_HOME/nocturne-portable"
 install -m 0755 "$ROOT_DIR/bin/nocturne-recovery" "$BIN_HOME/nocturne-recovery"
+install -m 0755 "$ROOT_DIR/bin/nocturne-update-guard" "$BIN_HOME/nocturne-update-guard"
 install -m 0755 "$ROOT_DIR/bin/nocturne-migrate" "$BIN_HOME/nocturne-migrate"
 install -m 0755 "$ROOT_DIR/bin/nocturne-signal" "$BIN_HOME/nocturne-signal"
 install -m 0755 "$ROOT_DIR/bin/nocturne-files" "$BIN_HOME/nocturne-files"
